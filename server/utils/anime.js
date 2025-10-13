@@ -171,94 +171,106 @@ export async function matchAnime(animeList) {
     return results.filter(Boolean)
 }
 
-export async function cfFetch(url, options = {}) {
-    const startTime = Date.now()
-    const now = Date.now()
-    const { method = "GET", body = null, headers = {}, postData = null } = options
-
-    // Create cache key that includes method and body for POST requests
-    const cacheKey = method === "POST" ? `${method}:${url}:${JSON.stringify(body || postData)}` : url
-
-    // Check cache first (you may want to disable caching for POST requests)
-    const cached = responseCache.get(cacheKey)
-    if (cached && now - cached.timestamp < CACHE_LIFETIME) {
-        console.log(`Cache hit for: ${url} (${cached.html.length} bytes)`)
-        // Return the full cached object with cookies
-        return {
-            html: cached.html,
-            cookies: cached.cookies || [],
-            headers: cached.headers || {},
-        }
-    }
-
+export async function cfFetch(url) {
     try {
-        // Get or create a session
-        const session = await getFlareSolverrSession()
-        console.log(`Fetching via FlareSolverr [${method}]: ${url}`)
+        const response = await fetch(url)
+        if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}}`) }
 
-        const requestData = {
-            cmd: method === "POST" ? "request.post" : "request.get",
-            url: url,
-            maxTimeout: 60000,
-        }
-
-        // Add session if available
-        if (session) {
-            requestData.session = session
-        }
-
-        // Add POST data if provided
-        if (method === "POST" && (body || postData)) {
-            requestData.postData = postData || (typeof body === "string" ? body : JSON.stringify(body))
-        }
-
-        // Add custom headers if provided
-        if (Object.keys(headers).length > 0) {
-            requestData.headers = headers
-        }
-
-        const response = await axios.post(FLARESOLVERR_URL, requestData)
-        if (response.data.status === "ok") {
-            const html = response.data.solution.response
-            const cookies = response.data.solution.cookies || []
-            const responseHeaders = response.data.solution.headers || {}
-            const duration = ((Date.now() - startTime) / 1000).toFixed(2)
-
-            // Verify we didn't get a Cloudflare challenge page
-            if (html.includes("系統異常回報") || html.includes("Just a moment")) {
-                console.error("Still got Cloudflare challenge page")
-                return null
-            }
-
-            // Cache the response WITH cookies
-            responseCache.set(cacheKey, {
-                html: html,
-                cookies: cookies,
-                headers: responseHeaders,
-                timestamp: now,
-            })
-
-            // Clean old cache entries (keep cache size manageable)
-            if (responseCache.size > 100) {
-                const firstKey = responseCache.keys().next().value
-                responseCache.delete(firstKey)
-            }
-
-            console.log(`Successfully fetched [${method}] in ${duration}s: ${url} (${html.length} bytes)`)
-
-            // Return object with html, cookies, and headers
-            return {
-                html: html,
-                cookies: cookies,
-                headers: responseHeaders,
-            }
-        } else {
-            console.error("FlareSolverr error:", response.data.message)
-            return null
-        }
+        const html = await response.text()
+        return { html }
     } catch (error) {
-        const duration = ((Date.now() - startTime) / 1000).toFixed(2)
-        console.error(`FlareSolverr request failed after ${duration}s:`, error.message)
-        return null
+        return null;
     }
 }
+
+// export async function cfFetch(url, options = {}) {
+//     const startTime = Date.now()
+//     const now = Date.now()
+//     const { method = "GET", body = null, headers = {}, postData = null } = options
+
+//     // Create cache key that includes method and body for POST requests
+//     const cacheKey = method === "POST" ? `${method}:${url}:${JSON.stringify(body || postData)}` : url
+
+//     // Check cache first (you may want to disable caching for POST requests)
+//     const cached = responseCache.get(cacheKey)
+//     if (cached && now - cached.timestamp < CACHE_LIFETIME) {
+//         console.log(`Cache hit for: ${url} (${cached.html.length} bytes)`)
+//         // Return the full cached object with cookies
+//         return {
+//             html: cached.html,
+//             cookies: cached.cookies || [],
+//             headers: cached.headers || {},
+//         }
+//     }
+
+//     try {
+//         // Get or create a session
+//         const session = await getFlareSolverrSession()
+//         console.log(`Fetching via FlareSolverr [${method}]: ${url}`)
+
+//         const requestData = {
+//             cmd: method === "POST" ? "request.post" : "request.get",
+//             url: url,
+//             maxTimeout: 60000,
+//         }
+
+//         // Add session if available
+//         if (session) {
+//             requestData.session = session
+//         }
+
+//         // Add POST data if provided
+//         if (method === "POST" && (body || postData)) {
+//             requestData.postData = postData || (typeof body === "string" ? body : JSON.stringify(body))
+//         }
+
+//         // Add custom headers if provided
+//         if (Object.keys(headers).length > 0) {
+//             requestData.headers = headers
+//         }
+
+//         const response = await axios.post(FLARESOLVERR_URL, requestData)
+//         if (response.data.status === "ok") {
+//             const html = response.data.solution.response
+//             const cookies = response.data.solution.cookies || []
+//             const responseHeaders = response.data.solution.headers || {}
+//             const duration = ((Date.now() - startTime) / 1000).toFixed(2)
+
+//             // Verify we didn't get a Cloudflare challenge page
+//             if (html.includes("系統異常回報") || html.includes("Just a moment")) {
+//                 console.error("Still got Cloudflare challenge page")
+//                 return null
+//             }
+
+//             // Cache the response WITH cookies
+//             responseCache.set(cacheKey, {
+//                 html: html,
+//                 cookies: cookies,
+//                 headers: responseHeaders,
+//                 timestamp: now,
+//             })
+
+//             // Clean old cache entries (keep cache size manageable)
+//             if (responseCache.size > 100) {
+//                 const firstKey = responseCache.keys().next().value
+//                 responseCache.delete(firstKey)
+//             }
+
+//             console.log(`Successfully fetched [${method}] in ${duration}s: ${url} (${html.length} bytes)`)
+
+//             // Return object with html, cookies, and headers
+//             return {
+//                 html: html,
+//                 cookies: cookies,
+//                 headers: responseHeaders,
+//             }
+//         } else {
+//             console.error("FlareSolverr error:", response.data.message)
+//             return null
+//         }
+//     } catch (error) {
+//         const duration = ((Date.now() - startTime) / 1000).toFixed(2)
+//         console.error(`FlareSolverr request failed after ${duration}s:`, error.message)
+//         return null
+//     }
+// }
