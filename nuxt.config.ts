@@ -26,6 +26,11 @@ export default defineNuxtConfig({
                     sizes: "512x512",
                     type: "image/png",
                 },
+                {
+                    src: "icons/icon_1024x1024.png",
+                    sizes: "1024x1024",
+                    type: "image/png",
+                },
             ],
         },
         workbox: {

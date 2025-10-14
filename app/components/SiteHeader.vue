@@ -4,7 +4,7 @@
             <!-- Left: Logo -->
             <div class="flex items-center gap-2">
                 <NuxtLink to="/" class="flex items-center gap-2 group">
-                    <img class="w-8 h-8 flex items-center justify-center" src="/icons/icon_512x512.png" alt="" />
+                    <img class="w-8 h-8 flex items-center justify-center" src="/icons/icon_1024x1024.png" alt="" />
                     <span class="text-indigo-600 dark:text-indigo-400 font-bold text-xl">Anime Hub</span>
                 </NuxtLink>
             </div>
