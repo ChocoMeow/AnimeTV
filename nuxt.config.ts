@@ -7,8 +7,9 @@ export default defineNuxtConfig({
             name: "Anime Hub",
             short_name: "Anime Hub",
             description: "Stream your favorite anime series and movies anytime, anywhere.",
-            theme_color: "#000000",
-            background_color: "#000000",
+            theme_color: "#2d3748",
+            background_color: "#2d3748",
+            display: "standalone",
             icons: [
                 {
                     src: "icons/icon_64x64.png",
