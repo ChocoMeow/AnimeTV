@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
         const getText = (el, selector) => $(el).find(selector).text().trim() || null
         const getAttr = (el, selector, attr) => $(el).find(selector).attr(attr)?.trim() || null
 
-        const rawList = $(".theme-list-block .theme-list-main")
+        const rawList = $(".animate-theme-list .theme-list-block .theme-list-main")
             .map((_, movie) => {
                 const href = $(movie).attr("href") || ""
                 const refId = href.match(/sn=(\d+)/)?.[1] || null
@@ -29,7 +29,11 @@ export default defineEventHandler(async (event) => {
             })
             .get()
 
+        if (!rawList || rawList.length === 0) {
+            return { results: [] }
+        }
         const results = await matchAnime(rawList)
+        console.log(results)
         return { results }
     } catch (err) {
         console.error("Error scraping anime list:", err.message)

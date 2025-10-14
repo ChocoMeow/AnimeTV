@@ -94,7 +94,7 @@ onMounted(() => fetchAnime(1))
         <div class="sticky top-16 z-40 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 shadow-sm rounded-2xl">
             <div class="max-w-7xl mx-auto px-4 py-4">
                 <!-- Header with Toggle -->
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <h2 class="text-lg font-bold text-gray-900 dark:text-white">篩選條件</h2>
                         <span v-if="selectedTags.length || selectedCategory" class="px-2 py-1 text-xs font-semibold bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full">
@@ -106,7 +106,7 @@ onMounted(() => fetchAnime(1))
                             <span class="material-icons text-sm">clear</span>
                             清除全部
                         </button>
-                        <button @click="showFilters = !showFilters" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <button @click="showFilters = !showFilters" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center">
                             <span class="material-icons text-gray-600 dark:text-gray-300">
                                 {{ showFilters ? "expand_less" : "expand_more" }}
                             </span>
@@ -116,7 +116,7 @@ onMounted(() => fetchAnime(1))
 
                 <!-- Filter Content -->
                 <transition name="filter-expand">
-                    <div v-if="showFilters" class="space-y-4">
+                    <div v-if="showFilters" class="space-y-4 mt-4">
                         <!-- Category Filter -->
                         <div class="flex flex-wrap items-center gap-3">
                             <label class="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[60px]">類型:</label>

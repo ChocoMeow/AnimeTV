@@ -313,7 +313,7 @@ onMounted(fetchDetail)
 <style scoped>
 /* Content Card */
 .content-card {
-    @apply bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 transition-all duration-300;
+    @apply bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl;
 }
 
 /* Info Card */

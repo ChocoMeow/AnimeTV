@@ -1,73 +1,73 @@
 // Requires: npm install axios
 // Requires: FlareSolverr running on http://localhost:8191
-import axios from "axios"
+// import axios from "axios"
 
 // Cache variable
 let cachedAnimeList = null
 let fetchPromise = null
 
-const FLARESOLVERR_URL = "http://localhost:8191/v1"
+// const FLARESOLVERR_URL = "http://localhost:8191/v1"
 
 // FlareSolverr session management
-let flaresolverrSession = null
-let flaresolverrSessionPromise = null
-let sessionCreatedAt = null
-const SESSION_LIFETIME = 1000 * 60 * 120 // 120 minutes
+// let flaresolverrSession = null
+// let flaresolverrSessionPromise = null
+// let sessionCreatedAt = null
+// const SESSION_LIFETIME = 1000 * 60 * 120 // 120 minutes
 
 // Response cache to avoid redundant requests
 const responseCache = new Map()
 const CACHE_LIFETIME = 1000 * 60 * 12 // 12 hours
 
-async function getFlareSolverrSession() {
-    const now = Date.now()
+// async function getFlareSolverrSession() {
+//     const now = Date.now()
 
-    // If already creating a session, wait for that promise
-    if (flaresolverrSessionPromise) {
-        return flaresolverrSessionPromise
-    }
+//     // If already creating a session, wait for that promise
+//     if (flaresolverrSessionPromise) {
+//         return flaresolverrSessionPromise
+//     }
 
-    // Reuse existing session if it's still valid
-    if (flaresolverrSession && sessionCreatedAt && now - sessionCreatedAt < SESSION_LIFETIME) {
-        return flaresolverrSession
-    }
+//     // Reuse existing session if it's still valid
+//     if (flaresolverrSession && sessionCreatedAt && now - sessionCreatedAt < SESSION_LIFETIME) {
+//         return flaresolverrSession
+//     }
 
-    // Create promise for new session
-    flaresolverrSessionPromise = (async () => {
-        // Destroy old session if exists
-        if (flaresolverrSession) {
-            try {
-                await axios.post(FLARESOLVERR_URL, {
-                    cmd: "sessions.destroy",
-                    session: flaresolverrSession,
-                })
-            } catch (err) {
-                console.log("Failed to destroy old session:", err.message)
-            }
-        }
+//     // Create promise for new session
+//     flaresolverrSessionPromise = (async () => {
+//         // Destroy old session if exists
+//         if (flaresolverrSession) {
+//             try {
+//                 await axios.post(FLARESOLVERR_URL, {
+//                     cmd: "sessions.destroy",
+//                     session: flaresolverrSession,
+//                 })
+//             } catch (err) {
+//                 console.log("Failed to destroy old session:", err.message)
+//             }
+//         }
 
-        // Create new session
-        try {
-            const response = await axios.post(FLARESOLVERR_URL, {
-                cmd: "sessions.create",
-            })
+//         // Create new session
+//         try {
+//             const response = await axios.post(FLARESOLVERR_URL, {
+//                 cmd: "sessions.create",
+//             })
 
-            if (response.data.status === "ok") {
-                flaresolverrSession = response.data.session
-                sessionCreatedAt = now
-                console.log("Created new FlareSolverr session:", flaresolverrSession)
-                return flaresolverrSession
-            }
-        } catch (err) {
-            console.error("Failed to create FlareSolverr session:", err.message)
-        }
+//             if (response.data.status === "ok") {
+//                 flaresolverrSession = response.data.session
+//                 sessionCreatedAt = now
+//                 console.log("Created new FlareSolverr session:", flaresolverrSession)
+//                 return flaresolverrSession
+//             }
+//         } catch (err) {
+//             console.error("Failed to create FlareSolverr session:", err.message)
+//         }
 
-        return null
-    })()
+//         return null
+//     })()
 
-    const result = await flaresolverrSessionPromise
-    flaresolverrSessionPromise = null // Clear promise after completion
-    return result
-}
+//     const result = await flaresolverrSessionPromise
+//     flaresolverrSessionPromise = null // Clear promise after completion
+//     return result
+// }
 
 function toChineseNumber(num) {
     const map = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"]
@@ -87,7 +87,7 @@ function normalizeTitle(str) {
         .replace(/season\s*(\d+)/gi, (_, num) => `第${toChineseNumber(num)}季`)
         .replace(/\bs(\d+)\b/gi, (_, num) => `第${toChineseNumber(num)}季`)
         .replace(/\s*(\d+)\s*$/, (_, num) => ` 第${toChineseNumber(num)}季`)
-        .replace(/[.,:;=\-\/?()'"!@#$%^&*_+[\]{}<>|`~‧·′'－．・～：]/g, "")
+        .replace(/[.,:;=\-\/?()'"!@#$%^&*_+[\]{}<>|`~‧·′'－．・～：’]/g, "")
         .replace(/\s+/g, "")
         .trim()
         .toLowerCase()
@@ -147,6 +147,10 @@ export async function matchAnime(animeList) {
     const results = await Promise.all(
         animeList.map(async (anime) => {
             try {
+                if (!anime.title || !anime.refId) {
+                    return null;
+                }
+
                 const videoDetails = await searchAnimeTitle(anime.title)
                 if (!videoDetails || videoDetails.length === 0) {
                     console.warn(`No search results for: ${anime.title}`)
@@ -173,11 +177,27 @@ export async function matchAnime(animeList) {
 
 export async function cfFetch(url) {
     try {
+        const now = Date.now()
+
+        const cached = responseCache.get(url)
+        if (cached && now - cached.timestamp < CACHE_LIFETIME) {
+            console.log(`Cache hit for: ${url} (${cached.html.length} bytes)`)
+            return cached
+        }
+
         const response = await fetch(url)
         if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}}`) }
 
         const html = await response.text()
-        return { html }
+        const result = { html, timestamp: now }
+
+        responseCache.set(url, result)
+        if (responseCache.size > 200) {
+            const firstKey = responseCache.keys().next().value
+            responseCache.delete(firstKey)
+        }
+
+        return result
     } catch (error) {
         return null;
     }

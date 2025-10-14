@@ -169,25 +169,17 @@ async function scrapeAllAnime() {
     const { html } = await cfFetch(GAMER_BASE_URL)
     const $ = cheerio.load(html)
 
-    // 1) Scrape all anime blocks synchronously from DOM
     const scrapedItems = scrapeAnimeBlocks($)
-
-    // 2) Optionally filter scraped items by searchAnimeTitle to ensure they exist
-    //    If you want to keep all scraped items regardless of search results, skip this.
     const validatedItems = await filterScrapedItemsBySearch(scrapedItems)
 
-    // 3) Group by dayCode
     const byDay = {}
     for (const item of validatedItems) {
         const { dayCode, searchResult, ...payload } = item
         if (!byDay[dayCode]) byDay[dayCode] = []
-        // include searchResult if you want additional metadata:
         byDay[dayCode].push({ ...payload, searchResult })
     }
 
-    // 4) Scrape theme lists and run matchAnime on them
     const themes = await scrapeThemesAndMatch($)
-
     const result = {
         byDay,
         themes,
@@ -222,7 +214,6 @@ async function fetchEpisodeTokens(categoryId) {
                 }
             })
 
-            // check if there's a "previous" page link (pagination)
             const prevLink = $(".nav-previous a").attr("href")
             nextPageUrl = prevLink ? prevLink : null
         }
@@ -266,7 +257,7 @@ async function scrapeAnimeDetailByVideoId(videoId) {
             .map((_, tag) => $(tag).text().trim())
             .get()
 
-        const relatedAnime = $(".old_list .anime_slider .theme-list-main")
+        const rawRelatedAnime = $(".old_list .anime_slider .theme-list-main")
             .map((_, movie) => {
                 const $movie = $(movie)
                 const href = $movie.attr("href") || ""
@@ -282,6 +273,7 @@ async function scrapeAnimeDetailByVideoId(videoId) {
                 }
             })
             .get()
+        const relatedAnime = await matchAnime(rawRelatedAnime)
 
         // Match anime to get video details
         if (!title) {
@@ -289,7 +281,7 @@ async function scrapeAnimeDetailByVideoId(videoId) {
             return null
         }
 
-        const matchedVideo = await matchAnime([{ title, year: premiereDate }]).then((results) => results[0].matchedVideo)
+        const matchedVideo = await matchAnime([{ title, refId: videoId, year: premiereDate }]).then((results) => results[0].matchedVideo)
         const episodes = await fetchEpisodeTokens(matchedVideo.id).then((data) => data.episodes)
 
         return {
