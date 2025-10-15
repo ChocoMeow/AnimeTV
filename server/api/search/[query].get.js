@@ -33,7 +33,6 @@ export default defineEventHandler(async (event) => {
             return { results: [] }
         }
         const results = await matchAnime(rawList)
-        console.log(results)
         return { results }
     } catch (err) {
         console.error("Error scraping anime list:", err.message)

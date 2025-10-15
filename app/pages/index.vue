@@ -2,10 +2,6 @@
 import { ref, onMounted } from "vue"
 import { useRouter } from "vue-router"
 
-definePageMeta({
-    layout: "default",
-})
-
 const router = useRouter()
 const loading = ref(false)
 const byDay = ref({})
@@ -37,7 +33,6 @@ function goToDetailByVideoId(videoId) {
     router.push(`/anime/${videoId}?type=video`)
 }
 
-
 async function fetchHomeAnime() {
     loading.value = true
     try {
@@ -64,6 +59,7 @@ function formatViews(views) {
     return views
 }
 
+useHead({ title: `每日新番 | Anime Hub`})
 onMounted(fetchHomeAnime)
 </script>
 

@@ -13,15 +13,6 @@ const loading = ref(true)
 const videoLoading = ref(false)
 const isFavorite = ref(false)
 
-function findFirstValidEpisode(episodesObj) {
-    const keys = Object.keys(episodesObj || {})
-        .filter((k) => episodesObj[k])
-        .map((k) => Number(k))
-        .filter((n) => !Number.isNaN(n))
-        .sort((a, b) => a - b)
-    return keys.length ? String(keys[0]) : null
-}
-
 function goToDetail(animeItem) {
     router.push(`/anime/${animeItem.refId}?type=ref`)
     fetchDetail()
@@ -58,9 +49,8 @@ async function fetchDetail() {
             error.value = "找不到此動漫的詳細資訊"
         } else {
             anime.value = res
-            // Auto-select first episode
-            // selectedEpisode.value = findFirstValidEpisode(anime.value.episodes)
 
+            useHead({ title: `${res.title} | Anime Hub`})
             // Check if favorited
             if (typeof localStorage !== "undefined") {
                 const favorites = JSON.parse(localStorage.getItem("favorites") || "[]")
@@ -68,6 +58,7 @@ async function fetchDetail() {
             }
         }
     } catch (err) {
+        useHead({ title: `載入動漫詳情失敗 | Anime Hub` })
         console.error("Failed to fetch anime detail:", err)
         error.value = "載入動漫詳情失敗，請稍後再試"
     } finally {

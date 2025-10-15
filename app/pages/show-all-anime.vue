@@ -40,7 +40,6 @@ async function handleSearch(query) {
     searchQuery.value = query
     try {
         const res = await $fetch(`/api/search/${encodeURIComponent(query)}`)
-        console.log("Search results:", res.results)
     } catch (err) {
         console.error("Search failed:", err)
     }
@@ -85,6 +84,7 @@ function formatViews(views) {
     return views
 }
 
+useHead({ title: "所有動畫 | Anime Hub "})
 onMounted(() => fetchAnime(1))
 </script>
 
