@@ -1,10 +1,13 @@
 <script setup>
-import { ref, onMounted, watch } from "vue"
+import { ref, onMounted, watch, onUnmounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
+// Core
 const route = useRoute()
 const router = useRouter()
+const client = useSupabaseClient()
 
+// Component State
 const anime = ref(null)
 const selectedEpisode = ref(null)
 const videoUrl = ref(null)
@@ -13,20 +16,35 @@ const loading = ref(true)
 const videoLoading = ref(false)
 const isFavorite = ref(false)
 
+// Video Tracking
+const videoPlayer = ref(null)
+const currentTime = ref(0)
+const duration = ref(0)
+const watchStartTime = ref(null)
+const lastSaveTime = ref(0)
+const historyId = ref(null)
+const hasSetInitialTime = ref(false)
+const previousEpisode = ref(null) // Track previous episode to detect manual changes
+
+// Constants
+const SAVE_INTERVAL = 300000 // Save every 5 minutes
+let saveIntervalTimer = null
+
+// Navigation
 function goToDetail(animeItem) {
     router.push(`/anime/${animeItem.refId}?type=ref`)
     fetchDetail()
 }
 
+// UI Actions
 function toggleFavorite() {
     isFavorite.value = !isFavorite.value
-    // Save to localStorage or API
     if (typeof localStorage !== "undefined") {
         const favorites = JSON.parse(localStorage.getItem("favorites") || "[]")
         if (isFavorite.value) {
-            favorites.push(anime.value.refId)
+            favorites.push(anime.value.id)
         } else {
-            const index = favorites.indexOf(anime.value.refId)
+            const index = favorites.indexOf(anime.value.id)
             if (index > -1) favorites.splice(index, 1)
         }
         localStorage.setItem("favorites", JSON.stringify(favorites))
@@ -37,6 +55,121 @@ function formatRating(score) {
     return score ? parseFloat(score).toFixed(1) : "N/A"
 }
 
+// Video Player Logic
+function handleTimeUpdate(event) {
+    if (!videoPlayer.value) return
+    currentTime.value = event.target.currentTime
+    duration.value = event.target.duration
+}
+
+function handlePlay() {
+    watchStartTime.value = Date.now()
+    startAutoSave()
+}
+
+function handlePause() {
+    stopAutoSave()
+}
+
+function handleEnded() {
+    currentTime.value = duration.value
+    saveWatchHistory()
+    stopAutoSave()
+}
+
+function onVideoReady() {
+    videoLoading.value = false
+    // Only set initial time if not already set for this episode
+    if (hasSetInitialTime.value) return
+
+    let startTime = null
+
+    // Use route.query.t if available (user manually entered it in URL)
+    if (route.query.t) {
+        startTime = parseFloat(route.query.t)
+    } else {
+        // Otherwise, try saved progress from localStorage
+        if (typeof localStorage !== "undefined") {
+            const saved = localStorage.getItem(`anime_${anime.value.id}_ep_${selectedEpisode.value}`)
+            startTime = saved ? JSON.parse(saved).playback_time : null
+        }
+    }
+
+    if (startTime && videoPlayer.value && !isNaN(startTime) && startTime > 0) {
+        // Wait for video to be seekable before setting time
+        if (videoPlayer.value.readyState >= 2) {
+            videoPlayer.value.currentTime = startTime
+            hasSetInitialTime.value = true
+        } else {
+            videoPlayer.value.addEventListener(
+                "canplay",
+                () => {
+                    if (!hasSetInitialTime.value) {
+                        videoPlayer.value.currentTime = startTime
+                        hasSetInitialTime.value = true
+                    }
+                },
+                { once: true }
+            )
+        }
+    } else {
+        hasSetInitialTime.value = true
+    }
+}
+
+// Watch History
+function startAutoSave() {
+    if (saveIntervalTimer) return
+    saveIntervalTimer = setInterval(saveWatchHistory, SAVE_INTERVAL)
+}
+
+function stopAutoSave() {
+    if (saveIntervalTimer) {
+        clearInterval(saveIntervalTimer)
+        saveIntervalTimer = null
+    }
+}
+
+async function saveWatchHistory() {
+    const {
+        data: { user },
+    } = await client.auth.getUser()
+    if (!user?.id || !anime.value || !selectedEpisode.value || !duration.value) return
+
+    const now = Date.now()
+    const progressPercentage = Math.min(100, Math.floor((currentTime.value / duration.value) * 100))
+
+    try {
+        const historyData = {
+            user_id: user.id,
+            anime_ref_id: anime.value.id,
+            anime_title: anime.value.title,
+            anime_image: anime.value.image,
+            episode_number: selectedEpisode.value,
+            watched_at: new Date().toISOString(),
+            playback_time: Math.floor(currentTime.value),
+            video_duration: Math.floor(duration.value),
+            progress_percentage: progressPercentage,
+        }
+
+        const { data: existing } = await client.from("watch_history").select("id").eq("user_id", user.id).eq("anime_ref_id", anime.value.id).eq("episode_number", selectedEpisode.value).single()
+
+        if (existing) {
+            const { error } = await client.from("watch_history").update(historyData).eq("id", existing.id)
+            if (error) throw error
+        } else {
+            const { data, error } = await client.from("watch_history").insert(historyData).select("id").single()
+            if (error) throw error
+            historyId.value = data.id
+        }
+
+        lastSaveTime.value = now
+    } catch (err) {
+        console.error("Failed to save watch history:", err)
+    }
+}
+
+// Data Fetching
 async function fetchDetail() {
     loading.value = true
     error.value = null
@@ -47,15 +180,19 @@ async function fetchDetail() {
         const res = await $fetch(`/api/anime?${route.query.type}Id=${route.params.id}`)
         if (!res || Object.keys(res).length === 0) {
             error.value = "找不到此動漫的詳細資訊"
-        } else {
-            anime.value = res
+            return
+        }
 
-            useHead({ title: `${res.title} | Anime Hub`})
-            // Check if favorited
-            if (typeof localStorage !== "undefined") {
-                const favorites = JSON.parse(localStorage.getItem("favorites") || "[]")
-                isFavorite.value = favorites.includes(anime.value.refId)
-            }
+        anime.value = res
+        useHead({ title: `${res.title} | Anime Hub` })
+
+        if (typeof localStorage !== "undefined") {
+            const favorites = JSON.parse(localStorage.getItem("favorites") || "[]")
+            isFavorite.value = favorites.includes(anime.value.id)
+        }
+
+        if (route.query.e) {
+            selectedEpisode.value = parseInt(route.query.e)
         }
     } catch (err) {
         useHead({ title: `載入動漫詳情失敗 | Anime Hub` })
@@ -66,8 +203,39 @@ async function fetchDetail() {
     }
 }
 
+// Reset video state when episode changes
+function resetVideoState() {
+    currentTime.value = 0
+    duration.value = 0
+    watchStartTime.value = null
+    hasSetInitialTime.value = false
+    stopAutoSave()
+}
+
 watch(selectedEpisode, async (epNum) => {
     if (!epNum || !anime.value?.episodes) return
+
+    // Only reset and remove ?t if this is a manual episode change (not the first load)
+    const isManualChange = previousEpisode.value !== null && previousEpisode.value !== epNum
+
+    if (isManualChange) {
+        // Reset all video tracking when episode changes
+        resetVideoState()
+
+        // Remove the ?t parameter from URL when manually switching episodes
+        if (route.query.t || route.query.e) {
+            const newQuery = { ...route.query }
+            delete newQuery.t
+            delete newQuery.e
+            router.replace({
+                path: route.path,
+                query: newQuery,
+            })
+        }
+    }
+
+    previousEpisode.value = epNum
+
     const token = anime.value.episodes[String(epNum)]
     if (!token) {
         videoUrl.value = null
@@ -92,7 +260,17 @@ watch(selectedEpisode, async (epNum) => {
     }
 })
 
-onMounted(fetchDetail)
+// Lifecycle Hooks
+onMounted(() => {
+    fetchDetail()
+    window.addEventListener("beforeunload", saveWatchHistory)
+})
+
+onUnmounted(() => {
+    saveWatchHistory()
+    stopAutoSave()
+    window.removeEventListener("beforeunload", saveWatchHistory)
+})
 </script>
 
 <template>
@@ -112,12 +290,7 @@ onMounted(fetchDetail)
             </div>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">載入失敗</h2>
             <p class="text-red-600 dark:text-red-400 mb-6 max-w-md">{{ error }}</p>
-            <NuxtLink
-                to="/"
-                class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
-            >
-                返回首頁
-            </NuxtLink>
+            <NuxtLink to="/" class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"> 返回首頁 </NuxtLink>
         </div>
 
         <!-- Empty State -->
@@ -142,11 +315,7 @@ onMounted(fetchDetail)
                         <!-- Poster -->
                         <div class="flex-shrink-0">
                             <div class="relative group">
-                                <img
-                                    :src="anime.image"
-                                    :alt="anime.title"
-                                    class="w-64 md:w-72 rounded-2xl shadow-2xl object-cover transform transition-transform duration-300 group-hover:scale-105"
-                                />
+                                <img :src="anime.image" :alt="anime.title" class="w-64 md:w-72 rounded-2xl shadow-2xl object-cover transform transition-transform duration-300 group-hover:scale-105" />
                                 <!-- <div class="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div> -->
                             </div>
                         </div>
@@ -167,10 +336,7 @@ onMounted(fetchDetail)
                                     </div>
 
                                     <!-- Favorite Button -->
-                                    <button
-                                        @click="toggleFavorite"
-                                        class="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all flex items-center gap-2"
-                                    >
+                                    <button @click="toggleFavorite" class="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all flex items-center gap-2">
                                         <span class="material-icons" :class="isFavorite ? 'text-red-500' : 'text-white'">
                                             {{ isFavorite ? "favorite" : "favorite_border" }}
                                         </span>
@@ -249,7 +415,7 @@ onMounted(fetchDetail)
                         </div>
 
                         <!-- Video Player -->
-                        <video v-if="videoUrl" :src="videoUrl" controls autoplay class="w-full h-full" @loadstart="videoLoading = true" @loadeddata="videoLoading = false"></video>
+                        <video v-if="videoUrl" ref="videoPlayer" :src="videoUrl" controls autoplay class="w-full h-full" @timeupdate="handleTimeUpdate" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @loadstart="videoLoading = true" @loadeddata="onVideoReady" @canplay="onVideoReady"></video>
 
                         <!-- No Video Message -->
                         <div v-else-if="!selectedEpisode" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
@@ -277,9 +443,7 @@ onMounted(fetchDetail)
                                 <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
                                 <!-- Play Button Overlay -->
-                                <div
-                                    class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100"
-                                >
+                                <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100">
                                     <div class="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-xl">
                                         <span class="material-icons text-indigo-600 text-2xl">play_arrow</span>
                                     </div>
@@ -287,9 +451,7 @@ onMounted(fetchDetail)
                             </div>
 
                             <div class="p-3">
-                                <p
-                                    class="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors"
-                                >
+                                <p class="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                                     {{ rel.title }}
                                 </p>
                             </div>

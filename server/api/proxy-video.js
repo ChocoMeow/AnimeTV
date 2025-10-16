@@ -1,11 +1,4 @@
 // server/api/proxy-video.js
-import {
-    defineEventHandler,
-    getQuery,
-    getHeader,
-    sendError,
-    createError
-} from 'h3'
 import http from 'node:http'
 import https from 'node:https'
 import dns from 'node:dns'

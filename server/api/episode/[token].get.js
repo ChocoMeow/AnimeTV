@@ -58,6 +58,8 @@
 // }
 
 export default defineEventHandler(async (event) => {
+    const user = await authUser(event)
+    
     const { token } = event.context.params;
     const encodedBody = `d=${token}`;
 

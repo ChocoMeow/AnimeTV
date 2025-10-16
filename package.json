@@ -10,6 +10,7 @@
         "postinstall": "nuxt prepare"
     },
     "dependencies": {
+        "@nuxtjs/supabase": "^2.0.1",
         "@vite-pwa/nuxt": "^1.0.4",
         "axios": "^1.12.2",
         "cheerio": "^1.1.2",

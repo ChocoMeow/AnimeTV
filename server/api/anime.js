@@ -1,6 +1,4 @@
 import * as cheerio from "cheerio"
-import { searchAnimeTitle, matchAnime, cfFetch } from "~~/server/utils/anime.js"
-import { GAMER_BASE_URL, ANIME1_BASE_URL, CHINESE_WEEKDAY_MAP, ANIME_CACHE } from "~~/server/utils/global.js"
 
 /* Helper: extract date label text for a .newanime-date-area element */
 function extractDateLabel($, $el) {
@@ -328,6 +326,8 @@ async function scrapeAnimeDetailByRefId(refId) {
 }
 
 export default defineEventHandler(async (event) => {
+    const user = await authUser(event)
+
     const { refId, videoId } = getQuery(event)
 
     try {

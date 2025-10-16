@@ -30,7 +30,18 @@ function goToDetailByRefId(refId) {
 
 function goToDetailByVideoId(videoId) {
     if (!videoId) return
-    router.push(`/anime/${videoId}?type=video`)
+    // router.push(`/anime/${videoId}?type=video`)
+    navigateTo(`/anime/${videoId}?type=video`)
+}
+
+function formatViews(views) {
+    if (!views) return "0"
+    if (views >= 1000000) {
+        return (views / 1000000).toFixed(1) + "M"
+    } else if (views >= 1000) {
+        return (views / 1000).toFixed(1) + "K"
+    }
+    return views
 }
 
 async function fetchHomeAnime() {
@@ -49,17 +60,10 @@ async function fetchHomeAnime() {
     }
 }
 
-function formatViews(views) {
-    if (!views) return "0"
-    if (views >= 1000000) {
-        return (views / 1000000).toFixed(1) + "M"
-    } else if (views >= 1000) {
-        return (views / 1000).toFixed(1) + "K"
-    }
-    return views
-}
-
-useHead({ title: `每日新番 | Anime Hub`})
+useHead({ title: `每日新番 | Anime Hub` })
+definePageMeta({
+    middleware: ["auth"],
+})
 onMounted(fetchHomeAnime)
 </script>
 
@@ -104,7 +108,7 @@ onMounted(fetchHomeAnime)
                         </div>
 
                         <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            <div v-for="item in byDay[selectedDay]" :key="item.video_url" class="daily-item group" @click="goToDetailByVideoId(item.refId)">
+                            <nuxt-link v-for="item in byDay[selectedDay]" :key="item.refId" class="daily-item group" :to="`/anime/${item.refId}?type=video`">
                                 <div class="relative overflow-hidden rounded-lg flex-shrink-0 w-32 sm:w-36">
                                     <img :src="item.thumbnail" alt="" class="w-full h-24 object-cover transform transition-transform duration-300 group-hover:scale-110" />
                                     <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -118,7 +122,7 @@ onMounted(fetchHomeAnime)
                                         {{ item.episode }}
                                     </div>
                                 </div>
-                            </div>
+                            </nuxt-link>
                         </div>
                     </template>
                 </section>

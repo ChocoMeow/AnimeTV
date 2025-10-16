@@ -4,6 +4,8 @@ import { GAMER_BASE_URL } from "~~/server/utils/global.js"
 
 // Nuxt API handler
 export default defineEventHandler(async (event) => {
+    const user = await authUser(event)
+    
     try {
         const query = getQuery(event)
         const page = query.page || 1

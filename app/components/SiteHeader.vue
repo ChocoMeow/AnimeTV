@@ -1,3 +1,174 @@
+<script setup>
+import { ref, watch, onMounted, onUnmounted } from "vue"
+import { useRouter } from "vue-router"
+
+const router = useRouter()
+const client = useSupabaseClient()
+const user = useSupabaseUser()
+
+const searchQuery = ref("")
+const searchResults = ref([])
+const searchHistory = ref([])
+const loading = ref(false)
+const mobileMenuOpen = ref(false)
+const mobileSearchOpen = ref(false)
+const showDropdown = ref(false)
+const showUserMenu = ref(false)
+
+let hideDropdownTimeout = null
+let hideUserMenuTimeout = null
+let searchDebounceTimeout = null
+
+function handleResize() {
+    if (window.innerWidth >= 768) {
+        mobileSearchOpen.value = false
+        mobileMenuOpen.value = false
+    }
+}
+
+function debouncedSearch() {
+    if (searchDebounceTimeout) {
+        clearTimeout(searchDebounceTimeout)
+    }
+    searchDebounceTimeout = setTimeout(() => {
+        fetchSearchSuggestions()
+    }, 300)
+}
+
+function saveSearchHistory(query) {
+    if (!query) return
+    const filtered = searchHistory.value.filter((item) => item !== query)
+    filtered.unshift(query)
+    searchHistory.value = filtered.slice(0, 5)
+
+    if (typeof localStorage !== "undefined") {
+        localStorage.setItem("searchHistory", JSON.stringify(searchHistory.value))
+    }
+}
+
+function removeFromHistory(index) {
+    searchHistory.value.splice(index, 1)
+    if (typeof localStorage !== "undefined") {
+        localStorage.setItem("searchHistory", JSON.stringify(searchHistory.value))
+    }
+}
+
+function searchFromHistory(query) {
+    searchQuery.value = query
+    showDropdown.value = true
+}
+
+function handleEnter() {
+    if (!searchQuery.value) return
+    if (searchResults.value.length > 0) {
+        selectResult(searchResults.value[0])
+    } else {
+        saveSearchHistory(searchQuery.value)
+        closeMobileSearch()
+        showDropdown.value = false
+    }
+}
+
+function selectResult(result) {
+    if (searchQuery.value) {
+        saveSearchHistory(searchQuery.value)
+    }
+    router.push(`/anime/${result.refId}?type=ref`)
+    closeMobileSearch()
+    showDropdown.value = false
+}
+
+function closeMobileSearch() {
+    mobileSearchOpen.value = false
+    searchQuery.value = ""
+    searchResults.value = []
+}
+
+function hideDropdownDelayed() {
+    hideDropdownTimeout = setTimeout(() => {
+        showDropdown.value = false
+    }, 200)
+}
+
+function hideUserMenuDelayed() {
+    hideUserMenuTimeout = setTimeout(() => {
+        showUserMenu.value = false
+    }, 200)
+}
+
+function cancelHideUserMenu() {
+    if (hideUserMenuTimeout) {
+        clearTimeout(hideUserMenuTimeout)
+    }
+}
+
+function formatViews(views) {
+    if (views >= 1000000) {
+        return (views / 1000000).toFixed(1) + "M"
+    } else if (views >= 1000) {
+        return (views / 1000).toFixed(1) + "K"
+    }
+    return views
+}
+
+async function fetchSearchSuggestions() {
+    if (!searchQuery.value) {
+        searchResults.value = []
+        return
+    }
+    loading.value = true
+    try {
+        const res = await $fetch(`/api/search/${encodeURIComponent(searchQuery.value)}`)
+        searchResults.value = res.results || []
+    } catch (err) {
+        console.error("Search failed:", err)
+        searchResults.value = []
+    } finally {
+        loading.value = false
+    }
+}
+
+async function signOut() {
+    showUserMenu.value = false
+    const { error } = await client.auth.signOut()
+    navigateTo("/auth/login")
+}
+
+function navigateToHistory() {
+    showUserMenu.value = false
+    router.push("/history")
+}
+
+function navigateToFavorites() {
+    showUserMenu.value = false
+    router.push("/favorites")
+}
+
+onMounted(() => {
+    if (typeof localStorage !== "undefined") {
+        searchHistory.value = JSON.parse(localStorage.getItem("searchHistory") || "[]")
+    }
+    window.addEventListener("resize", handleResize)
+})
+
+onUnmounted(() => {
+    window.removeEventListener("resize", handleResize)
+    if (searchDebounceTimeout) {
+        clearTimeout(searchDebounceTimeout)
+    }
+    if (hideDropdownTimeout) {
+        clearTimeout(hideDropdownTimeout)
+    }
+    if (hideUserMenuTimeout) {
+        clearTimeout(hideUserMenuTimeout)
+    }
+})
+
+watch(searchQuery, () => {
+    debouncedSearch()
+})
+</script>
+
 <template>
     <header class="sticky top-0 z-50 w-full bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -79,7 +250,59 @@
             <!-- Right: Nav (desktop) -->
             <nav class="hidden md:flex items-center gap-3">
                 <NuxtLink to="/show-all-anime" class="text-sm px-3 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"> 全部作品 </NuxtLink>
-                <NuxtLink to="/favorites" class="text-sm px-3 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"> 我的最愛 </NuxtLink>
+
+                <!-- User Profile Dropdown -->
+                <div class="relative">
+                    <button @click="showUserMenu = !showUserMenu" @mouseenter="cancelHideUserMenu" @mouseleave="hideUserMenuDelayed" class="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <img v-if="user?.user_metadata?.avatar_url" :src="user.user_metadata.avatar_url" :alt="user.user_metadata.name" class="w-8 h-8 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600" />
+                        <div v-else class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold">
+                            {{ user?.user_metadata?.name?.[0]?.toUpperCase() || "U" }}
+                        </div>
+                    </button>
+
+                    <!-- User Menu Dropdown -->
+                    <transition name="dropdown">
+                        <div v-if="showUserMenu" @mouseenter="cancelHideUserMenu" @mouseleave="hideUserMenuDelayed" class="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+                            <!-- User Info Header -->
+                            <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-750">
+                                <div class="flex items-center gap-3">
+                                    <img v-if="user?.user_metadata?.avatar_url" :src="user.user_metadata.avatar_url" :alt="user.user_metadata.name" class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-600" />
+                                    <div v-else class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+                                        {{ user?.user_metadata?.name?.[0]?.toUpperCase() || "U" }}
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                            {{ user?.user_metadata?.name || "User" }}
+                                        </p>
+                                        <p class="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                            {{ user?.email }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Menu Items -->
+                            <div class="py-2">
+                                <button @click="navigateToHistory" class="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300">
+                                    <span class="material-icons text-gray-500 dark:text-gray-400">history</span>
+                                    <span class="text-sm font-medium">觀看紀錄</span>
+                                </button>
+
+                                <button @click="navigateToFavorites" class="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300">
+                                    <span class="material-icons text-gray-500 dark:text-gray-400">favorite</span>
+                                    <span class="text-sm font-medium">我的最愛</span>
+                                </button>
+
+                                <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+
+                                <button @click="signOut" class="w-full px-4 py-2.5 text-left hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-3 text-red-600 dark:text-red-400">
+                                    <span class="material-icons">logout</span>
+                                    <span class="text-sm font-medium">登出</span>
+                                </button>
+                            </div>
+                        </div>
+                    </transition>
+                </div>
             </nav>
 
             <!-- Mobile buttons -->
@@ -173,156 +396,43 @@
 
         <!-- Mobile nav -->
         <div v-if="mobileMenuOpen" class="md:hidden px-4 pb-3 space-y-3">
+            <!-- User Profile Section (Mobile) -->
+            <div class="flex items-center gap-3 px-3 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-750 rounded-lg">
+                <img v-if="user?.user_metadata?.avatar_url" :src="user.user_metadata.avatar_url" :alt="user.user_metadata.name" class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-600" />
+                <div v-else class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+                    {{ user?.user_metadata?.name?.[0]?.toUpperCase() || "U" }}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                        {{ user?.user_metadata?.name || "User" }}
+                    </p>
+                    <p class="text-xs text-gray-600 dark:text-gray-400 truncate">
+                        {{ user?.email }}
+                    </p>
+                </div>
+            </div>
+
             <nav class="flex flex-col gap-2">
-                <NuxtLink to="/show-all-anime" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"> 全部作品 </NuxtLink>
-                <NuxtLink to="/favorites" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"> 我的最愛 </NuxtLink>
+                <NuxtLink to="/show-all-anime" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                    <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">movie</span>
+                    <span>全部作品</span>
+                </NuxtLink>
+                <NuxtLink to="/history" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                    <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">history</span>
+                    <span>觀看紀錄</span>
+                </NuxtLink>
+                <NuxtLink to="/favorites" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                    <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">favorite</span>
+                    <span>我的最愛</span>
+                </NuxtLink>
+                <button @click="signOut" class="text-sm px-3 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 text-red-600 dark:text-red-400 text-left">
+                    <span class="material-icons text-xl">logout</span>
+                    <span>登出</span>
+                </button>
             </nav>
         </div>
     </header>
 </template>
-
-<script setup>
-import { ref, watch, onMounted, onUnmounted } from "vue"
-import { useRouter } from "vue-router"
-
-const router = useRouter()
-
-const searchQuery = ref("")
-const searchResults = ref([])
-const searchHistory = ref([])
-const loading = ref(false)
-const mobileMenuOpen = ref(false)
-const mobileSearchOpen = ref(false)
-const showDropdown = ref(false)
-
-let hideDropdownTimeout = null
-let searchDebounceTimeout = null
-
-onMounted(() => {
-    if (typeof localStorage !== "undefined") {
-        searchHistory.value = JSON.parse(localStorage.getItem("searchHistory") || "[]")
-    }
-    window.addEventListener("resize", handleResize)
-})
-
-onUnmounted(() => {
-    window.removeEventListener("resize", handleResize)
-    if (searchDebounceTimeout) {
-        clearTimeout(searchDebounceTimeout)
-    }
-    if (hideDropdownTimeout) {
-        clearTimeout(hideDropdownTimeout)
-    }
-})
-
-function handleResize() {
-    if (window.innerWidth >= 768) {
-        mobileSearchOpen.value = false
-        mobileMenuOpen.value = false
-    }
-}
-
-async function fetchSearchSuggestions() {
-    if (!searchQuery.value) {
-        searchResults.value = []
-        return
-    }
-    loading.value = true
-    try {
-        const res = await $fetch(`/api/search/${encodeURIComponent(searchQuery.value)}`)
-        searchResults.value = res.results || []
-    } catch (err) {
-        console.error("Search failed:", err)
-        searchResults.value = []
-    } finally {
-        loading.value = false
-    }
-}
-
-function debouncedSearch() {
-    // Clear existing timeout
-    if (searchDebounceTimeout) {
-        clearTimeout(searchDebounceTimeout)
-    }
-
-    // Set new timeout (300ms delay)
-    searchDebounceTimeout = setTimeout(() => {
-        fetchSearchSuggestions()
-    }, 300)
-}
-
-function saveSearchHistory(query) {
-    if (!query) return
-    // Remove if already exists to avoid duplicates
-    const filtered = searchHistory.value.filter((item) => item !== query)
-    filtered.unshift(query)
-    searchHistory.value = filtered.slice(0, 5) // Keep only 5 items
-
-    if (typeof localStorage !== "undefined") {
-        localStorage.setItem("searchHistory", JSON.stringify(searchHistory.value))
-    }
-}
-
-function removeFromHistory(index) {
-    searchHistory.value.splice(index, 1)
-    if (typeof localStorage !== "undefined") {
-        localStorage.setItem("searchHistory", JSON.stringify(searchHistory.value))
-    }
-}
-
-function searchFromHistory(query) {
-    searchQuery.value = query
-    // This will trigger the watch and fetch new results
-    showDropdown.value = true
-}
-
-function handleEnter() {
-    if (!searchQuery.value) return
-    // If there are results, navigate to the first one
-    if (searchResults.value.length > 0) {
-        selectResult(searchResults.value[0])
-    } else {
-        // Save to history even if no results
-        saveSearchHistory(searchQuery.value)
-        closeMobileSearch()
-        showDropdown.value = false
-    }
-}
-
-function selectResult(result) {
-    if (searchQuery.value) {
-        saveSearchHistory(searchQuery.value)
-    }
-    router.push(`/anime/${result.refId}?type=ref`)
-    closeMobileSearch()
-    showDropdown.value = false
-}
-
-function closeMobileSearch() {
-    mobileSearchOpen.value = false
-    searchQuery.value = ""
-    searchResults.value = []
-}
-
-function hideDropdownDelayed() {
-    hideDropdownTimeout = setTimeout(() => {
-        showDropdown.value = false
-    }, 200)
-}
-
-function formatViews(views) {
-    if (views >= 1000000) {
-        return (views / 1000000).toFixed(1) + "M"
-    } else if (views >= 1000) {
-        return (views / 1000).toFixed(1) + "K"
-    }
-    return views
-}
-
-watch(searchQuery, () => {
-    debouncedSearch()
-})
-</script>
 
 <style scoped>
 .fade-enter-active,

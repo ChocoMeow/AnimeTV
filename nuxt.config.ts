@@ -1,7 +1,33 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-    css: ["@/assets/css/tailwind.css"],
-    modules: ["@nuxtjs/tailwindcss", "@vite-pwa/nuxt"],
+    css: ["~/assets/css/tailwind.css"],
+    modules: ["@nuxtjs/tailwindcss", "@vite-pwa/nuxt", "@nuxtjs/supabase"],
+    compatibilityDate: "2025-07-15",
+    devtools: { enabled: true },
+    devServer: {
+        port: 3000,
+        host: "0.0.0.0",
+    },
+    app: {
+        head: {
+            title: "Anime Hub",
+            meta: [
+                { name: "description", content: "Stream your favorite anime series and movies anytime, anywhere." },
+                { charset: "utf-8" },
+                { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" },
+                // iOS specific meta tags
+                { name: "apple-mobile-web-app-capable", content: "yes" },
+                { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+                { name: "apple-mobile-web-app-title", content: "Anime Hub" },
+                // Android specific meta tags
+                { name: "mobile-web-app-capable", content: "yes" },
+            ],
+            link: [
+                { rel: "icon", type: "image/png", href: "/icons/icon_144x144.png" },
+                { rel: "stylesheet", href: "https://fonts.googleapis.com/icon?family=Material+Icons" },
+            ],
+        },
+    },
     pwa: {
         manifest: {
             name: "Anime Hub",
@@ -34,37 +60,33 @@ export default defineNuxtConfig({
             ],
         },
         workbox: {
-            navigateFallback: "/",
+            runtimeCaching: [
+                {
+                    urlPattern: "/*",
+                    handler: "NetworkFirst",
+                    options: {
+                        cacheName: "default-cache",
+                        expiration: {
+                            maxEntries: 50,
+                            maxAgeSeconds: 30 * 24 * 60 * 60,
+                        },
+                    },
+                },
+            ],
         },
         devOptions: {
             enabled: true,
             type: "module",
         },
     },
-    compatibilityDate: "2025-07-15",
-    devtools: { enabled: true },
-    app: {
-        head: {
-            title: "Anime Hub",
-            meta: [
-                { name: "description", content: "Stream your favorite anime series and movies anytime, anywhere." },
-                { charset: "utf-8" },
-                { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" },
-                // iOS specific meta tags
-                { name: "apple-mobile-web-app-capable", content: "yes" },
-                { name: "apple-mobile-web-app-status-bar-style", content: "default" },
-                { name: "apple-mobile-web-app-title", content: "Anime Hub" },
-                // Android specific meta tags
-                { name: "mobile-web-app-capable", content: "yes" },
-            ],
-            link: [
-                { rel: "icon", type: "image/png", href: "/icons/icon_144x144.png" },
-                { rel: "stylesheet", href: "https://fonts.googleapis.com/icon?family=Material+Icons" },
-            ],
+    supabase: {
+        redirectOptions: {
+            login: "/auth/login",
+            callback: "/auth/confirm",
+            include: undefined,
+            exclude: [],
+            saveRedirectToCookie: true,
         },
-    },
-    devServer: {
-        port: 3000,
-        host: "0.0.0.0",
+        types: false,
     },
 })

@@ -3,6 +3,8 @@ import { matchAnime, cfFetch } from "~~/server/utils/anime"
 import { GAMER_BASE_URL } from "~~/server/utils/global"
 
 export default defineEventHandler(async (event) => {
+    const user = await authUser(event)
+    
     const { query } = event.context.params
 
     try {
