@@ -12,7 +12,7 @@ async function signInWithGoogle() {
         const { data, error } = await client.auth.signInWithOAuth({
             provider: "google",
             options: {
-                redirectTo: `http://localhost:3000/auth/confirm`,
+                redirectTo: `${window.location.origin}/auth/confirm`,
             },
         })
 
