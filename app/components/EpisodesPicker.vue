@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue"
 
 const props = defineProps({
     episodes: { type: Object, required: true },
+    watchProgress: { type: Object, default: () => ({}) },
     modelValue: { type: [String, Number], default: null },
 })
 const emit = defineEmits(["update:modelValue", "select"])
@@ -48,6 +49,24 @@ function jumpTo() {
     selectEpisode(clamped)
     currentPage.value = Math.floor((clamped - 1) / pageSize) + 1
     jumpInput.value = ""
+}
+
+function getProgressPercentage(epNum) {
+    return props.watchProgress[epNum]?.progress_percentage || 0
+}
+
+function hasWatched(epNum) {
+    return !!props.watchProgress[epNum]
+}
+
+function isCompleted(epNum) {
+    return getProgressPercentage(epNum) >= 90
+}
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, "0")}`
 }
 
 watch(
@@ -98,8 +117,49 @@ watch(
             <div v-if="paged.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">找不到相關集數</div>
 
             <div v-else class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-15 gap-2">
-                <button v-for="n in paged" :key="n" @click="selectEpisode(n)" :class="['aspect-square rounded-lg text-sm font-medium border-2 transition-colors', String(n) === String(modelValue) ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-indigo-600 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-400', !props.episodes[String(n)] && 'opacity-40 cursor-not-allowed hover:border-gray-300 hover:text-gray-700 dark:hover:border-gray-600 dark:hover:text-gray-300']" :disabled="!props.episodes[String(n)]" :title="!props.episodes[String(n)] ? '此集不可播放' : `第 ${n} 集`">
-                    {{ n }}
+                <button
+                    v-for="n in paged"
+                    :key="n"
+                    @click="selectEpisode(n)"
+                    class="episode-button relative overflow-hidden group"
+                    :class="{
+                        active: String(n) === String(modelValue),
+                        watched: hasWatched(n) && String(n) !== String(modelValue),
+                        completed: isCompleted(n) && String(n) !== String(modelValue),
+                        disabled: !props.episodes[String(n)],
+                    }"
+                    :disabled="!props.episodes[String(n)]"
+                    :title="!props.episodes[String(n)] ? '此集不可播放' : `第 ${n} 集`"
+                >
+                    <!-- Episode Number -->
+                    <div class="relative z-10 flex flex-col items-center justify-center h-full">
+                        <span class="text-sm font-medium">{{ n }}</span>
+
+                        <!-- Progress Indicator -->
+                        <div v-if="hasWatched(n) && String(n) !== String(modelValue)" class="text-[10px] opacity-75 flex items-center gap-0.5 mt-0.5">
+                            <span class="material-icons text-[10px]">
+                                {{ isCompleted(n) ? "check_circle" : "play_circle" }}
+                            </span>
+                            <span>{{ getProgressPercentage(n) }}%</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div v-if="hasWatched(n) && String(n) !== String(modelValue)" class="absolute bottom-0 left-0 h-1 z-0 transition-all" :class="isCompleted(n) ? 'bg-green-500' : 'bg-indigo-500'" :style="{ width: `${getProgressPercentage(n)}%` }"></div>
+
+                    <!-- Hover Tooltip -->
+                    <div v-if="watchProgress[n]" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                        <div class="flex flex-col gap-1">
+                            <div class="font-semibold">第 {{ n }} 集</div>
+                            <div class="text-gray-300">
+                                {{ formatTime(watchProgress[n].playback_time) }} /
+                                {{ formatTime(watchProgress[n].video_duration) }}
+                            </div>
+                            <div :class="isCompleted(n) ? 'text-green-400' : 'text-indigo-400'">{{ getProgressPercentage(n) }}% 完成</div>
+                        </div>
+                        <!-- Arrow -->
+                        <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                    </div>
                 </button>
             </div>
         </div>
@@ -112,6 +172,49 @@ watch(
            text-gray-900 dark:text-gray-100 rounded-lg text-sm
            focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
            transition-shadow;
+}
+
+.episode-button {
+    @apply aspect-square rounded-lg text-sm font-medium border-2 transition-all duration-300
+           bg-white dark:bg-gray-800 
+           border-gray-300 dark:border-gray-600
+           text-gray-700 dark:text-gray-300
+           hover:border-indigo-600 hover:text-indigo-600 
+           dark:hover:border-indigo-400 dark:hover:text-indigo-400
+           hover:shadow-md
+           flex items-center justify-center
+           cursor-pointer;
+}
+
+.episode-button.active {
+    @apply bg-indigo-600 border-indigo-600 text-white
+           shadow-lg scale-105;
+}
+
+.episode-button.watched {
+    @apply border-indigo-300 dark:border-indigo-700
+           bg-indigo-50 dark:bg-indigo-900/20;
+}
+
+.episode-button.completed {
+    @apply border-green-300 dark:border-green-700
+           bg-green-50 dark:bg-green-900/20
+           text-green-700 dark:text-green-400;
+}
+
+.episode-button.completed .material-icons {
+    @apply text-green-600 dark:text-green-400;
+}
+
+.episode-button.watched:not(.completed) .material-icons {
+    @apply text-indigo-600 dark:text-indigo-400;
+}
+
+.episode-button.disabled {
+    @apply opacity-40 cursor-not-allowed 
+           hover:border-gray-300 hover:text-gray-700 
+           dark:hover:border-gray-600 dark:hover:text-gray-300
+           hover:shadow-none;
 }
 
 /* Extra large grid support */

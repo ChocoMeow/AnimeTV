@@ -1,9 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed, watch } from "vue"
-import { useRouter } from "vue-router"
-
-const router = useRouter()
-const user = useSupabaseUser()
+const route = useRoute()
 const client = useSupabaseClient()
 
 const historyItems = ref([])
@@ -37,6 +33,24 @@ const filteredHistory = computed(() => {
         const query = searchQuery.value.toLowerCase()
         filtered = filtered.filter((item) => item.anime_title?.toLowerCase().includes(query))
     }
+
+    // Group by anime and keep only the most recent episode for each anime
+    const animeMap = new Map()
+    filtered.forEach((item) => {
+        const animeId = item.anime_ref_id
+        if (!animeMap.has(animeId)) {
+            animeMap.set(animeId, item)
+        } else {
+            const existing = animeMap.get(animeId)
+            // Keep the more recent watch
+            if (new Date(item.watched_at) > new Date(existing.watched_at)) {
+                animeMap.set(animeId, item)
+            }
+        }
+    })
+
+    // Convert back to array and sort by watched_at
+    filtered = Array.from(animeMap.values()).sort((a, b) => new Date(b.watched_at) - new Date(a.watched_at))
 
     // Apply display limit for lazy loading
     return filtered.slice(0, displayLimit.value)
@@ -119,7 +133,9 @@ function formatDuration(seconds) {
     return `${mins}:${secs.toString().padStart(2, "0")}`
 }
 
-function toggleSelectItem(id) {
+function toggleSelectItem(id, event) {
+    event.preventDefault()
+    event.stopPropagation()
     if (selectedItems.value.has(id)) {
         selectedItems.value.delete(id)
     } else {
@@ -133,10 +149,6 @@ function selectAll() {
     } else {
         filteredHistory.value.forEach((item) => selectedItems.value.add(item.id))
     }
-}
-
-function continueWatching(item) {
-    router.push(`/anime/${item.anime_ref_id}?type=video&e=${item.episode_number}&t=${item.playback_time}`)
 }
 
 function loadMore() {
@@ -202,11 +214,6 @@ async function clearAllHistory() {
 }
 
 async function fetchHistory() {
-    if (!user.value) {
-        navigateTo("/auth/login")
-        return
-    }
-
     loading.value = true
     try {
         // Fetch watch history from Supabase
@@ -226,6 +233,10 @@ async function fetchHistory() {
     }
 }
 
+onActivated(() => {
+    fetchHistory()
+})
+
 onMounted(() => {
     fetchHistory()
     window.addEventListener("scroll", handleScroll)
@@ -239,6 +250,19 @@ onBeforeUnmount(() => {
 watch([selectedFilter, searchQuery], () => {
     displayLimit.value = 20
 })
+
+watch(
+    () => route.path,
+    (newPath) => {
+        if (newPath === "/history" || newPath.includes("/history")) {
+            fetchHistory()
+        }
+    }
+)
+
+useHead({
+    title: "觀看紀錄 | Anime Hub",
+})
 </script>
 
 <template>
@@ -246,11 +270,18 @@ watch([selectedFilter, searchQuery], () => {
         <div class="max-w-7xl mx-auto px-4 py-6">
             <!-- Header -->
             <div class="mb-6">
-                <div class="flex items-center gap-3 mb-4">
+                <!-- Title and Search Row -->
+                <div class="flex items-center justify-between gap-4 mb-4">
                     <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">觀看紀錄</h1>
+
+                    <!-- Search -->
+                    <div class="relative w-full max-w-xs">
+                        <input v-model="searchQuery" type="text" placeholder="搜尋動漫..." class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm focus:ring-2 focus:ring-indigo-400 outline-none" />
+                        <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
+                    </div>
                 </div>
 
-                <!-- Filters and Search -->
+                <!-- Filters and Actions Row -->
                 <div class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
                     <!-- Time Filters -->
                     <div class="flex gap-2 flex-wrap">
@@ -260,31 +291,25 @@ watch([selectedFilter, searchQuery], () => {
                         <button @click="selectedFilter = 'month'" :class="selectedFilter === 'month' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md">本月</button>
                     </div>
 
-                    <!-- Search -->
-                    <div class="relative w-full md:w-auto">
-                        <input v-model="searchQuery" type="text" placeholder="搜尋動漫..." class="w-full md:w-64 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm focus:ring-2 focus:ring-indigo-400 outline-none" />
-                        <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
+                    <!-- Action Buttons -->
+                    <div v-if="historyItems.length > 0" class="flex items-center gap-3 flex-wrap">
+                        <button @click="selectAll" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2">
+                            <span class="material-icons text-lg">
+                                {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? "check_box" : "check_box_outline_blank" }}
+                            </span>
+                            {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? "取消全選" : "全選" }}
+                        </button>
+
+                        <button v-if="selectedItems.size > 0" @click="deleteSelected" class="text-sm px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2">
+                            <span class="material-icons text-lg">delete</span>
+                            刪除已選 ({{ selectedItems.size }})
+                        </button>
+
+                        <button @click="clearAllHistory" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
+                            <span class="material-icons text-lg">delete_sweep</span>
+                            清除全部
+                        </button>
                     </div>
-                </div>
-
-                <!-- Action Bar -->
-                <div v-if="historyItems.length > 0" class="mt-4 flex items-center gap-3 flex-wrap">
-                    <button @click="selectAll" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2">
-                        <span class="material-icons text-lg">
-                            {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? "check_box" : "check_box_outline_blank" }}
-                        </span>
-                        {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? "取消全選" : "全選" }}
-                    </button>
-
-                    <button v-if="selectedItems.size > 0" @click="deleteSelected" class="text-sm px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2">
-                        <span class="material-icons text-lg">delete</span>
-                        刪除已選 ({{ selectedItems.size }})
-                    </button>
-
-                    <button @click="clearAllHistory" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
-                        <span class="material-icons text-lg">delete_sweep</span>
-                        清除全部
-                    </button>
                 </div>
             </div>
 
@@ -298,7 +323,7 @@ watch([selectedFilter, searchQuery], () => {
                 <span class="material-icons text-gray-400 text-6xl mb-4">history</span>
                 <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">還沒有觀看紀錄</h3>
                 <p class="text-gray-500 dark:text-gray-400 mb-6">開始觀看動漫，這裡會記錄你的觀看歷史</p>
-                <button @click="router.push('/')" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">探索動漫</button>
+                <NuxtLink to="/" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">探索動漫</NuxtLink>
             </div>
 
             <!-- No Search Results -->
@@ -319,49 +344,52 @@ watch([selectedFilter, searchQuery], () => {
 
                     <!-- History Items -->
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div v-for="item in items" :key="item.id" @click="continueWatching(item)" class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-all overflow-hidden group relative cursor-pointer">
-                            <!-- Checkbox -->
-                            <button @click.stop="toggleSelectItem(item.id)" class="absolute top-3 left-3 z-10 w-6 h-6 rounded bg-white dark:bg-gray-700 shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div v-for="item in items" :key="item.id" class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-all overflow-hidden group relative">
+                            <!-- Checkbox - Now always visible when selected -->
+                            <button @click="toggleSelectItem(item.id, $event)" class="absolute top-3 left-3 z-10 w-6 h-6 rounded bg-white dark:bg-gray-700 shadow-md flex items-center justify-center transition-opacity" :class="selectedItems.has(item.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'">
                                 <span v-if="selectedItems.has(item.id)" class="material-icons text-indigo-600 text-lg">check_box</span>
                                 <span v-else class="material-icons text-gray-400 text-lg">check_box_outline_blank</span>
                             </button>
 
-                            <div class="flex gap-4 p-4">
-                                <!-- Thumbnail -->
-                                <div class="w-24 h-32 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700 relative">
-                                    <img v-if="item.anime_image" :src="item.anime_image" :alt="item.anime_title" class="w-full h-full object-cover" />
-                                    <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
-                                        <span class="material-icons text-4xl">movie</span>
+                            <!-- Clickable Link - Wraps content -->
+                            <NuxtLink :to="`/anime/${item.anime_ref_id}?e=${item.episode_number}&t=${item.playback_time}`" class="block cursor-pointer">
+                                <div class="flex gap-4 p-4">
+                                    <!-- Thumbnail -->
+                                    <div class="w-24 h-32 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700 relative">
+                                        <img v-if="item.anime_image" :src="item.anime_image" :alt="item.anime_title" class="w-full h-full object-cover" />
+                                        <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
+                                            <span class="material-icons text-4xl">movie</span>
+                                        </div>
+
+                                        <!-- Progress Bar -->
+                                        <div v-if="item.progress_percentage > 0" class="absolute bottom-0 left-0 right-0 h-1 bg-gray-800/50">
+                                            <div class="h-full bg-indigo-600" :style="{ width: `${item.progress_percentage}%` }"></div>
+                                        </div>
                                     </div>
 
-                                    <!-- Progress Bar -->
-                                    <div v-if="item.progress_percentage > 0" class="absolute bottom-0 left-0 right-0 h-1 bg-gray-800/50">
-                                        <div class="h-full bg-indigo-600" :style="{ width: `${item.progress_percentage}%` }"></div>
+                                    <!-- Info -->
+                                    <div class="flex-1 min-w-0 flex flex-col">
+                                        <h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
+                                            {{ item.anime_title }}
+                                        </h3>
+
+                                        <div class="space-y-1 text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                            <p class="flex items-center gap-2">
+                                                <span class="material-icons text-xs">play_circle</span>
+                                                上次觀看：第 {{ item.episode_number }} 集
+                                            </p>
+                                            <p class="flex items-center gap-2">
+                                                <span class="material-icons text-xs">schedule</span>
+                                                {{ formatTime(item.watched_at) }}
+                                            </p>
+                                            <p v-if="item.playback_time" class="flex items-center gap-2">
+                                                <span class="material-icons text-xs">timer</span>
+                                                觀看 {{ formatDuration(item.playback_time) }} / {{ formatDuration(item.video_duration) }}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
-
-                                <!-- Info -->
-                                <div class="flex-1 min-w-0 flex flex-col">
-                                    <h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
-                                        {{ item.anime_title }}
-                                    </h3>
-
-                                    <div class="space-y-1 text-sm text-gray-600 dark:text-gray-400 mb-3">
-                                        <p class="flex items-center gap-2">
-                                            <span class="material-icons text-xs">play_circle</span>
-                                            第 {{ item.episode_number }} 集
-                                        </p>
-                                        <p class="flex items-center gap-2">
-                                            <span class="material-icons text-xs">schedule</span>
-                                            {{ formatTime(item.watched_at) }}
-                                        </p>
-                                        <p v-if="item.playback_time" class="flex items-center gap-2">
-                                            <span class="material-icons text-xs">timer</span>
-                                            觀看 {{ formatDuration(item.playback_time) }} / {{ formatDuration(item.video_duration) }}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                            </NuxtLink>
                         </div>
                     </div>
                 </div>

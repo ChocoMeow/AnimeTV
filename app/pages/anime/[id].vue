@@ -16,6 +16,11 @@ const loading = ref(true)
 const videoLoading = ref(false)
 const isFavorite = ref(false)
 
+// Continue Watching State
+const lastWatchedData = ref(null)
+const showContinuePrompt = ref(false)
+const allWatchProgress = ref({})
+
 // Video Tracking
 const videoPlayer = ref(null)
 const currentTime = ref(0)
@@ -24,17 +29,11 @@ const watchStartTime = ref(null)
 const lastSaveTime = ref(0)
 const historyId = ref(null)
 const hasSetInitialTime = ref(false)
-const previousEpisode = ref(null) // Track previous episode to detect manual changes
+const previousEpisode = ref(null)
 
 // Constants
 const SAVE_INTERVAL = 300000 // Save every 5 minutes
 let saveIntervalTimer = null
-
-// Navigation
-function goToDetail(animeItem) {
-    router.push(`/anime/${animeItem.refId}?type=ref`)
-    fetchDetail()
-}
 
 // UI Actions
 function toggleFavorite() {
@@ -53,6 +52,60 @@ function toggleFavorite() {
 
 function formatRating(score) {
     return score ? parseFloat(score).toFixed(1) : "N/A"
+}
+
+function formatDuration(seconds) {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, "0")}`
+}
+
+// Continue Watching Functions
+function continueLast() {
+    if (!lastWatchedData.value) return
+    selectedEpisode.value = lastWatchedData.value.episode_number
+    showContinuePrompt.value = false
+
+    // Update URL with episode and time
+    router.replace({
+        path: route.path,
+        query: {
+            e: lastWatchedData.value.episode_number,
+            t: lastWatchedData.value.playback_time,
+        },
+    })
+}
+
+async function fetchLastWatched() {
+    try {
+        const {
+            data: { user },
+        } = await client.auth.getUser()
+        if (!user?.id || !anime.value) return
+
+        // Fetch all watch history for this anime
+        const { data, error } = await client.from("watch_history").select("*").eq("user_id", user.id).eq("anime_ref_id", anime.value.refId).order("watched_at", { ascending: false })
+
+        if (!error && data && data.length > 0) {
+            // Store all progress by episode number
+            allWatchProgress.value = {}
+            data.forEach((item) => {
+                if (!allWatchProgress.value[item.episode_number]) {
+                    allWatchProgress.value[item.episode_number] = item
+                }
+            })
+
+            // Get the most recent one for the continue prompt
+            lastWatchedData.value = data[0]
+
+            // Only show prompt if progress is less than 90% and no episode is pre-selected
+            if (lastWatchedData.value.progress_percentage < 90 && !route.query.e) {
+                showContinuePrompt.value = true
+            }
+        }
+    } catch (err) {
+        console.error("Failed to fetch last watched:", err)
+    }
 }
 
 // Video Player Logic
@@ -79,24 +132,15 @@ function handleEnded() {
 
 function onVideoReady() {
     videoLoading.value = false
-    // Only set initial time if not already set for this episode
     if (hasSetInitialTime.value) return
 
     let startTime = null
 
-    // Use route.query.t if available (user manually entered it in URL)
     if (route.query.t) {
         startTime = parseFloat(route.query.t)
-    } else {
-        // Otherwise, try saved progress from localStorage
-        if (typeof localStorage !== "undefined") {
-            const saved = localStorage.getItem(`anime_${anime.value.id}_ep_${selectedEpisode.value}`)
-            startTime = saved ? JSON.parse(saved).playback_time : null
-        }
     }
 
     if (startTime && videoPlayer.value && !isNaN(startTime) && startTime > 0) {
-        // Wait for video to be seekable before setting time
         if (videoPlayer.value.readyState >= 2) {
             videoPlayer.value.currentTime = startTime
             hasSetInitialTime.value = true
@@ -142,7 +186,7 @@ async function saveWatchHistory() {
     try {
         const historyData = {
             user_id: user.id,
-            anime_ref_id: anime.value.id,
+            anime_ref_id: anime.value.refId,
             anime_title: anime.value.title,
             anime_image: anime.value.image,
             episode_number: selectedEpisode.value,
@@ -152,7 +196,7 @@ async function saveWatchHistory() {
             progress_percentage: progressPercentage,
         }
 
-        const { data: existing } = await client.from("watch_history").select("id").eq("user_id", user.id).eq("anime_ref_id", anime.value.id).eq("episode_number", selectedEpisode.value).single()
+        const { data: existing } = await client.from("watch_history").select("id").eq("user_id", user.id).eq("anime_ref_id", anime.value.refId).eq("episode_number", selectedEpisode.value).single()
 
         if (existing) {
             const { error } = await client.from("watch_history").update(historyData).eq("id", existing.id)
@@ -177,7 +221,7 @@ async function fetchDetail() {
     selectedEpisode.value = null
 
     try {
-        const res = await $fetch(`/api/anime?${route.query.type}Id=${route.params.id}`)
+        const res = await $fetch(`/api/anime/${route.params.id}`)
         if (!res || Object.keys(res).length === 0) {
             error.value = "找不到此動漫的詳細資訊"
             return
@@ -191,6 +235,9 @@ async function fetchDetail() {
             isFavorite.value = favorites.includes(anime.value.id)
         }
 
+        // Fetch last watched after anime data is loaded
+        await fetchLastWatched()
+
         if (route.query.e) {
             selectedEpisode.value = parseInt(route.query.e)
         }
@@ -203,7 +250,6 @@ async function fetchDetail() {
     }
 }
 
-// Reset video state when episode changes
 function resetVideoState() {
     currentTime.value = 0
     duration.value = 0
@@ -215,14 +261,11 @@ function resetVideoState() {
 watch(selectedEpisode, async (epNum) => {
     if (!epNum || !anime.value?.episodes) return
 
-    // Only reset and remove ?t if this is a manual episode change (not the first load)
     const isManualChange = previousEpisode.value !== null && previousEpisode.value !== epNum
 
     if (isManualChange) {
-        // Reset all video tracking when episode changes
         resetVideoState()
 
-        // Remove the ?t parameter from URL when manually switching episodes
         if (route.query.t || route.query.e) {
             const newQuery = { ...route.query }
             delete newQuery.t
@@ -260,7 +303,6 @@ watch(selectedEpisode, async (epNum) => {
     }
 })
 
-// Lifecycle Hooks
 onMounted(() => {
     fetchDetail()
     window.addEventListener("beforeunload", saveWatchHistory)
@@ -290,7 +332,7 @@ onUnmounted(() => {
             </div>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">載入失敗</h2>
             <p class="text-red-600 dark:text-red-400 mb-6 max-w-md">{{ error }}</p>
-            <NuxtLink to="/" class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"> 返回首頁 </NuxtLink>
+            <button @click="router.back()" class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">返回上一頁</button>
         </div>
 
         <!-- Empty State -->
@@ -301,58 +343,42 @@ onUnmounted(() => {
 
         <!-- Content -->
         <div v-else>
-            <!-- Hero Section with Background -->
+            <!-- Hero Section -->
             <div class="relative overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-gray-900 text-white">
-                <!-- Background Image with Overlay -->
                 <div class="absolute inset-0 opacity-20">
                     <img :src="anime.image" :alt="anime.title" class="w-full h-full object-cover blur-2xl scale-110" />
                 </div>
                 <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/80 to-transparent"></div>
 
-                <!-- Content -->
                 <div class="relative max-w-7xl mx-auto px-4 py-12">
                     <div class="flex flex-col md:flex-row gap-8">
-                        <!-- Poster -->
                         <div class="flex-shrink-0">
                             <div class="relative group">
                                 <img :src="anime.image" :alt="anime.title" class="w-64 md:w-72 rounded-2xl shadow-2xl object-cover transform transition-transform duration-300 group-hover:scale-105" />
-                                <!-- <div class="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div> -->
                             </div>
                         </div>
 
-                        <!-- Info -->
                         <div class="flex-1 space-y-6">
-                            <!-- Title and Actions -->
                             <div>
-                                <h1 class="text-4xl md:text-5xl font-bold mb-3 leading-tight">
-                                    {{ anime.title }}
-                                </h1>
+                                <h1 class="text-4xl md:text-5xl font-bold mb-3 leading-tight">{{ anime.title }}</h1>
                                 <div class="flex flex-wrap items-center gap-3">
-                                    <!-- Rating -->
                                     <div class="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
                                         <span class="material-icons text-yellow-400">star</span>
                                         <span class="font-bold text-lg">{{ formatRating(anime.userRating?.score) }}</span>
                                         <span class="text-sm text-gray-300">({{ anime.userRating?.count || 0 }})</span>
                                     </div>
 
-                                    <!-- Favorite Button -->
                                     <button @click="toggleFavorite" class="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all flex items-center gap-2">
-                                        <span class="material-icons" :class="isFavorite ? 'text-red-500' : 'text-white'">
-                                            {{ isFavorite ? "favorite" : "favorite_border" }}
-                                        </span>
+                                        <span class="material-icons" :class="isFavorite ? 'text-red-500' : 'text-white'">{{ isFavorite ? "favorite" : "favorite_border" }}</span>
                                         <span>{{ isFavorite ? "已收藏" : "收藏" }}</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <!-- Description -->
                             <div class="prose prose-invert max-w-none">
-                                <p class="text-gray-200 leading-relaxed text-lg">
-                                    {{ anime.description || "暫無簡介" }}
-                                </p>
+                                <p class="text-gray-200 leading-relaxed text-lg">{{ anime.description || "暫無簡介" }}</p>
                             </div>
 
-                            <!-- Meta Info Grid -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                                 <div class="info-card" v-if="anime.director">
                                     <span class="material-icons text-indigo-400">person</span>
@@ -391,22 +417,49 @@ onUnmounted(() => {
                 </div>
             </div>
 
+            <!-- Continue Watching Prompt -->
+            <transition name="slide-down">
+                <div v-if="showContinuePrompt && lastWatchedData" class="max-w-7xl mx-auto px-4 -mt-8 relative z-10">
+                    <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-2xl p-6 text-white">
+                        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <div class="flex items-start gap-4">
+                                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <span class="material-icons text-2xl">play_circle</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold mb-1">繼續觀看</h3>
+                                    <p class="text-white/90 text-sm">
+                                        第 {{ lastWatchedData.episode_number }} 集 - {{ formatDuration(lastWatchedData.playback_time) }} / {{ formatDuration(lastWatchedData.video_duration) }}
+                                        <span class="inline-block ml-2 px-2 py-0.5 bg-white/20 rounded text-xs">{{ lastWatchedData.progress_percentage }}% 完成</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="flex gap-3 w-full md:w-auto">
+                                <button @click="continueLast" class="flex-1 md:flex-none px-6 py-3 bg-white text-indigo-600 hover:bg-gray-100 rounded-lg transition-all font-medium flex items-center justify-center gap-2">
+                                    <span class="material-icons text-xl">play_arrow</span>
+                                    繼續播放
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </transition>
+
             <!-- Main Content Area -->
-            <div class="max-w-7xl mx-auto px-4 py-8 space-y-8">
+            <div class="max-w-7xl mx-auto px-4 py-4 space-y-8">
                 <!-- Episode Selector -->
                 <section class="content-card">
                     <div class="flex items-center gap-3 mb-4">
                         <h2 class="text-2xl font-bold text-gray-900 dark:text-white">選擇集數</h2>
                     </div>
 
-                    <EpisodesPicker v-if="anime?.episodes" :episodes="anime.episodes" v-model="selectedEpisode" @select="(n) => (selectedEpisode = n)" class="mb-4" />
+                    <EpisodesPicker v-if="anime?.episodes" :episodes="anime.episodes" :watch-progress="allWatchProgress" v-model="selectedEpisode" @select="(n) => (selectedEpisode = n)" class="mb-4" />
                     <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400 mb-4">
                         <span class="material-icons text-4xl mb-2 opacity-50">video_library</span>
                         <p>暫無可用集數</p>
                     </div>
 
                     <div class="aspect-video bg-black relative rounded-lg overflow-hidden">
-                        <!-- Video Loading -->
                         <div v-if="videoLoading" class="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
                             <div class="text-center">
                                 <div class="inline-block w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
@@ -414,10 +467,8 @@ onUnmounted(() => {
                             </div>
                         </div>
 
-                        <!-- Video Player -->
                         <video v-if="videoUrl" ref="videoPlayer" :src="videoUrl" controls autoplay class="w-full h-full" @timeupdate="handleTimeUpdate" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @loadstart="videoLoading = true" @loadeddata="onVideoReady" @canplay="onVideoReady"></video>
 
-                        <!-- No Video Message -->
                         <div v-else-if="!selectedEpisode" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
                             <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>
                             <p class="text-lg">請選擇集數開始播放</p>
@@ -437,12 +488,11 @@ onUnmounted(() => {
                     </div>
 
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                        <div v-for="rel in anime.relatedAnime" :key="rel.refId" class="related-card group" @click="goToDetail(rel)">
+                        <NuxtLink v-for="rel in anime.relatedAnime" :key="rel.refId" :to="`/anime/${rel.refId}`" class="related-card group">
                             <div class="relative overflow-hidden rounded-t-xl aspect-[2/3] bg-gray-200 dark:bg-gray-700">
                                 <img :src="rel.image" :alt="rel.title" class="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110" />
                                 <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
-                                <!-- Play Button Overlay -->
                                 <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100">
                                     <div class="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-xl">
                                         <span class="material-icons text-indigo-600 text-2xl">play_arrow</span>
@@ -451,11 +501,9 @@ onUnmounted(() => {
                             </div>
 
                             <div class="p-3">
-                                <p class="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                                    {{ rel.title }}
-                                </p>
+                                <p class="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{{ rel.title }}</p>
                             </div>
-                        </div>
+                        </NuxtLink>
                     </div>
                 </section>
             </div>
@@ -464,17 +512,14 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* Content Card */
 .content-card {
     @apply bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl;
 }
 
-/* Info Card */
 .info-card {
     @apply flex items-center gap-3 px-4 py-3 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20;
 }
 
-/* Related Card */
 .related-card {
     @apply bg-white dark:bg-gray-800 rounded-xl overflow-hidden cursor-pointer 
            transition-all duration-300 hover:shadow-2xl hover:-translate-y-2
@@ -482,7 +527,21 @@ onUnmounted(() => {
            hover:border-indigo-300 dark:hover:border-indigo-600;
 }
 
-/* Animations */
+.slide-down-enter-active,
+.slide-down-leave-active {
+    transition: all 0.4s ease-out;
+}
+
+.slide-down-enter-from {
+    opacity: 0;
+    transform: translateY(-20px);
+}
+
+.slide-down-leave-to {
+    opacity: 0;
+    transform: translateY(-20px);
+}
+
 @keyframes fadeInUp {
     from {
         opacity: 0;
@@ -499,7 +558,6 @@ onUnmounted(() => {
     animation: fadeInUp 0.6s ease-out;
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
