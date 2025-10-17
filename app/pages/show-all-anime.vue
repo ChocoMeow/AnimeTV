@@ -51,10 +51,6 @@ function handleSelect(query) {
     fetchAnime(1)
 }
 
-function goToDetail(anime) {
-    router.push(`/anime/${anime.refId}?type=ref`)
-}
-
 function toggleTag(tag) {
     if (tag === "全部") {
         selectedTags.value = []
@@ -182,7 +178,7 @@ onMounted(() => fetchAnime(1))
 
             <!-- Anime Grid -->
             <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                <div v-for="anime in animeList" :key="anime.refId" class="anime-card-item group" @click="goToDetail(anime)">
+                <NuxtLink v-for="anime in animeList" :key="anime.refId" :to="`/anime/${anime.refId}`" class="anime-card-item group">
                     <!-- Image Container -->
                     <div class="relative overflow-hidden rounded-t-xl aspect-[2/3] bg-gray-200 dark:bg-gray-700">
                         <img :src="anime.image" :alt="anime.title" class="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110" />
@@ -219,7 +215,7 @@ onMounted(() => fetchAnime(1))
                             </div>
                         </div>
                     </div>
-                </div>
+                </NuxtLink>
             </div>
 
             <!-- Pagination -->

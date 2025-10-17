@@ -1,6 +1,6 @@
 <template>
     <div class="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 text-gray-800 dark:text-gray-100">
-        <SiteHeader @search="onSearch" />
+        <SiteHeader />
 
         <main class="flex-1 w-full">
             <slot />
@@ -9,20 +9,6 @@
         <SiteFooter />
     </div>
 </template>
-
-<script setup>
-import { useRouter } from "vue-router"
-import SiteHeader from "~/components/SiteHeader.vue"
-import SiteFooter from "~/components/SiteFooter.vue"
-
-const router = useRouter()
-
-// Header emits 'search' with the query string; layout handles navigation
-function onSearch(query) {
-    if (!query || !query.trim()) return
-    router.push({ path: "/search", query: { q: query.trim() } })
-}
-</script>
 
 <style>
 /* Smooth transitions for theme switching */

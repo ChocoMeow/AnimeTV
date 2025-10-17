@@ -27,7 +27,7 @@ async function signInWithGoogle() {
 }
 
 definePageMeta({
-    layout: "",
+    layout: ""
 })
 useHead({ title: "登入 | Anime Hub" })
 </script>

@@ -23,17 +23,6 @@ const weekdayLabel = {
     7: "週日",
 }
 
-function goToDetailByRefId(refId) {
-    if (!refId) return
-    router.push(`/anime/${refId}?type=ref`)
-}
-
-function goToDetailByVideoId(videoId) {
-    if (!videoId) return
-    // router.push(`/anime/${videoId}?type=video`)
-    navigateTo(`/anime/${videoId}?type=video`)
-}
-
 function formatViews(views) {
     if (!views) return "0"
     if (views >= 1000000) {
@@ -61,9 +50,6 @@ async function fetchHomeAnime() {
 }
 
 useHead({ title: `每日新番 | Anime Hub` })
-definePageMeta({
-    middleware: ["auth"],
-})
 onMounted(fetchHomeAnime)
 </script>
 
@@ -108,7 +94,7 @@ onMounted(fetchHomeAnime)
                         </div>
 
                         <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            <nuxt-link v-for="item in byDay[selectedDay]" :key="item.refId" class="daily-item group" :to="`/anime/${item.refId}?type=video`">
+                            <NuxtLink v-for="item in byDay[selectedDay]" :key="item.refId" class="daily-item group" :to="`/anime/${item.refId}`">
                                 <div class="relative overflow-hidden rounded-lg flex-shrink-0 w-32 sm:w-36">
                                     <img :src="item.thumbnail" alt="" class="w-full h-24 object-cover transform transition-transform duration-300 group-hover:scale-110" />
                                     <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -122,7 +108,7 @@ onMounted(fetchHomeAnime)
                                         {{ item.episode }}
                                     </div>
                                 </div>
-                            </nuxt-link>
+                            </NuxtLink>
                         </div>
                     </template>
                 </section>
@@ -140,7 +126,7 @@ onMounted(fetchHomeAnime)
 
                             <!-- Anime Grid -->
                             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                                <div v-for="item in items" :key="item.refId || item.video_url" class="anime-card-item group" @click="goToDetailByRefId(item.refId)">
+                                <NuxtLink v-for="item in items" :key="item.refId || item.video_url" class="anime-card-item group" :to="`/anime/${item.refId}`">
                                     <!-- Image Container -->
                                     <div class="relative overflow-hidden rounded-t-xl aspect-[2/3] bg-gray-200 dark:bg-gray-700">
                                         <img :src="item.image" :alt="item.title" class="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110" />
@@ -177,7 +163,7 @@ onMounted(fetchHomeAnime)
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </NuxtLink>
                             </div>
                         </div>
                     </div>

@@ -73,7 +73,7 @@ function selectResult(result) {
     if (searchQuery.value) {
         saveSearchHistory(searchQuery.value)
     }
-    router.push(`/anime/${result.refId}?type=ref`)
+    router.push(`/anime/${result.refId}`)
     closeMobileSearch()
     showDropdown.value = false
 }
@@ -132,11 +132,6 @@ async function signOut() {
     showUserMenu.value = false
     const { error } = await client.auth.signOut()
     navigateTo("/auth/login")
-}
-
-function navigateToHistory() {
-    showUserMenu.value = false
-    router.push("/history")
 }
 
 function navigateToFavorites() {
@@ -226,7 +221,7 @@ watch(searchQuery, () => {
                                             <span v-if="result.year">{{ result.year }}</span>
                                             <span v-if="result.episodes" class="flex items-center gap-1">
                                                 <span class="material-icons text-xs">play_circle</span>
-                                                {{ result.episodes }} 集
+                                                {{ result.episodes }}
                                             </span>
                                             <span v-if="result.views" class="flex items-center gap-1">
                                                 <span class="material-icons text-xs">visibility</span>
@@ -283,10 +278,10 @@ watch(searchQuery, () => {
 
                             <!-- Menu Items -->
                             <div class="py-2">
-                                <button @click="navigateToHistory" class="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300">
+                                <NuxtLink to="/history" class="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300" @click.native="showUserMenu = false">
                                     <span class="material-icons text-gray-500 dark:text-gray-400">history</span>
                                     <span class="text-sm font-medium">觀看紀錄</span>
-                                </button>
+                                </NuxtLink>
 
                                 <button @click="navigateToFavorites" class="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300">
                                     <span class="material-icons text-gray-500 dark:text-gray-400">favorite</span>
@@ -413,19 +408,22 @@ watch(searchQuery, () => {
             </div>
 
             <nav class="flex flex-col gap-2">
-                <NuxtLink to="/show-all-anime" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                <NuxtLink to="/show-all-anime" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3" @click="mobileMenuOpen = false">
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">movie</span>
                     <span>全部作品</span>
                 </NuxtLink>
-                <NuxtLink to="/history" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                <NuxtLink to="/history" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3" @click="mobileMenuOpen = false">
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">history</span>
                     <span>觀看紀錄</span>
                 </NuxtLink>
-                <NuxtLink to="/favorites" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                <NuxtLink to="/favorites" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3" @click="mobileMenuOpen = false">
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">favorite</span>
                     <span>我的最愛</span>
                 </NuxtLink>
-                <button @click="signOut" class="text-sm px-3 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 text-red-600 dark:text-red-400 text-left">
+                <button
+                    @click="signOut; mobileMenuOpen = false"
+                    class="text-sm px-3 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 text-red-600 dark:text-red-400 text-left"
+                >
                     <span class="material-icons text-xl">logout</span>
                     <span>登出</span>
                 </button>

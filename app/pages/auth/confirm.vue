@@ -41,7 +41,7 @@ watch(
 
 useHead({ title: "驗證中 | Anime Hub" })
 definePageMeta({
-    layout: "",
+    layout: ""
 })
 </script>
 
