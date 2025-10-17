@@ -10,18 +10,18 @@ dns.setDefaultResultOrder('ipv4first')
 // Configure agents with streaming-optimized settings
 const httpAgent = new http.Agent({
     keepAlive: true,
-    keepAliveMsecs: 1000,
+    keepAliveMsecs: 3000,
     maxSockets: 50,
     maxFreeSockets: 10,
-    timeout: 60000
+    timeout: 0 // No timeout for keep-alive
 })
 
 const httpsAgent = new https.Agent({
     keepAlive: true,
-    keepAliveMsecs: 1000,
+    keepAliveMsecs: 3000,
     maxSockets: 50,
     maxFreeSockets: 10,
-    timeout: 60000
+    timeout: 0 // No timeout for keep-alive
 })
 
 export default defineEventHandler(async (event) => {
@@ -50,10 +50,16 @@ export default defineEventHandler(async (event) => {
     // Track if client disconnected
     let clientDisconnected = false
     let proxyRequest = null
+    let lastDataReceived = Date.now()
+    let idleCheckInterval = null
 
     // Handle client disconnection
     const cleanupRequest = () => {
         clientDisconnected = true
+        if (idleCheckInterval) {
+            clearInterval(idleCheckInterval)
+            idleCheckInterval = null
+        }
         if (proxyRequest && !proxyRequest.destroyed) {
             proxyRequest.destroy()
         }
@@ -82,7 +88,7 @@ export default defineEventHandler(async (event) => {
             const client = targetUrl.protocol === 'https:' ? https : http
             const agent = targetUrl.protocol === 'https:' ? httpsAgent : httpAgent
 
-            console.log(`[Attempt ${attempt}] Requesting: ${targetUrl.href}`)
+            console.log(`[Attempt ${attempt}] Requesting: ${targetUrl.href}${range ? ` (Range: ${range})` : ''}`)
 
             const requestOptions = {
                 hostname: targetUrl.hostname,
@@ -90,7 +96,7 @@ export default defineEventHandler(async (event) => {
                 path: targetUrl.pathname + targetUrl.search,
                 method: 'GET',
                 agent,
-                timeout: 30000,
+                timeout: 60000, // Initial connection timeout only
                 headers: {
                     'Cookie': cookie,
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -203,11 +209,30 @@ export default defineEventHandler(async (event) => {
                     return
                 }
 
+                // Reset last data received time
+                lastDataReceived = Date.now()
+
+                // Monitor for idle connections (no data for 90 seconds = stalled)
+                // This is much longer than browser buffering pauses
+                idleCheckInterval = setInterval(() => {
+                    const idleTime = Date.now() - lastDataReceived
+                    if (idleTime > 90000) { // 90 seconds with no data
+                        console.log(`[Attempt ${attempt}] Connection idle for ${Math.floor(idleTime / 1000)}s, closing`)
+                        cleanupRequest()
+                    }
+                }, 10000) // Check every 10 seconds
+
+                // Update last data received on each chunk
+                res.on('data', () => {
+                    lastDataReceived = Date.now()
+                })
+
                 // Handle stream errors
                 res.on('error', (err) => {
                     if (err.code !== 'ECONNRESET' && !err.message.includes('aborted')) {
                         console.error(`[Attempt ${attempt}] Stream error:`, err.message)
                     }
+                    cleanupRequest()
                     if (!event.node.res.destroyed) {
                         event.node.res.destroy()
                     }
@@ -216,10 +241,12 @@ export default defineEventHandler(async (event) => {
 
                 res.on('end', () => {
                     console.log(`[Attempt ${attempt}] Stream completed`)
+                    cleanupRequest()
                     resolve()
                 })
 
                 res.on('close', () => {
+                    cleanupRequest()
                     resolve()
                 })
 
@@ -228,15 +255,17 @@ export default defineEventHandler(async (event) => {
                     res.pipe(event.node.res, { end: true })
                 } catch (err) {
                     res.destroy()
+                    cleanupRequest()
                     resolve()
                 }
             })
 
-            // Set request timeout
-            proxyRequest.setTimeout(30000, () => {
-                if (!clientDisconnected) {
-                    console.log(`[Attempt ${attempt}] Request timeout`)
-                    proxyRequest.destroy(new Error('Request timed out'))
+            // Only timeout on initial connection, not during streaming
+            proxyRequest.setTimeout(60000, () => {
+                if (!clientDisconnected && !event.node.res.headersSent) {
+                    // Only timeout if we haven't started streaming yet
+                    console.log(`[Attempt ${attempt}] Initial connection timeout`)
+                    proxyRequest.destroy(new Error('Initial connection timed out'))
                 }
             })
 
@@ -247,29 +276,32 @@ export default defineEventHandler(async (event) => {
                     return
                 }
 
+                // Don't treat as error if we're already streaming and connection resets
+                if (err.code === 'ECONNRESET' && event.node.res.headersSent) {
+                    console.log(`[Attempt ${attempt}] Connection reset during streaming (client likely paused/seeked)`)
+                    cleanupRequest()
+                    resolve()
+                    return
+                }
+
                 console.error(`[Attempt ${attempt}] Request error:`, err.code, err.message)
 
-                // Retry logic for network issues
+                // Retry logic for network issues (only before streaming starts)
                 const retryableCodes = ['ETIMEDOUT', 'ENOTFOUND', 'ECONNRESET', 'ECONNREFUSED', 'EHOSTUNREACH']
 
-                if (retryableCodes.includes(err.code) && attempt < 3) {
+                if (retryableCodes.includes(err.code) && attempt < 3 && !event.node.res.headersSent) {
                     console.log(`[Attempt ${attempt}] Retrying after error: ${err.code}`)
                     setTimeout(() => {
                         makeRequest(currentUrl, attempt + 1)
                             .then(resolve)
                             .catch(reject)
-                    }, 1000 * attempt) // Progressive delay
+                    }, 1000 * attempt)
                 } else {
-                    // Treat connection resets during streaming as normal
-                    if (err.code === 'ECONNRESET' && event.node.res.headersSent) {
-                        console.log(`[Attempt ${attempt}] Connection reset during streaming (normal)`)
-                        resolve()
-                    } else {
-                        reject(createError({
-                            statusCode: 502,
-                            statusMessage: `Proxy error: ${err.message}`
-                        }))
-                    }
+                    cleanupRequest()
+                    reject(createError({
+                        statusCode: 502,
+                        statusMessage: `Proxy error: ${err.message}`
+                    }))
                 }
             })
 
@@ -283,6 +315,10 @@ export default defineEventHandler(async (event) => {
         if (!clientDisconnected && !event.node.res.headersSent) {
             console.error('Final proxy error:', error.message)
             return sendError(event, error)
+        }
+    } finally {
+        if (idleCheckInterval) {
+            clearInterval(idleCheckInterval)
         }
     }
 })
