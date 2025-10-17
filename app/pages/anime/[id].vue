@@ -306,12 +306,30 @@ watch(selectedEpisode, async (epNum) => {
 onMounted(() => {
     fetchDetail()
     window.addEventListener("beforeunload", saveWatchHistory)
+
+    // Restore saved volume
+    if (videoPlayer.value) {
+        const savedVolume = localStorage.getItem("videoVolume")
+        if (savedVolume !== null) {
+            videoPlayer.value.volume = parseFloat(savedVolume)
+        }
+
+        // Save volume whenever it changes
+        videoPlayer.value.addEventListener("volumechange", () => {
+            localStorage.setItem("videoVolume", videoPlayer.value.volume)
+        })
+    }
 })
 
 onUnmounted(() => {
     saveWatchHistory()
     stopAutoSave()
     window.removeEventListener("beforeunload", saveWatchHistory)
+
+    // Clean up listener
+    if (videoPlayer.value) {
+        videoPlayer.value.removeEventListener("volumechange", () => {})
+    }
 })
 </script>
 
