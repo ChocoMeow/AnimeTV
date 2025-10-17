@@ -420,10 +420,7 @@ watch(searchQuery, () => {
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">favorite</span>
                     <span>我的最愛</span>
                 </NuxtLink>
-                <button
-                    @click="signOut; mobileMenuOpen = false"
-                    class="text-sm px-3 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 text-red-600 dark:text-red-400 text-left"
-                >
+                <button @click="signOut" class="text-sm px-3 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 text-red-600 dark:text-red-400 text-left">
                     <span class="material-icons text-xl">logout</span>
                     <span>登出</span>
                 </button>
