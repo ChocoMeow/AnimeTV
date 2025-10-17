@@ -8,6 +8,11 @@ export default defineNuxtConfig({
         port: 3000,
         host: "0.0.0.0",
     },
+    nitro: {
+        prerender: {
+            routes: ["/"],
+        },
+    },
     app: {
         head: {
             title: "Anime Hub",
@@ -60,6 +65,7 @@ export default defineNuxtConfig({
             ],
         },
         workbox: {
+            globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
             runtimeCaching: [
                 {
                     urlPattern: "/*",
