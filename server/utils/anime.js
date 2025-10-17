@@ -15,8 +15,7 @@ let fetchPromise = null
 // const SESSION_LIFETIME = 1000 * 60 * 120 // 120 minutes
 
 // Response cache to avoid redundant requests
-const responseCache = new Map()
-const CACHE_LIFETIME = 1000 * 60 * 12 // 12 hours
+
 
 // async function getFlareSolverrSession() {
 //     const now = Date.now()
@@ -94,37 +93,46 @@ function normalizeTitle(str) {
 }
 
 export async function fetchAnimeData() {
-    // If we already have data, return it immediately
-    if (cachedAnimeList) return cachedAnimeList
+    const currentTime = Date.now()
 
-    // If a fetch is already in progress, wait for it
-    if (fetchPromise) return fetchPromise
+    if (ANIME1_LIST_CACHE.data && (currentTime - ANIME1_LIST_CACHE.timestamp < CACHE_LIFETIME)) {
+        return ANIME1_LIST_CACHE.data
+    }
 
-    // Otherwise, start a new fetch and cache the promise
-    fetchPromise = (async () => {
+    // Wait for any ongoing fetch if it exists
+    if (ANIME1_LIST_CACHE.fetchPromise) return ANIME1_LIST_CACHE.fetchPromise;
+
+    // Start a new fetch and cache the promise
+    ANIME1_LIST_CACHE.fetchPromise = (async () => {
         try {
-            console.log("Fetching anime data from source...")
-            const response = await fetch("https://d1zquzjgwo9yb.cloudfront.net/")
-            const rawList = await response.json()
+            console.log("Fetching anime data from source...");
+            const response = await fetch("https://d1zquzjgwo9yb.cloudfront.net/");
+            console.log()
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-            cachedAnimeList = rawList.map(([id, title, episodes, year, season, subtitleGroup]) => ({
+            const rawList = await response.json();
+            ANIME1_LIST_CACHE.data = rawList.map(([id, title, episodes, year, season, subtitleGroup]) => ({
                 id,
                 title,
                 episodes,
                 year,
                 season,
                 subtitleGroup,
-            }))
+            }));
 
-            return cachedAnimeList
+            ANIME1_LIST_CACHE.timestamp = currentTime;
+            ANIME1_LIST_CACHE.fetchPromise = null;
+            return ANIME1_LIST_CACHE.data;
         } catch (error) {
-            console.error("Error fetching anime data:", error)
-            fetchPromise = null // Reset on error so it can be retried
-            throw error
+            console.error("Error fetching anime data:", error);
+            ANIME1_LIST_CACHE.fetchPromise = null; // Reset on error to allow retries
+            throw error;
         }
-    })()
+    })();
 
-    return fetchPromise
+    return ANIME1_LIST_CACHE.fetchPromise;
 }
 
 export async function searchAnimeTitle(query) {
@@ -140,7 +148,6 @@ export async function searchAnimeTitle(query) {
 
 export async function matchAnime(animeList) {
     if (!Array.isArray(animeList) || animeList.length === 0) {
-        console.warn("matchAnime called with empty or invalid animeList")
         return []
     }
 
@@ -164,7 +171,14 @@ export async function matchAnime(animeList) {
                     matchedVideo = videoDetails[0]
                 }
 
-                return { ...anime, matchedVideo }
+                return {
+                    ...anime,
+                    matchedVideo: {
+                        id: matchedVideo.id,
+                        year: matchedVideo.year,
+                        season: matchedVideo.season
+                    }
+                }
             } catch (err) {
                 console.error(`Error matching anime: ${anime.title}`, err)
                 return null
@@ -179,7 +193,7 @@ export async function cfFetch(url) {
     try {
         const now = Date.now()
 
-        const cached = responseCache.get(url)
+        const cached = RESPONSE_CACHE.get(url)
         if (cached && now - cached.timestamp < CACHE_LIFETIME) {
             console.log(`Cache hit for: ${url} (${cached.html.length} bytes)`)
             return cached
@@ -191,10 +205,10 @@ export async function cfFetch(url) {
         const html = await response.text()
         const result = { html, timestamp: now }
 
-        responseCache.set(url, result)
-        if (responseCache.size > 200) {
-            const firstKey = responseCache.keys().next().value
-            responseCache.delete(firstKey)
+        RESPONSE_CACHE.set(url, result)
+        if (RESPONSE_CACHE.size > 200) {
+            const firstKey = RESPONSE_CACHE.keys().next().value
+            RESPONSE_CACHE.delete(firstKey)
         }
 
         return result
@@ -212,7 +226,7 @@ export async function cfFetch(url) {
 //     const cacheKey = method === "POST" ? `${method}:${url}:${JSON.stringify(body || postData)}` : url
 
 //     // Check cache first (you may want to disable caching for POST requests)
-//     const cached = responseCache.get(cacheKey)
+//     const cached = RESPONSE_CACHE.get(cacheKey)
 //     if (cached && now - cached.timestamp < CACHE_LIFETIME) {
 //         console.log(`Cache hit for: ${url} (${cached.html.length} bytes)`)
 //         // Return the full cached object with cookies
@@ -263,7 +277,7 @@ export async function cfFetch(url) {
 //             }
 
 //             // Cache the response WITH cookies
-//             responseCache.set(cacheKey, {
+//             RESPONSE_CACHE.set(cacheKey, {
 //                 html: html,
 //                 cookies: cookies,
 //                 headers: responseHeaders,
@@ -271,9 +285,9 @@ export async function cfFetch(url) {
 //             })
 
 //             // Clean old cache entries (keep cache size manageable)
-//             if (responseCache.size > 100) {
-//                 const firstKey = responseCache.keys().next().value
-//                 responseCache.delete(firstKey)
+//             if (RESPONSE_CACHE.size > 100) {
+//                 const firstKey = RESPONSE_CACHE.keys().next().value
+//                 RESPONSE_CACHE.delete(firstKey)
 //             }
 
 //             console.log(`Successfully fetched [${method}] in ${duration}s: ${url} (${html.length} bytes)`)
