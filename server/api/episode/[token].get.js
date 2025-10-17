@@ -57,9 +57,29 @@
 //     return finalCookie.replace(/;\s*$/, "")
 // }
 
+function videoCookieC(rawSetCookieHeader) {
+    let finalCookie = '';
+
+    // Split the raw header into individual cookie strings
+    const baseCookies = rawSetCookieHeader.split(',');
+
+    baseCookies.forEach(cookieString => {
+        const parts = cookieString.trim().split(';')[0].split('=');
+        const key = parts[0];
+        const value = parts[1];
+
+        if (key === 'e' || key === 'p' || key === 'h' || key.startsWith('_ga')) {
+            finalCookie += `${key}=${value}; `;
+        }
+    });
+
+    // Remove trailing semicolon and space
+    return finalCookie.replace(/;\s*$/, '');
+}
+
 export default defineEventHandler(async (event) => {
     const user = await authUser(event)
-    
+
     const { token } = event.context.params;
     const encodedBody = `d=${token}`;
 
@@ -95,23 +115,3 @@ export default defineEventHandler(async (event) => {
         return { error: err.message || "Failed to fetch video" };
     }
 });
-
-function videoCookieC(rawSetCookieHeader) {
-    let finalCookie = '';
-
-    // Split the raw header into individual cookie strings
-    const baseCookies = rawSetCookieHeader.split(',');
-
-    baseCookies.forEach(cookieString => {
-        const parts = cookieString.trim().split(';')[0].split('=');
-        const key = parts[0];
-        const value = parts[1];
-
-        if (key === 'e' || key === 'p' || key === 'h' || key.startsWith('_ga')) {
-            finalCookie += `${key}=${value}; `;
-        }
-    });
-
-    // Remove trailing semicolon and space
-    return finalCookie.replace(/;\s*$/, '');
-}
