@@ -124,6 +124,12 @@ function handlePause() {
     stopAutoSave()
 }
 
+function handleVolumeChange() {
+    if (videoPlayer.value && typeof localStorage !== "undefined") {
+        localStorage.setItem("videoVolume", videoPlayer.value.volume)
+    }
+}
+
 function handleEnded() {
     currentTime.value = duration.value
     saveWatchHistory()
@@ -132,6 +138,15 @@ function handleEnded() {
 
 function onVideoReady() {
     videoLoading.value = false
+    
+    // Restore saved volume
+    if (videoPlayer.value && typeof localStorage !== "undefined") {
+        const savedVolume = localStorage.getItem("videoVolume")
+        if (savedVolume !== null) {
+            videoPlayer.value.volume = parseFloat(savedVolume)
+        }
+    }
+    
     if (hasSetInitialTime.value) return
 
     let startTime = null
@@ -306,30 +321,12 @@ watch(selectedEpisode, async (epNum) => {
 onMounted(() => {
     fetchDetail()
     window.addEventListener("beforeunload", saveWatchHistory)
-
-    // Restore saved volume
-    if (videoPlayer.value) {
-        const savedVolume = localStorage.getItem("videoVolume")
-        if (savedVolume !== null) {
-            videoPlayer.value.volume = parseFloat(savedVolume)
-        }
-
-        // Save volume whenever it changes
-        videoPlayer.value.addEventListener("volumechange", () => {
-            localStorage.setItem("videoVolume", videoPlayer.value.volume)
-        })
-    }
 })
 
 onUnmounted(() => {
     saveWatchHistory()
     stopAutoSave()
     window.removeEventListener("beforeunload", saveWatchHistory)
-
-    // Clean up listener
-    if (videoPlayer.value) {
-        videoPlayer.value.removeEventListener("volumechange", () => {})
-    }
 })
 </script>
 
@@ -485,7 +482,7 @@ onUnmounted(() => {
                             </div>
                         </div>
 
-                        <video v-if="videoUrl" ref="videoPlayer" :src="videoUrl" controls autoplay class="w-full h-full" @timeupdate="handleTimeUpdate" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @loadstart="videoLoading = true" @loadeddata="onVideoReady" @canplay="onVideoReady"></video>
+                        <video v-if="videoUrl" ref="videoPlayer" :src="videoUrl" controls autoplay class="w-full h-full" @timeupdate="handleTimeUpdate" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @volumechange="handleVolumeChange" @loadstart="videoLoading = true" @loadeddata="onVideoReady" @canplay="onVideoReady"></video>
 
                         <div v-else-if="!selectedEpisode" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
                             <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>
