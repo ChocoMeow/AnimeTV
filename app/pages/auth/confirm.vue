@@ -11,8 +11,7 @@ const userAvatarUrl = ref("")
 const hasRedirected = ref(false)
 
 // Get redirect path from cookies
-const cookieName = useRuntimeConfig().public.supabase.cookieName
-const redirectPath = useCookie(`${cookieName}-redirect-path`).value
+const redirectPath = useRoute().query.redirect || "/"
 
 watch(
     user,
@@ -27,13 +26,10 @@ watch(
             userAvatarUrl.value = newUser.user_metadata?.avatar_url || ""
             message.value = "登入成功！"
 
-            // Clear cookie
-            useCookie(`${cookieName}-redirect-path`).value = null
-
             // Wait 2 seconds to show success message, then redirect
             setTimeout(() => {
-                navigateTo(redirectPath || "/", { replace: true })
-            }, 3000)
+                navigateTo(redirectPath, { replace: true })
+            }, 2000)
         }
     },
     { immediate: true }
@@ -41,7 +37,7 @@ watch(
 
 useHead({ title: "驗證中 | Anime Hub" })
 definePageMeta({
-    layout: ""
+    layout: "",
 })
 </script>
 

@@ -1,22 +1,15 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
     css: ["~/assets/css/tailwind.css"],
-    modules: ["@nuxtjs/tailwindcss", "@vite-pwa/nuxt", "@nuxtjs/supabase"],
+    modules: ["@nuxtjs/tailwindcss", "@nuxtjs/supabase", "@vite-pwa/nuxt"], 
     compatibilityDate: "2025-07-15",
     devtools: { enabled: true },
     devServer: {
         port: 3000,
         host: "0.0.0.0",
     },
-    nitro: {
-        prerender: {
-            routes: ["/"],
-        },
-    },
-    vite: {
-        build: {
-            target: "safari13",
-        },
+    experimental: {
+        entryImportMap: false,
     },
     app: {
         head: {
@@ -39,13 +32,13 @@ export default defineNuxtConfig({
         },
     },
     pwa: {
+        strategies: 'generateSW',
         manifest: {
             name: "Anime Hub",
             short_name: "Anime Hub",
             description: "Stream your favorite anime series and movies anytime, anywhere.",
             theme_color: "#2d3748",
             background_color: "#2d3748",
-            display: "standalone",
             icons: [
                 {
                     src: "icons/icon_64x64.png",
@@ -70,27 +63,11 @@ export default defineNuxtConfig({
             ],
         },
         workbox: {
-            globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
-            runtimeCaching: [
-                {
-                    urlPattern: "/*",
-                    handler: "NetworkFirst",
-                    options: {
-                        cacheName: "default-cache",
-                        expiration: {
-                            maxEntries: 50,
-                            maxAgeSeconds: 30 * 24 * 60 * 60,
-                        },
-                    },
-                },
-            ],
-        },
-        devOptions: {
-            enabled: true,
-            type: "module",
-        },
+            navigateFallback: null,
+        }
     },
     supabase: {
+        redirect: false,
         redirectOptions: {
             login: "/auth/login",
             callback: "/auth/confirm",

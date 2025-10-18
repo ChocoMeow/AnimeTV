@@ -1,6 +1,7 @@
 <script setup>
 const loading = ref(false)
 const error = ref(null)
+const redirectPath = useRoute().query.redirect || "/"
 
 const client = useSupabaseClient()
 
@@ -12,7 +13,7 @@ async function signInWithGoogle() {
         const { data, error } = await client.auth.signInWithOAuth({
             provider: "google",
             options: {
-                redirectTo: `${window.location.origin}/auth/confirm`,
+                redirectTo: `${window.location.origin}/auth/confirm?redirect=${redirectPath}`,
             },
         })
 
@@ -27,7 +28,7 @@ async function signInWithGoogle() {
 }
 
 definePageMeta({
-    layout: ""
+    layout: "",
 })
 useHead({ title: "登入 | Anime Hub" })
 </script>
