@@ -13,8 +13,10 @@ export default defineNuxtConfig({
             routes: ["/"],
         },
     },
-    experimental: {
-        entryImportMap: false
+    vite: {
+        build: {
+            target: "safari13",
+        },
     },
     app: {
         head: {
