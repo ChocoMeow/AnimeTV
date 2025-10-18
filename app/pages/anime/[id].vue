@@ -521,7 +521,7 @@ onUnmounted(() => {
                             </div>
                         </div>
 
-                        <video v-if="videoUrl" ref="videoPlayer" :src="videoUrl" controls autoplay class="w-full h-full" @timeupdate="handleTimeUpdate" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @volumechange="handleVolumeChange" @loadstart="videoLoading = true" @loadeddata="onVideoReady" @canplay="onVideoReady"></video>
+                        <video v-if="videoUrl" ref="videoPlayer" :src="videoUrl" controls autoplay preload="metadata" class="w-full h-full" @timeupdate="handleTimeUpdate" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @volumechange="handleVolumeChange" @loadstart="videoLoading = true" @loadeddata="onVideoReady" @canplay="onVideoReady" />
 
                         <div v-else-if="!selectedEpisode" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
                             <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>

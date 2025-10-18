@@ -4,25 +4,21 @@ import https from 'node:https'
 import dns from 'node:dns'
 import { URL } from 'node:url'
 
-// Force IPv4 first to avoid ETIMEDOUT from IPv6 issues
 dns.setDefaultResultOrder('ipv4first')
 
-// Configure agents with streaming-optimized settings
+// Shorter timeouts for serverless environments
 const httpAgent = new http.Agent({
-    keepAlive: true,
-    keepAliveMsecs: 1000,
-    maxSockets: 50,
-    maxFreeSockets: 10,
-    timeout: 120000 // 2 minute keep-alive timeout
+    keepAlive: false, // Disable keep-alive in serverless
+    timeout: 30000 // 30 second timeout
 })
 
 const httpsAgent = new https.Agent({
-    keepAlive: true,
-    keepAliveMsecs: 1000,
-    maxSockets: 50,
-    maxFreeSockets: 10,
-    timeout: 120000 // 2 minute keep-alive timeout
+    keepAlive: false,
+    timeout: 30000
 })
+
+// Maximum chunk size: 5MB (completes well within Vercel's 60s limit)
+const MAX_CHUNK_SIZE = 5 * 1024 * 1024
 
 export default defineEventHandler(async (event) => {
     const { url: videoUrl, cookie } = getQuery(event)
@@ -34,7 +30,6 @@ export default defineEventHandler(async (event) => {
         )
     }
 
-    // Validate URL
     let parsedUrl
     try {
         parsedUrl = new URL(videoUrl)
@@ -45,27 +40,57 @@ export default defineEventHandler(async (event) => {
         )
     }
 
-    const range = getHeader(event, 'range')
+    const rangeHeader = getHeader(event, 'range')
 
-    // Track connection state
+    // CRITICAL: Get video size first to enable proper range requests
+    const headInfo = await getVideoInfo(videoUrl, cookie)
+
+    if (!headInfo.success) {
+        return sendError(
+            event,
+            createError({ statusCode: headInfo.statusCode || 502, statusMessage: headInfo.error })
+        )
+    }
+
+    const totalSize = headInfo.contentLength
+    const supportsRange = headInfo.acceptsRanges
+
+    console.log(`Video info: ${totalSize} bytes, Range support: ${supportsRange}`)
+
+    // Parse range request or create one
+    let start = 0
+    let end = totalSize - 1
+
+    if (rangeHeader && supportsRange) {
+        const parts = rangeHeader.replace(/bytes=/, '').split('-')
+        start = parseInt(parts[0], 10)
+        end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1
+    } else if (supportsRange) {
+        // Force chunked requests even if client doesn't ask for them
+        // This prevents single long-running requests on Vercel
+        end = Math.min(start + MAX_CHUNK_SIZE - 1, totalSize - 1)
+    }
+
+    // Ensure we don't exceed limits
+    const requestedSize = end - start + 1
+    if (requestedSize > MAX_CHUNK_SIZE && supportsRange) {
+        end = start + MAX_CHUNK_SIZE - 1
+        console.log(`Limiting chunk to ${MAX_CHUNK_SIZE} bytes for serverless compatibility`)
+    }
+
+    const chunkSize = end - start + 1
+
+    console.log(`Serving range: ${start}-${end}/${totalSize} (${chunkSize} bytes)`)
+
+    // Stream the requested range
     let clientDisconnected = false
     let proxyRequest = null
-    let lastDataReceived = Date.now()
-    let idleCheckInterval = null
-    let streamingStarted = false
     let bytesTransferred = 0
 
-    // Handle client disconnection
     const cleanupRequest = (reason = 'unknown') => {
-        if (clientDisconnected) return // Already cleaned up
-
+        if (clientDisconnected) return
         clientDisconnected = true
-        console.log(`Cleanup triggered: ${reason}, bytes transferred: ${bytesTransferred}`)
-
-        if (idleCheckInterval) {
-            clearInterval(idleCheckInterval)
-            idleCheckInterval = null
-        }
+        console.log(`Cleanup: ${reason}, bytes: ${bytesTransferred}/${chunkSize}`)
         if (proxyRequest && !proxyRequest.destroyed) {
             proxyRequest.destroy()
         }
@@ -73,11 +98,9 @@ export default defineEventHandler(async (event) => {
 
     event.node.req.on('close', () => cleanupRequest('client close'))
     event.node.req.on('error', () => cleanupRequest('client error'))
-    event.node.res.on('close', () => cleanupRequest('response close'))
 
     const makeRequest = (currentUrl, attempt = 1) =>
         new Promise((resolve, reject) => {
-            // Don't make new requests if client already disconnected
             if (clientDisconnected) {
                 resolve()
                 return
@@ -87,14 +110,12 @@ export default defineEventHandler(async (event) => {
             try {
                 targetUrl = new URL(currentUrl)
             } catch (err) {
-                reject(createError({ statusCode: 400, statusMessage: 'Invalid redirect URL' }))
+                reject(createError({ statusCode: 400, statusMessage: 'Invalid URL' }))
                 return
             }
 
             const client = targetUrl.protocol === 'https:' ? https : http
             const agent = targetUrl.protocol === 'https:' ? httpsAgent : httpAgent
-
-            console.log(`[Attempt ${attempt}] Requesting: ${targetUrl.href}${range ? ` (Range: ${range})` : ''}`)
 
             const requestOptions = {
                 hostname: targetUrl.hostname,
@@ -102,97 +123,78 @@ export default defineEventHandler(async (event) => {
                 path: targetUrl.pathname + targetUrl.search,
                 method: 'GET',
                 agent,
-                timeout: 120000, // 2 minute initial connection timeout
+                timeout: 30000, // 30 second timeout for serverless
                 headers: {
                     'Cookie': cookie,
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5',
-                    'Accept-Language': 'en-US,en;q=0.5',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept': 'video/webm,video/ogg,video/*;q=0.9,*/*;q=0.5',
                     'Accept-Encoding': 'identity',
-                    'Connection': 'keep-alive',
+                    'Connection': 'close', // Close after request in serverless
                     'Referer': targetUrl.origin,
-                    ...(range ? { 'Range': range } : {})
+                    'Range': `bytes=${start}-${end}` // Always use range requests
                 }
             }
 
+            console.log(`[Attempt ${attempt}] Requesting bytes ${start}-${end}`)
+
             proxyRequest = client.request(requestOptions, (res) => {
-                // Don't process if client disconnected
                 if (clientDisconnected) {
                     res.destroy()
                     resolve()
                     return
                 }
 
-                console.log(`[Attempt ${attempt}] Response status: ${res.statusCode}`)
+                console.log(`[Attempt ${attempt}] Status: ${res.statusCode}`)
 
-                // Handle redirects (301, 302, 307, 308)
+                // Handle redirects
                 if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
                     res.destroy()
-
                     if (attempt >= 5) {
-                        console.error(`[Attempt ${attempt}] Too many redirects`)
-                        reject(createError({
-                            statusCode: 508,
-                            statusMessage: 'Too many redirects'
-                        }))
+                        reject(createError({ statusCode: 508, statusMessage: 'Too many redirects' }))
                         return
                     }
-
                     const redirectUrl = new URL(res.headers.location, currentUrl).toString()
-                    console.log(`[Attempt ${attempt}] Redirecting to: ${redirectUrl}`)
-
-                    // Retry with new URL
                     setTimeout(() => {
-                        makeRequest(redirectUrl, attempt + 1)
-                            .then(resolve)
-                            .catch(reject)
+                        makeRequest(redirectUrl, attempt + 1).then(resolve).catch(reject)
                     }, 100)
                     return
                 }
 
-                // Handle error responses
+                // Handle errors with retry
                 if (res.statusCode >= 400) {
                     res.destroy()
-
-                    // Retry on server errors (500+) or timeout (408)
                     if ((res.statusCode >= 500 || res.statusCode === 408) && attempt < 3) {
-                        console.log(`[Attempt ${attempt}] Server error ${res.statusCode}, retrying...`)
                         setTimeout(() => {
-                            makeRequest(currentUrl, attempt + 1)
-                                .then(resolve)
-                                .catch(reject)
+                            makeRequest(currentUrl, attempt + 1).then(resolve).catch(reject)
                         }, 1000 * attempt)
                         return
                     }
-
-                    console.error(`[Attempt ${attempt}] Failed with status: ${res.statusCode}`)
-                    reject(createError({
-                        statusCode: res.statusCode,
-                        statusMessage: `Video stream error: ${res.statusMessage}`
-                    }))
+                    reject(createError({ statusCode: res.statusCode, statusMessage: 'Video stream error' }))
                     return
                 }
 
-                // Success! Set up streaming
-                const statusCode = range && res.statusCode === 206 ? 206 : 200
+                // Success - set up streaming
+                const statusCode = res.statusCode === 206 ? 206 : 200
 
-                // Pass through headers
                 const headers = {
                     'Content-Type': res.headers['content-type'] || 'video/mp4',
-                    'Accept-Ranges': res.headers['accept-ranges'] || 'bytes',
+                    'Accept-Ranges': 'bytes',
                     'Cache-Control': 'public, max-age=3600',
                     'Access-Control-Allow-Origin': '*',
                     'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
                     'Access-Control-Allow-Headers': 'Range',
-                    'Connection': 'keep-alive'
+                    'Access-Control-Expose-Headers': 'Content-Range, Accept-Ranges, Content-Length',
+                    'Connection': 'close'
                 }
 
-                if (res.headers['content-length']) {
+                // Always include Content-Range for partial content
+                if (statusCode === 206) {
+                    headers['Content-Range'] = `bytes ${start}-${end}/${totalSize}`
+                    headers['Content-Length'] = chunkSize.toString()
+                } else if (res.headers['content-length']) {
                     headers['Content-Length'] = res.headers['content-length']
                 }
-                if (res.headers['content-range']) {
-                    headers['Content-Range'] = res.headers['content-range']
-                }
+
                 if (res.headers['last-modified']) {
                     headers['Last-Modified'] = res.headers['last-modified']
                 }
@@ -200,8 +202,7 @@ export default defineEventHandler(async (event) => {
                     headers['ETag'] = res.headers['etag']
                 }
 
-                // Don't send headers if client disconnected
-                if (clientDisconnected || event.node.res.headersSent) {
+                if (event.node.res.headersSent) {
                     res.destroy()
                     resolve()
                     return
@@ -209,134 +210,65 @@ export default defineEventHandler(async (event) => {
 
                 try {
                     event.node.res.writeHead(statusCode, headers)
-                    streamingStarted = true
-                    console.log(`[Attempt ${attempt}] Streaming started, Content-Length: ${headers['Content-Length'] || 'unknown'}`)
+                    console.log(`Streaming ${chunkSize} bytes (${start}-${end}/${totalSize})`)
                 } catch (err) {
-                    console.error(`[Attempt ${attempt}] Failed to write headers:`, err.message)
+                    console.error('Failed to write headers:', err.message)
                     res.destroy()
                     resolve()
                     return
                 }
 
-                // Reset last data received time
-                lastDataReceived = Date.now()
-
-                // Monitor for idle connections
-                // Chrome/Edge can pause for 3-5 minutes when buffer is full
-                // Only consider truly stalled after 5 minutes of no data
-                idleCheckInterval = setInterval(() => {
-                    if (clientDisconnected) {
-                        clearInterval(idleCheckInterval)
-                        return
-                    }
-
-                    const idleTime = Date.now() - lastDataReceived
-
-                    // Log idle status every 30 seconds
-                    if (idleTime > 30000 && Math.floor(idleTime / 30000) !== Math.floor((idleTime - 10000) / 30000)) {
-                        console.log(`[Attempt ${attempt}] Idle for ${Math.floor(idleTime / 1000)}s, bytes: ${bytesTransferred}`)
-                    }
-
-                    // Only timeout after 5 minutes of no data (browser buffering can pause for this long)
-                    if (idleTime > 300000) {
-                        console.log(`[Attempt ${attempt}] Connection stalled for ${Math.floor(idleTime / 1000)}s, closing`)
-                        cleanupRequest('idle timeout')
-                    }
-                }, 10000) // Check every 10 seconds
-
-                // Track data and update last received time
+                // Track data
                 res.on('data', (chunk) => {
-                    lastDataReceived = Date.now()
                     bytesTransferred += chunk.length
                 })
 
-                // Handle stream errors
                 res.on('error', (err) => {
-                    if (clientDisconnected) return
-
-                    if (err.code !== 'ECONNRESET' && !err.message.includes('aborted')) {
-                        console.error(`[Attempt ${attempt}] Stream error:`, err.message)
+                    if (!clientDisconnected) {
+                        const errorCode = err.code || err.name || 'UNKNOWN'
+                        if (errorCode !== 'ECONNRESET' && errorCode !== 'ERR_STREAM_PREMATURE_CLOSE') {
+                            console.error(`Stream error: ${errorCode} - ${err.message || 'Unknown'}`)
+                        }
                     }
                     cleanupRequest('stream error')
-                    if (!event.node.res.destroyed) {
-                        event.node.res.destroy()
-                    }
                     resolve()
                 })
 
                 res.on('end', () => {
-                    console.log(`[Attempt ${attempt}] Stream completed, total bytes: ${bytesTransferred}`)
+                    console.log(`Chunk complete: ${bytesTransferred}/${chunkSize} bytes`)
                     cleanupRequest('stream end')
                     resolve()
                 })
 
-                res.on('close', () => {
-                    console.log(`[Attempt ${attempt}] Stream closed, bytes: ${bytesTransferred}`)
-                    cleanupRequest('stream close')
-                    resolve()
-                })
-
-                // Pipe with error handling and backpressure
-                try {
-                    res.pipe(event.node.res, { end: true })
-
-                    // Handle backpressure - pause source if client is slow
-                    event.node.res.on('drain', () => {
-                        lastDataReceived = Date.now() // Reset idle on drain
-                    })
-                } catch (err) {
-                    console.error(`[Attempt ${attempt}] Pipe error:`, err.message)
-                    res.destroy()
-                    cleanupRequest('pipe error')
-                    resolve()
-                }
+                // Pipe with backpressure handling
+                res.pipe(event.node.res, { end: true })
             })
 
-            // Timeout handler - only for initial connection
-            proxyRequest.setTimeout(120000, () => {
-                if (!clientDisconnected && !streamingStarted) {
-                    console.log(`[Attempt ${attempt}] Initial connection timeout`)
-                    proxyRequest.destroy(new Error('Initial connection timed out'))
-                }
-                // Clear timeout once streaming starts
-                if (streamingStarted) {
-                    proxyRequest.setTimeout(0)
-                }
+            // Timeout for serverless - must complete quickly
+            proxyRequest.setTimeout(30000, () => {
+                console.log('Request timeout after 30s')
+                proxyRequest.destroy(new Error('Request timeout'))
             })
 
             proxyRequest.on('error', (err) => {
-                // Don't log or retry if client disconnected
                 if (clientDisconnected) {
                     resolve()
                     return
                 }
 
-                // Don't treat as error if we're already streaming and connection resets
-                if (err.code === 'ECONNRESET' && streamingStarted) {
-                    console.log(`[Attempt ${attempt}] Connection reset during streaming (client likely paused/seeked)`)
-                    cleanupRequest('connection reset during stream')
-                    resolve()
-                    return
-                }
+                const errorCode = err.code || err.name || 'UNKNOWN'
+                const errorMessage = err.message || 'Unknown error'
+                console.error(`Request error: ${errorCode} - ${errorMessage}`)
 
-                console.error(`[Attempt ${attempt}] Request error:`, err.code, err.message)
-
-                // Retry logic for network issues (only before streaming starts)
-                const retryableCodes = ['ETIMEDOUT', 'ENOTFOUND', 'ECONNRESET', 'ECONNREFUSED', 'EHOSTUNREACH']
-
-                if (retryableCodes.includes(err.code) && attempt < 3 && !streamingStarted) {
-                    console.log(`[Attempt ${attempt}] Retrying after error: ${err.code}`)
+                const retryableCodes = ['ETIMEDOUT', 'ENOTFOUND', 'ECONNRESET', 'ECONNREFUSED', 'EHOSTUNREACH', 'EPIPE']
+                if (retryableCodes.includes(errorCode) && attempt < 3) {
+                    console.log(`Retrying attempt ${attempt + 1} after ${errorCode}`)
                     setTimeout(() => {
-                        makeRequest(currentUrl, attempt + 1)
-                            .then(resolve)
-                            .catch(reject)
+                        makeRequest(currentUrl, attempt + 1).then(resolve).catch(reject)
                     }, 1000 * attempt)
                 } else {
                     cleanupRequest('request error')
-                    reject(createError({
-                        statusCode: 502,
-                        statusMessage: `Proxy error: ${err.message}`
-                    }))
+                    reject(createError({ statusCode: 502, statusMessage: `Proxy error: ${errorMessage}` }))
                 }
             })
 
@@ -346,15 +278,85 @@ export default defineEventHandler(async (event) => {
     try {
         await makeRequest(videoUrl)
     } catch (error) {
-        // Only send error if client hasn't disconnected and headers haven't been sent
         if (!clientDisconnected && !event.node.res.headersSent) {
-            console.error('Final proxy error:', error.message)
+            console.error('Proxy error:', error.message)
             return sendError(event, error)
         }
     } finally {
-        if (idleCheckInterval) {
-            clearInterval(idleCheckInterval)
-        }
-        cleanupRequest('finally block')
+        cleanupRequest('finally')
     }
 })
+
+// Helper function to get video info via HEAD request
+async function getVideoInfo(videoUrl, cookie) {
+    return new Promise((resolve) => {
+        let targetUrl
+        try {
+            targetUrl = new URL(videoUrl)
+        } catch (err) {
+            resolve({ success: false, error: 'Invalid URL', statusCode: 400 })
+            return
+        }
+
+        const client = targetUrl.protocol === 'https:' ? https : http
+        const agent = targetUrl.protocol === 'https:' ? httpsAgent : httpAgent
+
+        const requestOptions = {
+            hostname: targetUrl.hostname,
+            port: targetUrl.port || (targetUrl.protocol === 'https:' ? 443 : 80),
+            path: targetUrl.pathname + targetUrl.search,
+            method: 'HEAD',
+            agent,
+            timeout: 10000,
+            headers: {
+                'Cookie': cookie,
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'video/*',
+                'Connection': 'close'
+            }
+        }
+
+        const req = client.request(requestOptions, (res) => {
+            // Follow redirects
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                const redirectUrl = new URL(res.headers.location, videoUrl).toString()
+                getVideoInfo(redirectUrl, cookie).then(resolve)
+                return
+            }
+
+            if (res.statusCode !== 200) {
+                resolve({ success: false, error: `HEAD request failed: ${res.statusCode}`, statusCode: res.statusCode })
+                return
+            }
+
+            const contentLength = parseInt(res.headers['content-length'], 10)
+            const acceptsRanges = res.headers['accept-ranges'] === 'bytes'
+
+            if (!contentLength || isNaN(contentLength)) {
+                resolve({ success: false, error: 'Content-Length not available', statusCode: 500 })
+                return
+            }
+
+            resolve({
+                success: true,
+                contentLength,
+                acceptsRanges,
+                contentType: res.headers['content-type']
+            })
+        })
+
+        req.setTimeout(10000, () => {
+            req.destroy()
+            resolve({ success: false, error: 'HEAD request timeout', statusCode: 504 })
+        })
+
+        req.on('error', (err) => {
+            const errorCode = err.code || err.name || 'UNKNOWN'
+            const errorMessage = err.message || 'Unknown error'
+            console.error(`HEAD request error: ${errorCode} - ${errorMessage}`)
+            resolve({ success: false, error: errorMessage, statusCode: 502 })
+        })
+
+        req.end()
+    })
+}
