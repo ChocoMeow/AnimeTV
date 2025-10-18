@@ -2,10 +2,6 @@
 // Requires: FlareSolverr running on http://localhost:8191
 // import axios from "axios"
 
-// Cache variable
-let cachedAnimeList = null
-let fetchPromise = null
-
 // const FLARESOLVERR_URL = "http://localhost:8191/v1"
 
 // FlareSolverr session management

@@ -13,6 +13,9 @@ export default defineNuxtConfig({
             routes: ["/"],
         },
     },
+    experimental: {
+        entryImportMap: false
+    },
     app: {
         head: {
             title: "Anime Hub",
