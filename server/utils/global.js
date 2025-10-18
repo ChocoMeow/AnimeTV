@@ -1,4 +1,5 @@
 export const GAMER_BASE_URL = "https://ani.gamer.com.tw/";
+export const ACG_GAMER_BASE_URL = "https://acg.gamer.com.tw/"
 export const ANIME1_BASE_URL = "https://anime1.me/";
 
 export const ANIME1_LIST_CACHE = {

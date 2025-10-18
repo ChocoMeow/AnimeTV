@@ -1,9 +1,5 @@
 import * as cheerio from "cheerio"
 
-function isValidNumberString(str) {
-    return /^[+-]?\d+(\.\d+)?$/.test(str);
-}
-
 async function fetchEpisodeTokens(categoryId) {
     const episodes = {}
     let seriesTitle = ""
@@ -70,6 +66,8 @@ async function scrapeAnimeDetailByRefId(refId) {
         const director = getText(".type-list li:nth-child(2) .content")
         const distributor = getText(".type-list li:nth-child(3) .content")
         const productionCompany = getText(".type-list li:nth-child(4) .content")
+        const detailId = getAttr(".data .data-intro .link-button", "href")?.match(/s=(\d+)/)?.[1] || null
+
         const userRating = {
             score: getText(".score-overall-number"),
             count: getText(".score-overall-people")?.replace("人評價", "") || null,
@@ -102,6 +100,7 @@ async function scrapeAnimeDetailByRefId(refId) {
 
         return {
             refId,
+            detailId,
             title,
             description,
             views,
@@ -124,7 +123,7 @@ async function scrapeAnimeDetailByRefId(refId) {
 export default defineEventHandler(async (event) => {
     const user = await authUser(event)
 
-    const { refId } = event.context.params;
+    const refId = getRouterParam(event, 'refId')
 
     try {
         const animeDetail = await scrapeAnimeDetailByRefId(refId)

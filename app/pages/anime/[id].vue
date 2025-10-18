@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch, onUnmounted } from "vue"
+import { ref, onMounted, watch, onUnmounted, computed } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
 // Core
@@ -15,6 +15,8 @@ const error = ref(null)
 const loading = ref(true)
 const videoLoading = ref(false)
 const isFavorite = ref(false)
+const showShareDialog = ref(false)
+const showDetailDialog = ref(false)
 
 // Continue Watching State
 const lastWatchedData = ref(null)
@@ -34,6 +36,19 @@ const previousEpisode = ref(null)
 // Constants
 const SAVE_INTERVAL = 300000 // Save every 5 minutes
 let saveIntervalTimer = null
+
+// Computed
+const shareUrl = computed(() => {
+    const baseUrl = window.location.origin + route.path
+    if (!selectedEpisode.value) return baseUrl
+
+    const params = new URLSearchParams()
+    params.set("e", selectedEpisode.value)
+    if (currentTime.value > 0) {
+        params.set("t", Math.floor(currentTime.value).toString())
+    }
+    return `${baseUrl}?${params.toString()}`
+})
 
 // UI Actions
 function toggleFavorite() {
@@ -66,7 +81,6 @@ function continueLast() {
     selectedEpisode.value = lastWatchedData.value.episode_number
     showContinuePrompt.value = false
 
-    // Update URL with episode and time
     router.replace({
         path: route.path,
         query: {
@@ -83,11 +97,9 @@ async function fetchLastWatched() {
         } = await client.auth.getUser()
         if (!user?.id || !anime.value) return
 
-        // Fetch all watch history for this anime
         const { data, error } = await client.from("watch_history").select("*").eq("user_id", user.id).eq("anime_ref_id", anime.value.refId).order("watched_at", { ascending: false })
 
         if (!error && data && data.length > 0) {
-            // Store all progress by episode number
             allWatchProgress.value = {}
             data.forEach((item) => {
                 if (!allWatchProgress.value[item.episode_number]) {
@@ -95,10 +107,8 @@ async function fetchLastWatched() {
                 }
             })
 
-            // Get the most recent one for the continue prompt
             lastWatchedData.value = data[0]
 
-            // Only show prompt if progress is less than 90% and no episode is pre-selected
             if (lastWatchedData.value.progress_percentage < 90 && !route.query.e) {
                 showContinuePrompt.value = true
             }
@@ -138,15 +148,14 @@ function handleEnded() {
 
 function onVideoReady() {
     videoLoading.value = false
-    
-    // Restore saved volume
+
     if (videoPlayer.value && typeof localStorage !== "undefined") {
         const savedVolume = localStorage.getItem("videoVolume")
         if (savedVolume !== null) {
             videoPlayer.value.volume = parseFloat(savedVolume)
         }
     }
-    
+
     if (hasSetInitialTime.value) return
 
     let startTime = null
@@ -250,7 +259,6 @@ async function fetchDetail() {
             isFavorite.value = favorites.includes(anime.value.id)
         }
 
-        // Fetch last watched after anime data is loaded
         await fetchLastWatched()
 
         if (route.query.e) {
@@ -318,6 +326,14 @@ watch(selectedEpisode, async (epNum) => {
     }
 })
 
+watch([showShareDialog, showDetailDialog], ([share, detail]) => {
+    if (share || detail) {
+        document.body.style.overflow = "hidden"
+    } else {
+        document.body.style.overflow = ""
+    }
+})
+
 onMounted(() => {
     fetchDetail()
     window.addEventListener("beforeunload", saveWatchHistory)
@@ -360,14 +376,14 @@ onUnmounted(() => {
         <div v-else>
             <!-- Hero Section -->
             <div class="relative overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-gray-900 text-white">
-                <div class="absolute inset-0 opacity-20">
+                <div class="absolute inset-0 opacity-70">
                     <img :src="anime.image" :alt="anime.title" class="w-full h-full object-cover blur-2xl scale-110" />
                 </div>
                 <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/80 to-transparent"></div>
 
                 <div class="relative max-w-7xl mx-auto px-4 py-12">
                     <div class="flex flex-col md:flex-row gap-8">
-                        <div class="flex-shrink-0">
+                        <div class="flex-shrink-0 mx-auto md:mx-0">
                             <div class="relative group">
                                 <img :src="anime.image" :alt="anime.title" class="w-64 md:w-72 rounded-2xl shadow-2xl object-cover transform transition-transform duration-300 group-hover:scale-105" />
                             </div>
@@ -375,8 +391,18 @@ onUnmounted(() => {
 
                         <div class="flex-1 space-y-6">
                             <div>
-                                <h1 class="text-4xl md:text-5xl font-bold mb-3 leading-tight">{{ anime.title }}</h1>
-                                <div class="flex flex-wrap items-center gap-3">
+                                <div class="flex flex-col md:flex-row items-center justify-between gap-4 mb-3">
+                                    <h1 class="text-4xl md:text-5xl font-bold leading-tight text-center md:text-left">{{ anime.title }}</h1>
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        <button @click="showDetailDialog = true" class="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all flex items-center justify-center" title="Details">
+                                            <span class="material-icons text-xl">info</span>
+                                        </button>
+                                        <button @click="showShareDialog = true" class="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all flex items-center justify-center" title="Share">
+                                            <span class="material-icons text-xl">share</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap items-center justify-center md:justify-start gap-3">
                                     <div class="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
                                         <span class="material-icons text-yellow-400">star</span>
                                         <span class="font-bold text-lg">{{ formatRating(anime.userRating?.score) }}</span>
@@ -523,6 +549,12 @@ onUnmounted(() => {
                 </section>
             </div>
         </div>
+
+        <!-- Share Dialog Component -->
+        <ShareDialog v-model="showShareDialog" :share-url="shareUrl" :anime-title="anime?.title" :has-episode="!!selectedEpisode" />
+
+        <!-- Detail Dialog Component -->
+        <AnimeDetailDialog v-if="anime" v-model="showDetailDialog" :anime-id="anime.detailId" />
     </div>
 </template>
 
