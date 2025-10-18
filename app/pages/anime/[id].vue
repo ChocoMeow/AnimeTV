@@ -1,7 +1,4 @@
 <script setup>
-import { ref, onMounted, watch, onUnmounted, computed } from "vue"
-import { useRoute, useRouter } from "vue-router"
-
 // Core
 const route = useRoute()
 const router = useRouter()
@@ -410,7 +407,7 @@ onUnmounted(() => {
                                 <div class="flex flex-col md:flex-row items-center justify-between gap-4 mb-3">
                                     <h1 class="text-4xl md:text-5xl font-bold leading-tight text-center md:text-left">{{ anime.title }}</h1>
                                     <div class="flex items-center gap-2 flex-shrink-0">
-                                        <button @click="showDetailDialog = true" class="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all flex items-center justify-center" title="Details">
+                                        <button v-if="anime.detailId" @click="showDetailDialog = true" class="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all flex items-center justify-center" title="Details">
                                             <span class="material-icons text-xl">info</span>
                                         </button>
                                         <button @click="openShareDialog" class="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all flex items-center justify-center" title="Share">

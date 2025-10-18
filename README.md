@@ -1,75 +1,73 @@
-# Nuxt Minimal Starter
+# Anime Hub
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+<img align="right" src="https://github.com/ChocoMeow/Anime-Hub/blob/main/public/icons/icon_512x512.png" width=130 alt="Anime Hub Logo">
 
-## Setup
+Welcome to **Anime Hub**, a project designed for anime enthusiasts in Taiwan and Hong Kong! This application provides an extensive collection of anime metadata and video streaming capabilities.
 
-Make sure to install dependencies:
+## Features
 
-```bash
-# npm
-npm install
+- **Anime Metadata**: Fetches detailed information about various anime from [ani.gamer.com.tw](https://ani.gamer.com.tw).
+- **Video Streaming**: Provides video content sourced from [anime1.me](https://anime1.me).
+- **User-Friendly Interface**: Built with Nuxt 4.1.3 for a seamless and responsive experience.
 
-# pnpm
-pnpm install
+## Getting Started
 
-# yarn
-yarn install
+To get started with the Anime Hub, follow these steps:
 
-# bun
-bun install
-```
+### Prerequisites
 
-## Development Server
+Make sure you have the following installed:
 
-Start the development server on `http://localhost:3000`:
+- Node.js (version 22 or later)
+- npm or Yarn
 
-```bash
-# npm
-npm run dev
+### Setup
 
-# pnpm
-pnpm dev
+1. **Clone the repository**:
 
-# yarn
-yarn dev
+   ```bash
+   git clone https://github.com/ChocoMeow/Anime-Hub.git
+   cd anime-hub
+   ```
 
-# bun
-bun run dev
-```
+2. **Install dependencies**:
 
-## Production
+   ```bash
+   npm install
+   ```
 
-Build the application for production:
+   ```
 
-```bash
-# npm
-npm run build
+3. **Environment Variables**:
 
-# pnpm
-pnpm build
+   You need to set up the following environment variables in a `.env` file in the root of your project:
 
-# yarn
-yarn build
+   ```plaintext
+   SUPABASE_URL=your_supabase_url
+   SUPABASE_KEY=your_supabase_key
+   ```
 
-# bun
-bun run build
-```
+   Replace `your_supabase_url` and `your_supabase_key` with your actual Supabase credentials.
 
-Locally preview production build:
+4. **Run the development server**:
 
-```bash
-# npm
-npm run preview
+   ```bash
+   npm run dev
+   ```
 
-# pnpm
-pnpm preview
+   Your application will be running at `http://localhost:3000`.
 
-# yarn
-yarn preview
+## License
 
-# bun
-bun run preview
-```
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+## Acknowledgments
+
+- [Nuxt.js](https://nuxtjs.org) for the powerful framework.
+- [Supabase](https://supabase.io) for the backend database services.
+- [ani.gamer.com.tw](https://ani.gamer.com.tw) for anime metadata.
+- [anime1.me](https://anime1.me) for video content.
+
+---
+
+Happy watching! Enjoy exploring Anime Hub!
