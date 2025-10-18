@@ -17,6 +17,7 @@ const videoLoading = ref(false)
 const isFavorite = ref(false)
 const showShareDialog = ref(false)
 const showDetailDialog = ref(false)
+const shareUrl = ref("")
 
 // Continue Watching State
 const lastWatchedData = ref(null)
@@ -37,19 +38,6 @@ const previousEpisode = ref(null)
 const SAVE_INTERVAL = 300000 // Save every 5 minutes
 let saveIntervalTimer = null
 
-// Computed
-const shareUrl = computed(() => {
-    const baseUrl = window.location.origin + route.path
-    if (!selectedEpisode.value) return baseUrl
-
-    const params = new URLSearchParams()
-    params.set("e", selectedEpisode.value)
-    if (currentTime.value > 0) {
-        params.set("t", Math.floor(currentTime.value).toString())
-    }
-    return `${baseUrl}?${params.toString()}`
-})
-
 // UI Actions
 function toggleFavorite() {
     isFavorite.value = !isFavorite.value
@@ -63,6 +51,23 @@ function toggleFavorite() {
         }
         localStorage.setItem("favorites", JSON.stringify(favorites))
     }
+}
+
+function openShareDialog() {
+    if (typeof window !== "undefined") {
+        const baseUrl = window.location.origin + route.path
+        const params = new URLSearchParams()
+
+        if (selectedEpisode.value) {
+            params.set("e", selectedEpisode.value)
+            if (currentTime.value > 0) {
+                params.set("t", Math.floor(currentTime.value).toString())
+            }
+        }
+
+        shareUrl.value = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl
+    }
+    showShareDialog.value = true
 }
 
 function formatRating(score) {
@@ -182,6 +187,15 @@ function onVideoReady() {
         }
     } else {
         hasSetInitialTime.value = true
+    }
+
+    if (videoPlayer.value) {
+        setTimeout(() => {
+            videoPlayer.value.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+            })
+        }, 100)
     }
 }
 
@@ -397,7 +411,7 @@ onUnmounted(() => {
                                         <button @click="showDetailDialog = true" class="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all flex items-center justify-center" title="Details">
                                             <span class="material-icons text-xl">info</span>
                                         </button>
-                                        <button @click="showShareDialog = true" class="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all flex items-center justify-center" title="Share">
+                                        <button @click="openShareDialog" class="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all flex items-center justify-center" title="Share">
                                             <span class="material-icons text-xl">share</span>
                                         </button>
                                     </div>

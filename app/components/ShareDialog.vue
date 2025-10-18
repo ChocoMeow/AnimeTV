@@ -10,7 +10,7 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"])
 
-const includeTimestamp = ref(true)
+const includeTimestamp = ref(false)
 const copied = ref(false)
 const qrCodeLoaded = ref(false) // State for QR code loading
 
