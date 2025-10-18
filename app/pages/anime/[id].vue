@@ -197,6 +197,8 @@ function onVideoReady() {
             })
         }, 100)
     }
+
+    saveWatchHistory()
 }
 
 // Watch History
