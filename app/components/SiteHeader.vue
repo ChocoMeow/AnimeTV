@@ -317,6 +317,11 @@ watch(user, (newUser) => {
 
                             <!-- Menu Items -->
                             <div class="py-2">
+                                <!-- <NuxtLink to="/profile" class="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300" @click.native="showUserMenu = false">
+                                    <span class="material-icons text-gray-500 dark:text-gray-400">person</span>
+                                    <span class="text-sm font-medium">個人資料</span>
+                                </NuxtLink> -->
+
                                 <NuxtLink to="/history" class="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300" @click.native="showUserMenu = false">
                                     <span class="material-icons text-gray-500 dark:text-gray-400">history</span>
                                     <span class="text-sm font-medium">觀看紀錄</span>
@@ -354,8 +359,9 @@ watch(user, (newUser) => {
 
         <!-- Mobile search overlay -->
         <transition name="fade">
-            <div v-if="mobileSearchOpen" class="md:hidden fixed inset-0 bg-white dark:bg-gray-800 flex flex-col z-[60] overflow-hidden">
-                <div class="px-4 py-3 flex-shrink-0">
+            <div v-if="mobileSearchOpen" class="md:hidden fixed inset-0 bg-white dark:bg-gray-800 flex flex-col z-[60]">
+                <!-- Fixed Search Bar at Top -->
+                <div class="px-4 py-3 flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                     <div class="flex items-center relative">
                         <input v-model="searchQuery" @keyup.enter="handleEnter" type="search" placeholder="搜尋動漫..." class="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-400 outline-none" />
                         <!-- Mobile Loading Spinner -->
@@ -368,61 +374,64 @@ watch(user, (newUser) => {
                     </div>
                 </div>
 
-                <!-- Mobile Search History -->
-                <div v-if="!searchQuery && searchHistory.length" class="mt-3 bg-white dark:bg-gray-800 rounded-xl overflow-y-auto flex-1">
-                    <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">最近搜尋</div>
-                    <ul>
-                        <li v-for="item in searchHistory" :key="item.id" class="px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors flex items-center justify-between group" @click="searchFromHistory(item.query)">
-                            <div class="flex items-center gap-2">
-                                <span class="material-icons text-gray-400 text-sm">history</span>
-                                <span class="text-sm text-gray-700 dark:text-gray-300">{{ item.query }}</span>
-                            </div>
-                            <button @click.stop="removeFromHistory(item.id)" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
-                                <span class="material-icons text-gray-500 text-sm">close</span>
-                            </button>
-                        </li>
-                    </ul>
-                </div>
+                <!-- Scrollable Content Area -->
+                <div class="flex-1 overflow-y-auto">
+                    <!-- Mobile Search History -->
+                    <div v-if="!searchQuery && searchHistory.length" class="bg-white dark:bg-gray-800">
+                        <div class="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide sticky top-0 bg-white dark:bg-gray-800">最近搜尋</div>
+                        <ul>
+                            <li v-for="item in searchHistory" :key="item.id" class="px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors flex items-center justify-between group" @click="searchFromHistory(item.query)">
+                                <div class="flex items-center gap-2">
+                                    <span class="material-icons text-gray-400 text-sm">history</span>
+                                    <span class="text-sm text-gray-700 dark:text-gray-300">{{ item.query }}</span>
+                                </div>
+                                <button @click.stop="removeFromHistory(item.id)" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
+                                    <span class="material-icons text-gray-500 text-sm">close</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
 
-                <!-- Mobile Results -->
-                <div v-if="searchResults.length" class="mt-3 bg-white dark:bg-gray-800 rounded-xl overflow-y-auto flex-1">
-                    <ul class="py-2">
-                        <li v-for="(result, i) in searchResults" :key="i" class="px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors" @click="selectResult(result)">
-                            <div class="flex items-center gap-3">
-                                <!-- Image -->
-                                <div class="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
-                                    <img v-if="result.image" :src="result.image" :alt="result.title" class="w-full h-full object-cover" />
-                                    <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
-                                        <span class="material-icons">image</span>
+                    <!-- Mobile Results -->
+                    <div v-if="searchResults.length" class="bg-white dark:bg-gray-800">
+                        <ul class="py-2">
+                            <li v-for="(result, i) in searchResults" :key="i" class="px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors" @click="selectResult(result)">
+                                <div class="flex items-center gap-3">
+                                    <!-- Image -->
+                                    <div class="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
+                                        <img v-if="result.image" :src="result.image" :alt="result.title" class="w-full h-full object-cover" />
+                                        <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
+                                            <span class="material-icons">image</span>
+                                        </div>
+                                    </div>
+                                    <!-- Info -->
+                                    <div class="flex-1 min-w-0">
+                                        <h4 class="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+                                            {{ result.title }}
+                                        </h4>
+                                        <div class="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            <span v-if="result.year">{{ result.year }}</span>
+                                            <span v-if="result.episodes" class="flex items-center gap-1">
+                                                <span class="material-icons text-xs">play_circle</span>
+                                                {{ result.episodes }}
+                                            </span>
+                                            <span v-if="result.views" class="flex items-center gap-1">
+                                                <span class="material-icons text-xs">visibility</span>
+                                                {{ formatViews(result.views) }}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
-                                <!-- Info -->
-                                <div class="flex-1 min-w-0">
-                                    <h4 class="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
-                                        {{ result.title }}
-                                    </h4>
-                                    <div class="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        <span v-if="result.year">{{ result.year }}</span>
-                                        <span v-if="result.episodes" class="flex items-center gap-1">
-                                            <span class="material-icons text-xs">play_circle</span>
-                                            {{ result.episodes }}
-                                        </span>
-                                        <span v-if="result.views" class="flex items-center gap-1">
-                                            <span class="material-icons text-xs">visibility</span>
-                                            {{ formatViews(result.views) }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </li>
-                    </ul>
-                </div>
+                            </li>
+                        </ul>
+                    </div>
 
-                <!-- Mobile No Results Message -->
-                <div v-if="searchQuery && !loading && !searchResults.length" class="mt-3 flex-1 flex items-center justify-center">
-                    <div class="text-center py-8 px-4">
-                        <span class="material-icons text-gray-400 text-5xl mb-3">search_off</span>
-                        <p class="text-gray-600 dark:text-gray-400 text-sm">找不到「{{ searchQuery }}」的相關結果</p>
+                    <!-- Mobile No Results Message -->
+                    <div v-if="searchQuery && !loading && !searchResults.length" class="flex items-center justify-center min-h-[50vh]">
+                        <div class="text-center py-8 px-4">
+                            <span class="material-icons text-gray-400 text-5xl mb-3">search_off</span>
+                            <p class="text-gray-600 dark:text-gray-400 text-sm">找不到「{{ searchQuery }}」的相關結果</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -451,6 +460,10 @@ watch(user, (newUser) => {
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">movie</span>
                     <span>全部作品</span>
                 </NuxtLink>
+                <!-- <NuxtLink to="/profile" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3" @click="mobileMenuOpen = false">
+                    <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">person</span>
+                    <span>個人資料</span>
+                </NuxtLink> -->
                 <NuxtLink to="/history" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3" @click="mobileMenuOpen = false">
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">history</span>
                     <span>觀看紀錄</span>
