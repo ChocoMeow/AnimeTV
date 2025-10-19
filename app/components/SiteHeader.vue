@@ -35,21 +35,53 @@ function debouncedSearch() {
     }, 300)
 }
 
-function saveSearchHistory(query) {
-    if (!query) return
-    const filtered = searchHistory.value.filter((item) => item !== query)
-    filtered.unshift(query)
-    searchHistory.value = filtered.slice(0, 5)
+async function saveSearchHistory(query) {
+    if (!query || !user?.value?.sub) return
 
-    if (typeof localStorage !== "undefined") {
-        localStorage.setItem("searchHistory", JSON.stringify(searchHistory.value))
+    try {
+        // Save to Supabase
+        const { error } = await client.from("search_history").insert({
+            user_id: user.value.sub,
+            query: query,
+        })
+
+        if (error) throw error
+
+        // Refresh search history
+        await fetchSearchHistory()
+    } catch (err) {
+        console.error("Failed to save search history:", err)
     }
 }
 
-function removeFromHistory(index) {
-    searchHistory.value.splice(index, 1)
-    if (typeof localStorage !== "undefined") {
-        localStorage.setItem("searchHistory", JSON.stringify(searchHistory.value))
+async function removeFromHistory(id) {
+    try {
+        const { error } = await client.from("search_history").delete().eq("id", id)
+
+        if (error) throw error
+
+        // Remove from local state
+        searchHistory.value = searchHistory.value.filter((item) => item.id !== id)
+    } catch (err) {
+        console.error("Failed to remove search history:", err)
+    }
+}
+
+async function fetchSearchHistory() {
+    if (!user?.value?.sub) {
+        searchHistory.value = []
+        return
+    }
+
+    try {
+        const { data, error } = await client.from("search_history").select("*").eq("user_id", user.value.sub).order("created_at", { ascending: false }).limit(5)
+
+        if (error) throw error
+
+        searchHistory.value = data || []
+    } catch (err) {
+        console.error("Failed to fetch search history:", err)
+        searchHistory.value = []
     }
 }
 
@@ -140,9 +172,7 @@ function navigateToFavorites() {
 }
 
 onMounted(() => {
-    if (typeof localStorage !== "undefined") {
-        searchHistory.value = JSON.parse(localStorage.getItem("searchHistory") || "[]")
-    }
+    fetchSearchHistory()
     window.addEventListener("resize", handleResize)
 })
 
@@ -161,6 +191,15 @@ onUnmounted(() => {
 
 watch(searchQuery, () => {
     debouncedSearch()
+})
+
+// Watch user changes to fetch history when user logs in
+watch(user, (newUser) => {
+    if (newUser) {
+        fetchSearchHistory()
+    } else {
+        searchHistory.value = []
+    }
 })
 </script>
 
@@ -189,12 +228,12 @@ watch(searchQuery, () => {
                         <div v-if="!searchQuery && searchHistory.length" class="py-2">
                             <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">最近搜尋</div>
                             <ul>
-                                <li v-for="(item, i) in searchHistory" :key="i" class="px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors flex items-center justify-between group" @mousedown.prevent="searchFromHistory(item)">
+                                <li v-for="item in searchHistory" :key="item.id" class="px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors flex items-center justify-between group" @mousedown.prevent="searchFromHistory(item.query)">
                                     <div class="flex items-center gap-2">
                                         <span class="material-icons text-gray-400 text-sm">history</span>
-                                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ item }}</span>
+                                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ item.query }}</span>
                                     </div>
-                                    <button @mousedown.prevent.stop="removeFromHistory(i)" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
+                                    <button @mousedown.prevent.stop="removeFromHistory(item.id)" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
                                         <span class="material-icons text-gray-500 text-sm">close</span>
                                     </button>
                                 </li>
@@ -333,12 +372,12 @@ watch(searchQuery, () => {
                 <div v-if="!searchQuery && searchHistory.length" class="mt-3 bg-white dark:bg-gray-800 rounded-xl overflow-y-auto flex-1">
                     <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">最近搜尋</div>
                     <ul>
-                        <li v-for="(item, i) in searchHistory" :key="i" class="px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors flex items-center justify-between group" @click="searchFromHistory(item)">
+                        <li v-for="item in searchHistory" :key="item.id" class="px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors flex items-center justify-between group" @click="searchFromHistory(item.query)">
                             <div class="flex items-center gap-2">
                                 <span class="material-icons text-gray-400 text-sm">history</span>
-                                <span class="text-sm text-gray-700 dark:text-gray-300">{{ item }}</span>
+                                <span class="text-sm text-gray-700 dark:text-gray-300">{{ item.query }}</span>
                             </div>
-                            <button @click.stop="removeFromHistory(i)" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
+                            <button @click.stop="removeFromHistory(item.id)" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
                                 <span class="material-icons text-gray-500 text-sm">close</span>
                             </button>
                         </li>

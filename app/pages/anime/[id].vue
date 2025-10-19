@@ -3,6 +3,7 @@
 const route = useRoute()
 const router = useRouter()
 const client = useSupabaseClient()
+const user = useSupabaseUser()
 
 // Component State
 const anime = ref(null)
@@ -25,9 +26,6 @@ const allWatchProgress = ref({})
 const videoPlayer = ref(null)
 const currentTime = ref(0)
 const duration = ref(0)
-const watchStartTime = ref(null)
-const lastSaveTime = ref(0)
-const historyId = ref(null)
 const hasSetInitialTime = ref(false)
 const previousEpisode = ref(null)
 
@@ -36,17 +34,27 @@ const SAVE_INTERVAL = 300000 // Save every 5 minutes
 let saveIntervalTimer = null
 
 // UI Actions
-function toggleFavorite() {
+async function toggleFavorite() {
+    if (!anime.value || !user?.value?.sub) return
     isFavorite.value = !isFavorite.value
-    if (typeof localStorage !== "undefined") {
-        const favorites = JSON.parse(localStorage.getItem("favorites") || "[]")
-        if (isFavorite.value) {
-            favorites.push(anime.value.id)
-        } else {
-            const index = favorites.indexOf(anime.value.id)
-            if (index > -1) favorites.splice(index, 1)
-        }
-        localStorage.setItem("favorites", JSON.stringify(favorites))
+
+    let response
+    if (isFavorite.value) {
+        response = await client.from("favorites").insert({
+            user_id: user.value.sub,
+            anime_ref_id: anime.value.refId,
+            anime_title: anime.value.title,
+            anime_image: anime.value.image,
+        })
+    } else {
+        response = await client.from("favorites").delete().match({
+            user_id: user.value.sub,
+            anime_ref_id: anime.value.refId,
+        })
+    }
+
+    if (response.error) {
+        throw new Error(response.error.message)
     }
 }
 
@@ -94,12 +102,8 @@ function continueLast() {
 
 async function fetchLastWatched() {
     try {
-        const {
-            data: { user },
-        } = await client.auth.getUser()
-        if (!user?.id || !anime.value) return
-
-        const { data, error } = await client.from("watch_history").select("*").eq("user_id", user.id).eq("anime_ref_id", anime.value.refId).order("watched_at", { ascending: false })
+        if (!user?.value?.sub || !anime.value) return
+        const { data, error } = await client.from("watch_history").select("*").eq("user_id", user.value.sub).eq("anime_ref_id", anime.value.refId).order("watched_at", { ascending: false })
 
         if (!error && data && data.length > 0) {
             allWatchProgress.value = {}
@@ -128,7 +132,6 @@ function handleTimeUpdate(event) {
 }
 
 function handlePlay() {
-    watchStartTime.value = Date.now()
     startAutoSave()
 }
 
@@ -212,17 +215,14 @@ function stopAutoSave() {
 }
 
 async function saveWatchHistory() {
-    const {
-        data: { user },
-    } = await client.auth.getUser()
-    if (!user?.id || !anime.value || !selectedEpisode.value || !duration.value) return
+    if (!user?.value?.sub || !anime.value || !selectedEpisode.value || !duration.value) return
 
     const now = Date.now()
     const progressPercentage = Math.min(100, Math.floor((currentTime.value / duration.value) * 100))
 
     try {
         const historyData = {
-            user_id: user.id,
+            user_id: user.value.sub,
             anime_ref_id: anime.value.refId,
             anime_title: anime.value.title,
             anime_image: anime.value.image,
@@ -233,18 +233,15 @@ async function saveWatchHistory() {
             progress_percentage: progressPercentage,
         }
 
-        const { data: existing } = await client.from("watch_history").select("id").eq("user_id", user.id).eq("anime_ref_id", anime.value.refId).eq("episode_number", selectedEpisode.value).single()
+        const { data: existing } = await client.from("watch_history").select("id").eq("user_id", user.value.sub).eq("anime_ref_id", anime.value.refId).eq("episode_number", selectedEpisode.value).single()
 
         if (existing) {
             const { error } = await client.from("watch_history").update(historyData).eq("id", existing.id)
             if (error) throw error
         } else {
-            const { data, error } = await client.from("watch_history").insert(historyData).select("id").single()
+            const { data, error } = await client.from("watch_history").insert(historyData)
             if (error) throw error
-            historyId.value = data.id
         }
-
-        lastSaveTime.value = now
     } catch (err) {
         console.error("Failed to save watch history:", err)
     }
@@ -265,13 +262,8 @@ async function fetchDetail() {
         }
 
         anime.value = res
+        isFavorite.value = res.isFavorite
         useHead({ title: `${res.title} | Anime Hub` })
-
-        if (typeof localStorage !== "undefined") {
-            const favorites = JSON.parse(localStorage.getItem("favorites") || "[]")
-            isFavorite.value = favorites.includes(anime.value.id)
-        }
-
         await fetchLastWatched()
 
         if (route.query.e) {
@@ -289,7 +281,6 @@ async function fetchDetail() {
 function resetVideoState() {
     currentTime.value = 0
     duration.value = 0
-    watchStartTime.value = null
     hasSetInitialTime.value = false
     stopAutoSave()
 }
@@ -564,10 +555,10 @@ onUnmounted(() => {
         </div>
 
         <!-- Share Dialog Component -->
-        <ShareDialog v-model="showShareDialog" :share-url="shareUrl" :anime-title="anime?.title" :has-episode="!!selectedEpisode" />
+        <LazyShareDialog v-model="showShareDialog" :share-url="shareUrl" :anime-title="anime?.title" :has-episode="!!selectedEpisode" />
 
         <!-- Detail Dialog Component -->
-        <AnimeDetailDialog v-if="anime" v-model="showDetailDialog" :anime-id="anime.detailId" />
+        <LazyAnimeDetailDialog v-if="anime" v-model="showDetailDialog" :anime-id="anime.detailId" />
     </div>
 </template>
 

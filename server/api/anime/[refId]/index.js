@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio"
+import { serverSupabaseClient } from '#supabase/server'
 
 async function fetchEpisodeTokens(categoryId) {
     const episodes = {}
@@ -46,7 +47,7 @@ async function scrapeAnimeDetailByRefId(refId) {
         if (!isValidNumberString(refId)) {
             throw new Error(`Invalid reference ID: "${refId}" is not a valid number.`);
         }
-        
+
         const { html } = await cfFetch(`${GAMER_BASE_URL}animeRef.php?sn=${refId}`)
         const $ = cheerio.load(html)
 
@@ -122,7 +123,7 @@ async function scrapeAnimeDetailByRefId(refId) {
 
 export default defineEventHandler(async (event) => {
     const user = await authUser(event)
-
+    const client = await serverSupabaseClient(event)
     const refId = getRouterParam(event, 'refId')
 
     try {
@@ -131,7 +132,9 @@ export default defineEventHandler(async (event) => {
             throw createError({ statusCode: 404, statusMessage: "Anime not found" })
         }
 
-        return animeDetail
+        const { data } = await client.from('favorites').select("id").eq("anime_ref_id", animeDetail.refId).single()
+        return { ...animeDetail, isFavorite: data !== null }
+
     } catch (error) {
         throw createError({ statusCode: 500, statusMessage: "Internal Server Error" })
     }

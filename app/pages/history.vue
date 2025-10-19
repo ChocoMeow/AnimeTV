@@ -1,6 +1,7 @@
 <script setup>
 const route = useRoute()
 const client = useSupabaseClient()
+const user = useSupabaseUser()
 
 const historyItems = ref([])
 const loading = ref(true)
@@ -198,10 +199,8 @@ async function clearAllHistory() {
     if (!confirm("確定要清除所有觀看紀錄嗎？此操作無法復原。")) return
 
     try {
-        const {
-            data: { user },
-        } = await client.auth.getUser()
-        const { error } = await client.from("watch_history").delete().eq("user_id", user.id)
+        if (!user?.value?.sub) return
+        const { error } = await client.from("watch_history").delete().eq("user_id", user.value.sub)
 
         if (error) throw error
 
@@ -217,10 +216,7 @@ async function fetchHistory() {
     loading.value = true
     try {
         // Fetch watch history from Supabase
-        const {
-            data: { user },
-        } = await client.auth.getUser()
-        const { data, error } = await client.from("watch_history").select("*").eq("user_id", user.id).order("watched_at", { ascending: false })
+        const { data, error } = await client.from("watch_history").select("*").eq("user_id", user.value.sub).order("watched_at", { ascending: false })
 
         if (error) throw error
 
@@ -271,11 +267,11 @@ useHead({
             <!-- Header -->
             <div class="mb-6">
                 <!-- Title and Search Row -->
-                <div class="flex items-center justify-between gap-4 mb-4">
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">觀看紀錄</h1>
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 flex-shrink-0">觀看紀錄</h1>
 
                     <!-- Search -->
-                    <div class="relative w-full max-w-xs">
+                    <div class="relative w-full sm:max-w-xs">
                         <input v-model="searchQuery" type="text" placeholder="搜尋動漫..." class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm focus:ring-2 focus:ring-indigo-400 outline-none" />
                         <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
                     </div>
