@@ -217,7 +217,6 @@ function stopAutoSave() {
 async function saveWatchHistory() {
     if (!user?.value?.sub || !anime.value || !selectedEpisode.value || !duration.value) return
 
-    const now = Date.now()
     const progressPercentage = Math.min(100, Math.floor((currentTime.value / duration.value) * 100))
 
     try {

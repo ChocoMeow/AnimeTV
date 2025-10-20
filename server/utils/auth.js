@@ -4,8 +4,11 @@ export async function authUser(event) {
     const user = await serverSupabaseUser(event)
 
     if (!user) {
-        throw createError({ statusCode: 403, statusMessage: "Unauthorized" })
+        throw createError({
+            statusCode: 401,
+            statusMessage: "Unauthorized - Please log in",
+        })
     }
 
-    return user;
+    return user
 }

@@ -2,9 +2,13 @@
 import { ref, watch, onMounted, onUnmounted } from "vue"
 import { useRouter } from "vue-router"
 
+const route = useRoute()
 const router = useRouter()
 const client = useSupabaseClient()
 const user = useSupabaseUser()
+
+const searchRef = ref(null)
+const mobileSearchRef = ref(null)
 
 const searchQuery = ref("")
 const searchResults = ref([])
@@ -35,56 +39,6 @@ function debouncedSearch() {
     }, 300)
 }
 
-async function saveSearchHistory(query) {
-    if (!query || !user?.value?.sub) return
-
-    try {
-        // Save to Supabase
-        const { error } = await client.from("search_history").insert({
-            user_id: user.value.sub,
-            query: query,
-        })
-
-        if (error) throw error
-
-        // Refresh search history
-        await fetchSearchHistory()
-    } catch (err) {
-        console.error("Failed to save search history:", err)
-    }
-}
-
-async function removeFromHistory(id) {
-    try {
-        const { error } = await client.from("search_history").delete().eq("id", id)
-
-        if (error) throw error
-
-        // Remove from local state
-        searchHistory.value = searchHistory.value.filter((item) => item.id !== id)
-    } catch (err) {
-        console.error("Failed to remove search history:", err)
-    }
-}
-
-async function fetchSearchHistory() {
-    if (!user?.value?.sub) {
-        searchHistory.value = []
-        return
-    }
-
-    try {
-        const { data, error } = await client.from("search_history").select("*").eq("user_id", user.value.sub).order("created_at", { ascending: false }).limit(5)
-
-        if (error) throw error
-
-        searchHistory.value = data || []
-    } catch (err) {
-        console.error("Failed to fetch search history:", err)
-        searchHistory.value = []
-    }
-}
-
 function searchFromHistory(query) {
     searchQuery.value = query
     showDropdown.value = true
@@ -102,6 +56,7 @@ function handleEnter() {
 }
 
 function selectResult(result) {
+    searchRef.value.blur()
     if (searchQuery.value) {
         saveSearchHistory(searchQuery.value)
     }
@@ -134,13 +89,68 @@ function cancelHideUserMenu() {
     }
 }
 
-function formatViews(views) {
-    if (views >= 1000000) {
-        return (views / 1000000).toFixed(1) + "M"
-    } else if (views >= 1000) {
-        return (views / 1000).toFixed(1) + "K"
+function openMobileSearch() {
+    mobileSearchOpen.value = true
+    nextTick(() => {
+        if (mobileSearchRef.value) {
+            mobileSearchRef.value.focus()
+        }
+    })
+}
+
+async function saveSearchHistory(query) {
+    if (!query || !user?.value?.sub) return
+    if (searchHistory.value.some((item) => item.query === query)) return
+
+    try {
+        // Save to Supabase
+        const { data, error } = await client
+            .from("search_history")
+            .insert({
+                user_id: user.value.sub,
+                query: query,
+            })
+            .select("id, query, created_at")
+            .single()
+
+        if (error) throw error
+
+        searchHistory.value.push(data)
+        searchHistory.value.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    } catch (err) {
+        console.error("Failed to save search history:", err)
     }
-    return views
+}
+
+async function removeFromHistory(id) {
+    try {
+        const { error } = await client.from("search_history").delete().eq("id", id)
+
+        if (error) throw error
+
+        // Remove from local state
+        searchHistory.value = searchHistory.value.filter((item) => item.id !== id)
+    } catch (err) {
+        console.error("Failed to remove search history:", err)
+    }
+}
+
+async function fetchSearchHistory() {
+    if (!user?.value?.sub) {
+        searchHistory.value = []
+        return
+    }
+
+    try {
+        const { data, error } = await client.from("search_history").select("id, query, created_at").eq("user_id", user.value.sub).order("created_at", { ascending: false })
+
+        if (error) throw error
+
+        searchHistory.value = data || []
+    } catch (err) {
+        console.error("Failed to fetch search history:", err)
+        searchHistory.value = []
+    }
 }
 
 async function fetchSearchSuggestions() {
@@ -164,11 +174,6 @@ async function signOut() {
     showUserMenu.value = false
     const { error } = await client.auth.signOut()
     navigateTo("/auth/login")
-}
-
-function navigateToFavorites() {
-    showUserMenu.value = false
-    router.push("/favorites")
 }
 
 onMounted(() => {
@@ -201,6 +206,13 @@ watch(user, (newUser) => {
         searchHistory.value = []
     }
 })
+
+watch(
+    () => route.path,
+    (newPath, oldPath) => {
+        mobileMenuOpen.value = false
+    }
+)
 </script>
 
 <template>
@@ -216,7 +228,7 @@ watch(user, (newUser) => {
 
             <!-- Desktop search -->
             <div class="hidden md:flex flex-1 justify-center max-w-xl px-4 relative">
-                <input v-model="searchQuery" @keyup.enter="handleEnter" @focus="showDropdown = true" @blur="hideDropdownDelayed" type="search" placeholder="搜尋動漫..." class="w-full bg-gray-100 dark:bg-gray-700 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-400 outline-none" />
+                <input ref="searchRef" v-model="searchQuery" @keyup.enter="handleEnter" @focus="showDropdown = true" @blur="hideDropdownDelayed" type="search" placeholder="搜尋動漫..." class="w-full bg-gray-100 dark:bg-gray-700 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-400 outline-none" />
                 <!-- Loading Spinner -->
                 <div v-if="loading" class="absolute right-8 top-1/2 -translate-y-1/2">
                     <div class="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent"></div>
@@ -264,7 +276,7 @@ watch(user, (newUser) => {
                                             </span>
                                             <span v-if="result.views" class="flex items-center gap-1">
                                                 <span class="material-icons text-xs">visibility</span>
-                                                {{ formatViews(result.views) }}
+                                                {{ result.views }}
                                             </span>
                                         </div>
                                     </div>
@@ -327,10 +339,10 @@ watch(user, (newUser) => {
                                     <span class="text-sm font-medium">觀看紀錄</span>
                                 </NuxtLink>
 
-                                <button @click="navigateToFavorites" class="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300">
+                                <NuxtLink to="/favorites" class="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300">
                                     <span class="material-icons text-gray-500 dark:text-gray-400">favorite</span>
                                     <span class="text-sm font-medium">我的最愛</span>
-                                </button>
+                                </NuxtLink>
 
                                 <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
 
@@ -347,7 +359,7 @@ watch(user, (newUser) => {
             <!-- Mobile buttons -->
             <div class="md:hidden flex items-center gap-2">
                 <!-- Search icon -->
-                <button @click="mobileSearchOpen = true" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center">
+                <button @click="openMobileSearch" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center">
                     <span class="material-icons text-gray-700 dark:text-gray-200">search</span>
                 </button>
                 <!-- Menu icon -->
@@ -363,7 +375,7 @@ watch(user, (newUser) => {
                 <!-- Fixed Search Bar at Top -->
                 <div class="px-4 py-3 flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                     <div class="flex items-center relative">
-                        <input v-model="searchQuery" @keyup.enter="handleEnter" type="search" placeholder="搜尋動漫..." class="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-400 outline-none" />
+                        <input ref="mobileSearchRef" v-model="searchQuery" @keyup.enter="handleEnter" type="search" placeholder="搜尋動漫..." class="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-400 outline-none" />
                         <!-- Mobile Loading Spinner -->
                         <div v-if="loading" class="absolute right-14 top-1/2 -translate-y-1/2">
                             <div class="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent"></div>
@@ -417,7 +429,7 @@ watch(user, (newUser) => {
                                             </span>
                                             <span v-if="result.views" class="flex items-center gap-1">
                                                 <span class="material-icons text-xs">visibility</span>
-                                                {{ formatViews(result.views) }}
+                                                {{ result.views }}
                                             </span>
                                         </div>
                                     </div>
@@ -456,22 +468,25 @@ watch(user, (newUser) => {
             </div>
 
             <nav class="flex flex-col gap-2">
-                <NuxtLink to="/show-all-anime" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3" @click="mobileMenuOpen = false">
+                <NuxtLink to="/show-all-anime" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">movie</span>
                     <span>全部作品</span>
                 </NuxtLink>
-                <!-- <NuxtLink to="/profile" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3" @click="mobileMenuOpen = false">
+                <!-- <NuxtLink to="/profile" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">person</span>
                     <span>個人資料</span>
                 </NuxtLink> -->
-                <NuxtLink to="/history" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3" @click="mobileMenuOpen = false">
+                <NuxtLink to="/history" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">history</span>
                     <span>觀看紀錄</span>
                 </NuxtLink>
-                <NuxtLink to="/favorites" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3" @click="mobileMenuOpen = false">
+                <NuxtLink to="/favorites" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">favorite</span>
                     <span>我的最愛</span>
                 </NuxtLink>
+
+                <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+
                 <button @click="signOut" class="text-sm px-3 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 text-red-600 dark:text-red-400 text-left">
                     <span class="material-icons text-xl">logout</span>
                     <span>登出</span>

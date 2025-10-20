@@ -6,9 +6,10 @@ const props = defineProps({
     watchProgress: { type: Object, default: () => ({}) },
     modelValue: { type: [String, Number], default: null },
 })
+
 const emit = defineEmits(["update:modelValue", "select"])
 
-const pageSize = 50
+const pageSize = 12
 const currentPage = ref(1)
 const query = ref("")
 const jumpInput = ref("")
@@ -37,7 +38,8 @@ function selectEpisode(n) {
 }
 
 function applyRange(rangeStart) {
-    currentPage.value = Math.floor((rangeStart - 1) / pageSize) + 1
+    const idx = episodeNumbers.value.indexOf(rangeStart)
+    currentPage.value = Math.floor(idx / pageSize) + 1
 }
 
 function jumpTo() {
@@ -47,7 +49,8 @@ function jumpTo() {
     const min = episodeNumbers.value[0]
     const clamped = Math.min(Math.max(n, min), max)
     selectEpisode(clamped)
-    currentPage.value = Math.floor((clamped - 1) / pageSize) + 1
+    const idx = episodeNumbers.value.indexOf(clamped)
+    currentPage.value = Math.floor(idx / pageSize) + 1
     jumpInput.value = ""
 }
 
@@ -72,9 +75,12 @@ function formatTime(seconds) {
 watch(
     () => props.modelValue,
     (val) => {
-        if (!val) return
+        if (val === null || val === undefined) return
         const n = Number(val)
-        currentPage.value = Math.floor((n - 1) / pageSize) + 1
+        const idx = episodeNumbers.value.indexOf(n)
+        if (idx !== -1) {
+            currentPage.value = Math.floor(idx / pageSize) + 1
+        }
     }
 )
 </script>
@@ -108,20 +114,20 @@ watch(
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">範圍:</span>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button v-for="start in Array.from({ length: totalPages }, (_, i) => i * pageSize + 1)" :key="start" @click="applyRange(start)" :class="['px-4 py-2 text-sm rounded-lg border transition-colors', currentPage === Math.floor((start - 1) / pageSize) + 1 ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-indigo-600 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-400']">{{ start }}–{{ Math.min(start + pageSize - 1, episodeNumbers[episodeNumbers.length - 1]) }}</button>
+                <button v-for="(start, idx) in Array.from({ length: totalPages }, (_, i) => episodeNumbers[i * pageSize])" :key="start" @click="applyRange(start)" :class="['px-4 py-2 text-sm rounded-lg border transition-colors', currentPage === idx + 1 ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-indigo-600 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-400']">{{ start }}–{{ episodeNumbers[Math.min((idx + 1) * pageSize - 1, episodeNumbers.length - 1)] }}</button>
             </div>
         </div>
 
         <!-- Episodes Grid -->
         <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-            <div v-if="paged.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">找不到相關集數</div>
+            <div v-if="paged.length === 0" class="text-center py-6 text-gray-500 dark:text-gray-400">找不到相關集數</div>
 
             <div v-else class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-15 gap-2">
                 <button
                     v-for="n in paged"
                     :key="n"
                     @click="selectEpisode(n)"
-                    class="episode-button relative overflow-hidden group"
+                    class="episode-button relative group"
                     :class="{
                         active: String(n) === String(modelValue),
                         watched: hasWatched(n) && String(n) !== String(modelValue),
@@ -132,7 +138,7 @@ watch(
                     :title="!props.episodes[String(n)] ? '此集不可播放' : `第 ${n} 集`"
                 >
                     <!-- Episode Number -->
-                    <div class="relative z-10 flex flex-col items-center justify-center h-full">
+                    <div class="relative z-10 flex flex-col items-center justify-center h-full overflow-hidden rounded-lg">
                         <span class="text-sm font-medium">{{ n }}</span>
 
                         <!-- Progress Indicator -->
@@ -145,7 +151,7 @@ watch(
                     </div>
 
                     <!-- Progress Bar -->
-                    <div v-if="hasWatched(n) && String(n) !== String(modelValue)" class="absolute bottom-0 left-0 h-1 z-0 transition-all" :class="isCompleted(n) ? 'bg-green-500' : 'bg-indigo-500'" :style="{ width: `${getProgressPercentage(n)}%` }"></div>
+                    <div v-if="hasWatched(n) && String(n) !== String(modelValue)" class="absolute bottom-0 left-0 h-1 z-0 transition-all rounded-bl-lg" :class="isCompleted(n) ? 'bg-green-500' : 'bg-indigo-500'" :style="{ width: `${getProgressPercentage(n)}%` }"></div>
 
                     <!-- Hover Tooltip -->
                     <div v-if="watchProgress[n]" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 shadow-xl">

@@ -1,7 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
     css: ["~/assets/css/tailwind.css"],
-    modules: ["@nuxtjs/tailwindcss", "@nuxtjs/supabase", "@vite-pwa/nuxt"], 
+    modules: ["@nuxtjs/tailwindcss", "@nuxtjs/supabase", "@vite-pwa/nuxt"],
     compatibilityDate: "2025-07-15",
     devtools: { enabled: true },
     devServer: {
@@ -32,13 +32,15 @@ export default defineNuxtConfig({
         },
     },
     pwa: {
-        strategies: 'generateSW',
+        registerType: "autoUpdate",
         manifest: {
             name: "Anime Hub",
             short_name: "Anime Hub",
             description: "Stream your favorite anime series and movies anytime, anywhere.",
             theme_color: "#2d3748",
             background_color: "#2d3748",
+            display: "standalone",
+            start_url: "/",
             icons: [
                 {
                     src: "icons/icon_64x64.png",
@@ -63,8 +65,84 @@ export default defineNuxtConfig({
             ],
         },
         workbox: {
-            navigateFallback: null,
-        }
+            globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
+            globIgnores: ["**/auth/**"],
+            navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
+            cleanupOutdatedCaches: true,
+            runtimeCaching: [
+                {
+                    urlPattern: /^\/auth\/.*/i,
+                    handler: "NetworkOnly",
+                },
+                {
+                    urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/.*/i,
+                    handler: "NetworkOnly",
+                },
+                {
+                    urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+                    handler: "CacheFirst",
+                    options: {
+                        cacheName: "google-fonts-cache",
+                        expiration: {
+                            maxEntries: 10,
+                            maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+                        },
+                        cacheableResponse: {
+                            statuses: [0, 200],
+                        },
+                    },
+                },
+                {
+                    urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+                    handler: "CacheFirst",
+                    options: {
+                        cacheName: "gstatic-fonts-cache",
+                        expiration: {
+                            maxEntries: 10,
+                            maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+                        },
+                        cacheableResponse: {
+                            statuses: [0, 200],
+                        },
+                    },
+                },
+                {
+                    urlPattern: /\/api\/.*/i,
+                    handler: "NetworkFirst",
+                    options: {
+                        cacheName: "api-cache",
+                        expiration: {
+                            maxEntries: 50,
+                            maxAgeSeconds: 60 * 60 * 24, // 24 hours
+                        },
+                        networkTimeoutSeconds: 10,
+                        cacheableResponse: {
+                            statuses: [0, 200],
+                        },
+                    },
+                },
+                {
+                    urlPattern: /\/_nuxt\/.*/i,
+                    handler: "CacheFirst",
+                    options: {
+                        cacheName: "nuxt-cache",
+                        expiration: {
+                            maxEntries: 100,
+                            maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                        },
+                    },
+                },
+            ],
+        },
+        client: {
+            installPrompt: true,
+            periodicSyncForUpdates: 3600, // Check for updates every hour
+        },
+    },
+    nitro: {
+        prerender: {
+            routes: ["/"],
+        },
     },
     supabase: {
         redirect: false,
@@ -76,5 +154,10 @@ export default defineNuxtConfig({
             saveRedirectToCookie: true,
         },
         types: false,
+        cookieOptions: {
+            maxAge: 60 * 60 * 24 * 365, // 1 year
+            sameSite: "lax",
+            secure: true,
+        },
     },
 })

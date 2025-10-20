@@ -1,44 +1,76 @@
 import * as cheerio from "cheerio"
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseClient } from "#supabase/server"
 
 async function fetchEpisodeTokens(categoryId) {
-    const episodes = {}
-    let seriesTitle = ""
-    let nextPageUrl = `${ANIME1_BASE_URL}?cat=${categoryId}`
+    const episodes = {};
+    let seriesTitle = "";
+    let nextPageUrl = `${ANIME1_BASE_URL}?cat=${categoryId}`;
 
     try {
         while (nextPageUrl) {
-            const { html } = await cfFetch(nextPageUrl)
-            const $ = cheerio.load(html)
+            // Fetch and parse HTML
+            const { html } = await cfFetch(nextPageUrl);
+            const $ = cheerio.load(html);
 
+            // Extract series title once
             if (!seriesTitle) {
-                seriesTitle = $(".page-title").text().trim()
+                seriesTitle = $(".page-title").text().trim() || "Unknown Series";
             }
 
+            // Process articles
             $("article").each((index, element) => {
-                const fullTitle = $(element).find("h2.entry-title a").text().trim()
-                const match = fullTitle.match(/\[(\d+)\]/)
-                const token = $(element).find(".video-js").attr("data-apireq")
-                if (match && token) {
-                    episodes[String(Number(match[1]))] = token
-                }
-            })
+                const fullTitle = $(element).find("h2.entry-title a").text().trim();
+                const token = $(element).find(".video-js").attr("data-apireq");
 
-            const prevLink = $(".nav-previous a").attr("href")
-            nextPageUrl = prevLink ? prevLink : null
+                // Skip invalid articles
+                if (!fullTitle || !token) {
+                    console.warn(`Skipping article ${index} on page ${nextPageUrl}: Missing title or token`, { fullTitle, token });
+                    return;
+                }
+
+                // Match [number] or [number+number+...]
+                const match = fullTitle.match(/\[(\d+(?:\+\d+)*)\]/);
+                if (!match) {
+                    console.warn(`Skipping article ${index} on page ${nextPageUrl}: No episode number found`, { fullTitle });
+                    return;
+                }
+
+                // Split and clean episode numbers (e.g., "00+01" -> ["0", "1"])
+                const episodeNumbers = match[1].split("+").map(num => {
+                    const numValue = Number(num.replace(/^0+(?=\d)/, ""));
+                    return String(numValue); // Ensure "0" stays "0"
+                });
+
+                // Map each episode to the token
+                episodeNumbers.forEach(episode => {
+                    if (episodes[episode] && episodes[episode] !== token) {
+                        console.warn(`Conflict for episode ${episode} on page ${nextPageUrl}:`, {
+                            oldToken: episodes[episode],
+                            newToken: token,
+                            title: fullTitle
+                        });
+                    }
+                    episodes[episode] = token;
+                });
+            });
+
+            // Get next page URL
+            const prevLink = $(".nav-previous a").attr("href");
+            nextPageUrl = prevLink || null;
         }
+
         return {
             categoryId,
             title: seriesTitle,
-            episodes,
-        }
+            episodes
+        };
     } catch (error) {
-        console.error("Error fetching or parsing episode data:", error)
+        console.error(`Error fetching episode data for category ${categoryId}:`, error);
         return {
             categoryId,
             title: seriesTitle,
-            episodes,
-        }
+            episodes
+        };
     }
 }
 
@@ -124,7 +156,7 @@ async function scrapeAnimeDetailByRefId(refId) {
 export default defineEventHandler(async (event) => {
     const user = await authUser(event)
     const client = await serverSupabaseClient(event)
-    const refId = getRouterParam(event, 'refId')
+    const refId = getRouterParam(event, "refId")
 
     try {
         const animeDetail = await scrapeAnimeDetailByRefId(refId)
@@ -132,7 +164,7 @@ export default defineEventHandler(async (event) => {
             throw createError({ statusCode: 404, statusMessage: "Anime not found" })
         }
 
-        const { data } = await client.from('favorites').select("id").eq("anime_ref_id", animeDetail.refId).single()
+        const { data } = await client.from("favorites").select("id").eq("anime_ref_id", animeDetail.refId).single()
         return { ...animeDetail, isFavorite: data !== null }
 
     } catch (error) {
