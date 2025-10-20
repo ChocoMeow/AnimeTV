@@ -2,6 +2,7 @@
 import { ref, watch, onMounted, onUnmounted } from "vue"
 import { useRouter } from "vue-router"
 
+const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
 const client = useSupabaseClient()
@@ -222,7 +223,7 @@ watch(
             <div class="flex items-center gap-2">
                 <NuxtLink to="/" class="flex items-center gap-2 group">
                     <img class="w-8 h-8 flex items-center justify-center" src="/icons/icon_1024x1024.png" alt="" />
-                    <span class="text-indigo-600 dark:text-indigo-400 font-bold text-xl">Anime Hub</span>
+                    <span class="text-indigo-600 dark:text-indigo-400 font-bold text-xl"> {{ appConfig.siteName }}</span>
                 </NuxtLink>
             </div>
 
@@ -341,7 +342,7 @@ watch(
 
                                 <NuxtLink to="/favorites" class="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300">
                                     <span class="material-icons text-gray-500 dark:text-gray-400">favorite</span>
-                                    <span class="text-sm font-medium">我的最愛</span>
+                                    <span class="text-sm font-medium">我的收藏</span>
                                 </NuxtLink>
 
                                 <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
@@ -482,7 +483,7 @@ watch(
                 </NuxtLink>
                 <NuxtLink to="/favorites" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">favorite</span>
-                    <span>我的最愛</span>
+                    <span>我的收藏</span>
                 </NuxtLink>
 
                 <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>

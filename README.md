@@ -1,8 +1,8 @@
-# Anime Hub
+# AnimeTV
 
-<img align="right" src="https://github.com/ChocoMeow/Anime-Hub/blob/main/public/icons/icon_512x512.png" width=130 alt="Anime Hub Logo">
+<img align="right" src="https://github.com/ChocoMeow/Anime-Hub/blob/main/public/icons/icon_512x512.png" width=130 alt="AnimeTV Logo">
 
-Welcome to **Anime Hub**, a project designed for anime enthusiasts in Taiwan and Hong Kong! This application provides an extensive collection of anime metadata and video streaming capabilities.
+Welcome to **AnimeTV**, a project designed for anime enthusiasts in Taiwan and Hong Kong! This application provides an extensive collection of anime metadata and video streaming capabilities.
 
 ## Features
 
@@ -12,7 +12,7 @@ Welcome to **Anime Hub**, a project designed for anime enthusiasts in Taiwan and
 
 ## Getting Started
 
-To get started with the Anime Hub, follow these steps:
+To get started with the AnimeTV, follow these steps:
 
 ### Prerequisites
 
@@ -70,4 +70,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ---
 
-Happy watching! Enjoy exploring Anime Hub!
+Happy watching! Enjoy exploring AnimeTV!

@@ -13,7 +13,7 @@ export default defineNuxtConfig({
     },
     app: {
         head: {
-            title: "Anime Hub",
+            title: "AnimeTV",
             meta: [
                 { name: "description", content: "Stream your favorite anime series and movies anytime, anywhere." },
                 { charset: "utf-8" },
@@ -21,7 +21,7 @@ export default defineNuxtConfig({
                 // iOS specific meta tags
                 { name: "apple-mobile-web-app-capable", content: "yes" },
                 { name: "apple-mobile-web-app-status-bar-style", content: "default" },
-                { name: "apple-mobile-web-app-title", content: "Anime Hub" },
+                { name: "apple-mobile-web-app-title", content: "AnimeTV" },
                 // Android specific meta tags
                 { name: "mobile-web-app-capable", content: "yes" },
             ],
@@ -34,8 +34,8 @@ export default defineNuxtConfig({
     pwa: {
         registerType: "autoUpdate",
         manifest: {
-            name: "Anime Hub",
-            short_name: "Anime Hub",
+            name: "AnimeTV",
+            short_name: "AnimeTV",
             description: "Stream your favorite anime series and movies anytime, anywhere.",
             theme_color: "#2d3748",
             background_color: "#2d3748",

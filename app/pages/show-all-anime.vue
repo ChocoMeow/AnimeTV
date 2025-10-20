@@ -1,8 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue"
-import { useRouter } from "vue-router"
-
-const router = useRouter()
+const appConfig = useAppConfig()
 
 const animeList = ref([])
 const totalPage = ref(1)
@@ -45,12 +42,6 @@ async function handleSearch(query) {
     }
 }
 
-// When user selects a suggestion
-function handleSelect(query) {
-    searchQuery.value = query
-    fetchAnime(1)
-}
-
 function toggleTag(tag) {
     if (tag === "全部") {
         selectedTags.value = []
@@ -80,7 +71,7 @@ function formatViews(views) {
     return views
 }
 
-useHead({ title: "所有動畫 | Anime Hub "})
+useHead({ title: `所有動畫 | ${appConfig.siteName} `})
 onMounted(() => fetchAnime(1))
 </script>
 

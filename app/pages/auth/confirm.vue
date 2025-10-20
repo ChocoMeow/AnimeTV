@@ -1,6 +1,5 @@
 <script setup>
-import { ref, watch } from "vue"
-
+const appConfig = useAppConfig()
 const user = useSupabaseUser()
 
 const status = ref("verifying") // 'verifying', 'success', 'error'
@@ -35,7 +34,7 @@ watch(
     { immediate: true }
 )
 
-useHead({ title: "驗證中 | Anime Hub" })
+useHead({ title: `驗證中 | ${appConfig.siteName}` })
 definePageMeta({
     layout: "",
 })

@@ -1,25 +1,15 @@
 <script setup>
-import { ref } from "vue"
-import { useRouter } from "vue-router"
-
 const props = defineProps({
-    error: Object
+    error: Object,
 })
 
+const appConfig = useAppConfig()
 const router = useRouter()
 
 const is404 = ref(props.error?.statusCode === 404)
-const errorMessage = ref(
-    is404.value 
-        ? "找不到您要尋找的頁面" 
-        : "發生了一些問題"
-)
+const errorMessage = ref(is404.value ? "抱歉，我們找不到這個頁面" : "伺服器發生問題，請稍後再試")
 
-const errorTitle = ref(
-    is404.value 
-        ? "頁面不存在" 
-        : "出現錯誤"
-)
+const errorTitle = ref(is404.value ? "頁面不存在" : "出現錯誤")
 
 function goHome() {
     router.push("/")
@@ -29,84 +19,70 @@ function goBack() {
     router.back()
 }
 
-useHead({ 
-    title: is404.value ? "404 - 頁面不存在 | Anime Hub" : "錯誤 | Anime Hub"
+useHead({
+    title: is404.value ? `404 - 頁面不存在 | ${appConfig.siteName}` : `錯誤 | ${appConfig.siteName}`,
 })
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center px-4">
-        <main class="max-w-2xl w-full">
-            <!-- Error Card -->
-            <div class="error-card">
-                <!-- Animated Icon -->
-                <div class="text-center mb-8">
-                    <div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 mb-6 animate-bounce-slow">
-                        <span class="material-icons text-6xl text-indigo-600 dark:text-indigo-400">
-                            {{ is404 ? 'search_off' : 'error_outline' }}
-                        </span>
-                    </div>
-                    
-                    <!-- Error Code -->
-                    <div class="mb-4">
-                        <h1 class="text-8xl font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-                            {{ error?.statusCode || '500' }}
-                        </h1>
-                    </div>
+    <div class="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center px-4 relative overflow-hidden">
+        <!-- Subtle Background Pattern -->
+        <div class="absolute inset-0 bg-grid-pattern opacity-[0.02] dark:opacity-[0.03]"></div>
 
-                    <!-- Error Title -->
-                    <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+        <!-- Gradient Orbs -->
+        <div class="absolute top-20 left-10 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl animate-float"></div>
+        <div class="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float-delay"></div>
+
+        <main class="max-w-4xl w-full relative z-10">
+            <div class="text-center space-y-8 py-12">
+                <!-- Error Code - Large and Bold -->
+                <div class="relative">
+                    <h1 class="text-[clamp(6rem,20vw,12rem)] font-black leading-none tracking-tighter">
+                        <span class="bg-gradient-to-br from-gray-900 via-gray-700 to-gray-500 dark:from-white dark:via-gray-200 dark:to-gray-400 bg-clip-text text-transparent">
+                            {{ error?.statusCode || "500" }}
+                        </span>
+                    </h1>
+                    <!-- Decorative line -->
+                    <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"></div>
+                </div>
+
+                <!-- Error Title -->
+                <div class="space-y-3 pt-4">
+                    <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
                         {{ errorTitle }}
                     </h2>
 
                     <!-- Error Message -->
-                    <p class="text-gray-600 dark:text-gray-400 text-lg mb-8">
+                    <p class="text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
                         {{ errorMessage }}
                     </p>
+                </div>
 
-                    <!-- Error Details (if available) -->
-                    <div v-if="error?.message && !is404" class="mb-8 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
-                        <p class="text-sm text-red-600 dark:text-red-400 font-mono">
-                            {{ error.message }}
-                        </p>
-                    </div>
+                <!-- Error Details (for non-404 errors) -->
+                <div v-if="error?.message && !is404" class="max-w-2xl mx-auto">
+                    <details class="text-left group">
+                        <summary class="cursor-pointer text-sm text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors flex items-center justify-center gap-2">
+                            <span class="material-icons text-base group-open:rotate-180 transition-transform">expand_more</span>
+                            技術細節
+                        </summary>
+                        <div class="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
+                            <code class="text-sm text-red-600 dark:text-red-400 font-mono break-words">
+                                {{ error.message }}
+                            </code>
+                        </div>
+                    </details>
                 </div>
 
                 <!-- Action Buttons -->
-                <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                    <button @click="goHome" class="btn-primary group">
-                        <span class="material-icons text-xl mr-2 group-hover:rotate-12 transition-transform">home</span>
-                        返回首頁
+                <div class="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6">
+                    <button @click="goHome" class="action-btn primary group">
+                        <span class="material-icons text-xl group-hover:scale-110 transition-transform">home</span>
+                        <span>返回首頁</span>
                     </button>
-                    <button @click="goBack" class="btn-secondary group">
-                        <span class="material-icons text-xl mr-2 group-hover:-translate-x-1 transition-transform">arrow_back</span>
-                        返回上一頁
+                    <button @click="goBack" class="action-btn secondary group">
+                        <span class="material-icons text-xl group-hover:-translate-x-1 transition-transform">arrow_back</span>
+                        <span>返回上一頁</span>
                     </button>
-                </div>
-
-                <!-- Decorative Elements -->
-                <div class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
-                    <div class="flex items-center justify-center gap-6 text-gray-400 dark:text-gray-600">
-                        <span class="material-icons text-4xl opacity-50 animate-float">live_tv</span>
-                        <span class="material-icons text-3xl opacity-30 animate-float-delay-1">movie</span>
-                        <span class="material-icons text-4xl opacity-40 animate-float-delay-2">theaters</span>
-                        <span class="material-icons text-3xl opacity-30 animate-float-delay-3">play_circle</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Helpful Links (for 404) -->
-            <div v-if="is404" class="mt-8 text-center">
-                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">您可能在尋找：</p>
-                <div class="flex flex-wrap gap-3 justify-center">
-                    <NuxtLink to="/" class="link-tag">
-                        <span class="material-icons text-sm mr-1">home</span>
-                        首頁
-                    </NuxtLink>
-                    <NuxtLink to="/show-all-anime" class="link-tag">
-                        <span class="material-icons text-sm mr-1">list</span>
-                        所有動漫
-                    </NuxtLink>
                 </div>
             </div>
         </main>
@@ -114,99 +90,43 @@ useHead({
 </template>
 
 <style scoped>
-/* Error Card Styles */
-.error-card {
-    @apply bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 sm:p-12 
-           transition-all duration-300 
-           border border-gray-100 dark:border-gray-700
-           backdrop-blur-sm;
+/* Grid Pattern Background */
+.bg-grid-pattern {
+    background-image: linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px);
+    background-size: 40px 40px;
 }
 
-/* Button Styles */
-.btn-primary {
-    @apply px-6 py-3 rounded-xl text-base font-semibold
-           bg-gradient-to-r from-indigo-600 to-purple-600 text-white
-           shadow-lg shadow-indigo-500/30 dark:shadow-purple-500/30
-           hover:shadow-xl hover:shadow-indigo-500/40 dark:hover:shadow-purple-500/40
-           hover:-translate-y-1
+/* Action Buttons */
+.action-btn {
+    @apply px-8 py-4 rounded-full font-semibold text-base
+           flex items-center justify-center gap-3
            transition-all duration-300
-           flex items-center justify-center
-           w-full sm:w-auto;
+           w-full sm:w-auto min-w-[180px]
+           focus:outline-none focus:ring-2 focus:ring-offset-2;
 }
 
-.btn-secondary {
-    @apply px-6 py-3 rounded-xl text-base font-semibold
-           bg-white dark:bg-gray-700 
-           text-gray-700 dark:text-gray-200
-           border-2 border-gray-300 dark:border-gray-600
-           hover:border-indigo-400 dark:hover:border-indigo-500
-           hover:text-indigo-600 dark:hover:text-indigo-400
-           hover:shadow-lg
-           hover:-translate-y-1
-           transition-all duration-300
-           flex items-center justify-center
-           w-full sm:w-auto;
+.action-btn.primary {
+    @apply bg-gray-900 dark:bg-white 
+           text-white dark:text-gray-900
+           hover:scale-105 hover:shadow-2xl
+           focus:ring-gray-900 dark:focus:ring-white;
 }
 
-/* Link Tag Styles */
-.link-tag {
-    @apply inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium
-           bg-gray-100 dark:bg-gray-700
+.action-btn.secondary {
+    @apply bg-transparent
            text-gray-700 dark:text-gray-300
-           hover:bg-indigo-100 dark:hover:bg-indigo-900/30
-           hover:text-indigo-600 dark:hover:text-indigo-400
-           transition-all duration-300
-           hover:shadow-md
-           hover:-translate-y-0.5;
+           border-2 border-gray-300 dark:border-gray-700
+           hover:border-gray-900 dark:hover:border-white
+           hover:text-gray-900 dark:hover:text-white
+           hover:scale-105
+           focus:ring-gray-400 dark:focus:ring-gray-600;
 }
 
-/* Animation Keyframes */
-@keyframes bounce-slow {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-10px);
-    }
-}
-
-@keyframes float {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-15px);
-    }
-}
-
-.animate-bounce-slow {
-    animation: bounce-slow 2s ease-in-out infinite;
-}
-
-.animate-float {
-    animation: float 3s ease-in-out infinite;
-}
-
-.animate-float-delay-1 {
-    animation: float 3s ease-in-out infinite;
-    animation-delay: 0.5s;
-}
-
-.animate-float-delay-2 {
-    animation: float 3s ease-in-out infinite;
-    animation-delay: 1s;
-}
-
-.animate-float-delay-3 {
-    animation: float 3s ease-in-out infinite;
-    animation-delay: 1.5s;
-}
-
-/* Fade In Animation */
+/* Page entrance animation */
 @keyframes fadeInUp {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(30px);
     }
     to {
         opacity: 1;
@@ -214,8 +134,7 @@ useHead({
     }
 }
 
-.error-card {
+main {
     animation: fadeInUp 0.6s ease-out;
 }
 </style>
-

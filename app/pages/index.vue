@@ -1,8 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue"
-import { useRouter } from "vue-router"
-
-const router = useRouter()
+const appConfig = useAppConfig()
 const loading = ref(false)
 const byDay = ref({})
 const themes = ref({})
@@ -49,7 +46,7 @@ async function fetchHomeAnime() {
     }
 }
 
-useHead({ title: `每日新番 | Anime Hub` })
+useHead({ title: `每日新番 | ${appConfig.siteName}` })
 onMounted(fetchHomeAnime)
 </script>
 

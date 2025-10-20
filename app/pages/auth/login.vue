@@ -1,4 +1,6 @@
 <script setup>
+const appConfig = useAppConfig()
+
 const loading = ref(false)
 const error = ref(null)
 const redirectPath = useRoute().query.redirect || "/"
@@ -30,7 +32,7 @@ async function signInWithGoogle() {
 definePageMeta({
     layout: "",
 })
-useHead({ title: "登入 | Anime Hub" })
+useHead({ title: `登入 | ${appConfig.siteName}` })
 </script>
 
 <template>
@@ -44,7 +46,7 @@ useHead({ title: "登入 | Anime Hub" })
                         <img class="flex items-center justify-center" src="/icons/icon_1024x1024.png" alt="" />
                     </div>
                     <h1 class="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-2">歡迎回來</h1>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">使用 Google 帳號登入 Anime Hub</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">使用 Google 帳號登入 {{ appConfig.siteName }}</p>
                 </div>
 
                 <!-- Error Message -->

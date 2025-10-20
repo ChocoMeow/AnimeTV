@@ -1,5 +1,6 @@
 <script setup>
 // Core
+const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
 const client = useSupabaseClient()
@@ -262,14 +263,14 @@ async function fetchDetail() {
 
         anime.value = res
         isFavorite.value = res.isFavorite
-        useHead({ title: `${res.title} | Anime Hub` })
+        useHead({ title: `${res.title} | ${appConfig.siteName}` })
         await fetchLastWatched()
 
         if (route.query.e) {
             selectedEpisode.value = parseInt(route.query.e)
         }
     } catch (err) {
-        useHead({ title: `載入動漫詳情失敗 | Anime Hub` })
+        useHead({ title: `載入動漫詳情失敗 | ${appConfig.siteName}` })
         console.error("Failed to fetch anime detail:", err)
         error.value = "載入動漫詳情失敗，請稍後再試"
     } finally {

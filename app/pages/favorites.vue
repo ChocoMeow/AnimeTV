@@ -1,4 +1,5 @@
 <script setup>
+const appConfig = useAppConfig()
 const route = useRoute()
 const client = useSupabaseClient()
 const user = useSupabaseUser()
@@ -174,7 +175,7 @@ watch(
 )
 
 useHead({
-    title: "我的收藏 | Anime Hub",
+    title: `我的收藏 | ${appConfig.siteName}`,
 })
 </script>
 
