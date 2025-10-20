@@ -65,6 +65,7 @@ export default defineNuxtConfig({
             ],
         },
         workbox: {
+            navigateFallback: undefined,
             globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
             globIgnores: ["**/auth/**"],
             navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
