@@ -221,7 +221,7 @@ watch(
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
             <!-- Left: Logo -->
             <div class="flex items-center gap-2">
-                <NuxtLink to="/" class="flex items-center gap-2 group">
+                <NuxtLink to="/" class="flex items-center group pr-2 gap-1">
                     <img class="w-8 h-8 flex items-center justify-center" src="/icons/icon_1024x1024.png" alt="" />
                     <span class="text-indigo-600 dark:text-indigo-400 font-bold text-xl"> {{ appConfig.siteName }}</span>
                 </NuxtLink>

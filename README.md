@@ -36,8 +36,6 @@ Make sure you have the following installed:
    npm install
    ```
 
-   ```
-
 3. **Environment Variables**:
 
    You need to set up the following environment variables in a `.env` file in the root of your project:
@@ -67,6 +65,10 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - [Supabase](https://supabase.io) for the backend database services.
 - [ani.gamer.com.tw](https://ani.gamer.com.tw) for anime metadata.
 - [anime1.me](https://anime1.me) for video content.
+
+## Disclaimer
+
+This project is intended solely for educational and research purposes. It does not engage in web scraping or intellectual copyright infringement. All content is sourced in compliance with the respective terms of service of the providers. Please support the original creators and platforms.
 
 ---
 
