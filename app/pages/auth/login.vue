@@ -42,7 +42,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                 <!-- Logo/Header Section -->
                 <div class="text-center mb-8">
                     <div class="inline-flex items-center justify-center">
-                        <img class="w-20 h-20 flex items-center justify-center" src="/icons/icon_1024x1024.png" alt="" />
+                        <img class="w-20 h-20 flex items-center justify-center" src="/icons/icon_819x819.png" alt="" />
                     </div>
                     <h1 class="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-2">歡迎回來</h1>
                     <p class="text-sm text-gray-500 dark:text-gray-400">使用 Google 帳號登入 {{ appConfig.siteName }}</p>

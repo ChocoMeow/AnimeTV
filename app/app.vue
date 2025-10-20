@@ -1,6 +1,6 @@
 <template>
     <NuxtRouteAnnouncer />
-    <NuxtPwaManifest />
+    <NuxtPwaAssets />
     <NuxtLayout>
         <NuxtLoadingIndicator :throttle="0" />
         <NuxtPage />

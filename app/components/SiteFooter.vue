@@ -45,7 +45,7 @@ const socialLinks = [
                 </div>
 
                 <!-- Copyright (Bottom on mobile) -->
-                <div class="text-center text-sm text-gray-600 dark:text-gray-400">© {{ new Date().getFullYear() }} Your Site Name. <br class="sm:hidden" />All rights reserved.</div>
+                <div class="text-center text-sm text-gray-600 dark:text-gray-400">© {{ new Date().getFullYear() }} {{ appConfig.siteName }}. <br class="sm:hidden" />All rights reserved.</div>
             </div>
         </div>
     </footer>

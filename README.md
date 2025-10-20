@@ -10,6 +10,9 @@ Welcome to **AnimeTV**, a project designed for anime enthusiasts in Taiwan and H
 - **Video Streaming**: Provides video content sourced from [anime1.me](https://anime1.me).
 - **User-Friendly Interface**: Built with Nuxt 4.1.3 for a seamless and responsive experience.
 
+## Screenshot
+<img width="1920" alt="Screenshot" src="https://github.com/ChocoMeow/Anime-Hub/blob/main/public/screenshot.png" />
+
 ## Getting Started
 
 To get started with the AnimeTV, follow these steps:

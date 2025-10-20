@@ -35,7 +35,6 @@ export default defineNuxtConfig({
         registerType: "autoUpdate",
         manifest: {
             name: "AnimeTV",
-            short_name: "AnimeTV",
             description: "Stream your favorite anime series and movies anytime, anywhere.",
             theme_color: "#2d3748",
             background_color: "#2d3748",
@@ -58,11 +57,18 @@ export default defineNuxtConfig({
                     type: "image/png",
                 },
                 {
-                    src: "icons/icon_1024x1024.png",
-                    sizes: "1024x1024",
+                    src: "icons/icon_819x819.png",
+                    sizes: "819x819",
                     type: "image/png",
                 },
             ],
+            screenshots: [
+                {
+                    src: "screenshot.png",
+                    sizes: "1920x960",
+                    type: "image/png",
+                }
+            ]
         },
         workbox: {
             navigateFallback: undefined,
