@@ -25,8 +25,6 @@ const allWatchProgress = ref({})
 
 // Video Tracking
 const videoPlayer = ref(null)
-const currentTime = ref(0)
-const duration = ref(0)
 const hasSetInitialTime = ref(false)
 const previousEpisode = ref(null)
 
@@ -35,39 +33,15 @@ const SAVE_INTERVAL = 300000 // Save every 5 minutes
 let saveIntervalTimer = null
 
 // UI Actions
-async function toggleFavorite() {
-    if (!anime.value || !user?.value?.sub) return
-    isFavorite.value = !isFavorite.value
-
-    let response
-    if (isFavorite.value) {
-        response = await client.from("favorites").insert({
-            user_id: user.value.sub,
-            anime_ref_id: anime.value.refId,
-            anime_title: anime.value.title,
-            anime_image: anime.value.image,
-        })
-    } else {
-        response = await client.from("favorites").delete().match({
-            user_id: user.value.sub,
-            anime_ref_id: anime.value.refId,
-        })
-    }
-
-    if (response.error) {
-        throw new Error(response.error.message)
-    }
-}
-
 function openShareDialog() {
     if (typeof window !== "undefined") {
         const baseUrl = window.location.origin + route.path
         const params = new URLSearchParams()
 
-        if (selectedEpisode.value) {
+        if (selectedEpisode.value && videoPlayer.value) {
             params.set("e", selectedEpisode.value)
-            if (currentTime.value > 0) {
-                params.set("t", Math.floor(currentTime.value).toString())
+            if (videoPlayer.value.currentTime > 0) {
+                params.set("t", Math.floor(videoPlayer.value.currentTime).toString())
             }
         }
 
@@ -101,10 +75,52 @@ function continueLast() {
     })
 }
 
+function handlePlay() {
+    startAutoSave()
+}
+
+function handlePause() {
+    stopAutoSave()
+}
+
+function handleEnded() {
+    saveWatchHistory()
+    stopAutoSave()
+}
+function handleVolumeChange() {
+    if (videoPlayer.value && typeof localStorage !== "undefined") {
+        localStorage.setItem("videoVolume", videoPlayer.value.volume)
+    }
+}
+
+async function toggleFavorite() {
+    if (!anime.value || !user?.value?.sub) return
+    isFavorite.value = !isFavorite.value
+
+    let response
+    if (isFavorite.value) {
+        response = await client.from("favorites").insert({
+            user_id: user.value.sub,
+            anime_ref_id: anime.value.refId,
+            anime_title: anime.value.title,
+            anime_image: anime.value.image,
+        })
+    } else {
+        response = await client.from("favorites").delete().match({
+            user_id: user.value.sub,
+            anime_ref_id: anime.value.refId,
+        })
+    }
+
+    if (response.error) {
+        throw new Error(response.error.message)
+    }
+}
+
 async function fetchLastWatched() {
     try {
         if (!user?.value?.sub || !anime.value) return
-        const { data, error } = await client.from("watch_history").select("*").eq("user_id", user.value.sub).eq("anime_ref_id", anime.value.refId).order("watched_at", { ascending: false })
+        const { data, error } = await client.from("watch_history").select("*").eq("anime_ref_id", anime.value.refId).order("watched_at", { ascending: false })
 
         if (!error && data && data.length > 0) {
             allWatchProgress.value = {}
@@ -125,34 +141,7 @@ async function fetchLastWatched() {
     }
 }
 
-// Video Player Logic
-function handleTimeUpdate(event) {
-    if (!videoPlayer.value) return
-    currentTime.value = event.target.currentTime
-    duration.value = event.target.duration
-}
-
-function handlePlay() {
-    startAutoSave()
-}
-
-function handlePause() {
-    stopAutoSave()
-}
-
-function handleVolumeChange() {
-    if (videoPlayer.value && typeof localStorage !== "undefined") {
-        localStorage.setItem("videoVolume", videoPlayer.value.volume)
-    }
-}
-
-function handleEnded() {
-    currentTime.value = duration.value
-    saveWatchHistory()
-    stopAutoSave()
-}
-
-function onVideoReady() {
+async function onVideoReady() {
     videoLoading.value = false
 
     if (videoPlayer.value && typeof localStorage !== "undefined") {
@@ -199,7 +188,7 @@ function onVideoReady() {
         }, 100)
     }
 
-    saveWatchHistory()
+    await saveWatchHistory()
 }
 
 // Watch History
@@ -216,9 +205,11 @@ function stopAutoSave() {
 }
 
 async function saveWatchHistory() {
-    if (!user?.value?.sub || !anime.value || !selectedEpisode.value || !duration.value) return
+    if (!user?.value?.sub || !anime.value || !selectedEpisode.value || !videoPlayer.value?.duration) return
 
-    const progressPercentage = Math.min(100, Math.floor((currentTime.value / duration.value) * 100))
+    const duration = videoPlayer.value.duration
+    const currentTime = videoPlayer.value.currentTime
+    const progressPercentage = Math.min(100, Math.floor((currentTime / duration) * 100))
 
     try {
         const historyData = {
@@ -228,18 +219,12 @@ async function saveWatchHistory() {
             anime_image: anime.value.image,
             episode_number: String(selectedEpisode.value),
             watched_at: new Date().toISOString(),
-            playback_time: Math.floor(currentTime.value),
-            video_duration: Math.floor(duration.value),
+            playback_time: Math.floor(currentTime),
+            video_duration: Math.floor(duration),
             progress_percentage: progressPercentage,
         }
 
-        const { data: existing } = await client
-            .from("watch_history")
-            .select("id")
-            .eq("anime_ref_id", anime.value.refId)
-            .eq("episode_number", String(selectedEpisode.value))
-            .single()
-
+        const { data: existing, error } = await client.from("watch_history").select("id").eq("anime_ref_id", anime.value.refId).eq("episode_number", String(selectedEpisode.value)).single()
         if (existing) {
             const { error } = await client.from("watch_history").update(historyData).eq("id", existing.id)
             if (error) throw error
@@ -292,21 +277,13 @@ async function fetchDetail() {
     }
 }
 
-function resetVideoState() {
-    currentTime.value = 0
-    duration.value = 0
-    hasSetInitialTime.value = false
-    stopAutoSave()
-}
-
 watch(selectedEpisode, async (epNum) => {
     if (!epNum || !anime.value?.episodes) return
 
     const isManualChange = previousEpisode.value !== null && previousEpisode.value !== epNum
 
     if (isManualChange) {
-        resetVideoState()
-
+        hasSetInitialTime.value = false
         if (route.query.t || route.query.e) {
             const newQuery = { ...route.query }
             delete newQuery.t
@@ -526,7 +503,7 @@ onUnmounted(() => {
                             </div>
                         </div>
 
-                        <video v-if="videoUrl" ref="videoPlayer" :src="videoUrl" controls autoplay preload="metadata" class="w-full h-full" @timeupdate="handleTimeUpdate" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @volumechange="handleVolumeChange" @loadstart="videoLoading = true" @loadeddata="onVideoReady" @canplay="onVideoReady" />
+                        <video v-if="videoUrl" ref="videoPlayer" :src="videoUrl" controls autoplay preload="metadata" class="w-full h-full" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @volumechange="handleVolumeChange" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
 
                         <div v-else-if="!selectedEpisode" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
                             <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>
