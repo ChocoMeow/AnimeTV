@@ -21,6 +21,19 @@ export const CHINESE_WEEKDAY_MAP = {
     "日": "7"
 }
 
+export const ROMAN_CHARACTERS = {
+    "Ⅰ": "I",
+    "Ⅱ": "II",
+    "Ⅲ": "III",
+    "Ⅳ": "IV",
+    "Ⅴ": "V",
+    "Ⅵ": "VI",
+    "Ⅶ": "VII",
+    "Ⅷ": "VIII",
+    "Ⅸ": "IX",
+    "Ⅹ": "X"
+}
+
 export let ANIME_CACHE = {
     timestamp: 0,
     data: null

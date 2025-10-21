@@ -28,29 +28,45 @@ async function fetchEpisodeTokens(categoryId) {
                     return;
                 }
 
-                // Match [number] or [number+number+...]
-                const match = fullTitle.match(/\[(\d+(?:\+\d+)*)\]/);
+                // Match [content] - can be numbers, text, or combination
+                // Examples: [1], [01], [1+2], [SP], [OVA1], [特別篇], [SP1+SP2]
+                const match = fullTitle.match(/\[([^\]]+)\]/);
                 if (!match) {
-                    console.warn(`Skipping article ${index} on page ${nextPageUrl}: No episode number found`, { fullTitle });
+                    console.warn(`Skipping article ${index} on page ${nextPageUrl}: No episode identifier found`, { fullTitle });
                     return;
                 }
 
-                // Split and clean episode numbers (e.g., "00+01" -> ["0", "1"])
-                const episodeNumbers = match[1].split("+").map(num => {
-                    const numValue = Number(num.replace(/^0+(?=\d)/, ""));
-                    return String(numValue); // Ensure "0" stays "0"
-                });
+                // Split by '+' to handle combined episodes
+                const episodeIdentifiers = match[1].split("+").map(id => id.trim());
 
-                // Map each episode to the token
-                episodeNumbers.forEach(episode => {
-                    if (episodes[episode] && episodes[episode] !== token) {
-                        console.warn(`Conflict for episode ${episode} on page ${nextPageUrl}:`, {
-                            oldToken: episodes[episode],
-                            newToken: token,
-                            title: fullTitle
-                        });
+                // Process each episode identifier
+                episodeIdentifiers.forEach(identifier => {
+                    // Check if it's a pure number
+                    if (/^\d+$/.test(identifier)) {
+                        // Remove leading zeros but keep single "0"
+                        const numValue = Number(identifier);
+                        const episodeKey = String(numValue);
+
+                        if (episodes[episodeKey] && episodes[episodeKey] !== token) {
+                            console.warn(`Conflict for episode ${episodeKey} on page ${nextPageUrl}:`, {
+                                oldToken: episodes[episodeKey],
+                                newToken: token,
+                                title: fullTitle
+                            });
+                        }
+                        episodes[episodeKey] = token;
+                    } else {
+                        // It's a special episode (SP, OVA1, 特別篇, etc.)
+                        // Keep it as-is, no transformation needed
+                        if (episodes[identifier] && episodes[identifier] !== token) {
+                            console.warn(`Conflict for episode ${identifier} on page ${nextPageUrl}:`, {
+                                oldToken: episodes[identifier],
+                                newToken: token,
+                                title: fullTitle
+                            });
+                        }
+                        episodes[identifier] = token;
                     }
-                    episodes[episode] = token;
                 });
             });
 
@@ -73,6 +89,7 @@ async function fetchEpisodeTokens(categoryId) {
         };
     }
 }
+
 
 async function scrapeAnimeDetailByRefId(refId) {
     try {

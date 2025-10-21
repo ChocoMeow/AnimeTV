@@ -74,18 +74,20 @@ function toChineseNumber(num) {
 
 function normalizeTitle(str) {
     return str
-        .replace(/\s*\[[^\]]*\]/g, "")
-        .replace(/（/g, "(")
+        .replace(/\s*\[[^\]]*\]/g, "") // Remove bracketed text
+        .replace(/（/g, "(") // Normalize parentheses
         .replace(/）/g, ")")
-        .replace(/「|」/g, "")
-        .replace(/！|。/g, "")
-        .replace(/season\s*(\d+)/gi, (_, num) => `第${toChineseNumber(num)}季`)
-        .replace(/\bs(\d+)\b/gi, (_, num) => `第${toChineseNumber(num)}季`)
-        .replace(/\s*(\d+)\s*$/, (_, num) => ` 第${toChineseNumber(num)}季`)
-        .replace(/[.,:;=\-\/?()'"!@#$%^&*_+[\]{}<>|`~‧·′'－．・～：’]/g, "")
-        .replace(/\s+/g, "")
-        .trim()
-        .toLowerCase()
+        .replace(/「|」/g, "") // Remove quotes
+        .replace(/！|。/g, "") // Remove punctuation
+        .replace(/season\s*(\d+)/gi, (_, num) => `第${toChineseNumber(num)}季`) // Convert season
+        .replace(/\bs(\d+)\b/gi, (_, num) => `第${toChineseNumber(num)}季`) // Convert short form season
+        .replace(/\s*(\d+)\s*$/, (_, num) => ` 第${toChineseNumber(num)}季`) // Convert trailing numbers to season
+        .replace(/\b(\w+)(s)\b/g, (match, word) => word) // Remove 's' from words if they end with 's'
+        .replace(/[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]/g, match => ROMAN_CHARACTERS[match])
+        .replace(/[.,:;=\-\/?()'"!@#$%^&*_+[\]{}<>|`~‧·′'－．・～：’＆]/g, "") // Remove special characters
+        .replace(/\s+/g, "") // Remove whitespace
+        .trim() // Trim leading/trailing whitespace
+        .toLowerCase(); // Convert to lowercase
 }
 
 export async function fetchAnimeData() {

@@ -226,14 +226,19 @@ async function saveWatchHistory() {
             anime_ref_id: anime.value.refId,
             anime_title: anime.value.title,
             anime_image: anime.value.image,
-            episode_number: selectedEpisode.value,
+            episode_number: String(selectedEpisode.value),
             watched_at: new Date().toISOString(),
             playback_time: Math.floor(currentTime.value),
             video_duration: Math.floor(duration.value),
             progress_percentage: progressPercentage,
         }
 
-        const { data: existing } = await client.from("watch_history").select("id").eq("user_id", user.value.sub).eq("anime_ref_id", anime.value.refId).eq("episode_number", selectedEpisode.value).single()
+        const { data: existing } = await client
+            .from("watch_history")
+            .select("id")
+            .eq("anime_ref_id", anime.value.refId)
+            .eq("episode_number", String(selectedEpisode.value))
+            .single()
 
         if (existing) {
             const { error } = await client.from("watch_history").update(historyData).eq("id", existing.id)
@@ -266,8 +271,17 @@ async function fetchDetail() {
         useHead({ title: `${res.title} | ${appConfig.siteName}` })
         await fetchLastWatched()
 
+        // Handle episode from query parameter (can be number or text)
         if (route.query.e) {
-            selectedEpisode.value = parseInt(route.query.e)
+            const episodeKey = route.query.e
+            if (anime.value.episodes[episodeKey]) {
+                selectedEpisode.value = episodeKey
+            } else {
+                const numEpisode = parseInt(route.query.e)
+                if (!isNaN(numEpisode) && anime.value.episodes[String(numEpisode)]) {
+                    selectedEpisode.value = String(numEpisode)
+                }
+            }
         }
     } catch (err) {
         useHead({ title: `載入動漫詳情失敗 | ${appConfig.siteName}` })
