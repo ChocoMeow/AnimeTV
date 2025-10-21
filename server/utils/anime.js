@@ -105,7 +105,6 @@ export async function fetchAnimeData() {
         try {
             console.log("Fetching anime data from source...");
             const response = await fetch("https://d1zquzjgwo9yb.cloudfront.net/");
-            console.log()
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }

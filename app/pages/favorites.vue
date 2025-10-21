@@ -1,4 +1,5 @@
 <script setup>
+const { showToast } = useToast()
 const appConfig = useAppConfig()
 const route = useRoute()
 const client = useSupabaseClient()
@@ -9,7 +10,10 @@ const loading = ref(true)
 const searchQuery = ref("")
 const selectedItems = ref(new Set())
 const showDeleteConfirm = ref(false)
-const displayLimit = ref(20)
+const showDeleteAllConfirm = ref(false)
+const pageSize = 20
+const currentPage = ref(0)
+const hasMore = ref(true)
 const loadingMore = ref(false)
 const sortBy = ref("recent") // recent, title
 
@@ -31,20 +35,7 @@ const filteredFavorites = computed(() => {
         filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     }
 
-    // Apply display limit for lazy loading
-    return filtered.slice(0, displayLimit.value)
-})
-
-// Check if there are more items to load
-const hasMoreItems = computed(() => {
-    let filtered = [...favoriteItems.value]
-
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase()
-        filtered = filtered.filter((item) => item.anime_title?.toLowerCase().includes(query))
-    }
-
-    return filtered.length > displayLimit.value
+    return filtered
 })
 
 function toggleSelectItem(id, event) {
@@ -65,13 +56,38 @@ function selectAll() {
     }
 }
 
-function loadMore() {
-    if (loadingMore.value || !hasMoreItems.value) return
+async function loadMore() {
+    if (loadingMore.value || !hasMore.value) return
+
     loadingMore.value = true
-    setTimeout(() => {
-        displayLimit.value += 20
+    try {
+        const nextPage = currentPage.value + 1
+        const from = nextPage * pageSize
+        const to = from + pageSize - 1
+
+        const orderColumn = sortBy.value === "title" ? "anime_title" : "created_at"
+        const ascending = sortBy.value === "title"
+
+        const { data, error } = await client.from("favorites").select("*").eq("user_id", user.value.sub).order(orderColumn, { ascending }).range(from, to)
+
+        if (error) throw error
+
+        if (data && data.length > 0) {
+            favoriteItems.value = [...favoriteItems.value, ...data]
+            currentPage.value = nextPage
+
+            // Check if we got fewer records than requested
+            if (data.length < pageSize) {
+                hasMore.value = false
+            }
+        } else {
+            hasMore.value = false
+        }
+    } catch (err) {
+        console.error("Failed to load more favorites:", err)
+    } finally {
         loadingMore.value = false
-    }, 300)
+    }
 }
 
 function handleScroll() {
@@ -104,13 +120,11 @@ async function confirmDelete() {
         showDeleteConfirm.value = false
     } catch (err) {
         console.error("Failed to delete favorites:", err)
-        alert("刪除失敗，請稍後再試")
+        showToast("刪除失敗，請稍後再試", "error")
     }
 }
 
-async function clearAllFavorites() {
-    if (!confirm("確定要清除所有收藏嗎？此操作無法復原。")) return
-
+async function confirmDeleteAll() {
     try {
         if (!user?.value?.sub) return
         const { error } = await client.from("favorites").delete().eq("user_id", user.value.sub)
@@ -119,9 +133,10 @@ async function clearAllFavorites() {
 
         favoriteItems.value = []
         selectedItems.value.clear()
+        showDeleteAllConfirm.value = false
     } catch (err) {
         console.error("Failed to clear favorites:", err)
-        alert("清除失敗，請稍後再試")
+        showToast("清除失敗，請稍後再試", "error")
     }
 }
 
@@ -133,12 +148,24 @@ async function fetchFavorites() {
             return
         }
 
-        // Fetch favorites from Supabase
-        const { data, error } = await client.from("favorites").select("*").eq("user_id", user.value.sub).order("created_at", { ascending: false })
+        const orderColumn = sortBy.value === "title" ? "anime_title" : "created_at"
+        const ascending = sortBy.value === "title"
+
+        // Fetch first page only (0-19)
+        const { data, error } = await client
+            .from("favorites")
+            .select("*")
+            .eq("user_id", user.value.sub)
+            .order(orderColumn, { ascending })
+            .range(0, pageSize - 1)
 
         if (error) throw error
 
         favoriteItems.value = data || []
+        currentPage.value = 0
+
+        // Check if there might be more records
+        hasMore.value = data && data.length === pageSize
     } catch (err) {
         console.error("Failed to fetch favorites:", err)
         favoriteItems.value = []
@@ -148,6 +175,10 @@ async function fetchFavorites() {
 }
 
 onActivated(() => {
+    // Reset and fetch fresh data
+    favoriteItems.value = []
+    currentPage.value = 0
+    hasMore.value = true
     fetchFavorites()
 })
 
@@ -160,15 +191,21 @@ onBeforeUnmount(() => {
     window.removeEventListener("scroll", handleScroll)
 })
 
-// Reset display limit when filters change
+// Reset when sort or search changes
 watch([sortBy, searchQuery], () => {
-    displayLimit.value = 20
+    favoriteItems.value = []
+    currentPage.value = 0
+    hasMore.value = true
+    fetchFavorites()
 })
 
 watch(
     () => route.path,
     (newPath) => {
         if (newPath === "/favorites" || newPath.includes("/favorites")) {
+            favoriteItems.value = []
+            currentPage.value = 0
+            hasMore.value = true
             fetchFavorites()
         }
     }
@@ -223,7 +260,7 @@ useHead({
                             刪除已選 ({{ selectedItems.size }})
                         </button>
 
-                        <button @click="clearAllFavorites" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
+                        <button @click="showDeleteAllConfirm = true" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
                             <span class="material-icons text-lg">delete_sweep</span>
                             清除全部
                         </button>
@@ -304,31 +341,23 @@ useHead({
         </div>
 
         <!-- Delete Confirmation Modal -->
-        <transition name="fade">
-            <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full p-6">
-                    <div class="flex items-center gap-3 mb-4">
-                        <span class="material-icons text-red-500 text-3xl">warning</span>
-                        <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100">確認刪除</h3>
-                    </div>
-                    <p class="text-gray-600 dark:text-gray-400 mb-6">確定要刪除 {{ selectedItems.size }} 個收藏嗎？此操作無法復原。</p>
-                    <div class="flex gap-3 justify-end">
-                        <button @click="showDeleteConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
-                        <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認刪除</button>
-                    </div>
-                </div>
-            </div>
-        </transition>
+        <BaseModal :show="showDeleteConfirm" title="確認刪除" icon="warning" icon-color="text-red-500" @close="showDeleteConfirm = false">
+            <p class="text-gray-600 dark:text-gray-400 mb-6">確定要刪除 {{ selectedItems.size }} 個收藏嗎？此操作無法復原。</p>
+
+            <template #actions>
+                <button @click="showDeleteConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+                <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認刪除</button>
+            </template>
+        </BaseModal>
+
+        <!-- Delete All Modal -->
+        <BaseModal :show="showDeleteAllConfirm" title="清除全部紀錄" icon="delete_sweep" icon-color="text-red-500" @close="showDeleteAllConfirm = false">
+            <p class="text-gray-600 dark:text-gray-400 mb-2">確定要清除所有收藏紀錄嗎？此操作無法復原。</p>
+
+            <template #actions>
+                <button @click="showDeleteAllConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+                <button @click="confirmDeleteAll" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認清除</button>
+            </template>
+        </BaseModal>
     </div>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity 0.3s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-    opacity: 0;
-}
-</style>

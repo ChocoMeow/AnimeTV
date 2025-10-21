@@ -1,4 +1,5 @@
 <script setup>
+const { showToast } = useToast()
 const appConfig = useAppConfig()
 const route = useRoute()
 const client = useSupabaseClient()
@@ -6,11 +7,14 @@ const user = useSupabaseUser()
 
 const historyItems = ref([])
 const loading = ref(true)
-const selectedFilter = ref("all") // all, today, week, month
+const selectedFilter = ref("all")
 const searchQuery = ref("")
 const selectedItems = ref(new Set())
 const showDeleteConfirm = ref(false)
-const displayLimit = ref(20)
+const showDeleteAllConfirm = ref(false)
+const pageSize = 20
+const currentPage = ref(0)
+const hasMore = ref(true)
 const loadingMore = ref(false)
 
 // Computed filtered history
@@ -44,43 +48,13 @@ const filteredHistory = computed(() => {
             animeMap.set(animeId, item)
         } else {
             const existing = animeMap.get(animeId)
-            // Keep the more recent watch
             if (new Date(item.watched_at) > new Date(existing.watched_at)) {
                 animeMap.set(animeId, item)
             }
         }
     })
 
-    // Convert back to array and sort by watched_at
-    filtered = Array.from(animeMap.values()).sort((a, b) => new Date(b.watched_at) - new Date(a.watched_at))
-
-    // Apply display limit for lazy loading
-    return filtered.slice(0, displayLimit.value)
-})
-
-// Check if there are more items to load
-const hasMoreItems = computed(() => {
-    let filtered = [...historyItems.value]
-
-    // Apply same filters
-    const now = new Date()
-    if (selectedFilter.value === "today") {
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-        filtered = filtered.filter((item) => new Date(item.watched_at) >= todayStart)
-    } else if (selectedFilter.value === "week") {
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        filtered = filtered.filter((item) => new Date(item.watched_at) >= weekAgo)
-    } else if (selectedFilter.value === "month") {
-        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-        filtered = filtered.filter((item) => new Date(item.watched_at) >= monthAgo)
-    }
-
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase()
-        filtered = filtered.filter((item) => item.anime_title?.toLowerCase().includes(query))
-    }
-
-    return filtered.length > displayLimit.value
+    return Array.from(animeMap.values()).sort((a, b) => new Date(b.watched_at) - new Date(a.watched_at))
 })
 
 // Group history by date
@@ -153,13 +127,35 @@ function selectAll() {
     }
 }
 
-function loadMore() {
-    if (loadingMore.value || !hasMoreItems.value) return
+async function loadMore() {
+    if (loadingMore.value || !hasMore.value) return
+
     loadingMore.value = true
-    setTimeout(() => {
-        displayLimit.value += 20
+    try {
+        const nextPage = currentPage.value + 1
+        const from = nextPage * pageSize
+        const to = from + pageSize - 1
+
+        const { data, error } = await client.from("watch_history").select("*").eq("user_id", user.value.sub).order("watched_at", { ascending: false }).range(from, to)
+
+        if (error) throw error
+
+        if (data && data.length > 0) {
+            historyItems.value = [...historyItems.value, ...data]
+            currentPage.value = nextPage
+
+            // Check if we got fewer records than requested
+            if (data.length < pageSize) {
+                hasMore.value = false
+            }
+        } else {
+            hasMore.value = false
+        }
+    } catch (err) {
+        console.error("Failed to load more history:", err)
+    } finally {
         loadingMore.value = false
-    }, 300)
+    }
 }
 
 function handleScroll() {
@@ -186,19 +182,16 @@ async function confirmDelete() {
 
         if (error) throw error
 
-        // Remove from local state
         historyItems.value = historyItems.value.filter((item) => !idsToDelete.includes(item.id))
         selectedItems.value.clear()
         showDeleteConfirm.value = false
     } catch (err) {
         console.error("Failed to delete history:", err)
-        alert("刪除失敗，請稍後再試")
+        showToast("刪除失敗，請稍後再試", "error")
     }
 }
 
-async function clearAllHistory() {
-    if (!confirm("確定要清除所有觀看紀錄嗎？此操作無法復原。")) return
-
+async function confirmDeleteAll() {
     try {
         if (!user?.value?.sub) return
         const { error } = await client.from("watch_history").delete().eq("user_id", user.value.sub)
@@ -207,21 +200,31 @@ async function clearAllHistory() {
 
         historyItems.value = []
         selectedItems.value.clear()
+        showDeleteAllConfirm.value = false
     } catch (err) {
         console.error("Failed to clear history:", err)
-        alert("清除失敗，請稍後再試")
+        showToast("清除失敗，請稍後再試", "error")
     }
 }
 
 async function fetchHistory() {
     loading.value = true
     try {
-        // Fetch watch history from Supabase
-        const { data, error } = await client.from("watch_history").select("*").eq("user_id", user.value.sub).order("watched_at", { ascending: false })
+        // Fetch first page only (0-19)
+        const { data, error } = await client
+            .from("watch_history")
+            .select("*")
+            .eq("user_id", user.value.sub)
+            .order("watched_at", { ascending: false })
+            .range(0, pageSize - 1)
 
         if (error) throw error
 
         historyItems.value = data || []
+        currentPage.value = 0
+
+        // Check if there might be more records
+        hasMore.value = data && data.length === pageSize
     } catch (err) {
         console.error("Failed to fetch history:", err)
         historyItems.value = []
@@ -231,6 +234,10 @@ async function fetchHistory() {
 }
 
 onActivated(() => {
+    // Reset and fetch fresh data
+    historyItems.value = []
+    currentPage.value = 0
+    hasMore.value = true
     fetchHistory()
 })
 
@@ -243,15 +250,21 @@ onBeforeUnmount(() => {
     window.removeEventListener("scroll", handleScroll)
 })
 
-// Reset display limit when filters change
+// Reset when filters change
 watch([selectedFilter, searchQuery], () => {
-    displayLimit.value = 20
+    historyItems.value = []
+    currentPage.value = 0
+    hasMore.value = true
+    fetchHistory()
 })
 
 watch(
     () => route.path,
     (newPath) => {
         if (newPath === "/history" || newPath.includes("/history")) {
+            historyItems.value = []
+            currentPage.value = 0
+            hasMore.value = true
             fetchHistory()
         }
     }
@@ -302,7 +315,7 @@ useHead({
                             刪除已選 ({{ selectedItems.size }})
                         </button>
 
-                        <button @click="clearAllHistory" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
+                        <button @click="showDeleteAllConfirm = true" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
                             <span class="material-icons text-lg">delete_sweep</span>
                             清除全部
                         </button>
@@ -390,41 +403,27 @@ useHead({
                         </div>
                     </div>
                 </div>
-
-                <!-- Loading More Indicator -->
-                <div v-if="hasMoreItems" class="flex items-center justify-center py-8">
-                    <div v-if="loadingMore" class="animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent"></div>
-                    <button v-else @click="loadMore" class="px-6 py-3 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium">載入更多</button>
-                </div>
             </div>
         </div>
 
         <!-- Delete Confirmation Modal -->
-        <transition name="fade">
-            <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full p-6">
-                    <div class="flex items-center gap-3 mb-4">
-                        <span class="material-icons text-red-500 text-3xl">warning</span>
-                        <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100">確認刪除</h3>
-                    </div>
-                    <p class="text-gray-600 dark:text-gray-400 mb-6">確定要刪除 {{ selectedItems.size }} 個觀看紀錄嗎？此操作無法復原。</p>
-                    <div class="flex gap-3 justify-end">
-                        <button @click="showDeleteConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
-                        <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認刪除</button>
-                    </div>
-                </div>
-            </div>
-        </transition>
+        <BaseModal :show="showDeleteConfirm" title="確認刪除" icon="warning" icon-color="text-red-500" @close="showDeleteConfirm = false">
+            <p class="text-gray-600 dark:text-gray-400">確定要刪除 {{ selectedItems.size }} 個觀看紀錄嗎？此操作無法復原。</p>
+
+            <template #actions>
+                <button @click="showDeleteConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+                <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認刪除</button>
+            </template>
+        </BaseModal>
+
+        <!-- Delete All Modal -->
+        <BaseModal :show="showDeleteAllConfirm" title="清除全部紀錄" icon="delete_sweep" icon-color="text-red-500" @close="showDeleteAllConfirm = false">
+            <p class="text-gray-600 dark:text-gray-400 mb-2">確定要清除所有觀看紀錄嗎？此操作無法復原。</p>
+
+            <template #actions>
+                <button @click="showDeleteAllConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+                <button @click="confirmDeleteAll" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認清除</button>
+            </template>
+        </BaseModal>
     </div>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity 0.3s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-    opacity: 0;
-}
-</style>

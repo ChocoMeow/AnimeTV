@@ -1,7 +1,4 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from "vue"
-import { useRouter } from "vue-router"
-
 const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
@@ -330,10 +327,10 @@ watch(
 
                             <!-- Menu Items -->
                             <div class="py-2">
-                                <!-- <NuxtLink to="/profile" class="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300" @click.native="showUserMenu = false">
+                                <NuxtLink to="/profile" class="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300" @click.native="showUserMenu = false">
                                     <span class="material-icons text-gray-500 dark:text-gray-400">person</span>
-                                    <span class="text-sm font-medium">個人資料</span>
-                                </NuxtLink> -->
+                                    <span class="text-sm font-medium">個人設定</span>
+                                </NuxtLink>
 
                                 <NuxtLink to="/history" class="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300" @click.native="showUserMenu = false">
                                     <span class="material-icons text-gray-500 dark:text-gray-400">history</span>
@@ -473,10 +470,10 @@ watch(
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">movie</span>
                     <span>全部作品</span>
                 </NuxtLink>
-                <!-- <NuxtLink to="/profile" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                <NuxtLink to="/profile" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">person</span>
-                    <span>個人資料</span>
-                </NuxtLink> -->
+                    <span>個人設定</span>
+                </NuxtLink>
                 <NuxtLink to="/history" class="text-sm px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">history</span>
                     <span>觀看紀錄</span>
