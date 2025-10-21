@@ -3,7 +3,6 @@ const appConfig = useAppConfig()
 
 const loading = ref(false)
 const error = ref(null)
-const redirectPath = useRoute().query.redirect || "/"
 
 const client = useSupabaseClient()
 
@@ -15,7 +14,7 @@ async function signInWithGoogle() {
         const { data, error } = await client.auth.signInWithOAuth({
             provider: "google",
             options: {
-                redirectTo: `${window.location.origin}/auth/confirm?redirect=${redirectPath}`,
+                redirectTo: `${window.location.origin}/auth/confirm`,
             },
         })
 

@@ -1,6 +1,7 @@
 <script setup>
 const appConfig = useAppConfig()
 const user = useSupabaseUser()
+const redirectInfo = useSupabaseCookieRedirect()
 
 const status = ref("verifying") // 'verifying', 'success', 'error'
 const message = ref("正在驗證您的身份...")
@@ -10,7 +11,7 @@ const userAvatarUrl = ref("")
 const hasRedirected = ref(false)
 
 // Get redirect path from cookies
-const redirectPath = useRoute().query.redirect || "/"
+const path = redirectInfo.pluck() || "/"
 
 watch(
     user,
@@ -25,10 +26,10 @@ watch(
             userAvatarUrl.value = newUser.user_metadata?.avatar_url || ""
             message.value = "登入成功！"
 
-            // Wait 2 seconds to show success message, then redirect
+            // Wait 1 seconds to show success message, then redirect
             setTimeout(() => {
-                navigateTo(redirectPath, { replace: true })
-            }, 2000)
+                navigateTo(path, { replace: true })
+            }, 1000)
         }
     },
     { immediate: true }
