@@ -1,6 +1,4 @@
 <script setup>
-import { ref, computed, watch } from "vue"
-
 const props = defineProps({
     modelValue: Boolean,
     shareUrl: String,

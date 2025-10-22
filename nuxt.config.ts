@@ -67,8 +67,8 @@ export default defineNuxtConfig({
                     src: "screenshot.png",
                     sizes: "1920x960",
                     type: "image/png",
-                }
-            ]
+                },
+            ],
         },
         workbox: {
             navigateFallback: undefined,
@@ -165,6 +165,14 @@ export default defineNuxtConfig({
             maxAge: 60 * 60 * 24 * 365, // 1 year
             sameSite: "lax",
             secure: true,
+        },
+        clientOptions: {
+            auth: {
+                flowType: "pkce",
+                autoRefreshToken: import.meta.client,
+                detectSessionInUrl: import.meta.client,
+                persistSession: true,
+            },
         },
     },
 })

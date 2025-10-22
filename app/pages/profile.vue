@@ -1,20 +1,13 @@
 <script setup>
 const { showToast } = useToast()
+const { searchHistory, userSettings, updateSetting } = useUserSettings()
 const appConfig = useAppConfig()
 const client = useSupabaseClient()
-const user = useSupabaseUser()
 
 const loading = ref(false)
-const saving = ref(false)
 const showDisableAccountModal = ref(false)
 const showClearDataModal = ref(false)
 const clearDataType = ref("") // 'history', 'favorites', 'search', 'all'
-
-// User settings
-const settings = ref({
-    watch_history_enabled: true,
-    notifications_enabled: true,
-})
 
 // Stats
 const stats = ref({
@@ -23,80 +16,23 @@ const stats = ref({
     searchHistory: 0,
 })
 
-// Fetch user settings
-async function fetchSettings() {
-    loading.value = true
-    try {
-        const { data, error } = await client.from("user_settings").select("*").eq("user_id", user.value.sub).single()
-
-        if (error && error.code !== "PGRST116") {
-            throw error
-        }
-
-        if (data) {
-            settings.value = {
-                watch_history_enabled: data.watch_history_enabled ?? true,
-                notifications_enabled: data.notifications_enabled ?? true,
-            }
-        } else {
-            // Create default settings if not exists
-            await createDefaultSettings()
-        }
-    } catch (err) {
-        console.error("Failed to fetch settings:", err)
-    } finally {
-        loading.value = false
-    }
-}
-
-// Create default settings
-async function createDefaultSettings() {
-    try {
-        const { error } = await client.from("user_settings").insert({
-            user_id: user.value.sub,
-            watch_history_enabled: true,
-            notifications_enabled: true,
-        })
-
-        if (error) throw error
-    } catch (err) {
-        console.error("Failed to create default settings:", err)
-    }
-}
-
-// Save settings
-async function saveSettings() {
-    saving.value = true
-    try {
-        const { error } = await client.from("user_settings").upsert({
-            user_id: user.value.sub,
-            watch_history_enabled: settings.value.watch_history_enabled,
-            notifications_enabled: settings.value.notifications_enabled,
-            updated_at: new Date().toISOString(),
-        })
-
-        if (error) throw error
-
-        // Show success message
-        showToast("設定已儲存", "success")
-    } catch (err) {
-        console.error("Failed to save settings:", err)
-        showToast("儲存失敗，請稍後再試", "error")
-    } finally {
-        saving.value = false
-    }
-}
-
 // Fetch user stats
 async function fetchStats() {
+    loading.value = true;
     try {
-        const [historyRes, favoritesRes, searchRes] = await Promise.all([client.from("watch_history").select("id", { count: "exact", head: true }).eq("user_id", user.value.sub), client.from("favorites").select("id", { count: "exact", head: true }).eq("user_id", user.value.sub), client.from("search_history").select("id", { count: "exact", head: true }).eq("user_id", user.value.sub)])
+        const [historyRes, favoritesRes, searchRes] = await Promise.all([
+            client.from("watch_history").select("id", { count: "exact", head: true }).eq("user_id", userSettings.value.id),
+            client.from("favorites").select("id", { count: "exact", head: true }).eq("user_id", userSettings.value.id),
+            client.from("search_history").select("id", { count: "exact", head: true }).eq("user_id", userSettings.value.id)
+        ])
 
         stats.value.watchHistory = historyRes.count || 0
         stats.value.favorites = favoritesRes.count || 0
         stats.value.searchHistory = searchRes.count || 0
     } catch (err) {
         console.error("Failed to fetch stats:", err)
+    } finally {
+        loading.value = false
     }
 }
 
@@ -112,22 +48,27 @@ async function clearData() {
         const type = clearDataType.value
 
         if (type === "history") {
-            const { error } = await client.from("watch_history").delete().eq("user_id", user.value.sub)
+            const { error } = await client.from("watch_history").delete().eq("user_id", userSettings.value.id)
             if (error) throw error
             stats.value.watchHistory = 0
             showToast("觀看紀錄已清除", "success")
         } else if (type === "favorites") {
-            const { error } = await client.from("favorites").delete().eq("user_id", user.value.sub)
+            const { error } = await client.from("favorites").delete().eq("user_id", userSettings.value.id)
             if (error) throw error
             stats.value.favorites = 0
             showToast("收藏已清除", "success")
         } else if (type === "search") {
-            const { error } = await client.from("search_history").delete().eq("user_id", user.value.sub)
+            const { error } = await client.from("search_history").delete().eq("user_id", userSettings.value.id)
             if (error) throw error
             stats.value.searchHistory = 0
+            searchHistory.value = []
             showToast("搜尋紀錄已清除", "success")
         } else if (type === "all") {
-            await Promise.all([client.from("watch_history").delete().eq("user_id", user.value.sub), client.from("favorites").delete().eq("user_id", user.value.sub), client.from("search_history").delete().eq("user_id", user.value.sub)])
+            await Promise.all([
+                client.from("watch_history").delete().eq("user_id", userSettings.value.id),
+                client.from("favorites").delete().eq("user_id", userSettings.value.id),
+                client.from("search_history").delete().eq("user_id", userSettings.value.id)
+            ])
             stats.value = { watchHistory: 0, favorites: 0, searchHistory: 0 }
             showToast("所有資料已清除", "success")
         }
@@ -140,34 +81,23 @@ async function clearData() {
 }
 
 // Disable account
-async function disableAccount() {
-    try {
-        // In a real app, you would call an API to disable the account
-        // For now, we'll just sign out the user
-        showToast("帳號停用功能開發中", "info")
-        showDisableAccountModal.value = false
+// async function disableAccount() {
+//     try {
+//         // In a real app, you would call an API to disable the account
+//         // For now, we'll just sign out the user
+//         showToast("帳號停用功能開發中", "info")
+//         showDisableAccountModal.value = false
 
-        // Optionally sign out
-        // await client.auth.signOut()
-        // navigateTo('/auth/login')
-    } catch (err) {
-        console.error("Failed to disable account:", err)
-        showToast("停用失敗，請稍後再試", "error")
-    }
-}
-
-// Watch settings changes
-watch(
-    () => settings.value.watch_history_enabled,
-    (newVal) => {
-        if (!newVal && stats.value.watchHistory > 0) {
-            // Optionally prompt to clear history when disabling
-        }
-    }
-)
+//         // Optionally sign out
+//         // await client.auth.signOut()
+//         // navigateTo('/auth/login')
+//     } catch (err) {
+//         console.error("Failed to disable account:", err)
+//         showToast("停用失敗，請稍後再試", "error")
+//     }
+// }
 
 onMounted(() => {
-    fetchSettings()
     fetchStats()
 })
 
@@ -231,7 +161,7 @@ useHead({
                 </div>
 
                 <!-- Privacy Settings -->
-                <!-- <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                     <div class="flex items-center gap-3 mb-6">
                         <span class="material-icons text-gray-600 dark:text-gray-400">privacy_tip</span>
                         <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">隱私設定</h3>
@@ -240,37 +170,25 @@ useHead({
                     <div class="space-y-6">
                         <div class="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
                             <div class="flex-1">
-                                <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1">啟用觀看紀錄</h4>
+                                <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1">觀看紀錄</h4>
                                 <p class="text-sm text-gray-600 dark:text-gray-400">記錄你觀看的動漫和播放進度</p>
                             </div>
-                            <button
-                                @click="
-                                    settings.watch_history_enabled = !settings.watch_history_enabled; saveSettings()
-                                "
-                                :class="settings.watch_history_enabled ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'"
-                                class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
-                            >
-                                <span :class="settings.watch_history_enabled ? 'translate-x-7' : 'translate-x-1'" class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out mt-1"></span>
+                            <button @click="updateSetting('watch_history_enabled', !userSettings.watch_history_enabled)" :class="userSettings.watch_history_enabled ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'" class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out">
+                                <span :class="userSettings.watch_history_enabled ? 'translate-x-7' : 'translate-x-1'" class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out mt-1"></span>
                             </button>
                         </div>
 
                         <div class="flex items-center justify-between py-3">
                             <div class="flex-1">
-                                <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1">通知提醒</h4>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">接收新動漫和更新通知</p>
+                                <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1">搜尋記錄</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">記錄你查詢的內容與探索足跡</p>
                             </div>
-                            <button
-                                @click="
-                                    settings.notifications_enabled = !settings.notifications_enabled; saveSettings()
-                                "
-                                :class="settings.notifications_enabled ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'"
-                                class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
-                            >
-                                <span :class="settings.notifications_enabled ? 'translate-x-7' : 'translate-x-1'" class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out mt-1"></span>
+                            <button @click="updateSetting('search_history_enabled', !userSettings.search_history_enabled)" :class="userSettings.search_history_enabled ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'" class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out">
+                                <span :class="userSettings.search_history_enabled ? 'translate-x-7' : 'translate-x-1'" class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out mt-1"></span>
                             </button>
                         </div>
                     </div>
-                </div> -->
+                </div>
 
                 <!-- Data Management -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">

@@ -1,9 +1,9 @@
 <script setup>
+const { userSettings } = useUserSettings()
 const { showToast } = useToast()
 const appConfig = useAppConfig()
 const route = useRoute()
 const client = useSupabaseClient()
-const user = useSupabaseUser()
 
 const historyItems = ref([])
 const loading = ref(true)
@@ -25,13 +25,13 @@ const filteredHistory = computed(() => {
     const now = new Date()
     if (selectedFilter.value === "today") {
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-        filtered = filtered.filter((item) => new Date(item.watched_at) >= todayStart)
+        filtered = filtered.filter((item) => new Date(item.updated_at) >= todayStart)
     } else if (selectedFilter.value === "week") {
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        filtered = filtered.filter((item) => new Date(item.watched_at) >= weekAgo)
+        filtered = filtered.filter((item) => new Date(item.updated_at) >= weekAgo)
     } else if (selectedFilter.value === "month") {
         const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-        filtered = filtered.filter((item) => new Date(item.watched_at) >= monthAgo)
+        filtered = filtered.filter((item) => new Date(item.updated_at) >= monthAgo)
     }
 
     // Filter by search query
@@ -48,13 +48,13 @@ const filteredHistory = computed(() => {
             animeMap.set(animeId, item)
         } else {
             const existing = animeMap.get(animeId)
-            if (new Date(item.watched_at) > new Date(existing.watched_at)) {
+            if (new Date(item.updated_at) > new Date(existing.updated_at)) {
                 animeMap.set(animeId, item)
             }
         }
     })
 
-    return Array.from(animeMap.values()).sort((a, b) => new Date(b.watched_at) - new Date(a.watched_at))
+    return Array.from(animeMap.values()).sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
 })
 
 // Group history by date
@@ -62,7 +62,7 @@ const groupedHistory = computed(() => {
     const groups = {}
 
     filteredHistory.value.forEach((item) => {
-        const date = new Date(item.watched_at)
+        const date = new Date(item.updated_at)
         const today = new Date()
         const yesterday = new Date(today)
         yesterday.setDate(yesterday.getDate() - 1)
@@ -136,7 +136,7 @@ async function loadMore() {
         const from = nextPage * pageSize
         const to = from + pageSize - 1
 
-        const { data, error } = await client.from("watch_history").select("*").eq("user_id", user.value.sub).order("watched_at", { ascending: false }).range(from, to)
+        const { data, error } = await client.from("watch_history").select("*").eq("user_id", userSettings.value.id).order("updated_at", { ascending: false }).range(from, to)
 
         if (error) throw error
 
@@ -193,8 +193,8 @@ async function confirmDelete() {
 
 async function confirmDeleteAll() {
     try {
-        if (!user?.value?.sub) return
-        const { error } = await client.from("watch_history").delete().eq("user_id", user.value.sub)
+        if (!userSettings.value.id) return
+        const { error } = await client.from("watch_history").delete().eq("user_id", userSettings.value.id)
 
         if (error) throw error
 
@@ -214,8 +214,8 @@ async function fetchHistory() {
         const { data, error } = await client
             .from("watch_history")
             .select("*")
-            .eq("user_id", user.value.sub)
-            .order("watched_at", { ascending: false })
+            .eq("user_id", userSettings.value.id)
+            .order("updated_at", { ascending: false })
             .range(0, pageSize - 1)
 
         if (error) throw error
@@ -390,7 +390,7 @@ useHead({
                                             </p>
                                             <p class="flex items-center gap-2">
                                                 <span class="material-icons text-xs">schedule</span>
-                                                {{ formatTime(item.watched_at) }}
+                                                {{ formatTime(item.updated_at) }}
                                             </p>
                                             <p v-if="item.playback_time" class="flex items-center gap-2">
                                                 <span class="material-icons text-xs">timer</span>

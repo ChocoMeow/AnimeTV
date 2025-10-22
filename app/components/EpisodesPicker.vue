@@ -1,6 +1,4 @@
 <script setup>
-import { computed, ref, watch } from "vue"
-
 const props = defineProps({
     episodes: { type: Object, required: true },
     watchProgress: { type: Object, default: () => ({}) },

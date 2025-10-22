@@ -1,4 +1,5 @@
 <script setup>
+const { searchHistory, userSettings } = useUserSettings()
 const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
@@ -10,7 +11,6 @@ const mobileSearchRef = ref(null)
 
 const searchQuery = ref("")
 const searchResults = ref([])
-const searchHistory = ref([])
 const loading = ref(false)
 const mobileMenuOpen = ref(false)
 const mobileSearchOpen = ref(false)
@@ -97,7 +97,7 @@ function openMobileSearch() {
 }
 
 async function saveSearchHistory(query) {
-    if (!query || !user?.value?.sub) return
+    if (!userSettings.value.search_history_enabled || !query || !userSettings.value.id) return
     if (searchHistory.value.some((item) => item.query === query)) return
 
     try {
@@ -105,7 +105,7 @@ async function saveSearchHistory(query) {
         const { data, error } = await client
             .from("search_history")
             .insert({
-                user_id: user.value.sub,
+                user_id: userSettings.value.id,
                 query: query,
             })
             .select("id, query, created_at")
@@ -134,13 +134,17 @@ async function removeFromHistory(id) {
 }
 
 async function fetchSearchHistory() {
-    if (!user?.value?.sub) {
+    if (!userSettings.value.id) {
         searchHistory.value = []
         return
     }
 
     try {
-        const { data, error } = await client.from("search_history").select("id, query, created_at").eq("user_id", user.value.sub).order("created_at", { ascending: false })
+        const { data, error } = await client
+            .from("search_history")
+            .select("id, query, created_at")
+            .eq("user_id", userSettings.value.id)
+            .order("created_at", { ascending: false })
 
         if (error) throw error
 

@@ -1,9 +1,9 @@
 <script setup>
+const { userSettings } = useUserSettings()
 const { showToast } = useToast()
 const appConfig = useAppConfig()
 const route = useRoute()
 const client = useSupabaseClient()
-const user = useSupabaseUser()
 
 const favoriteItems = ref([])
 const loading = ref(true)
@@ -68,7 +68,7 @@ async function loadMore() {
         const orderColumn = sortBy.value === "title" ? "anime_title" : "created_at"
         const ascending = sortBy.value === "title"
 
-        const { data, error } = await client.from("favorites").select("*").eq("user_id", user.value.sub).order(orderColumn, { ascending }).range(from, to)
+        const { data, error } = await client.from("favorites").select("*").eq("user_id", userSettings.value.id).order(orderColumn, { ascending }).range(from, to)
 
         if (error) throw error
 
@@ -126,8 +126,8 @@ async function confirmDelete() {
 
 async function confirmDeleteAll() {
     try {
-        if (!user?.value?.sub) return
-        const { error } = await client.from("favorites").delete().eq("user_id", user.value.sub)
+        if (!userSettings.value.id) return
+        const { error } = await client.from("favorites").delete().eq("user_id", userSettings.value.id)
 
         if (error) throw error
 
@@ -143,7 +143,7 @@ async function confirmDeleteAll() {
 async function fetchFavorites() {
     loading.value = true
     try {
-        if (!user?.value?.sub) {
+        if (!userSettings.value.id) {
             favoriteItems.value = []
             return
         }
@@ -155,7 +155,7 @@ async function fetchFavorites() {
         const { data, error } = await client
             .from("favorites")
             .select("*")
-            .eq("user_id", user.value.sub)
+            .eq("user_id", userSettings.value.id)
             .order(orderColumn, { ascending })
             .range(0, pageSize - 1)
 
@@ -327,15 +327,6 @@ useHead({
                             </div>
                         </NuxtLink>
                     </div>
-                </div>
-
-                <!-- Loading More Indicator -->
-                <div v-if="hasMoreItems" class="flex items-center justify-center py-8 mt-4">
-                    <div v-if="loadingMore" class="animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent"></div>
-                    <button v-else @click="loadMore" class="px-6 py-3 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium flex items-center gap-2">
-                        <span class="material-icons">expand_more</span>
-                        載入更多
-                    </button>
                 </div>
             </div>
         </div>

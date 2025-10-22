@@ -1,10 +1,10 @@
 <script setup>
 // Core
+const { userSettings } = useUserSettings()
 const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
 const client = useSupabaseClient()
-const user = useSupabaseUser()
 
 // Component State
 const anime = ref(null)
@@ -94,20 +94,20 @@ function handleVolumeChange() {
 }
 
 async function toggleFavorite() {
-    if (!anime.value || !user?.value?.sub) return
+    if (!anime.value || !userSettings.value.id) return
     isFavorite.value = !isFavorite.value
 
     let response
     if (isFavorite.value) {
         response = await client.from("favorites").insert({
-            user_id: user.value.sub,
+            user_id: userSettings.value.id,
             anime_ref_id: anime.value.refId,
             anime_title: anime.value.title,
             anime_image: anime.value.image,
         })
     } else {
         response = await client.from("favorites").delete().match({
-            user_id: user.value.sub,
+            user_id: userSettings.value.id,
             anime_ref_id: anime.value.refId,
         })
     }
@@ -119,8 +119,8 @@ async function toggleFavorite() {
 
 async function fetchLastWatched() {
     try {
-        if (!user?.value?.sub || !anime.value) return
-        const { data, error } = await client.from("watch_history").select("*").eq("anime_ref_id", anime.value.refId).order("watched_at", { ascending: false })
+        if (!userSettings.value.id || !anime.value) return
+        const { data, error } = await client.from("watch_history").select("*").eq("anime_ref_id", anime.value.refId).order("updated_at", { ascending: false })
 
         if (!error && data && data.length > 0) {
             allWatchProgress.value = {}
@@ -205,7 +205,7 @@ function stopAutoSave() {
 }
 
 async function saveWatchHistory() {
-    if (!user?.value?.sub || !anime.value || !selectedEpisode.value || !videoPlayer.value?.duration) return
+    if (!userSettings.value.watch_history_enabled || !userSettings.value.id || !anime.value || !selectedEpisode.value || !videoPlayer.value?.duration) return
 
     const duration = videoPlayer.value.duration
     const currentTime = videoPlayer.value.currentTime
@@ -213,25 +213,18 @@ async function saveWatchHistory() {
 
     try {
         const historyData = {
-            user_id: user.value.sub,
+            user_id: userSettings.value.id,
             anime_ref_id: anime.value.refId,
             anime_title: anime.value.title,
             anime_image: anime.value.image,
             episode_number: String(selectedEpisode.value),
-            watched_at: new Date().toISOString(),
             playback_time: Math.floor(currentTime),
             video_duration: Math.floor(duration),
             progress_percentage: progressPercentage,
         }
 
-        const { data: existing, error } = await client.from("watch_history").select("id").eq("anime_ref_id", anime.value.refId).eq("episode_number", String(selectedEpisode.value)).single()
-        if (existing) {
-            const { error } = await client.from("watch_history").update(historyData).eq("id", existing.id)
-            if (error) throw error
-        } else {
-            const { data, error } = await client.from("watch_history").insert(historyData)
-            if (error) throw error
-        }
+        const { data, error } = await client.from("watch_history").upsert(historyData, { onConflict: "user_id, anime_ref_id, episode_number" })
+        if (error) throw error
     } catch (err) {
         console.error("Failed to save watch history:", err)
     }
