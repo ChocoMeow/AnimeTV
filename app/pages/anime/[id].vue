@@ -225,6 +225,9 @@ async function saveWatchHistory() {
 
         const { data, error } = await client.from("watch_history").upsert(historyData, { onConflict: "user_id, anime_ref_id, episode_number" })
         if (error) throw error
+
+        allWatchProgress.value[historyData.episode_number] = historyData
+        lastWatchedData.value = historyData
     } catch (err) {
         console.error("Failed to save watch history:", err)
     }
