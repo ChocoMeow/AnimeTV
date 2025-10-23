@@ -29,7 +29,7 @@ const hasSetInitialTime = ref(false)
 const previousEpisode = ref(null)
 
 // Constants
-const SAVE_INTERVAL = 300000 // Save every 5 minutes
+const SAVE_INTERVAL = 120000 // Save every 2 minutes
 let saveIntervalTimer = null
 
 // UI Actions
@@ -40,8 +40,9 @@ function openShareDialog() {
 
         if (selectedEpisode.value && videoPlayer.value) {
             params.set("e", selectedEpisode.value)
-            if (videoPlayer.value.currentTime > 0) {
-                params.set("t", Math.floor(videoPlayer.value.currentTime).toString())
+            const currentTime = videoPlayer.value.currentTime
+            if (currentTime > 0) {
+                params.set("t", Math.floor(currentTime).toString())
             }
         }
 
@@ -86,11 +87,6 @@ function handlePause() {
 function handleEnded() {
     saveWatchHistory()
     stopAutoSave()
-}
-function handleVolumeChange() {
-    if (videoPlayer.value && typeof localStorage !== "undefined") {
-        localStorage.setItem("videoVolume", videoPlayer.value.volume)
-    }
 }
 
 async function toggleFavorite() {
@@ -144,13 +140,6 @@ async function fetchLastWatched() {
 async function onVideoReady() {
     videoLoading.value = false
 
-    if (videoPlayer.value && typeof localStorage !== "undefined") {
-        const savedVolume = localStorage.getItem("videoVolume")
-        if (savedVolume !== null) {
-            videoPlayer.value.volume = parseFloat(savedVolume)
-        }
-    }
-
     if (hasSetInitialTime.value) return
 
     let startTime = null
@@ -160,15 +149,16 @@ async function onVideoReady() {
     }
 
     if (startTime && videoPlayer.value && !isNaN(startTime) && startTime > 0) {
-        if (videoPlayer.value.readyState >= 2) {
-            videoPlayer.value.currentTime = startTime
+        const videoElement = videoPlayer.value.videoElement
+        if (videoElement && videoElement.readyState >= 2) {
+            videoPlayer.value.seek(startTime)
             hasSetInitialTime.value = true
-        } else {
-            videoPlayer.value.addEventListener(
+        } else if (videoElement) {
+            videoElement.addEventListener(
                 "canplay",
                 () => {
-                    if (!hasSetInitialTime.value) {
-                        videoPlayer.value.currentTime = startTime
+                    if (!hasSetInitialTime.value && videoPlayer.value) {
+                        videoPlayer.value.seek(startTime)
                         hasSetInitialTime.value = true
                     }
                 },
@@ -179,9 +169,11 @@ async function onVideoReady() {
         hasSetInitialTime.value = true
     }
 
-    if (videoPlayer.value) {
+    // Scroll to video player
+    const videoElement = videoPlayer.value?.videoElement
+    if (videoElement) {
         setTimeout(() => {
-            videoPlayer.value.scrollIntoView({
+            videoElement.scrollIntoView({
                 behavior: "smooth",
                 block: "center",
             })
@@ -205,10 +197,13 @@ function stopAutoSave() {
 }
 
 async function saveWatchHistory() {
-    if (!userSettings.value.watch_history_enabled || !userSettings.value.id || !anime.value || !selectedEpisode.value || !videoPlayer.value?.duration) return
+    if (!userSettings.value.watch_history_enabled || !userSettings.value.id || !anime.value || !selectedEpisode.value || !videoPlayer.value) return
 
     const duration = videoPlayer.value.duration
     const currentTime = videoPlayer.value.currentTime
+
+    if (!duration || duration === 0) return
+
     const progressPercentage = Math.min(100, Math.floor((currentTime / duration) * 100))
 
     try {
@@ -491,25 +486,11 @@ onUnmounted(() => {
                         <p>暫無可用集數</p>
                     </div>
 
-                    <div class="aspect-video bg-black relative rounded-lg overflow-hidden">
-                        <div v-if="videoLoading" class="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
-                            <div class="text-center">
-                                <div class="inline-block w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-                                <p class="text-white">載入影片中...</p>
-                            </div>
-                        </div>
+                    <VideoPlayer v-if="videoUrl || selectedEpisode" ref="videoPlayer" :src="videoUrl || ''" autoplay preload="metadata" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @timeupdate="handleTimeUpdate" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
 
-                        <video v-if="videoUrl" ref="videoPlayer" :src="videoUrl" controls autoplay preload="metadata" class="w-full h-full" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @volumechange="handleVolumeChange" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
-
-                        <div v-else-if="!selectedEpisode" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-                            <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>
-                            <p class="text-lg">請選擇集數開始播放</p>
-                        </div>
-
-                        <div v-else class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-                            <span class="material-icons text-6xl mb-4 opacity-50">error_outline</span>
-                            <p class="text-lg">影片暫時無法播放</p>
-                        </div>
+                    <div v-else class="aspect-video bg-black relative rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-400">
+                        <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>
+                        <p class="text-lg">請選擇集數開始播放</p>
                     </div>
                 </section>
 
