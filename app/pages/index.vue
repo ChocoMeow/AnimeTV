@@ -24,6 +24,7 @@ const weekdayLabel = {
 const hoveredAnime = ref(null)
 const animeDetails = ref(null)
 const tooltipLoading = ref(false)
+const tooltipError = ref(null)
 const tooltipPosition = ref({ x: 0, y: 0, placement: "top" })
 const isMobile = ref(false)
 let hoverTimer = null
@@ -127,6 +128,7 @@ async function handleMouseEnter(item, event) {
 
     hoveredAnime.value = item.refId
     tooltipPosition.value = calculateTooltipPosition(event)
+    tooltipError.value = null
 
     // Check cache first
     if (animeCache.value.has(item.refId)) {
@@ -137,6 +139,7 @@ async function handleMouseEnter(item, event) {
     hoverTimer = setTimeout(async () => {
         if (hoveredAnime.value === item.refId) {
             tooltipLoading.value = true
+            tooltipError.value = null
             try {
                 const details = await $fetch(`/api/anime/${item.refId}`)
                 if (hoveredAnime.value === item.refId) {
@@ -146,6 +149,9 @@ async function handleMouseEnter(item, event) {
                 }
             } catch (err) {
                 console.error("Failed to fetch anime details:", err)
+                if (hoveredAnime.value === item.refId) {
+                    tooltipError.value = "無法載入動畫詳情"
+                }
             } finally {
                 tooltipLoading.value = false
             }
@@ -161,44 +167,7 @@ function handleMouseLeave() {
     hoveredAnime.value = null
     animeDetails.value = null
     tooltipLoading.value = false
-}
-
-function handleTouchStart(item, event) {
-    if (!isMobile.value) return
-
-    event.preventDefault()
-    hoveredAnime.value = item.refId
-    tooltipPosition.value = calculateTooltipPosition(event)
-
-    // Check cache first
-    if (animeCache.value.has(item.refId)) {
-        animeDetails.value = animeCache.value.get(item.refId)
-        return
-    }
-
-    hoverTimer = setTimeout(async () => {
-        if (hoveredAnime.value === item.refId) {
-            tooltipLoading.value = true
-            try {
-                const details = await $fetch(`/api/anime/${item.refId}`)
-                if (hoveredAnime.value === item.refId) {
-                    animeDetails.value = details
-                    animeCache.value.set(item.refId, details)
-                }
-            } catch (err) {
-                console.error("Failed to fetch anime details:", err)
-            } finally {
-                tooltipLoading.value = false
-            }
-        }
-    }, 1000)
-}
-
-function handleTouchEnd() {
-    if (hoverTimer) {
-        clearTimeout(hoverTimer)
-        hoverTimer = null
-    }
+    tooltipError.value = null
 }
 
 function closeTooltip() {
@@ -278,8 +247,6 @@ onUnmounted(() => {
                                 :to="`/anime/${item.refId}`"
                                 @mouseenter="handleMouseEnter(item, $event)"
                                 @mouseleave="handleMouseLeave"
-                                @touchstart="handleTouchStart(item, $event)"
-                                @touchend="handleTouchEnd"
                             >
                                 <div class="relative overflow-hidden rounded-t-lg aspect-video bg-gray-200 dark:bg-gray-700">
                                     <img :src="item.thumbnail" alt="" class="w-full h-full object-cover transform transition-transform duration-300 group-hover:scale-110" />
@@ -371,26 +338,17 @@ onUnmounted(() => {
             </div>
         </main>
 
-        <!-- Anime Details Tooltip -->
+        <!-- Anime Details Tooltip (Desktop Only) -->
         <Teleport to="body">
             <Transition name="tooltip-fade">
                 <div
-                    v-if="hoveredAnime && animeDetails"
+                    v-if="hoveredAnime && animeDetails && !isMobile"
                     :class="['anime-tooltip', `tooltip-${tooltipPosition.placement}`]"
                     :style="{
                         left: tooltipPosition.x + 'px',
                         top: tooltipPosition.y + 'px',
                     }"
                 >
-                    <!-- Mobile close button -->
-                    <button
-                        v-if="isMobile"
-                        @click="closeTooltip"
-                        class="absolute top-2 right-2 z-10 w-6 h-6 bg-gray-800/80 dark:bg-gray-200/80 rounded-full flex items-center justify-center text-white dark:text-gray-900"
-                    >
-                        <span class="material-icons text-sm">close</span>
-                    </button>
-
                     <div class="tooltip-content">
                         <!-- Header with Image -->
                         <div class="flex gap-3 mb-3">
@@ -454,16 +412,13 @@ onUnmounted(() => {
                         <!-- Tooltip Arrow -->
                         <div class="tooltip-arrow"></div>
                     </div>
-
-                    <!-- Mobile overlay backdrop -->
-                    <div v-if="isMobile" @click="closeTooltip" class="tooltip-backdrop"></div>
                 </div>
             </Transition>
 
-            <!-- Loading Tooltip -->
+            <!-- Loading Tooltip (Desktop Only) -->
             <Transition name="tooltip-fade">
                 <div
-                    v-if="hoveredAnime && tooltipLoading && !animeDetails"
+                    v-if="hoveredAnime && tooltipLoading && !animeDetails && !isMobile"
                     :class="['anime-tooltip-loading', `tooltip-${tooltipPosition.placement}`]"
                     :style="{
                         left: tooltipPosition.x + 'px',
@@ -473,6 +428,23 @@ onUnmounted(() => {
                     <div class="flex items-center gap-2">
                         <div class="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
                         <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-300">載入詳情...</span>
+                    </div>
+                </div>
+            </Transition>
+
+            <!-- Error Tooltip (Desktop Only) -->
+            <Transition name="tooltip-fade">
+                <div
+                    v-if="hoveredAnime && tooltipError && !animeDetails && !isMobile"
+                    :class="['anime-tooltip-error', `tooltip-${tooltipPosition.placement}`]"
+                    :style="{
+                        left: tooltipPosition.x + 'px',
+                        top: tooltipPosition.y + 'px',
+                    }"
+                >
+                    <div class="flex items-center gap-2">
+                        <span class="material-icons text-red-500 text-base">error_outline</span>
+                        <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-300">{{ tooltipError }}</span>
                     </div>
                 </div>
             </Transition>
@@ -665,6 +637,33 @@ onUnmounted(() => {
 }
 
 .anime-tooltip-loading.tooltip-right {
+    transform: translate(0, -50%);
+    margin-left: 16px;
+}
+
+/* Error Tooltip */
+.anime-tooltip-error {
+    position: fixed;
+    z-index: 9999;
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-red-300 dark:border-red-700 px-3 sm:px-4 py-2;
+}
+
+.anime-tooltip-error.tooltip-top {
+    transform: translate(-50%, -100%);
+    margin-top: -16px;
+}
+
+.anime-tooltip-error.tooltip-bottom {
+    transform: translate(-50%, 0);
+    margin-top: 16px;
+}
+
+.anime-tooltip-error.tooltip-left {
+    transform: translate(-100%, -50%);
+    margin-left: -16px;
+}
+
+.anime-tooltip-error.tooltip-right {
     transform: translate(0, -50%);
     margin-left: 16px;
 }
