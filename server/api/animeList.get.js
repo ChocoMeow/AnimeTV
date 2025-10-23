@@ -11,10 +11,12 @@ export default defineEventHandler(async (event) => {
         const page = query.page || 1
         const tags = query.tags ? query.tags.split(",") : []
         const categories = query.categories ? query.categories.split(",") : []
+        const sort = query.sort || null
 
         const params = new URLSearchParams({ page })
         if (tags.length) params.set("tags", tags.join(","))
         if (categories.length) params.set("c", categories.join(","))
+        if (sort) params.set("sort", sort)
 
         const url = `${GAMER_BASE_URL}animeList.php?${params.toString()}`
         const { html } = await cfFetch(url)

@@ -1,44 +1,115 @@
 <script setup>
 const appConfig = useAppConfig()
+const route = useRoute()
+const router = useRouter()
 
 const animeList = ref([])
 const totalPage = ref(1)
 const loading = ref(false)
-const searchQuery = ref("")
 const currentPage = ref(1)
 
 // Filters
 const selectedTags = ref([])
 const selectedCategory = ref("")
+const selectedSort = ref("1") // 1: 依年份排列, 2: 依月人氣排序
 const showFilters = ref(true)
 
-const tags = ["全部", "動作", "冒險", "奇幻", "異世界", "魔法", "超能力", "科幻", "機甲", "校園", "喜劇", "戀愛", "青春", "勵志", "溫馨", "悠閒", "料理", "親情", "感人", "運動", "競技", "偶像", "音樂", "職場", "推理", "懸疑", "時間穿越", "歷史", "戰爭", "血腥暴力", "靈異神怪", "黑暗", "特攝", "BL", "GL"]
+const tags = [
+    "全部",
+    "動作",
+    "冒險",
+    "奇幻",
+    "異世界",
+    "魔法",
+    "超能力",
+    "科幻",
+    "機甲",
+    "校園",
+    "喜劇",
+    "戀愛",
+    "青春",
+    "勵志",
+    "溫馨",
+    "悠閒",
+    "料理",
+    "親情",
+    "感人",
+    "運動",
+    "競技",
+    "偶像",
+    "音樂",
+    "職場",
+    "推理",
+    "懸疑",
+    "時間穿越",
+    "歷史",
+    "戰爭",
+    "血腥暴力",
+    "靈異神怪",
+    "黑暗",
+    "特攝",
+    "BL",
+    "GL",
+]
 const categories = ["電影", "OVA", "雙語", "泡麵番", "真人演出"]
+const sortOptions = [
+    { value: "1", label: "依年份排列" },
+    { value: "2", label: "依月人氣排序" },
+]
+
+// Initialize from URL query params
+function initializeFromRoute() {
+    const { page, category, tags: urlTags, sort } = route.query
+
+    currentPage.value = parseInt(page) || 1
+    selectedCategory.value = category || ""
+    selectedTags.value = urlTags ? urlTags.split(",").filter(Boolean) : []
+    selectedSort.value = sort || "1"
+}
+
+// Update URL with current filters
+function updateURL() {
+    const query = {
+        page: currentPage.value > 1 ? currentPage.value : undefined,
+        category: selectedCategory.value || undefined,
+        tags: selectedTags.value.length > 0 ? selectedTags.value.join(",") : undefined,
+        sort: selectedSort.value !== "1" ? selectedSort.value : undefined,
+    }
+
+    router.push({ query })
+}
 
 // Fetch anime list (page + filters)
 async function fetchAnime(page = 1) {
     loading.value = true
+    currentPage.value = page
+
     try {
-        const res = await $fetch(`/api/animeList?page=${page}&category=${selectedCategory.value}&tags=${selectedTags.value.join(",")}`)
+        // Build query string
+        const params = new URLSearchParams({
+            page: page.toString(),
+            category: selectedCategory.value,
+            tags: selectedTags.value.join(","),
+        })
+
+        // Add sort parameter if not default
+        if (selectedSort.value === "2") {
+            params.append("sort", "2")
+        }
+
+        const res = await $fetch(`/api/animeList?${params.toString()}`)
         animeList.value = res.results
         totalPage.value = parseInt(res.totalPage)
-        currentPage.value = page
+
+        // Update URL to reflect current state
+        updateURL()
+
         // Scroll to top smoothly
         window.scrollTo({ top: 0, behavior: "smooth" })
     } catch (err) {
         console.error("Failed to fetch anime:", err)
     } finally {
         loading.value = false
-    }
-}
-
-// Handle search from SearchInput
-async function handleSearch(query) {
-    searchQuery.value = query
-    try {
-        const res = await $fetch(`/api/search/${encodeURIComponent(query)}`)
-    } catch (err) {
-        console.error("Search failed:", err)
     }
 }
 
@@ -58,6 +129,7 @@ function toggleTag(tag) {
 function clearAllFilters() {
     selectedTags.value = []
     selectedCategory.value = ""
+    selectedSort.value = "1"
     fetchAnime(1)
 }
 
@@ -71,8 +143,22 @@ function formatViews(views) {
     return views
 }
 
-useHead({ title: `所有動畫 | ${appConfig.siteName} `})
-onMounted(() => fetchAnime(1))
+// Watch for route changes (e.g., browser back/forward)
+watch(
+    () => route.query,
+    () => {
+        initializeFromRoute()
+        fetchAnime(currentPage.value)
+    },
+    { deep: true }
+)
+
+useHead({ title: `所有動畫 | ${appConfig.siteName}` })
+
+onMounted(() => {
+    initializeFromRoute()
+    fetchAnime(currentPage.value)
+})
 </script>
 
 <template>
@@ -84,12 +170,19 @@ onMounted(() => fetchAnime(1))
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <h2 class="text-lg font-bold text-gray-900 dark:text-white">篩選條件</h2>
-                        <span v-if="selectedTags.length || selectedCategory" class="px-2 py-1 text-xs font-semibold bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full">
-                            {{ selectedTags.length + (selectedCategory ? 1 : 0) }}
+                        <span
+                            v-if="selectedTags.length || selectedCategory || selectedSort !== '1'"
+                            class="px-2 py-1 text-xs font-semibold bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
+                        >
+                            {{ selectedTags.length + (selectedCategory ? 1 : 0) + (selectedSort !== "1" ? 1 : 0) }}
                         </span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button v-if="selectedTags.length || selectedCategory" @click="clearAllFilters" class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium transition-colors flex items-center gap-1">
+                        <button
+                            v-if="selectedTags.length || selectedCategory || selectedSort !== '1'"
+                            @click="clearAllFilters"
+                            class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium transition-colors flex items-center gap-1"
+                        >
                             <span class="material-icons text-sm">clear</span>
                             清除全部
                         </button>
@@ -104,6 +197,21 @@ onMounted(() => fetchAnime(1))
                 <!-- Filter Content -->
                 <transition name="filter-expand">
                     <div v-if="showFilters" class="space-y-4 mt-4">
+                        <!-- Sort Mode -->
+                        <div class="flex flex-wrap items-center gap-3">
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[60px]">排序:</label>
+                            <div class="flex flex-wrap gap-2">
+                                <button
+                                    v-for="option in sortOptions"
+                                    :key="option.value"
+                                    @click="selectedSort = option.value; fetchAnime(1)"
+                                    :class="['category-pill', selectedSort === option.value ? 'category-pill-active' : 'category-pill-inactive']"
+                                >
+                                    {{ option.label }}
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Category Filter -->
                         <div class="flex flex-wrap items-center gap-3">
                             <label class="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[60px]">類型:</label>
@@ -129,7 +237,15 @@ onMounted(() => fetchAnime(1))
                         <div class="flex flex-wrap items-start gap-3">
                             <label class="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[60px] pt-1.5">標籤:</label>
                             <div class="flex flex-wrap gap-2 flex-1">
-                                <button v-for="tag in tags" :key="tag" @click="toggleTag(tag)" :class="['tag-pill', tag === '全部' && selectedTags.length === 0 ? 'tag-pill-active' : selectedTags.includes(tag) ? 'tag-pill-active' : 'tag-pill-inactive']">
+                                <button
+                                    v-for="tag in tags"
+                                    :key="tag"
+                                    @click="toggleTag(tag)"
+                                    :class="[
+                                        'tag-pill',
+                                        tag === '全部' && selectedTags.length === 0 ? 'tag-pill-active' : selectedTags.includes(tag) ? 'tag-pill-active' : 'tag-pill-inactive',
+                                    ]"
+                                >
                                     {{ tag }}
                                 </button>
                             </div>
@@ -174,7 +290,9 @@ onMounted(() => fetchAnime(1))
                     <div class="relative overflow-hidden rounded-t-xl aspect-[2/3] bg-gray-200 dark:bg-gray-700">
                         <img :src="anime.image" :alt="anime.title" class="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110" />
                         <!-- Gradient Overlay -->
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
+                        <div
+                            class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300"
+                        ></div>
 
                         <!-- Year Badge -->
                         <div class="badge-year">
@@ -182,7 +300,9 @@ onMounted(() => fetchAnime(1))
                         </div>
 
                         <!-- Hover Play Button -->
-                        <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100">
+                        <div
+                            class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100"
+                        >
                             <div class="w-14 h-14 rounded-full bg-white/90 dark:bg-gray-900/90 flex items-center justify-center shadow-xl">
                                 <span class="material-icons text-indigo-600 dark:text-indigo-400 text-3xl">play_arrow</span>
                             </div>
@@ -191,7 +311,9 @@ onMounted(() => fetchAnime(1))
 
                     <!-- Info Container -->
                     <div class="p-3 space-y-2">
-                        <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        <h3
+                            class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors"
+                        >
                             {{ anime.title }}
                         </h3>
 
