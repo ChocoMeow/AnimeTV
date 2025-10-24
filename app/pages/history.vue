@@ -19,42 +19,10 @@ const loadingMore = ref(false)
 
 // Computed filtered history
 const filteredHistory = computed(() => {
-    let filtered = [...historyItems.value]
+    if (!searchQuery.value) return historyItems.value
 
-    // Filter by time period
-    const now = new Date()
-    if (selectedFilter.value === "today") {
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-        filtered = filtered.filter((item) => new Date(item.updated_at) >= todayStart)
-    } else if (selectedFilter.value === "week") {
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        filtered = filtered.filter((item) => new Date(item.updated_at) >= weekAgo)
-    } else if (selectedFilter.value === "month") {
-        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-        filtered = filtered.filter((item) => new Date(item.updated_at) >= monthAgo)
-    }
-
-    // Filter by search query
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase()
-        filtered = filtered.filter((item) => item.anime_title?.toLowerCase().includes(query))
-    }
-
-    // Group by anime and keep only the most recent episode for each anime
-    const animeMap = new Map()
-    filtered.forEach((item) => {
-        const animeId = item.anime_ref_id
-        if (!animeMap.has(animeId)) {
-            animeMap.set(animeId, item)
-        } else {
-            const existing = animeMap.get(animeId)
-            if (new Date(item.updated_at) > new Date(existing.updated_at)) {
-                animeMap.set(animeId, item)
-            }
-        }
-    })
-
-    return Array.from(animeMap.values()).sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+    const query = searchQuery.value.toLowerCase()
+    return historyItems.value.filter((item) => item.anime_title?.toLowerCase().includes(query))
 })
 
 // Group history by date
@@ -109,13 +77,13 @@ function formatDuration(seconds) {
     return `${mins}:${secs.toString().padStart(2, "0")}`
 }
 
-function toggleSelectItem(id, event) {
+function toggleSelectItem(animeRefId, event) {
     event.preventDefault()
     event.stopPropagation()
-    if (selectedItems.value.has(id)) {
-        selectedItems.value.delete(id)
+    if (selectedItems.value.has(animeRefId)) {
+        selectedItems.value.delete(animeRefId)
     } else {
-        selectedItems.value.add(id)
+        selectedItems.value.add(animeRefId)
     }
 }
 
@@ -123,8 +91,25 @@ function selectAll() {
     if (selectedItems.value.size === filteredHistory.value.length) {
         selectedItems.value.clear()
     } else {
-        filteredHistory.value.forEach((item) => selectedItems.value.add(item.id))
+        filteredHistory.value.forEach((item) => selectedItems.value.add(item.anime_ref_id))
     }
+}
+
+function applyTimeFilter(query) {
+    if (selectedFilter.value === "all") return query
+
+    const now = new Date()
+    let filterDate
+
+    if (selectedFilter.value === "today") {
+        filterDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    } else if (selectedFilter.value === "week") {
+        filterDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    } else if (selectedFilter.value === "month") {
+        filterDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    }
+
+    return query.gte("updated_at", filterDate.toISOString())
 }
 
 async function loadMore() {
@@ -136,7 +121,15 @@ async function loadMore() {
         const from = nextPage * pageSize
         const to = from + pageSize - 1
 
-        const { data, error } = await client.from("watch_history").select("*").eq("user_id", userSettings.value.id).order("updated_at", { ascending: false }).range(from, to)
+        let query = client
+            .from("watch_history_latest_updates")
+            .select("*")
+            .eq("user_id", userSettings.value.id)
+
+        // Apply time filter
+        query = applyTimeFilter(query)
+
+        const { data, error } = await query.order("updated_at", { ascending: false }).range(from, to)
 
         if (error) throw error
 
@@ -176,15 +169,22 @@ async function deleteSelected() {
 
 async function confirmDelete() {
     try {
-        const idsToDelete = Array.from(selectedItems.value)
+        const animeRefIdsToDelete = Array.from(selectedItems.value)
 
-        const { error } = await client.from("watch_history").delete().in("id", idsToDelete)
+        // Delete all watch history records for the selected anime (not just the latest episode)
+        const { error } = await client
+            .from("watch_history")
+            .delete()
+            .in("anime_ref_id", animeRefIdsToDelete)
+            .eq("user_id", userSettings.value.id)
 
         if (error) throw error
 
-        historyItems.value = historyItems.value.filter((item) => !idsToDelete.includes(item.id))
+        // Remove deleted items from the displayed list
+        historyItems.value = historyItems.value.filter((item) => !animeRefIdsToDelete.includes(item.anime_ref_id))
         selectedItems.value.clear()
         showDeleteConfirm.value = false
+        showToast("已刪除所選動漫的觀看紀錄", "success")
     } catch (err) {
         console.error("Failed to delete history:", err)
         showToast("刪除失敗，請稍後再試", "error")
@@ -201,6 +201,7 @@ async function confirmDeleteAll() {
         historyItems.value = []
         selectedItems.value.clear()
         showDeleteAllConfirm.value = false
+        showToast("已清除所有觀看紀錄", "success")
     } catch (err) {
         console.error("Failed to clear history:", err)
         showToast("清除失敗，請稍後再試", "error")
@@ -210,13 +211,15 @@ async function confirmDeleteAll() {
 async function fetchHistory() {
     loading.value = true
     try {
-        // Fetch first page only (0-19)
-        const { data, error } = await client
-            .from("watch_history")
+        let query = client
+            .from("watch_history_latest_updates")
             .select("*")
             .eq("user_id", userSettings.value.id)
-            .order("updated_at", { ascending: false })
-            .range(0, pageSize - 1)
+
+        // Apply time filter
+        query = applyTimeFilter(query)
+
+        const { data, error } = await query.order("updated_at", { ascending: false }).range(0, pageSize - 1)
 
         if (error) throw error
 
@@ -356,8 +359,8 @@ useHead({
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div v-for="item in items" :key="item.id" class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-all overflow-hidden group relative">
                             <!-- Checkbox - Now always visible when selected -->
-                            <button @click="toggleSelectItem(item.id, $event)" class="absolute top-3 left-3 z-10 w-6 h-6 rounded bg-white dark:bg-gray-700 shadow-md flex items-center justify-center transition-opacity" :class="selectedItems.has(item.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'">
-                                <span v-if="selectedItems.has(item.id)" class="material-icons text-indigo-600 text-lg">check_box</span>
+                            <button @click="toggleSelectItem(item.anime_ref_id, $event)" class="absolute top-3 left-3 z-10 w-6 h-6 rounded bg-white dark:bg-gray-700 shadow-md flex items-center justify-center transition-opacity" :class="selectedItems.has(item.anime_ref_id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'">
+                                <span v-if="selectedItems.has(item.anime_ref_id)" class="material-icons text-indigo-600 text-lg">check_box</span>
                                 <span v-else class="material-icons text-gray-400 text-lg">check_box_outline_blank</span>
                             </button>
 
@@ -408,7 +411,7 @@ useHead({
 
         <!-- Delete Confirmation Modal -->
         <BaseModal :show="showDeleteConfirm" title="確認刪除" icon="warning" icon-color="text-red-500" @close="showDeleteConfirm = false">
-            <p class="text-gray-600 dark:text-gray-400">確定要刪除 {{ selectedItems.size }} 個觀看紀錄嗎？此操作無法復原。</p>
+            <p class="text-gray-600 dark:text-gray-400">確定要刪除 {{ selectedItems.size }} 部動漫的所有觀看紀錄嗎？此操作無法復原。</p>
 
             <template #actions>
                 <button @click="showDeleteConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
