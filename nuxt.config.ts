@@ -35,6 +35,7 @@ export default defineNuxtConfig({
         registerType: "autoUpdate",
         manifest: {
             name: "AnimeTV",
+            short_name: "AnimeTV",
             description: "Stream your favorite anime series and movies anytime, anywhere.",
             theme_color: "#2d3748",
             background_color: "#2d3748",

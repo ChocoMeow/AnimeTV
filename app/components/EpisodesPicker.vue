@@ -137,7 +137,8 @@ watch(
         if (idx !== -1) {
             currentPage.value = Math.floor(idx / pageSize) + 1
         }
-    }
+    },
+    { immediate: true }
 )
 </script>
 

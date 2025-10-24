@@ -70,7 +70,7 @@ function showNotification(message, icon) {
 
     notificationTimeout = setTimeout(() => {
         notification.value.show = false
-    }, 1000)
+    }, 500)
 }
 
 // Auto-hide controls
@@ -248,15 +248,7 @@ function handleKeydown(e) {
     switch (e.key) {
         case " ": // Space - play/pause
         case "k": // K - play/pause (YouTube style)
-            {
-                const wasPlaying = isPlaying.value
-                togglePlay()
-                if (wasPlaying) {
-                    showNotification("已暫停", "pause")
-                } else {
-                    showNotification("播放中", "play_arrow")
-                }
-            }
+            togglePlay()
             break
         case "ArrowLeft": // Left arrow - rewind 5 seconds
             skip(-5)
