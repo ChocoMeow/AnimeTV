@@ -1,62 +1,89 @@
 # AnimeTV
 
-<img align="right" src="https://github.com/ChocoMeow/Anime-Hub/blob/main/public/icons/icon_512x512.png" width=130 alt="AnimeTV Logo">
+<img align="right" src="https://github.com/ChocoMeow/AnimeTV/blob/main/public/icons/icon_512x512.png" width=130 alt="AnimeTV Logo">
 
 Welcome to **AnimeTV**, a project designed for anime enthusiasts in Taiwan and Hong Kong! This application provides an extensive collection of anime metadata and video streaming capabilities.
 
 ## Features
 
-- **Anime Metadata**: Fetches detailed information about various anime from [ani.gamer.com.tw](https://ani.gamer.com.tw).
-- **Video Streaming**: Provides video content sourced from [anime1.me](https://anime1.me).
-- **User-Friendly Interface**: Built with Nuxt 4.1.3 for a seamless and responsive experience.
+-   **Anime Metadata**: Fetches detailed information about various anime from [ani.gamer.com.tw](https://ani.gamer.com.tw).
+-   **Video Streaming**: Provides video content sourced from [anime1.me](https://anime1.me).
+-   **User-Friendly Interface**: Built with Nuxt 4.1.3 for a seamless and responsive experience.
+-   **Watch History**: Tracks the viewing history for each video, allowing users to resume where they left off.
+-   **User Settings**: Customize user preferences for a personalized experience.
+-   **Favorite List**: Save favorite anime shows for easy access.
+-   **Custom Video Player**: Enjoy a tailored video playback experience.
+-   **Friend List**: (Coming Soon) Connect with friends to share recommendations and watch together.
 
 ## Screenshot
-<img width="1920" alt="Screenshot" src="https://github.com/ChocoMeow/Anime-Hub/blob/main/public/screenshot.png" />
+
+<img width="1920" alt="Screenshot" src="https://github.com/ChocoMeow/AnimeTV/blob/main/public/screenshot.png" />
 
 ## Getting Started
 
-To get started with the AnimeTV, follow these steps:
+To get started with AnimeTV, follow these steps:
 
 ### Prerequisites
 
 Make sure you have the following installed:
 
-- Node.js (version 22 or later)
-- npm or Yarn
+-   Node.js (version 22 or later)
+-   npm
+-   Supabase CLI
 
 ### Setup
 
 1. **Clone the repository**:
 
-   ```bash
-   git clone https://github.com/ChocoMeow/Anime-Hub.git
-   cd anime-hub
-   ```
+    ```bash
+    git clone https://github.com/ChocoMeow/AnimeTV.git
+    cd animetv
+    ```
 
 2. **Install dependencies**:
 
-   ```bash
-   npm install
-   ```
+    ```bash
+    npm install
+    ```
 
-3. **Environment Variables**:
+3. **Import Supabase**:
 
-   You need to set up the following environment variables in a `.env` file in the root of your project:
+    To import your Supabase project using the Supabase CLI, follow these steps:
 
-   ```plaintext
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_KEY=your_supabase_key
-   ```
+    - Make sure you have the Supabase CLI installed. If not, install it by running:
 
-   Replace `your_supabase_url` and `your_supabase_key` with your actual Supabase credentials.
+        ```bash
+        npm install -g supabase
+        ```
+
+    - Link your project:
+
+        ```bash
+        supabase link
+        ```
+
+    - Import the schema from your Supabase project:
+
+        ```bash
+        supabase db dump --file schema.sql
+        ```
+
+    - Update your `.env` file with the necessary Supabase credentials:
+
+        ```plaintext
+        SUPABASE_URL=your_supabase_url
+        SUPABASE_KEY=your_supabase_key
+        ```
+
+    Replace `your_supabase_url` and `your_supabase_key` with your actual Supabase credentials.
 
 4. **Run the development server**:
 
-   ```bash
-   npm run dev
-   ```
+    ```bash
+    npm run dev
+    ```
 
-   Your application will be running at `http://localhost:3000`.
+    Your application will be running at `http://localhost:3000`.
 
 ## License
 
@@ -64,10 +91,10 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Acknowledgments
 
-- [Nuxt.js](https://nuxtjs.org) for the powerful framework.
-- [Supabase](https://supabase.io) for the backend database services.
-- [ani.gamer.com.tw](https://ani.gamer.com.tw) for anime metadata.
-- [anime1.me](https://anime1.me) for video content.
+-   [Nuxt.js](https://nuxtjs.org) for the powerful framework.
+-   [Supabase](https://supabase.io) for the backend database services.
+-   [ani.gamer.com.tw](https://ani.gamer.com.tw) for anime metadata.
+-   [anime1.me](https://anime1.me) for video content.
 
 ## Disclaimer
 
