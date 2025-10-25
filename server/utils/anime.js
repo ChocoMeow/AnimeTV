@@ -64,30 +64,402 @@
 //     return result
 // }
 
-function toChineseNumber(num) {
-    const map = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"]
-    const digits = String(num)
-        .split("")
-        .map((d) => map[+d])
-    return digits.join("")
+
+function toArabicNumber(chineseNum) {
+    const map = {
+        "零": 0, "一": 1, "二": 2, "三": 3, "四": 4,
+        "五": 5, "六": 6, "七": 7, "八": 8, "九": 9
+    };
+    return map[chineseNum] || null;
+}
+
+// Convert Roman numerals to numbers
+function romanToNumber(roman) {
+    const romanMap = {
+        'I': 1, 'Ⅰ': 1, 'II': 2, 'Ⅱ': 2, 'III': 3, 'Ⅲ': 3,
+        'IV': 4, 'Ⅳ': 4, 'V': 5, 'Ⅴ': 5, 'VI': 6, 'Ⅵ': 6,
+        'VII': 7, 'Ⅶ': 7, 'VIII': 8, 'Ⅷ': 8, 'IX': 9, 'Ⅸ': 9, 'X': 10, 'Ⅹ': 10
+    };
+    return romanMap[roman.toUpperCase()] || null;
+}
+
+function extractSeasonInfo(title) {
+    const seasonPatterns = [
+        // Chinese patterns - must be explicit about 季
+        { regex: /第([一二三四五六七八九十]+)季/g, type: 'chinese' },
+        // English patterns
+        { regex: /season\s*(\d+)/gi, type: 'number' },
+        { regex: /\bs(\d+)\b/gi, type: 'number' },
+        // Roman numerals at end with context
+        { regex: /\s+([ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]+)\s*(?:\(|（|$)/g, type: 'roman' },
+        { regex: /\s+([IVX]{1,4})\s*(?:\(|（|$)/g, type: 'roman' },
+    ];
+
+    let seasons = [];
+    let cleanTitle = title;
+
+    for (const pattern of seasonPatterns) {
+        let match;
+        while ((match = pattern.regex.exec(title)) !== null) {
+            let seasonNum = null;
+
+            if (pattern.type === 'chinese') {
+                const chars = match[1].split('');
+                if (chars.length === 1) {
+                    seasonNum = toArabicNumber(chars[0]);
+                } else if (chars[0] === '十') {
+                    seasonNum = 10 + (toArabicNumber(chars[1]) || 0);
+                } else if (chars[1] === '十') {
+                    seasonNum = toArabicNumber(chars[0]) * 10;
+                }
+            } else if (pattern.type === 'number') {
+                seasonNum = parseInt(match[1]);
+            } else if (pattern.type === 'roman') {
+                // Only treat as season if it's reasonable (1-10)
+                const num = romanToNumber(match[1]);
+                if (num && num <= 10) {
+                    seasonNum = num;
+                }
+            }
+
+            if (seasonNum !== null && seasonNum >= 1 && seasonNum <= 10) {
+                seasons.push(seasonNum);
+                cleanTitle = cleanTitle.replace(match[0], ' ');
+            }
+        }
+        pattern.regex.lastIndex = 0;
+    }
+
+    return {
+        baseTitle: cleanTitle,
+        seasons: [...new Set(seasons)],
+        hasSeason: seasons.length > 0
+    };
 }
 
 function normalizeTitle(str) {
     return str
         .replace(/\s*\[[^\]]*\]/g, "") // Remove bracketed text
-        .replace(/（/g, "(") // Normalize parentheses
-        .replace(/）/g, ")")
-        .replace(/「|」/g, "") // Remove quotes
-        .replace(/！|。/g, "") // Remove punctuation
-        .replace(/season\s*(\d+)/gi, (_, num) => `第${toChineseNumber(num)}季`) // Convert season
-        .replace(/\bs(\d+)\b/gi, (_, num) => `第${toChineseNumber(num)}季`) // Convert short form season
-        .replace(/\s*(\d+)\s*$/, (_, num) => ` 第${toChineseNumber(num)}季`) // Convert trailing numbers to season
-        .replace(/\b(\w+)(s)\b/g, (match, word) => word) // Remove 's' from words if they end with 's'
-        .replace(/[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]/g, match => ROMAN_CHARACTERS[match])
-        .replace(/[.,:;=\-\/?()'"!@#$%^&*_+[\]{}<>|`~‧·′'－．・～：’＆]/g, "") // Remove special characters
-        .replace(/\s+/g, "") // Remove whitespace
-        .trim() // Trim leading/trailing whitespace
-        .toLowerCase(); // Convert to lowercase
+        .replace(/\s*\([^)]*\)/g, "") // Remove parentheses content
+        .replace(/（[^）]*）/g, "") // Remove full-width parentheses content
+        .replace(/「|」|『|』/g, "") // Remove quotes
+        .replace(/！|。|、|，/g, "") // Remove punctuation
+        .replace(/[:：]/g, " ") // Replace colons with space
+        .replace(/[.,:;=\-\/?'"!@#$%^&*_+[\]{}<>|`~‧·′'－．・～＆]/g, " ") // Replace special chars with space
+        .replace(/\s+/g, " ") // Normalize whitespace
+        .trim()
+        .toLowerCase();
+}
+
+function parseTitle(title) {
+    const { baseTitle, seasons, hasSeason } = extractSeasonInfo(title);
+    const normalized = normalizeTitle(baseTitle);
+
+    const chinesePart = normalized.replace(/[a-z0-9\s]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const englishPart = normalized.replace(/[^\x00-\x7F]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+    return {
+        original: title,
+        normalized,
+        chinesePart,
+        englishPart,
+        seasons,
+        hasSeason,
+        tokens: normalized.split(/\s+/).filter(t => t.length > 0)
+    };
+}
+
+function levenshteinDistance(str1, str2) {
+    const len1 = str1.length;
+    const len2 = str2.length;
+    const matrix = Array(len1 + 1).fill(null).map(() => Array(len2 + 1).fill(0));
+
+    for (let i = 0; i <= len1; i++) matrix[i][0] = i;
+    for (let j = 0; j <= len2; j++) matrix[0][j] = j;
+
+    for (let i = 1; i <= len1; i++) {
+        for (let j = 1; j <= len2; j++) {
+            const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+            matrix[i][j] = Math.min(
+                matrix[i - 1][j] + 1,
+                matrix[i][j - 1] + 1,
+                matrix[i - 1][j - 1] + cost
+            );
+        }
+    }
+
+    return matrix[len1][len2];
+}
+
+function levenshteinSimilarity(str1, str2) {
+    const maxLen = Math.max(str1.length, str2.length);
+    if (maxLen === 0) return 1.0;
+    const distance = levenshteinDistance(str1, str2);
+    return 1 - (distance / maxLen);
+}
+
+function jaroWinklerSimilarity(s1, s2) {
+    if (s1 === s2) return 1.0;
+
+    const len1 = s1.length;
+    const len2 = s2.length;
+
+    if (len1 === 0 || len2 === 0) return 0.0;
+
+    const matchWindow = Math.floor(Math.max(len1, len2) / 2) - 1;
+    const s1Matches = new Array(len1).fill(false);
+    const s2Matches = new Array(len2).fill(false);
+
+    let matches = 0;
+    let transpositions = 0;
+
+    for (let i = 0; i < len1; i++) {
+        const start = Math.max(0, i - matchWindow);
+        const end = Math.min(i + matchWindow + 1, len2);
+
+        for (let j = start; j < end; j++) {
+            if (s2Matches[j] || s1[i] !== s2[j]) continue;
+            s1Matches[i] = s2Matches[j] = true;
+            matches++;
+            break;
+        }
+    }
+
+    if (matches === 0) return 0.0;
+
+    let k = 0;
+    for (let i = 0; i < len1; i++) {
+        if (!s1Matches[i]) continue;
+        while (!s2Matches[k]) k++;
+        if (s1[i] !== s2[k]) transpositions++;
+        k++;
+    }
+
+    const jaro = (matches / len1 + matches / len2 + (matches - transpositions / 2) / matches) / 3;
+
+    let prefix = 0;
+    for (let i = 0; i < Math.min(4, Math.min(len1, len2)); i++) {
+        if (s1[i] === s2[i]) prefix++;
+        else break;
+    }
+
+    return jaro + prefix * 0.1 * (1 - jaro);
+}
+
+function tokenSetRatio(str1, str2) {
+    const tokens1 = new Set(str1.split(/\s+/).filter(t => t.length > 0));
+    const tokens2 = new Set(str2.split(/\s+/).filter(t => t.length > 0));
+
+    const intersection = new Set([...tokens1].filter(x => tokens2.has(x)));
+    const union = new Set([...tokens1, ...tokens2]);
+
+    if (union.size === 0) return 0;
+
+    return intersection.size / union.size;
+}
+
+function ngramSimilarity(str1, str2, n = 2) {
+    function getNgrams(str, n) {
+        const ngrams = new Set();
+        for (let i = 0; i <= str.length - n; i++) {
+            ngrams.add(str.substring(i, i + n));
+        }
+        return ngrams;
+    }
+
+    const ngrams1 = getNgrams(str1, n);
+    const ngrams2 = getNgrams(str2, n);
+
+    const intersection = new Set([...ngrams1].filter(x => ngrams2.has(x)));
+    const union = new Set([...ngrams1, ...ngrams2]);
+
+    return union.size === 0 ? 0 : intersection.size / union.size;
+}
+
+function calculateMatchScore(parsed1, parsed2) {
+    const norm1 = parsed1.normalized;
+    const norm2 = parsed2.normalized;
+
+    let titleScore = 0;
+
+    if (parsed1.chinesePart && parsed2.chinesePart) {
+        const chineseLevenshtein = levenshteinSimilarity(parsed1.chinesePart, parsed2.chinesePart);
+        const chineseJaroWinkler = jaroWinklerSimilarity(parsed1.chinesePart, parsed2.chinesePart);
+        const chineseScore = (chineseLevenshtein * 0.5 + chineseJaroWinkler * 0.5);
+
+        if (chineseScore > 0.8) {
+            titleScore = chineseScore;
+        }
+    }
+
+    if (titleScore < 0.8) {
+        const levenshtein = levenshteinSimilarity(norm1, norm2);
+        const jaroWinkler = jaroWinklerSimilarity(norm1, norm2);
+        const tokenSet = tokenSetRatio(norm1, norm2);
+        const bigram = ngramSimilarity(norm1, norm2, 2);
+        const trigram = ngramSimilarity(norm1, norm2, 3);
+
+        titleScore = Math.max(titleScore,
+            levenshtein * 0.25 +
+            jaroWinkler * 0.30 +
+            tokenSet * 0.25 +
+            bigram * 0.10 +
+            trigram * 0.10
+        );
+    }
+
+    const shorter = norm1.length < norm2.length ? norm1 : norm2;
+    const longer = norm1.length < norm2.length ? norm2 : norm1;
+    if (longer.includes(shorter) && shorter.length > 3) {
+        titleScore += (shorter.length / longer.length) * 0.15;
+    }
+
+    let seasonScore = 1.0;
+    let seasonPenalty = 1.0;
+
+    if (parsed1.hasSeason && parsed2.hasSeason) {
+        const hasMatchingSeason = parsed1.seasons.some(s1 =>
+            parsed2.seasons.includes(s1)
+        );
+        if (hasMatchingSeason) {
+            seasonScore = 1.0;
+            seasonPenalty = 1.0;
+        } else {
+            seasonScore = 0.3;
+            seasonPenalty = 0.5;
+        }
+    } else if (!parsed1.hasSeason && !parsed2.hasSeason) {
+        seasonScore = 1.0;
+        seasonPenalty = 1.0;
+    } else if (!parsed1.hasSeason && parsed2.hasSeason) {
+        seasonScore = 0.4;
+        seasonPenalty = 0.6;
+    } else {
+        seasonScore = 0.6;
+        seasonPenalty = 0.8;
+    }
+
+    // Apply penalty to title score
+    const adjustedTitleScore = titleScore * seasonPenalty;
+
+    // Final weighted score
+    const finalScore = Math.min(adjustedTitleScore * 0.80 + seasonScore * 0.20, 1.0);
+
+    return {
+        score: finalScore,
+        titleScore,
+        seasonScore,
+        seasonPenalty,
+        details: {
+            norm1,
+            norm2,
+            chinesePart1: parsed1.chinesePart,
+            chinesePart2: parsed2.chinesePart,
+            seasons1: parsed1.seasons,
+            seasons2: parsed2.seasons,
+            hasSeason1: parsed1.hasSeason,
+            hasSeason2: parsed2.hasSeason
+        }
+    };
+}
+
+function findBestMatches(query, candidates, threshold = 0.6, topN = 5) {
+    const parsedQuery = parseTitle(query);
+
+    const matches = candidates.map(candidate => {
+        const parsedCandidate = parseTitle(candidate.title);
+        const matchResult = calculateMatchScore(parsedQuery, parsedCandidate);
+
+        return {
+            ...candidate,
+            ...matchResult,
+            parsedTitle: parsedCandidate
+        };
+    });
+
+    // Filter by threshold and sort by score
+    return matches
+        .filter(m => m.score >= threshold)
+        .sort((a, b) => {
+            // First sort by score
+            if (Math.abs(a.score - b.score) > 0.05) {
+                return b.score - a.score;
+            }
+            // If scores are close, prefer exact season matches
+            if (a.seasonPenalty !== b.seasonPenalty) {
+                return b.seasonPenalty - a.seasonPenalty;
+            }
+            return b.score - a.score;
+        })
+        .slice(0, topN);
+}
+
+export async function searchAnimeTitle(query, threshold = 0.70) {
+    try {
+        const animeList = await fetchAnimeData();
+        const matches = findBestMatches(query, animeList, threshold);
+        return matches;
+    } catch (error) {
+        console.error("Error searching anime title:", error);
+        return [];
+    }
+}
+
+export async function matchAnime(animeList, matchThreshold = 0.70) {
+    if (!Array.isArray(animeList) || animeList.length === 0) {
+        return [];
+    }
+
+    const results = await Promise.all(
+        animeList.map(async (anime) => {
+            try {
+                if (!anime.title || !anime.refId) {
+                    return null;
+                }
+
+                const matches = await searchAnimeTitle(anime.title, matchThreshold);
+
+                if (!matches || matches.length === 0) {
+                    console.warn(`No matches found for: ${anime.title}`);
+                    return null;
+                }
+
+                // Prefer year match if available AND score is decent
+                const premiereYear = anime.year?.split("/")?.[0]?.trim();
+                let bestMatch = null;
+
+                if (premiereYear) {
+                    bestMatch = matches.find(m =>
+                        String(m.year) === String(premiereYear) && m.score >= 0.70
+                    );
+                }
+
+                // Otherwise take highest score
+                if (!bestMatch) {
+                    bestMatch = matches[0];
+                }
+
+                return {
+                    ...anime,
+                    matchedVideo: {
+                        id: bestMatch.id,
+                        year: bestMatch.year,
+                        season: bestMatch.season,
+                        matchScore: bestMatch.score,
+                        titleScore: bestMatch.titleScore,
+                        seasonScore: bestMatch.seasonScore,
+                        seasonPenalty: bestMatch.seasonPenalty
+                    },
+                    allMatches: matches.slice(0, 3)
+                };
+            } catch (err) {
+                console.error(`Error matching anime: ${anime.title}`, err);
+                return null;
+            }
+        })
+    );
+
+    return results.filter(Boolean);
 }
 
 export async function fetchAnimeData() {
@@ -130,60 +502,6 @@ export async function fetchAnimeData() {
     })();
 
     return ANIME1_LIST_CACHE.fetchPromise;
-}
-
-export async function searchAnimeTitle(query) {
-    try {
-        const animeList = await fetchAnimeData()
-        const normalizedQuery = normalizeTitle(query)
-        return animeList.filter((anime) => normalizeTitle(anime.title).includes(normalizedQuery))
-    } catch (error) {
-        console.error("Error searching anime title:", error)
-        return []
-    }
-}
-
-export async function matchAnime(animeList) {
-    if (!Array.isArray(animeList) || animeList.length === 0) {
-        return []
-    }
-
-    const results = await Promise.all(
-        animeList.map(async (anime) => {
-            try {
-                if (!anime.title || !anime.refId) {
-                    return null;
-                }
-
-                const videoDetails = await searchAnimeTitle(anime.title)
-                if (!videoDetails || videoDetails.length === 0) {
-                    console.warn(`No search results for: ${anime.title}`)
-                    return null
-                }
-
-                const premiereYear = anime.year?.split("/")?.[0]?.trim()
-                let matchedVideo = videoDetails.find((v) => String(v.year) === String(premiereYear))
-
-                if (!matchedVideo) {
-                    matchedVideo = videoDetails[0]
-                }
-
-                return {
-                    ...anime,
-                    matchedVideo: {
-                        id: matchedVideo.id,
-                        year: matchedVideo.year,
-                        season: matchedVideo.season
-                    }
-                }
-            } catch (err) {
-                console.error(`Error matching anime: ${anime.title}`, err)
-                return null
-            }
-        })
-    )
-
-    return results.filter(Boolean)
 }
 
 export async function cfFetch(url) {
