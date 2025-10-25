@@ -5,7 +5,6 @@ async function fetchEpisodeTokens(categoryId) {
     const episodes = {};
     let seriesTitle = "";
     let nextPageUrl = `${ANIME1_BASE_URL}?cat=${categoryId}`;
-
     try {
         while (nextPageUrl) {
             // Fetch and parse HTML
@@ -28,44 +27,39 @@ async function fetchEpisodeTokens(categoryId) {
                     return;
                 }
 
-                // Match [content] - can be numbers, text, or combination
+                // Match all [content] occurrences and get the LAST one
                 // Examples: [1], [01], [1+2], [SP], [OVA1], [特別篇], [SP1+SP2]
-                const match = fullTitle.match(/\[([^\]]+)\]/);
-                if (!match) {
+                const matches = fullTitle.match(/\[([^\]]+)\]/g);
+                if (!matches || matches.length === 0) {
                     console.warn(`Skipping article ${index} on page ${nextPageUrl}: No episode identifier found`, { fullTitle });
                     return;
                 }
 
+                // Extract the content from the last match
+                const lastMatch = matches[matches.length - 1];
+                const identifier = lastMatch.slice(1, -1); // Remove [ and ]
+
                 // Split by '+' to handle combined episodes
-                const episodeIdentifiers = match[1].split("+").map(id => id.trim());
+                const episodeIdentifiers = identifier.split("+").map(id => id.trim());
 
                 // Process each episode identifier
-                episodeIdentifiers.forEach(identifier => {
+                episodeIdentifiers.forEach(episodeId => {
                     // Check if it's a pure number
-                    if (/^\d+$/.test(identifier)) {
+                    if (/^\d+$/.test(episodeId)) {
                         // Remove leading zeros but keep single "0"
-                        const numValue = Number(identifier);
+                        const numValue = Number(episodeId);
                         const episodeKey = String(numValue);
-
                         if (episodes[episodeKey] && episodes[episodeKey] !== token) {
-                            console.warn(`Conflict for episode ${episodeKey} on page ${nextPageUrl}:`, {
-                                oldToken: episodes[episodeKey],
-                                newToken: token,
-                                title: fullTitle
-                            });
+                            console.warn(`Conflict for episode ${episodeKey} on page ${nextPageUrl}:`, { oldToken: episodes[episodeKey], newToken: token, title: fullTitle });
                         }
                         episodes[episodeKey] = token;
                     } else {
                         // It's a special episode (SP, OVA1, 特別篇, etc.)
                         // Keep it as-is, no transformation needed
-                        if (episodes[identifier] && episodes[identifier] !== token) {
-                            console.warn(`Conflict for episode ${identifier} on page ${nextPageUrl}:`, {
-                                oldToken: episodes[identifier],
-                                newToken: token,
-                                title: fullTitle
-                            });
+                        if (episodes[episodeId] && episodes[episodeId] !== token) {
+                            console.warn(`Conflict for episode ${episodeId} on page ${nextPageUrl}:`, { oldToken: episodes[episodeId], newToken: token, title: fullTitle });
                         }
-                        episodes[identifier] = token;
+                        episodes[episodeId] = token;
                     }
                 });
             });
@@ -74,19 +68,10 @@ async function fetchEpisodeTokens(categoryId) {
             const prevLink = $(".nav-previous a").attr("href");
             nextPageUrl = prevLink || null;
         }
-
-        return {
-            categoryId,
-            title: seriesTitle,
-            episodes
-        };
+        return { categoryId, title: seriesTitle, episodes };
     } catch (error) {
         console.error(`Error fetching episode data for category ${categoryId}:`, error);
-        return {
-            categoryId,
-            title: seriesTitle,
-            episodes
-        };
+        return { categoryId, title: seriesTitle, episodes };
     }
 }
 
