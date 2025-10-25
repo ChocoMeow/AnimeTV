@@ -239,6 +239,10 @@ function handleFullscreenChange() {
 function handleKeydown(e) {
     if (!videoRef.value || !props.src) return
 
+    const target = e.target
+    const isTying = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable
+    if (isTying) return
+
     // Prevent default for handled keys
     const handledKeys = [" ", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "m", "f", "k", "j", "l"]
     if (handledKeys.includes(e.key)) {
@@ -248,6 +252,7 @@ function handleKeydown(e) {
     switch (e.key) {
         case " ": // Space - play/pause
         case "k": // K - play/pause (YouTube style)
+            e.preventDefault()
             togglePlay()
             break
         case "ArrowLeft": // Left arrow - rewind 5 seconds
