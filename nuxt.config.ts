@@ -73,6 +73,8 @@ export default defineNuxtConfig({
                     src: "screenshot.png",
                     sizes: "1920x960",
                     type: "image/png",
+                    form_factor: "wide",
+                    label: "Application",
                 },
             ],
         },
