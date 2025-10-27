@@ -85,8 +85,13 @@ function romanToNumber(roman) {
 
 function extractSeasonInfo(title) {
     const seasonPatterns = [
-        // Chinese patterns - must be explicit about 季
+        // Final season patterns (mark as special season 'final')
+        { regex: /(final\s*season|最終季|完結篇|最終章|final|最終回)/gi, type: 'final' },
+        // Chinese patterns - 季 (season) and 期 (period/season)
         { regex: /第([一二三四五六七八九十]+)季/g, type: 'chinese' },
+        { regex: /第([一二三四五六七八九十]+)期/g, type: 'chinese' },
+        { regex: /第(\d+)季/g, type: 'chineseNumber' },
+        { regex: /第(\d+)期/g, type: 'chineseNumber' },
         // English patterns
         { regex: /season\s*(\d+)/gi, type: 'number' },
         { regex: /\bs(\d+)\b/gi, type: 'number' },
@@ -95,7 +100,18 @@ function extractSeasonInfo(title) {
         { regex: /\s+([IVX]{1,4})\s*(?:\(|（|$)/g, type: 'roman' },
     ];
 
+    // Part patterns - must be detected separately
+    const partPatterns = [
+        { regex: /前篇|上篇|part\s*1|part\s*i\b|パート1/gi, type: 'part1' },
+        { regex: /後篇|下篇|part\s*2|part\s*ii\b|パート2/gi, type: 'part2' },
+        { regex: /part\s*(\d+)/gi, type: 'partNumber' },
+        { regex: /cour\s*(\d+)/gi, type: 'courNumber' },
+    ];
+
     let seasons = [];
+    let isFinalSeason = false;
+    let parts = [];
+    let hasPart = false;
     let cleanTitle = title;
 
     for (const pattern of seasonPatterns) {
@@ -103,7 +119,11 @@ function extractSeasonInfo(title) {
         while ((match = pattern.regex.exec(title)) !== null) {
             let seasonNum = null;
 
-            if (pattern.type === 'chinese') {
+            if (pattern.type === 'final') {
+                isFinalSeason = true;
+                seasons.push('final');
+                cleanTitle = cleanTitle.replace(match[0], ' ');
+            } else if (pattern.type === 'chinese') {
                 const chars = match[1].split('');
                 if (chars.length === 1) {
                     seasonNum = toArabicNumber(chars[0]);
@@ -112,19 +132,53 @@ function extractSeasonInfo(title) {
                 } else if (chars[1] === '十') {
                     seasonNum = toArabicNumber(chars[0]) * 10;
                 }
+                if (seasonNum !== null && seasonNum >= 1 && seasonNum <= 10) {
+                    seasons.push(seasonNum);
+                    cleanTitle = cleanTitle.replace(match[0], ' ');
+                }
+            } else if (pattern.type === 'chineseNumber') {
+                // Handle patterns like "第2季" or "第3期"
+                seasonNum = parseInt(match[1]);
+                if (seasonNum >= 1 && seasonNum <= 10) {
+                    seasons.push(seasonNum);
+                    cleanTitle = cleanTitle.replace(match[0], ' ');
+                }
             } else if (pattern.type === 'number') {
                 seasonNum = parseInt(match[1]);
+                if (seasonNum >= 1 && seasonNum <= 10) {
+                    seasons.push(seasonNum);
+                    cleanTitle = cleanTitle.replace(match[0], ' ');
+                }
             } else if (pattern.type === 'roman') {
                 // Only treat as season if it's reasonable (1-10)
                 const num = romanToNumber(match[1]);
                 if (num && num <= 10) {
-                    seasonNum = num;
+                    seasons.push(num);
+                    cleanTitle = cleanTitle.replace(match[0], ' ');
                 }
             }
+        }
+        pattern.regex.lastIndex = 0;
+    }
 
-            if (seasonNum !== null && seasonNum >= 1 && seasonNum <= 10) {
-                seasons.push(seasonNum);
+    // Detect part indicators
+    for (const pattern of partPatterns) {
+        let match;
+        while ((match = pattern.regex.exec(title)) !== null) {
+            hasPart = true;
+            
+            if (pattern.type === 'part1') {
+                parts.push(1);
                 cleanTitle = cleanTitle.replace(match[0], ' ');
+            } else if (pattern.type === 'part2') {
+                parts.push(2);
+                cleanTitle = cleanTitle.replace(match[0], ' ');
+            } else if (pattern.type === 'partNumber' || pattern.type === 'courNumber') {
+                const partNum = parseInt(match[1]);
+                if (partNum >= 1 && partNum <= 10) {
+                    parts.push(partNum);
+                    cleanTitle = cleanTitle.replace(match[0], ' ');
+                }
             }
         }
         pattern.regex.lastIndex = 0;
@@ -133,7 +187,10 @@ function extractSeasonInfo(title) {
     return {
         baseTitle: cleanTitle,
         seasons: [...new Set(seasons)],
-        hasSeason: seasons.length > 0
+        hasSeason: seasons.length > 0,
+        isFinalSeason,
+        parts: [...new Set(parts)],
+        hasPart
     };
 }
 
@@ -152,7 +209,7 @@ function normalizeTitle(str) {
 }
 
 function parseTitle(title) {
-    const { baseTitle, seasons, hasSeason } = extractSeasonInfo(title);
+    const { baseTitle, seasons, hasSeason, isFinalSeason, parts, hasPart } = extractSeasonInfo(title);
     const normalized = normalizeTitle(baseTitle);
 
     const chinesePart = normalized.replace(/[a-z0-9\s]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -165,6 +222,9 @@ function parseTitle(title) {
         englishPart,
         seasons,
         hasSeason,
+        isFinalSeason,
+        parts,
+        hasPart,
         tokens: normalized.split(/\s+/).filter(t => t.length > 0)
     };
 }
@@ -318,38 +378,86 @@ function calculateMatchScore(parsed1, parsed2) {
     let seasonPenalty = 1.0;
 
     if (parsed1.hasSeason && parsed2.hasSeason) {
+        // Check if there's any matching season
         const hasMatchingSeason = parsed1.seasons.some(s1 =>
             parsed2.seasons.includes(s1)
         );
-        if (hasMatchingSeason) {
+        
+        // Special handling for final season
+        const bothFinal = parsed1.isFinalSeason && parsed2.isFinalSeason;
+        const oneFinal = parsed1.isFinalSeason !== parsed2.isFinalSeason;
+        
+        if (hasMatchingSeason || bothFinal) {
+            // Exact season match or both are final seasons
             seasonScore = 1.0;
             seasonPenalty = 1.0;
+        } else if (oneFinal) {
+            // One is final season, other is not - strong mismatch
+            seasonScore = 0.1;
+            seasonPenalty = 0.2;
         } else {
-            seasonScore = 0.3;
-            seasonPenalty = 0.5;
+            // Different seasons (e.g., season 2 vs season 3)
+            seasonScore = 0.2;
+            seasonPenalty = 0.3;
         }
     } else if (!parsed1.hasSeason && !parsed2.hasSeason) {
+        // Neither has season info
         seasonScore = 1.0;
         seasonPenalty = 1.0;
-    } else if (!parsed1.hasSeason && parsed2.hasSeason) {
-        seasonScore = 0.4;
-        seasonPenalty = 0.6;
     } else {
-        seasonScore = 0.6;
-        seasonPenalty = 0.8;
+        // One has season, one doesn't - moderate penalty
+        seasonScore = 0.3;
+        seasonPenalty = 0.4;
     }
 
-    // Apply penalty to title score
-    const adjustedTitleScore = titleScore * seasonPenalty;
+    // Part matching logic
+    let partScore = 1.0;
+    let partPenalty = 1.0;
+
+    if (parsed1.hasPart && parsed2.hasPart) {
+        // Check if parts match
+        const hasMatchingPart = parsed1.parts.some(p1 =>
+            parsed2.parts.includes(p1)
+        );
+        
+        if (hasMatchingPart) {
+            // Same part (e.g., both Part 1)
+            partScore = 1.0;
+            partPenalty = 1.0;
+        } else {
+            // Different parts (e.g., Part 1 vs Part 2) - strong mismatch
+            partScore = 0.1;
+            partPenalty = 0.2;
+        }
+    } else if (!parsed1.hasPart && !parsed2.hasPart) {
+        // Neither has part info
+        partScore = 1.0;
+        partPenalty = 1.0;
+    } else {
+        // One has part, one doesn't - moderate penalty
+        partScore = 0.3;
+        partPenalty = 0.4;
+    }
+
+    // Combine season and part penalties
+    const combinedPenalty = seasonPenalty * partPenalty;
+
+    // Apply combined penalty to title score
+    const adjustedTitleScore = titleScore * combinedPenalty;
+
+    // Combine season and part scores
+    const combinedSeasonPartScore = (seasonScore * 0.6) + (partScore * 0.4);
 
     // Final weighted score
-    const finalScore = Math.min(adjustedTitleScore * 0.80 + seasonScore * 0.20, 1.0);
+    const finalScore = Math.min(adjustedTitleScore * 0.80 + combinedSeasonPartScore * 0.20, 1.0);
 
     return {
         score: finalScore,
         titleScore,
         seasonScore,
         seasonPenalty,
+        partScore,
+        partPenalty,
         details: {
             norm1,
             norm2,
@@ -358,7 +466,13 @@ function calculateMatchScore(parsed1, parsed2) {
             seasons1: parsed1.seasons,
             seasons2: parsed2.seasons,
             hasSeason1: parsed1.hasSeason,
-            hasSeason2: parsed2.hasSeason
+            hasSeason2: parsed2.hasSeason,
+            isFinalSeason1: parsed1.isFinalSeason,
+            isFinalSeason2: parsed2.isFinalSeason,
+            parts1: parsed1.parts,
+            parts2: parsed2.parts,
+            hasPart1: parsed1.hasPart,
+            hasPart2: parsed2.hasPart
         }
     };
 }
@@ -448,7 +562,9 @@ export async function matchAnime(animeList, matchThreshold = 0.70) {
                         matchScore: bestMatch.score,
                         titleScore: bestMatch.titleScore,
                         seasonScore: bestMatch.seasonScore,
-                        seasonPenalty: bestMatch.seasonPenalty
+                        seasonPenalty: bestMatch.seasonPenalty,
+                        partScore: bestMatch.partScore,
+                        partPenalty: bestMatch.partPenalty
                     },
                     allMatches: matches.slice(0, 3)
                 };
