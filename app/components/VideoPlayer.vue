@@ -33,6 +33,11 @@ const buffered = ref(0)
 const showVolumeSlider = ref(false)
 const isLoading = ref(false)
 const isHoveringVolume = ref(false)
+const isDraggingProgress = ref(false)
+const dragPreviewTime = ref(0)
+const isHoveringProgress = ref(false)
+const hoverPreviewTime = ref(0)
+const hoverPreviewPosition = ref(0)
 
 // Notification state
 const notification = ref({
@@ -47,7 +52,12 @@ let notificationTimeout = null
 
 // Computed
 const progress = computed(() => {
-    return duration.value > 0 ? (currentTime.value / duration.value) * 100 : 0
+    const time = isDraggingProgress.value ? dragPreviewTime.value : currentTime.value
+    return duration.value > 0 ? (time / duration.value) * 100 : 0
+})
+
+const displayTime = computed(() => {
+    return isDraggingProgress.value ? dragPreviewTime.value : currentTime.value
 })
 
 // Format time helper
@@ -118,12 +128,88 @@ function skip(seconds) {
     videoRef.value.currentTime += seconds
 }
 
-function handleProgressClick(e) {
-    if (!progressRef.value || !videoRef.value) return
+function calculateTimeFromPosition(e) {
+    if (!progressRef.value || !videoRef.value) return null
 
     const rect = progressRef.value.getBoundingClientRect()
-    const pos = (e.clientX - rect.left) / rect.width
-    videoRef.value.currentTime = Math.max(0, Math.min(pos * duration.value, duration.value))
+    const pos = Math.max(0, Math.min((e.clientX - rect.left) / rect.width, 1))
+    return pos * duration.value
+}
+
+function handleProgressClick(e) {
+    // Only handle click if not dragging
+    if (isDraggingProgress.value) return
+    
+    const newTime = calculateTimeFromPosition(e)
+    if (newTime !== null && videoRef.value) {
+        videoRef.value.currentTime = newTime
+    }
+}
+
+function handleProgressMouseDown(e) {
+    e.preventDefault()
+    isDraggingProgress.value = true
+    isHoveringProgress.value = false
+    
+    const newTime = calculateTimeFromPosition(e)
+    if (newTime !== null) {
+        dragPreviewTime.value = newTime
+    }
+    
+    // Keep controls visible while dragging
+    showControls.value = true
+    if (controlsTimeout) {
+        clearTimeout(controlsTimeout)
+    }
+}
+
+function handleProgressHover(e) {
+    if (isDraggingProgress.value || !progressRef.value) return
+    
+    const rect = progressRef.value.getBoundingClientRect()
+    const pos = Math.max(0, Math.min((e.clientX - rect.left) / rect.width, 1))
+    hoverPreviewTime.value = pos * duration.value
+    hoverPreviewPosition.value = pos * 100
+    isHoveringProgress.value = true
+}
+
+function handleProgressMouseEnter() {
+    isHoveringProgress.value = true
+}
+
+function handleProgressMouseLeaveBar() {
+    isHoveringProgress.value = false
+}
+
+function handleProgressMouseMove(e) {
+    if (!isDraggingProgress.value) return
+    e.preventDefault()
+    
+    // Only update preview, don't seek the video yet
+    const newTime = calculateTimeFromPosition(e)
+    if (newTime !== null) {
+        dragPreviewTime.value = newTime
+    }
+}
+
+function handleProgressMouseUp(e) {
+    if (!isDraggingProgress.value) return
+    e.preventDefault()
+    
+    // Now actually seek the video to the final position
+    const newTime = calculateTimeFromPosition(e)
+    if (newTime !== null && videoRef.value) {
+        // Update currentTime immediately to prevent visual jump
+        currentTime.value = newTime
+        videoRef.value.currentTime = newTime
+    }
+    
+    isDraggingProgress.value = false
+    
+    // Resume auto-hide behavior
+    if (isPlaying.value) {
+        resetControlsTimeout()
+    }
 }
 
 function handleVolumeChange(e) {
@@ -194,7 +280,10 @@ function onPause() {
 function onTimeUpdate() {
     if (!videoRef.value) return
 
-    currentTime.value = videoRef.value.currentTime
+    // Don't update currentTime while dragging to prevent jittery behavior
+    if (!isDraggingProgress.value) {
+        currentTime.value = videoRef.value.currentTime
+    }
 
     // Update buffered
     if (videoRef.value.buffered.length > 0) {
@@ -351,6 +440,8 @@ onMounted(() => {
 
     document.addEventListener("fullscreenchange", handleFullscreenChange)
     window.addEventListener("keydown", handleKeydown)
+    document.addEventListener("mousemove", handleProgressMouseMove)
+    document.addEventListener("mouseup", handleProgressMouseUp)
 })
 
 // Watch for video element ready and apply saved volume
@@ -370,6 +461,8 @@ onUnmounted(() => {
     }
     document.removeEventListener("fullscreenchange", handleFullscreenChange)
     window.removeEventListener("keydown", handleKeydown)
+    document.removeEventListener("mousemove", handleProgressMouseMove)
+    document.removeEventListener("mouseup", handleProgressMouseUp)
 })
 
 // Watch for src changes
@@ -438,20 +531,40 @@ watch(
                     <div
                         ref="progressRef"
                         class="relative h-1 sm:h-1.5 bg-white/20 rounded-full cursor-pointer transition-all duration-200 hover:h-1.5 sm:hover:h-2 group"
+                        :class="{ 'h-1.5 sm:h-2': isDraggingProgress }"
                         @click="handleProgressClick"
+                        @mousedown="handleProgressMouseDown"
+                        @mousemove="handleProgressHover"
+                        @mouseenter="handleProgressMouseEnter"
+                        @mouseleave="handleProgressMouseLeaveBar"
                     >
                         <!-- Buffered Progress -->
                         <div class="absolute h-full bg-white/30 rounded-full transition-all duration-300 pointer-events-none" :style="{ width: `${buffered}%` }" />
 
                         <!-- Played Progress -->
                         <div
-                            class="absolute h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-100 pointer-events-none"
+                            class="absolute h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full pointer-events-none"
+                            :class="isDraggingProgress ? 'transition-none' : 'transition-all duration-100'"
                             :style="{ width: `${progress}%` }"
                         >
                             <div
-                                class="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                                class="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white rounded-full shadow-lg transition-opacity duration-200"
+                                :class="isDraggingProgress || isHoveringProgress ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
                             />
                         </div>
+                        
+                        <!-- Hover Time Preview Tooltip -->
+                        <transition name="fade">
+                            <div
+                                v-if="isHoveringProgress && !isDraggingProgress && duration > 0"
+                                class="absolute bottom-full mb-2 -translate-x-1/2 pointer-events-none"
+                                :style="{ left: `${hoverPreviewPosition}%` }"
+                            >
+                                <div class="bg-black/90 backdrop-blur-md text-white px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg">
+                                    {{ formatTime(hoverPreviewTime) }}
+                                </div>
+                            </div>
+                        </transition>
                     </div>
                 </div>
 
@@ -514,7 +627,9 @@ watch(
                         </div>
 
                         <!-- Time Display -->
-                        <span class="text-white text-xs sm:text-sm font-medium whitespace-nowrap"> {{ formatTime(currentTime) }} / {{ formatTime(duration) }} </span>
+                        <span class="text-white text-xs sm:text-sm font-medium whitespace-nowrap" :class="{ 'text-indigo-400': isDraggingProgress }">
+                            {{ formatTime(displayTime) }} / {{ formatTime(duration) }}
+                        </span>
                     </div>
 
                     <div class="flex items-center gap-1 sm:gap-3">
