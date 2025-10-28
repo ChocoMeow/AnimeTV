@@ -256,7 +256,7 @@ onMounted(() => {
         </div>
 
         <!-- Main Content -->
-        <main class="max-w-7xl mx-auto px-4 py-8">
+        <div class="max-w-7xl mx-auto px-4 py-8">
             <!-- Results Header -->
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-3">
@@ -335,7 +335,7 @@ onMounted(() => {
             <div v-if="!loading && animeList.length" class="mt-8">
                 <Pagination :current-page="currentPage" :total-page="totalPage" @change="fetchAnime" />
             </div>
-        </main>
+        </div>
     </div>
 </template>
 

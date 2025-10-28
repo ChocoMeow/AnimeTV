@@ -195,148 +195,146 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
-        <main class="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
-            <!-- Loading State -->
-            <div v-if="loading && !Object.keys(byDay).length" class="flex items-center justify-center min-h-[400px]">
-                <div class="text-center">
-                    <div class="inline-block w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <p class="mt-4 text-gray-600 dark:text-gray-400">載入中...</p>
-                </div>
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8 min-h-screen bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+        <!-- Loading State -->
+        <div v-if="loading && !Object.keys(byDay).length" class="flex items-center justify-center min-h-[400px]">
+            <div class="text-center">
+                <div class="inline-block w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                <p class="mt-4 text-gray-600 dark:text-gray-400">載入中...</p>
             </div>
+        </div>
 
-            <div v-else class="space-y-8">
-                <!-- Daily Schedule Section -->
-                <section class="anime-card">
-                    <div class="mb-4 sm:mb-6">
-                        <div class="flex items-center gap-2 sm:gap-3 mb-2">
-                            <h2 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">每日新番</h2>
-                        </div>
-                        <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400"><span class="hidden sm:inline">滑鼠懸停查看詳情 | </span>點擊日期標籤查看當日更新</p>
+        <div v-else class="space-y-8">
+            <!-- Daily Schedule Section -->
+            <section class="anime-card">
+                <div class="mb-4 sm:mb-6">
+                    <div class="flex items-center gap-2 sm:gap-3 mb-2">
+                        <h2 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">每日新番</h2>
+                    </div>
+                    <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400"><span class="hidden sm:inline">滑鼠懸停查看詳情 | </span>點擊日期標籤查看當日更新</p>
+                </div>
+
+                <!-- Loading inside section -->
+                <div v-if="loading" class="flex justify-center py-12">
+                    <div class="inline-block w-8 h-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                </div>
+
+                <template v-else>
+                    <!-- Day Tabs -->
+                    <div class="flex flex-wrap gap-2 sm:gap-3 mb-4 sm:mb-6">
+                        <button
+                            v-for="d in Object.keys(weekdayLabel)"
+                            :key="d"
+                            @click="selectedDay = d"
+                            :class="['day-tab', selectedDay === d ? 'day-tab-active' : 'day-tab-inactive']"
+                        >
+                            {{ weekdayLabel[d] }}
+                        </button>
                     </div>
 
-                    <!-- Loading inside section -->
-                    <div v-if="loading" class="flex justify-center py-12">
-                        <div class="inline-block w-8 h-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <!-- Day Content -->
+                    <div v-if="!byDay[selectedDay] || !byDay[selectedDay].length" class="text-center py-12 text-gray-500 dark:text-gray-400">
+                        <span class="material-icons text-4xl mb-2 opacity-50">event_busy</span>
+                        <p>今日暫無更新節目</p>
                     </div>
 
-                    <template v-else>
-                        <!-- Day Tabs -->
-                        <div class="flex flex-wrap gap-2 sm:gap-3 mb-4 sm:mb-6">
-                            <button
-                                v-for="d in Object.keys(weekdayLabel)"
-                                :key="d"
-                                @click="selectedDay = d"
-                                :class="['day-tab', selectedDay === d ? 'day-tab-active' : 'day-tab-inactive']"
-                            >
-                                {{ weekdayLabel[d] }}
-                            </button>
+                    <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                        <NuxtLink
+                            v-for="item in byDay[selectedDay]"
+                            :key="item.refId"
+                            class="daily-item group"
+                            :to="`/anime/${item.refId}`"
+                            @mouseenter="handleMouseEnter(item, $event)"
+                            @mouseleave="handleMouseLeave"
+                        >
+                            <div class="relative overflow-hidden rounded-t-lg aspect-video bg-gray-200 dark:bg-gray-700">
+                                <img :src="item.thumbnail" alt="" class="w-full h-full object-cover transform transition-transform duration-300 group-hover:scale-110" />
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+                                <!-- Play icon overlay -->
+                                <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div class="w-10 h-10 rounded-full bg-white/90 dark:bg-gray-900/90 flex items-center justify-center shadow-lg">
+                                        <span class="material-icons text-indigo-600 dark:text-indigo-400 text-2xl">play_arrow</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-2">
+                                <div class="font-semibold text-xs sm:text-sm text-gray-900 dark:text-white line-clamp-2 mb-1 leading-tight">
+                                    {{ item.title }}
+                                </div>
+                                <div class="flex items-center text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                                    <span class="material-icons text-xs mr-1">play_circle</span>
+                                    {{ item.episode }}
+                                </div>
+                            </div>
+                        </NuxtLink>
+                    </div>
+                </template>
+            </section>
+
+            <!-- Theme Sections -->
+            <section v-if="Object.keys(themes).length" class="space-y-12">
+                <div v-for="(items, title) in themes" :key="title">
+                    <div v-if="items && items.length">
+                        <!-- Section Header -->
+                        <div class="flex items-center gap-3 mb-6">
+                            <h2 class="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+                                {{ title }}
+                            </h2>
                         </div>
 
-                        <!-- Day Content -->
-                        <div v-if="!byDay[selectedDay] || !byDay[selectedDay].length" class="text-center py-12 text-gray-500 dark:text-gray-400">
-                            <span class="material-icons text-4xl mb-2 opacity-50">event_busy</span>
-                            <p>今日暫無更新節目</p>
-                        </div>
+                        <!-- Anime Grid -->
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            <NuxtLink v-for="item in items" :key="item.refId || item.video_url" class="anime-card-item group" :to="`/anime/${item.refId}`">
+                                <!-- Image Container -->
+                                <div class="relative overflow-hidden rounded-t-xl aspect-[2/3] bg-gray-200 dark:bg-gray-700">
+                                    <img :src="item.image" :alt="item.title" class="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110" />
+                                    <!-- Gradient Overlay -->
+                                    <div
+                                        class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300"
+                                    ></div>
 
-                        <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                            <NuxtLink
-                                v-for="item in byDay[selectedDay]"
-                                :key="item.refId"
-                                class="daily-item group"
-                                :to="`/anime/${item.refId}`"
-                                @mouseenter="handleMouseEnter(item, $event)"
-                                @mouseleave="handleMouseLeave"
-                            >
-                                <div class="relative overflow-hidden rounded-t-lg aspect-video bg-gray-200 dark:bg-gray-700">
-                                    <img :src="item.thumbnail" alt="" class="w-full h-full object-cover transform transition-transform duration-300 group-hover:scale-110" />
-                                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                    <!-- Year Badge -->
+                                    <div class="absolute top-2 right-2 badge-year">
+                                        {{ item.year }}
+                                    </div>
 
-                                    <!-- Play icon overlay -->
-                                    <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <div class="w-10 h-10 rounded-full bg-white/90 dark:bg-gray-900/90 flex items-center justify-center shadow-lg">
-                                            <span class="material-icons text-indigo-600 dark:text-indigo-400 text-2xl">play_arrow</span>
+                                    <!-- Hover Play Button -->
+                                    <div
+                                        class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100"
+                                    >
+                                        <div class="w-14 h-14 rounded-full bg-white/90 dark:bg-gray-900/90 flex items-center justify-center shadow-xl">
+                                            <span class="material-icons text-indigo-600 dark:text-indigo-400 text-3xl">play_arrow</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="p-2">
-                                    <div class="font-semibold text-xs sm:text-sm text-gray-900 dark:text-white line-clamp-2 mb-1 leading-tight">
+                                <!-- Info Container -->
+                                <div class="p-3 space-y-2">
+                                    <h3
+                                        class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors"
+                                    >
                                         {{ item.title }}
-                                    </div>
-                                    <div class="flex items-center text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-                                        <span class="material-icons text-xs mr-1">play_circle</span>
-                                        {{ item.episode }}
+                                    </h3>
+
+                                    <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                        <div class="flex items-center gap-1">
+                                            <span class="material-icons text-sm">movie</span>
+                                            <span>{{ item.episodes }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-1">
+                                            <span class="material-icons text-sm">visibility</span>
+                                            <span>{{ formatViews(item.views) }}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </NuxtLink>
                         </div>
-                    </template>
-                </section>
-
-                <!-- Theme Sections -->
-                <section v-if="Object.keys(themes).length" class="space-y-12">
-                    <div v-for="(items, title) in themes" :key="title">
-                        <div v-if="items && items.length">
-                            <!-- Section Header -->
-                            <div class="flex items-center gap-3 mb-6">
-                                <h2 class="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-                                    {{ title }}
-                                </h2>
-                            </div>
-
-                            <!-- Anime Grid -->
-                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                                <NuxtLink v-for="item in items" :key="item.refId || item.video_url" class="anime-card-item group" :to="`/anime/${item.refId}`">
-                                    <!-- Image Container -->
-                                    <div class="relative overflow-hidden rounded-t-xl aspect-[2/3] bg-gray-200 dark:bg-gray-700">
-                                        <img :src="item.image" :alt="item.title" class="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110" />
-                                        <!-- Gradient Overlay -->
-                                        <div
-                                            class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300"
-                                        ></div>
-
-                                        <!-- Year Badge -->
-                                        <div class="absolute top-2 right-2 badge-year">
-                                            {{ item.year }}
-                                        </div>
-
-                                        <!-- Hover Play Button -->
-                                        <div
-                                            class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100"
-                                        >
-                                            <div class="w-14 h-14 rounded-full bg-white/90 dark:bg-gray-900/90 flex items-center justify-center shadow-xl">
-                                                <span class="material-icons text-indigo-600 dark:text-indigo-400 text-3xl">play_arrow</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Info Container -->
-                                    <div class="p-3 space-y-2">
-                                        <h3
-                                            class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors"
-                                        >
-                                            {{ item.title }}
-                                        </h3>
-
-                                        <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                            <div class="flex items-center gap-1">
-                                                <span class="material-icons text-sm">movie</span>
-                                                <span>{{ item.episodes }}</span>
-                                            </div>
-                                            <div class="flex items-center gap-1">
-                                                <span class="material-icons text-sm">visibility</span>
-                                                <span>{{ formatViews(item.views) }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </NuxtLink>
-                            </div>
-                        </div>
                     </div>
-                </section>
-            </div>
-        </main>
+                </div>
+            </section>
+        </div>
 
         <!-- Anime Details Tooltip (Desktop Only) -->
         <Teleport to="body">

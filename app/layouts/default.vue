@@ -1,11 +1,15 @@
 <template>
-    <div class="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 text-gray-800 dark:text-gray-100">
+    <div
+        class="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 text-gray-800 dark:text-gray-100"
+    >
         <SiteHeader />
 
-        <main class="flex-1 w-full">
+        <main class="flex-1 w-full transition-all duration-300 ease-in-out">
             <slot />
             <GlobalToast />
         </main>
+
+        <FriendList />
 
         <SiteFooter />
     </div>
@@ -68,5 +72,13 @@ html {
 
 .dark *:focus-visible {
     outline-color: rgb(129 140 248);
+}
+
+/* Push main content when friend list is open on desktop */
+@media (min-width: 1024px) {
+    body.friend-list-open main {
+        padding-right: 320px;
+        transition: padding-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
 }
 </style>
