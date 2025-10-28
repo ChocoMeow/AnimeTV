@@ -108,11 +108,20 @@ function extractSeasonInfo(title) {
         { regex: /cour\s*(\d+)/gi, type: 'courNumber' },
     ];
 
+    // Spin-off patterns - extract the spin-off title
+    const spinoffPatterns = [
+        { regex: /外傳[：:\s]*(.+?)(?:\s|$)/gi, type: 'spinoff' },
+        { regex: /外传[：:\s]*(.+?)(?:\s|$)/gi, type: 'spinoff' },
+        { regex: /番外編[：:\s]*(.+?)(?:\s|$)/gi, type: 'spinoff' },
+    ];
+
     let seasons = [];
     let isFinalSeason = false;
     let parts = [];
     let hasPart = false;
     let cleanTitle = title;
+    let spinoffTitle = null;
+    let hasSpinoff = false;
 
     for (const pattern of seasonPatterns) {
         let match;
@@ -184,13 +193,33 @@ function extractSeasonInfo(title) {
         pattern.regex.lastIndex = 0;
     }
 
+    // Detect spin-off titles
+    for (const pattern of spinoffPatterns) {
+        let match;
+        while ((match = pattern.regex.exec(title)) !== null) {
+            hasSpinoff = true;
+            // Extract the spin-off title (everything after the spin-off indicator)
+            const extracted = match[1]?.trim();
+            if (extracted && extracted.length > 0) {
+                spinoffTitle = extracted;
+                // For clean title, use the spin-off title as the main title
+                cleanTitle = extracted;
+            }
+            break; // Only take the first spin-off match
+        }
+        pattern.regex.lastIndex = 0;
+        if (hasSpinoff) break;
+    }
+
     return {
         baseTitle: cleanTitle,
         seasons: [...new Set(seasons)],
         hasSeason: seasons.length > 0,
         isFinalSeason,
         parts: [...new Set(parts)],
-        hasPart
+        hasPart,
+        spinoffTitle,
+        hasSpinoff
     };
 }
 
@@ -209,7 +238,7 @@ function normalizeTitle(str) {
 }
 
 function parseTitle(title) {
-    const { baseTitle, seasons, hasSeason, isFinalSeason, parts, hasPart } = extractSeasonInfo(title);
+    const { baseTitle, seasons, hasSeason, isFinalSeason, parts, hasPart, spinoffTitle, hasSpinoff } = extractSeasonInfo(title);
     const normalized = normalizeTitle(baseTitle);
 
     const chinesePart = normalized.replace(/[a-z0-9\s]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -225,6 +254,8 @@ function parseTitle(title) {
         isFinalSeason,
         parts,
         hasPart,
+        spinoffTitle,
+        hasSpinoff,
         tokens: normalized.split(/\s+/).filter(t => t.length > 0)
     };
 }
@@ -342,36 +373,78 @@ function calculateMatchScore(parsed1, parsed2) {
 
     let titleScore = 0;
 
-    if (parsed1.chinesePart && parsed2.chinesePart) {
-        const chineseLevenshtein = levenshteinSimilarity(parsed1.chinesePart, parsed2.chinesePart);
-        const chineseJaroWinkler = jaroWinklerSimilarity(parsed1.chinesePart, parsed2.chinesePart);
-        const chineseScore = (chineseLevenshtein * 0.5 + chineseJaroWinkler * 0.5);
-
-        if (chineseScore > 0.8) {
-            titleScore = chineseScore;
+    // Special handling for spinoff titles
+    // If either title is a spinoff, prioritize matching the spinoff portion
+    if (parsed1.hasSpinoff || parsed2.hasSpinoff) {
+        // Both are spinoffs - match them directly
+        if (parsed1.hasSpinoff && parsed2.hasSpinoff) {
+            const spinoff1 = normalizeTitle(parsed1.spinoffTitle || '');
+            const spinoff2 = normalizeTitle(parsed2.spinoffTitle || '');
+            
+            const levenshtein = levenshteinSimilarity(spinoff1, spinoff2);
+            const jaroWinkler = jaroWinklerSimilarity(spinoff1, spinoff2);
+            const tokenSet = tokenSetRatio(spinoff1, spinoff2);
+            
+            titleScore = Math.max(
+                levenshtein * 0.4 + jaroWinkler * 0.4 + tokenSet * 0.2
+            );
+        }
+        // One is spinoff, other is not - check if the non-spinoff title matches the spinoff portion
+        else if (parsed1.hasSpinoff && !parsed2.hasSpinoff) {
+            const spinoff1 = normalizeTitle(parsed1.spinoffTitle || '');
+            const levenshtein = levenshteinSimilarity(spinoff1, norm2);
+            const jaroWinkler = jaroWinklerSimilarity(spinoff1, norm2);
+            const tokenSet = tokenSetRatio(spinoff1, norm2);
+            
+            titleScore = Math.max(
+                levenshtein * 0.4 + jaroWinkler * 0.4 + tokenSet * 0.2
+            );
+        }
+        else if (!parsed1.hasSpinoff && parsed2.hasSpinoff) {
+            const spinoff2 = normalizeTitle(parsed2.spinoffTitle || '');
+            const levenshtein = levenshteinSimilarity(norm1, spinoff2);
+            const jaroWinkler = jaroWinklerSimilarity(norm1, spinoff2);
+            const tokenSet = tokenSetRatio(norm1, spinoff2);
+            
+            titleScore = Math.max(
+                levenshtein * 0.4 + jaroWinkler * 0.4 + tokenSet * 0.2
+            );
         }
     }
 
-    if (titleScore < 0.8) {
-        const levenshtein = levenshteinSimilarity(norm1, norm2);
-        const jaroWinkler = jaroWinklerSimilarity(norm1, norm2);
-        const tokenSet = tokenSetRatio(norm1, norm2);
-        const bigram = ngramSimilarity(norm1, norm2, 2);
-        const trigram = ngramSimilarity(norm1, norm2, 3);
+    // Standard matching if not spinoff or if spinoff matching gave low score
+    if (titleScore < 0.6) {
+        if (parsed1.chinesePart && parsed2.chinesePart) {
+            const chineseLevenshtein = levenshteinSimilarity(parsed1.chinesePart, parsed2.chinesePart);
+            const chineseJaroWinkler = jaroWinklerSimilarity(parsed1.chinesePart, parsed2.chinesePart);
+            const chineseScore = (chineseLevenshtein * 0.5 + chineseJaroWinkler * 0.5);
 
-        titleScore = Math.max(titleScore,
-            levenshtein * 0.25 +
-            jaroWinkler * 0.30 +
-            tokenSet * 0.25 +
-            bigram * 0.10 +
-            trigram * 0.10
-        );
-    }
+            if (chineseScore > 0.8) {
+                titleScore = chineseScore;
+            }
+        }
 
-    const shorter = norm1.length < norm2.length ? norm1 : norm2;
-    const longer = norm1.length < norm2.length ? norm2 : norm1;
-    if (longer.includes(shorter) && shorter.length > 3) {
-        titleScore += (shorter.length / longer.length) * 0.15;
+        if (titleScore < 0.8) {
+            const levenshtein = levenshteinSimilarity(norm1, norm2);
+            const jaroWinkler = jaroWinklerSimilarity(norm1, norm2);
+            const tokenSet = tokenSetRatio(norm1, norm2);
+            const bigram = ngramSimilarity(norm1, norm2, 2);
+            const trigram = ngramSimilarity(norm1, norm2, 3);
+
+            titleScore = Math.max(titleScore,
+                levenshtein * 0.25 +
+                jaroWinkler * 0.30 +
+                tokenSet * 0.25 +
+                bigram * 0.10 +
+                trigram * 0.10
+            );
+        }
+
+        const shorter = norm1.length < norm2.length ? norm1 : norm2;
+        const longer = norm1.length < norm2.length ? norm2 : norm1;
+        if (longer.includes(shorter) && shorter.length > 3) {
+            titleScore += (shorter.length / longer.length) * 0.15;
+        }
     }
 
     let seasonScore = 1.0;
@@ -472,7 +545,11 @@ function calculateMatchScore(parsed1, parsed2) {
             parts1: parsed1.parts,
             parts2: parsed2.parts,
             hasPart1: parsed1.hasPart,
-            hasPart2: parsed2.hasPart
+            hasPart2: parsed2.hasPart,
+            spinoffTitle1: parsed1.spinoffTitle,
+            spinoffTitle2: parsed2.spinoffTitle,
+            hasSpinoff1: parsed1.hasSpinoff,
+            hasSpinoff2: parsed2.hasSpinoff
         }
     };
 }
