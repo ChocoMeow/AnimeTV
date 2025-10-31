@@ -420,6 +420,25 @@ onUnmounted(() => {
                                 <p class="text-gray-200 leading-relaxed text-lg">{{ anime.description || "暫無簡介" }}</p>
                             </div>
 
+                            <!-- Tags Section -->
+                            <div v-if="anime.tags && anime.tags.length > 0" class="flex flex-wrap items-center gap-2">
+                                <div class="flex flex-wrap gap-2">
+                                    <NuxtLink
+                                        v-for="tag in anime.tags"
+                                        :key="tag"
+                                        :to="`/show-all-anime?tags=${encodeURIComponent(tag)}`"
+                                        class="px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 
+                                               text-sm font-medium text-white
+                                               hover:bg-white/20 hover:border-white/40 hover:scale-105
+                                               transition-all duration-200 transform
+                                               flex items-center gap-1.5"
+                                    >
+                                        <span class="material-icons text-xs">tag</span>
+                                        {{ tag }}
+                                    </NuxtLink>
+                                </div>
+                            </div>
+
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                                 <div class="info-card" v-if="anime.director">
                                     <span class="material-icons text-indigo-400">person</span>
