@@ -336,10 +336,11 @@ onUnmounted(() => {
     <div class="min-h-screen bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
         <!-- Loading State -->
         <div v-if="loading" class="flex items-center justify-center min-h-screen">
-            <div class="text-center">
+            <!-- <div class="text-center">
                 <div class="inline-block w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
                 <p class="text-gray-600 dark:text-gray-400 text-lg">載入動漫詳情中...</p>
-            </div>
+            </div> -->
+            <AnimeLoader :show="loading" message="載入動漫詳情中..." centered />
         </div>
 
         <!-- Error State -->

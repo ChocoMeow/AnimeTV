@@ -195,16 +195,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8 min-h-screen bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+    <div class="min-h-screen bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
         <!-- Loading State -->
-        <div v-if="loading && !Object.keys(byDay).length" class="flex items-center justify-center min-h-[400px]">
-            <div class="text-center">
-                <div class="inline-block w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                <p class="mt-4 text-gray-600 dark:text-gray-400">載入中...</p>
-            </div>
+        <div v-if="loading" class="flex items-center justify-center min-h-screen">
+            <AnimeLoader :show="loading" message="正在載入動畫資料..." centered />
         </div>
 
-        <div v-else class="space-y-8">
+        <div v-else class="space-y-8 max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8 ">
             <!-- Daily Schedule Section -->
             <section class="anime-card">
                 <div class="mb-4 sm:mb-6">
