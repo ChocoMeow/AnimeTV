@@ -58,15 +58,6 @@ const closeFriendList = () => {
     }
 }
 
-const watchTogether = (friend) => {
-    if (!friend.animeId) {
-        console.warn("No anime ID available for friend:", friend.name)
-        return
-    }
-    closeFriendList()
-    navigateTo(`/anime/${friend.animeId}`)
-}
-
 onBeforeUnmount(() => {
     if (import.meta.client) {
         document.body.classList.remove("friend-list-open")
@@ -109,7 +100,7 @@ onBeforeUnmount(() => {
                                         <div class="text-xs text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }} 集</div>
                                     </div>
                                 </div>
-                                <button @click="watchTogether(friend)" class="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-md">前往</button>
+                                <NuxtLink :to="`/anime/${friend.animeId}?e=${friend.currentEpisode}`" class="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-md">前往</NuxtLink>
                             </div>
                         </div>
                     </div>
@@ -214,7 +205,7 @@ onBeforeUnmount(() => {
                                             <div class="text-sm text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }} 集</div>
                                         </div>
                                     </div>
-                                    <button @click="watchTogether(friend)" class="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md">一起觀看</button>
+                                    <NuxtLink :to="`/anime/${friend.animeId}?e=${friend.currentEpisode}`" class="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md">前往</NuxtLink>
                                 </div>
                             </div>
                         </div>

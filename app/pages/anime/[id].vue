@@ -90,6 +90,7 @@ function handlePause() {
 function handleEnded() {
     saveWatchHistory()
     stopAutoSave()
+    setOnline()
 }
 
 async function toggleFavorite() {

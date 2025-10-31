@@ -102,7 +102,7 @@ export const useUserStatus = () => {
         }
 
         idleTimer = setTimeout(() => {
-            if (currentStatus.value !== "offline") {
+            if (currentStatus.value !== "offline" && currentStatus.value !== "watching") {
                 setIdle()
             }
         }, IDLE_TIMEOUT)
