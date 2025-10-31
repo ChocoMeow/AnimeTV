@@ -256,7 +256,7 @@ onMounted(() => {
         </div>
 
         <!-- Main Content -->
-        <main class="max-w-7xl mx-auto px-4 py-8">
+        <div class="max-w-7xl mx-auto px-4 py-8">
             <!-- Results Header -->
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-3">
@@ -267,10 +267,7 @@ onMounted(() => {
 
             <!-- Loading State -->
             <div v-if="loading" class="flex items-center justify-center min-h-[400px]">
-                <div class="text-center">
-                    <div class="inline-block w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <p class="mt-4 text-gray-600 dark:text-gray-400">載入中...</p>
-                </div>
+                <AnimeLoader :show="loading" message="正在載入動畫資料..." centered />
             </div>
 
             <!-- Empty State -->
@@ -335,7 +332,7 @@ onMounted(() => {
             <div v-if="!loading && animeList.length" class="mt-8">
                 <Pagination :current-page="currentPage" :total-page="totalPage" @change="fetchAnime" />
             </div>
-        </main>
+        </div>
     </div>
 </template>
 

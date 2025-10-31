@@ -113,7 +113,7 @@ export const useUserSettings = () => {
         if (user?.value?.sub) {
             userSubscription = client
                 .channel(`table_db_changes`)
-                .on('postgres_changes', { event: "update", schema: "public", "table": "user_settings" }, payload => {
+                .on('postgres_changes', { event: "update", schema: "public", table: "user_settings" }, payload => {
                     if (payload.new) {
                         userSettings.value = { ...payload.new };
                     }

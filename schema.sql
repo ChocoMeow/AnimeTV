@@ -70,6 +70,132 @@ $$;
 ALTER FUNCTION "public"."create_user_settings_on_signup"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."get_friends_with_status"() RETURNS TABLE("friendship_id" "uuid", "friendship_status" "text", "requester_id" "uuid", "friends_since" timestamp without time zone, "friend_user_id" "uuid", "friend_name" "text", "friend_avatar" "text", "friend_status" "text", "current_anime_ref_id" "text", "current_anime" "text", "current_episode" "text", "current_anime_image" "text", "last_seen" timestamp without time zone)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+begin
+  return query
+  select
+    f.id as friendship_id,
+    f.status as friendship_status,
+    f.requester_id,
+    f.created_at as friends_since,
+    case
+      when f.user_id = auth.uid() then f.friend_id
+      else f.user_id
+    end as friend_user_id,
+    case
+      when f.user_id = auth.uid() then coalesce(u2.raw_user_meta_data->>'name', u2.raw_user_meta_data->>'full_name', split_part(u2.email::text, '@', 1))
+      else coalesce(u1.raw_user_meta_data->>'name', u1.raw_user_meta_data->>'full_name', split_part(u1.email::text, '@', 1))
+    end as friend_name,
+    case
+      when f.user_id = auth.uid() then coalesce(u2.raw_user_meta_data->>'avatar_url', u2.raw_user_meta_data->>'picture')
+      else coalesce(u1.raw_user_meta_data->>'avatar_url', u1.raw_user_meta_data->>'picture')
+    end as friend_avatar,
+    case
+      when f.user_id = auth.uid() then us2.status
+      else us1.status
+    end as friend_status,
+    case
+      when f.user_id = auth.uid() then us2.anime_ref_id
+      else us1.anime_ref_id
+    end as current_anime_ref_id,
+    case
+      when f.user_id = auth.uid() then us2.anime_title
+      else us1.anime_title
+    end as current_anime,
+    case
+      when f.user_id = auth.uid() then us2.episode_number
+      else us1.episode_number
+    end as current_episode,
+    case
+      when f.user_id = auth.uid() then us2.anime_image
+      else us1.anime_image
+    end as current_anime_image,
+    case
+      when f.user_id = auth.uid() then us2.last_seen
+      else us1.last_seen
+    end as last_seen
+  from public.friends f
+  left join auth.users u1 on f.user_id = u1.id
+  left join auth.users u2 on f.friend_id = u2.id
+  left join public.user_status us1 on f.user_id = us1.user_id
+  left join public.user_status us2 on f.friend_id = us2.user_id
+  where
+    (f.user_id = auth.uid() or f.friend_id = auth.uid())
+    and f.status = 'accepted';
+end;
+$$;
+
+
+ALTER FUNCTION "public"."get_friends_with_status"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_pending_requests"() RETURNS TABLE("id" "uuid", "user_id" "uuid", "friend_id" "uuid", "requester_id" "uuid", "created_at" timestamp without time zone, "sender_name" "text", "sender_avatar" "text", "receiver_name" "text", "receiver_avatar" "text")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+begin
+  return query
+  select
+    f.id,
+    f.user_id,
+    f.friend_id,
+    f.requester_id,
+    f.created_at,
+    -- Sender info (always the requester)
+    coalesce(u_requester.raw_user_meta_data->>'name', u_requester.raw_user_meta_data->>'full_name', split_part(u_requester.email::text, '@', 1)) as sender_name,
+    coalesce(u_requester.raw_user_meta_data->>'avatar_url', u_requester.raw_user_meta_data->>'picture') as sender_avatar,
+    -- Receiver info (the other person who is NOT the requester)
+    coalesce(u_receiver.raw_user_meta_data->>'name', u_receiver.raw_user_meta_data->>'full_name', split_part(u_receiver.email::text, '@', 1)) as receiver_name,
+    coalesce(u_receiver.raw_user_meta_data->>'avatar_url', u_receiver.raw_user_meta_data->>'picture') as receiver_avatar
+  from public.friends f
+  left join auth.users u_requester on f.requester_id = u_requester.id
+  left join auth.users u_receiver on (
+    case 
+      when f.user_id = f.requester_id then f.friend_id
+      else f.user_id
+    end
+  ) = u_receiver.id
+  where 
+    (f.user_id = auth.uid() or f.friend_id = auth.uid())
+    and f.status = 'pending';
+end;
+$$;
+
+
+ALTER FUNCTION "public"."get_pending_requests"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_user_info"("user_id" "uuid") RETURNS TABLE("id" "uuid", "name" "text", "avatar" "text")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+begin
+  -- Check if the user is authorized to view this info
+  -- Can view if: it's yourself OR there's a friendship (accepted or pending)
+  if user_id != auth.uid() and not exists (
+    select 1 from public.friends f
+    where f.status in ('accepted', 'pending')
+      and ((f.user_id = auth.uid() and f.friend_id = user_id)
+        or (f.friend_id = auth.uid() and f.user_id = user_id))
+  ) then
+    -- Return empty result if not authorized
+    return;
+  end if;
+
+  return query
+  select
+    u.id,
+    coalesce(u.raw_user_meta_data->>'name', u.raw_user_meta_data->>'full_name', split_part(u.email::text, '@', 1)) as name,
+    coalesce(u.raw_user_meta_data->>'avatar_url', u.raw_user_meta_data->>'picture') as avatar
+  from auth.users u
+  where u.id = user_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."get_user_info"("user_id" "uuid") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."limit_search_history"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
@@ -90,6 +216,30 @@ $$;
 
 
 ALTER FUNCTION "public"."limit_search_history"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."search_users"("search_query" "text") RETURNS TABLE("id" "uuid", "name" "text", "avatar" "text")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+begin
+  return query
+  select
+    u.id,
+    coalesce(u.raw_user_meta_data->>'name', u.raw_user_meta_data->>'full_name', split_part(u.email::text, '@', 1)) as name,
+    coalesce(u.raw_user_meta_data->>'avatar_url', u.raw_user_meta_data->>'picture') as avatar
+  from auth.users u
+  where 
+    u.id != auth.uid()
+    and (
+      u.raw_user_meta_data->>'name' ilike '%' || search_query || '%'
+      or u.raw_user_meta_data->>'full_name' ilike '%' || search_query || '%'
+    )
+  limit 20;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."search_users"("search_query" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."update_updated_at_column"() RETURNS "trigger"
@@ -138,6 +288,22 @@ ALTER SEQUENCE "public"."favorites_id_seq" OWNED BY "public"."favorites"."id";
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."friends" (
+    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "friend_id" "uuid" NOT NULL,
+    "status" "text" NOT NULL,
+    "requester_id" "uuid" NOT NULL,
+    "created_at" timestamp without time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp without time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "friends_user_order_check" CHECK (("user_id" < "friend_id")),
+    CONSTRAINT "status_check" CHECK (("status" = ANY (ARRAY['accepted'::"text", 'pending'::"text", 'blocked'::"text", 'rejected'::"text"])))
+);
+
+
+ALTER TABLE "public"."friends" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."search_history" (
     "id" integer NOT NULL,
     "user_id" "uuid" NOT NULL,
@@ -175,6 +341,22 @@ CREATE TABLE IF NOT EXISTS "public"."user_settings" (
 
 
 ALTER TABLE "public"."user_settings" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."user_status" (
+    "user_id" "uuid" NOT NULL,
+    "status" "text" DEFAULT 'offline'::"text" NOT NULL,
+    "anime_ref_id" "text",
+    "anime_title" "text",
+    "anime_image" "text",
+    "episode_number" "text",
+    "last_seen" timestamp without time zone DEFAULT "now"(),
+    "updated_at" timestamp without time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "status_check" CHECK (("status" = ANY (ARRAY['watching'::"text", 'online'::"text", 'offline'::"text", 'idle'::"text", 'invisible'::"text"])))
+);
+
+
+ALTER TABLE "public"."user_status" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."watch_history" (
@@ -243,6 +425,16 @@ ALTER TABLE ONLY "public"."favorites"
 
 
 
+ALTER TABLE ONLY "public"."friends"
+    ADD CONSTRAINT "friends_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."friends"
+    ADD CONSTRAINT "friends_unique_pair" UNIQUE ("user_id", "friend_id");
+
+
+
 ALTER TABLE ONLY "public"."search_history"
     ADD CONSTRAINT "search_history_pkey" PRIMARY KEY ("id");
 
@@ -258,8 +450,17 @@ ALTER TABLE ONLY "public"."user_settings"
 
 
 
+ALTER TABLE ONLY "public"."user_status"
+    ADD CONSTRAINT "user_status_pkey" PRIMARY KEY ("user_id");
+
+
+
 ALTER TABLE ONLY "public"."watch_history"
     ADD CONSTRAINT "watch_history_pkey" PRIMARY KEY ("id");
+
+
+
+CREATE INDEX "idx_friends_lookup" ON "public"."friends" USING "btree" ("user_id", "friend_id", "status");
 
 
 
@@ -288,6 +489,21 @@ ALTER TABLE ONLY "public"."favorites"
 
 
 
+ALTER TABLE ONLY "public"."friends"
+    ADD CONSTRAINT "friends_friend_id_fkey" FOREIGN KEY ("friend_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."friends"
+    ADD CONSTRAINT "friends_requester_id_fkey" FOREIGN KEY ("requester_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."friends"
+    ADD CONSTRAINT "friends_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."search_history"
     ADD CONSTRAINT "search_history_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
@@ -295,6 +511,11 @@ ALTER TABLE ONLY "public"."search_history"
 
 ALTER TABLE ONLY "public"."user_settings"
     ADD CONSTRAINT "user_settings_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."user_status"
+    ADD CONSTRAINT "user_status_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -307,7 +528,19 @@ CREATE POLICY "Enable all for users based on id" ON "public"."user_settings" TO 
 
 
 
+CREATE POLICY "Enable delete for involved users" ON "public"."friends" FOR DELETE TO "authenticated" USING ((("user_id" = "auth"."uid"()) OR ("friend_id" = "auth"."uid"())));
+
+
+
 CREATE POLICY "Enable delete for users based on user_id" ON "public"."watch_history" FOR DELETE TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
+CREATE POLICY "Enable insert for authenticated users" ON "public"."friends" FOR INSERT TO "authenticated" WITH CHECK (((("user_id" = "auth"."uid"()) OR ("friend_id" = "auth"."uid"())) AND ("status" = 'pending'::"text") AND ("requester_id" = "auth"."uid"())));
+
+
+
+CREATE POLICY "Enable insert for users based on user_id" ON "public"."user_status" FOR INSERT TO "authenticated" WITH CHECK (("auth"."uid"() = "user_id"));
 
 
 
@@ -315,7 +548,25 @@ CREATE POLICY "Enable insert for users based on user_id" ON "public"."watch_hist
 
 
 
+CREATE POLICY "Enable read access for involved users" ON "public"."friends" FOR SELECT TO "authenticated" USING ((("user_id" = "auth"."uid"()) OR ("friend_id" = "auth"."uid"())));
+
+
+
+CREATE POLICY "Enable read access for own and friends status" ON "public"."user_status" FOR SELECT TO "authenticated" USING ((("user_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
+   FROM "public"."friends" "f"
+  WHERE (("f"."status" = 'accepted'::"text") AND ((("f"."user_id" = "auth"."uid"()) AND ("f"."friend_id" = "user_status"."user_id")) OR (("f"."friend_id" = "auth"."uid"()) AND ("f"."user_id" = "user_status"."user_id"))))))));
+
+
+
 CREATE POLICY "Enable read access for users" ON "public"."watch_history" FOR SELECT TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
+CREATE POLICY "Enable update for receivers only" ON "public"."friends" FOR UPDATE TO "authenticated" USING (((("user_id" = "auth"."uid"()) OR ("friend_id" = "auth"."uid"())) AND ("requester_id" <> "auth"."uid"()) AND ("status" = 'pending'::"text"))) WITH CHECK ((("status" = 'accepted'::"text") AND ("requester_id" <> "auth"."uid"())));
+
+
+
+CREATE POLICY "Enable update for users based on user_id" ON "public"."user_status" FOR UPDATE TO "authenticated" USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
 
 
 
@@ -332,6 +583,9 @@ CREATE POLICY "delete_search_history" ON "public"."search_history" FOR DELETE TO
 
 
 ALTER TABLE "public"."favorites" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."friends" ENABLE ROW LEVEL SECURITY;
 
 
 CREATE POLICY "insert_favorites" ON "public"."favorites" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
@@ -364,6 +618,9 @@ CREATE POLICY "update_search_history" ON "public"."search_history" FOR UPDATE TO
 ALTER TABLE "public"."user_settings" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."user_status" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."watch_history" ENABLE ROW LEVEL SECURITY;
 
 
@@ -377,6 +634,10 @@ ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
 
 
 ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."user_settings";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."user_status";
 
 
 
@@ -542,9 +803,33 @@ GRANT ALL ON FUNCTION "public"."create_user_settings_on_signup"() TO "service_ro
 
 
 
+GRANT ALL ON FUNCTION "public"."get_friends_with_status"() TO "anon";
+GRANT ALL ON FUNCTION "public"."get_friends_with_status"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_friends_with_status"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."get_pending_requests"() TO "anon";
+GRANT ALL ON FUNCTION "public"."get_pending_requests"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_pending_requests"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."get_user_info"("user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."get_user_info"("user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_user_info"("user_id" "uuid") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."limit_search_history"() TO "anon";
 GRANT ALL ON FUNCTION "public"."limit_search_history"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."limit_search_history"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."search_users"("search_query" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."search_users"("search_query" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."search_users"("search_query" "text") TO "service_role";
 
 
 
@@ -581,6 +866,12 @@ GRANT ALL ON SEQUENCE "public"."favorites_id_seq" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."friends" TO "anon";
+GRANT ALL ON TABLE "public"."friends" TO "authenticated";
+GRANT ALL ON TABLE "public"."friends" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."search_history" TO "anon";
 GRANT ALL ON TABLE "public"."search_history" TO "authenticated";
 GRANT ALL ON TABLE "public"."search_history" TO "service_role";
@@ -596,6 +887,12 @@ GRANT ALL ON SEQUENCE "public"."search_history_id_seq" TO "service_role";
 GRANT ALL ON TABLE "public"."user_settings" TO "anon";
 GRANT ALL ON TABLE "public"."user_settings" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_settings" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."user_status" TO "anon";
+GRANT ALL ON TABLE "public"."user_status" TO "authenticated";
+GRANT ALL ON TABLE "public"."user_status" TO "service_role";
 
 
 

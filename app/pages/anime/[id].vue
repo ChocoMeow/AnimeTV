@@ -6,6 +6,9 @@ const route = useRoute()
 const router = useRouter()
 const client = useSupabaseClient()
 
+// User status tracking
+const { setWatching, setOnline } = useUserStatus()
+
 // Component State
 const anime = ref(null)
 const selectedEpisode = ref(null)
@@ -181,6 +184,15 @@ async function onVideoReady() {
     }
 
     await saveWatchHistory()
+    
+    if (anime.value && selectedEpisode.value) {
+        setWatching({
+            refId: anime.value.refId,
+            title: anime.value.title,
+            image: anime.value.image,
+            episode: selectedEpisode.value
+        })
+    }
 }
 
 // Watch History
@@ -328,6 +340,7 @@ onMounted(() => {
 onUnmounted(() => {
     saveWatchHistory()
     stopAutoSave()
+    setOnline()
     window.removeEventListener("beforeunload", saveWatchHistory)
 })
 </script>
@@ -336,10 +349,11 @@ onUnmounted(() => {
     <div class="min-h-screen bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
         <!-- Loading State -->
         <div v-if="loading" class="flex items-center justify-center min-h-screen">
-            <div class="text-center">
+            <!-- <div class="text-center">
                 <div class="inline-block w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
                 <p class="text-gray-600 dark:text-gray-400 text-lg">載入動漫詳情中...</p>
-            </div>
+            </div> -->
+            <AnimeLoader :show="loading" message="載入動漫詳情中..." centered />
         </div>
 
         <!-- Error State -->
@@ -404,6 +418,25 @@ onUnmounted(() => {
 
                             <div class="prose prose-invert max-w-none">
                                 <p class="text-gray-200 leading-relaxed text-lg">{{ anime.description || "暫無簡介" }}</p>
+                            </div>
+
+                            <!-- Tags Section -->
+                            <div v-if="anime.tags && anime.tags.length > 0" class="flex flex-wrap items-center gap-2">
+                                <div class="flex flex-wrap gap-2">
+                                    <NuxtLink
+                                        v-for="tag in anime.tags"
+                                        :key="tag"
+                                        :to="`/show-all-anime?tags=${encodeURIComponent(tag)}`"
+                                        class="px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 
+                                               text-sm font-medium text-white
+                                               hover:bg-white/20 hover:border-white/40 hover:scale-105
+                                               transition-all duration-200 transform
+                                               flex items-center gap-1.5"
+                                    >
+                                        <span class="material-icons text-xs">tag</span>
+                                        {{ tag }}
+                                    </NuxtLink>
+                                </div>
                             </div>
 
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -486,7 +519,7 @@ onUnmounted(() => {
                         <p>暫無可用集數</p>
                     </div>
 
-                    <VideoPlayer v-if="videoUrl || selectedEpisode" ref="videoPlayer" :src="videoUrl || ''" autoplay preload="metadata" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @timeupdate="handleTimeUpdate" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
+                    <VideoPlayer v-if="videoUrl || selectedEpisode" ref="videoPlayer" :src="videoUrl || ''" autoplay preload="metadata" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
 
                     <div v-else class="aspect-video bg-black relative rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-400">
                         <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>

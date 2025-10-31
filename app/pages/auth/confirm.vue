@@ -98,7 +98,7 @@ definePageMeta({
 
                     <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
                         <span class="material-icons text-xs">schedule</span>
-                        正在重定向到{{ redirectPath ? "您的目標頁面" : "首頁" }}...
+                        正在重定向到{{ path ? "您的目標頁面" : "首頁" }}...
                     </p>
                 </div>
 
