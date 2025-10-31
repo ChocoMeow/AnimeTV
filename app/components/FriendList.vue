@@ -1,116 +1,74 @@
 <script setup>
-const client = useSupabaseClient()
-
+const { userSettings } = useUserSettings()
 const isOpen = ref(false)
 
-// Mock friends data
-const friends = ref([
-    {
-        id: 1,
-        name: "小櫻",
-        avatar: "https://i.pravatar.cc/150?img=1",
-        status: "playing",
-        currentAnime: "進擊的巨人 The Final Season",
-        currentEpisode: 4,
-        animeId: "112522",
-        animeBackground: "https://p2.bahamut.com.tw/B/ACG/c/74/0000106374.JPG",
-    },
-    {
-        id: 2,
-        name: "小雪",
-        avatar: "https://i.pravatar.cc/150?img=5",
-        status: "playing",
-        currentAnime: "最後可以再拜託您一件事嗎？",
-        currentEpisode: 8,
-        animeId: "38000",
-        animeBackground: "https://p2.bahamut.com.tw/B/ACG/c/50/0000141450.JPG",
-    },
-    {
-        id: 3,
-        name: "浩志",
-        avatar: "https://i.pravatar.cc/150?img=12",
-        status: "playing",
-        currentAnime: "SPY×FAMILY 間諜家家酒 Season 3",
-        currentEpisode: 15,
-        animeId: "19",
-        animeBackground: "https://p2.bahamut.com.tw/B/ACG/c/78/0000139878.JPG",
-    },
-    {
-        id: 4,
-        name: "小美",
-        avatar: "https://i.pravatar.cc/150?img=9",
-        status: "idle",
-        lastSeen: "5 分鐘前",
-    },
-    {
-        id: 5,
-        name: "健司",
-        avatar: "https://i.pravatar.cc/150?img=13",
-        status: "idle",
-        lastSeen: "15 分鐘前",
-    },
-    {
-        id: 6,
-        name: "步美",
-        avatar: "https://i.pravatar.cc/150?img=24",
-        status: "offline",
-        lastSeen: "2 小時前",
-    },
-    {
-        id: 7,
-        name: "賢二",
-        avatar: "https://i.pravatar.cc/150?img=33",
-        status: "offline",
-        lastSeen: "1 天前",
-    },
-    {
-        id: 8,
-        name: "莉娜",
-        avatar: "https://i.pravatar.cc/150?img=45",
-        status: "offline",
-        lastSeen: "3 天前",
-    },
-])
+// Use the composable with proper reactivity
+const userId = computed(() => userSettings.value?.id || null)
+const { friends, loading, error } = useFriends(userId)
 
-const playingFriends = computed(() => friends.value.filter((f) => f.status === "playing"))
+// Computed friend categories with proper status mapping
+const watchingFriends = computed(() => friends.value.filter((f) => f.status === "watching"))
+
+const onlineFriends = computed(() => friends.value.filter((f) => f.status === "online"))
 
 const idleFriends = computed(() => friends.value.filter((f) => f.status === "idle"))
 
 const offlineFriends = computed(() => friends.value.filter((f) => f.status === "offline"))
 
+// Helper to format last seen time
+const formatLastSeen = (lastSeen) => {
+    if (!lastSeen) return "未知";
+
+    // Convert lastSeen to a Date object (assuming it's in ISO format)
+    const seen = new Date(lastSeen);
+
+    // Get the user's local time zone offset in milliseconds
+    const localOffset = new Date().getTimezoneOffset() * 60000;
+
+    // Adjust the seen time to the local time
+    const localSeen = new Date(seen.getTime() - localOffset);
+
+    // Get the current local time
+    const now = new Date();
+
+    // Calculate the difference in milliseconds
+    const diffMs = now - localSeen;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "剛剛";
+    if (diffMins < 60) return `${diffMins} 分鐘前`;
+    if (diffHours < 24) return `${diffHours} 小時前`;
+    return `${diffDays} 天前`;
+};
+
+// UI controls
 const openFriendList = () => {
     isOpen.value = true
-    if (process.client) {
+    if (import.meta.client) {
         document.body.classList.add("friend-list-open")
     }
 }
 
 const closeFriendList = () => {
     isOpen.value = false
-    if (process.client) {
+    if (import.meta.client) {
         document.body.classList.remove("friend-list-open")
     }
 }
 
 const watchTogether = (friend) => {
-    // Navigate to the anime page
+    if (!friend.animeId) {
+        console.warn("No anime ID available for friend:", friend.name)
+        return
+    }
+    closeFriendList()
     navigateTo(`/anime/${friend.animeId}`)
-    console.log(`Watching ${friend.currentAnime} with ${friend.name}`)
 }
-
-async function fetchFriendList() {
-    const { data, error } = await client.from("friends_with_status")
-    if (error) throw error
-
-    friends.value = data
-}
-
-onMounted(() => {
-    // fetchFriendList()
-})
 
 onBeforeUnmount(() => {
-    if (process.client) {
+    if (import.meta.client) {
         document.body.classList.remove("friend-list-open")
     }
 })
@@ -127,10 +85,10 @@ onBeforeUnmount(() => {
 
             <!-- Friends List -->
             <div class="flex-1 overflow-y-auto p-3 space-y-3 pt-6">
-                <!-- Online/Playing Friends -->
-                <div v-if="playingFriends.length > 0" class="space-y-2">
-                    <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1">正在觀看 — {{ playingFriends.length }}</h3>
-                    <div v-for="friend in playingFriends" :key="friend.id" class="friend-card">
+                <!-- Online/Watching Friends -->
+                <div v-if="watchingFriends.length > 0" class="space-y-2">
+                    <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1">正在觀看 — {{ watchingFriends.length }}</h3>
+                    <div v-for="friend in watchingFriends" :key="friend.id" class="friend-card">
                         <div class="relative p-3 rounded-xl border border-indigo-200 dark:border-indigo-800 hover:shadow-md transition-shadow overflow-hidden">
                             <!-- Anime Background Image -->
                             <div v-if="friend.animeBackground" class="anime-background absolute inset-0 bg-cover bg-center" :style="{ backgroundImage: `url(${friend.animeBackground})` }"></div>
@@ -151,7 +109,27 @@ onBeforeUnmount(() => {
                                         <div class="text-xs text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }} 集</div>
                                     </div>
                                 </div>
-                                <button @click="watchTogether(friend)" class="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-md">一起觀看</button>
+                                <button @click="watchTogether(friend)" class="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-md">前往</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Online Friends -->
+                <div v-if="onlineFriends.length > 0" class="space-y-2">
+                    <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1">在線中 — {{ onlineFriends.length }}</h3>
+                    <div v-for="friend in onlineFriends" :key="friend.id" class="friend-card">
+                        <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-700">
+                            <div class="relative flex-shrink-0">
+                                <img :src="friend.avatar" :alt="friend.name" class="w-10 h-10 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover" />
+                                <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full" :title="friend.status"></span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="font-medium text-sm text-gray-900 dark:text-white truncate">{{ friend.name }}</h4>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                    <span class="material-icons text-xs">computer</span>
+                                    在線
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -188,7 +166,7 @@ onBeforeUnmount(() => {
                             </div>
                             <div class="flex-1 min-w-0">
                                 <h4 class="font-medium text-sm text-gray-900 dark:text-white truncate">{{ friend.name }}</h4>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">上次上線 {{ friend.lastSeen }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">上次上線 {{ formatLastSeen(friend.lastSeen) }}</p>
                             </div>
                         </div>
                     </div>
@@ -212,10 +190,10 @@ onBeforeUnmount(() => {
 
                 <!-- Mobile Friends List -->
                 <div class="flex-1 overflow-y-auto p-4 space-y-4 pb-8">
-                    <!-- Playing Friends (Mobile) -->
-                    <div v-if="playingFriends.length > 0" class="space-y-3">
-                        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">正在觀看 — {{ playingFriends.length }}</h3>
-                        <div v-for="friend in playingFriends" :key="friend.id" class="friend-card">
+                    <!-- Watching Friends (Mobile) -->
+                    <div v-if="watchingFriends.length > 0" class="space-y-3">
+                        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">正在觀看 — {{ watchingFriends.length }}</h3>
+                        <div v-for="friend in watchingFriends" :key="friend.id" class="friend-card">
                             <div class="relative p-4 rounded-2xl border border-indigo-200 dark:border-indigo-800 overflow-hidden">
                                 <!-- Anime Background Image -->
                                 <div v-if="friend.animeBackground" class="anime-background absolute inset-0 bg-cover bg-center" :style="{ backgroundImage: `url(${friend.animeBackground})` }"></div>
@@ -262,6 +240,26 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
+                    <!-- Idle Friends (Mobile) -->
+                    <div v-if="onlineFriends.length > 0" class="space-y-3">
+                        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">在線中 — {{ onlineFriends.length }}</h3>
+                        <div v-for="friend in onlineFriends" :key="friend.id" class="friend-card">
+                            <div class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700">
+                                <div class="relative flex-shrink-0">
+                                    <img :src="friend.avatar" :alt="friend.name" class="w-12 h-12 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover" />
+                                    <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <h4 class="font-semibold text-base text-gray-900 dark:text-white truncate">{{ friend.name }}</h4>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                        <span class="material-icons text-sm">computer</span>
+                                        在線
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Offline Friends (Mobile) -->
                     <div v-if="offlineFriends.length > 0" class="space-y-3">
                         <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">離線 — {{ offlineFriends.length }}</h3>
@@ -273,7 +271,7 @@ onBeforeUnmount(() => {
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <h4 class="font-semibold text-base text-gray-900 dark:text-white truncate">{{ friend.name }}</h4>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400">上次上線 {{ friend.lastSeen }}</p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">上次上線 {{ formatLastSeen(friend.lastSeen) }}</p>
                                 </div>
                             </div>
                         </div>
@@ -289,7 +287,6 @@ onBeforeUnmount(() => {
             <span class="material-icons text-gray-600 dark:text-gray-300 text-xl">group</span>
         </button>
     </transition>
-    
 </template>
 
 <style scoped>

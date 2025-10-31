@@ -6,6 +6,9 @@ const route = useRoute()
 const router = useRouter()
 const client = useSupabaseClient()
 
+// User status tracking
+const { setWatching, setOnline } = useUserStatus()
+
 // Component State
 const anime = ref(null)
 const selectedEpisode = ref(null)
@@ -181,6 +184,15 @@ async function onVideoReady() {
     }
 
     await saveWatchHistory()
+    
+    if (anime.value && selectedEpisode.value) {
+        setWatching({
+            refId: anime.value.refId,
+            title: anime.value.title,
+            image: anime.value.image,
+            episode: selectedEpisode.value
+        })
+    }
 }
 
 // Watch History
@@ -328,6 +340,7 @@ onMounted(() => {
 onUnmounted(() => {
     saveWatchHistory()
     stopAutoSave()
+    setOnline()
     window.removeEventListener("beforeunload", saveWatchHistory)
 })
 </script>
@@ -487,7 +500,7 @@ onUnmounted(() => {
                         <p>暫無可用集數</p>
                     </div>
 
-                    <VideoPlayer v-if="videoUrl || selectedEpisode" ref="videoPlayer" :src="videoUrl || ''" autoplay preload="metadata" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @timeupdate="handleTimeUpdate" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
+                    <VideoPlayer v-if="videoUrl || selectedEpisode" ref="videoPlayer" :src="videoUrl || ''" autoplay preload="metadata" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
 
                     <div v-else class="aspect-video bg-black relative rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-400">
                         <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>
