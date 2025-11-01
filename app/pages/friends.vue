@@ -1,4 +1,5 @@
 <script setup>
+const appConfig = useAppConfig()
 const { userSettings } = useUserSettings()
 const userId = computed(() => userSettings.value?.id || null)
 
@@ -221,6 +222,8 @@ watch(activeTab, async (newTab) => {
         await loadBlockedUsers()
     }
 })
+
+useHead({ title: `好友管理 | ${appConfig.siteName}` })
 
 // Cleanup
 onUnmounted(() => {
