@@ -193,23 +193,9 @@ export const useUserStatus = () => {
         startTracking()
 
         // Set offline when page unloads
-        if (typeof window !== "undefined") {
+        if (typeof window !== "undefined" && typeof navigator.sendBeacon === "function") {
             window.addEventListener("beforeunload", () => {
-                // Use sendBeacon for reliable offline status
-                if (userSettings.value?.id) {
-                    const data = JSON.stringify({
-                        user_id: userSettings.value.id,
-                        status: "offline",
-                        last_seen: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                        anime_ref_id: null,
-                        anime_title: null,
-                        anime_image: null,
-                        episode_number: null,
-                    })
-
-                    setOffline()
-                }
+                navigator.sendBeacon("/api/set-offline");
             })
         }
     }
