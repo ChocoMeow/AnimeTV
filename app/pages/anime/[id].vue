@@ -325,14 +325,6 @@ watch(selectedEpisode, async (epNum) => {
     }
 })
 
-watch([showShareDialog, showDetailDialog], ([share, detail]) => {
-    if (share || detail) {
-        document.body.style.overflow = "hidden"
-    } else {
-        document.body.style.overflow = ""
-    }
-})
-
 onMounted(() => {
     fetchDetail()
     window.addEventListener("beforeunload", saveWatchHistory)

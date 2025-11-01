@@ -40,12 +40,30 @@ function handleEscape(event) {
     }
 }
 
+function lockScroll() {
+    document.body.style.overflow = "hidden"
+}
+
+function unlockScroll() {
+    document.body.style.overflow = ""
+}
+
+watch(
+    () => props.show,
+    (val) => {
+        if (val) lockScroll()
+        else unlockScroll()
+    },
+    { immediate: true }
+)
+
 onMounted(() => {
     document.addEventListener("keydown", handleEscape)
 })
 
 onBeforeUnmount(() => {
     document.removeEventListener("keydown", handleEscape)
+    unlockScroll()
 })
 </script>
 
