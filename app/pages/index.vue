@@ -9,15 +9,22 @@ const today = new Date()
 const jsDay = today.getDay()
 const dayMap = { 0: "7", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6" }
 const selectedDay = ref(dayMap[jsDay] || "1")
+const displayedItems = computed(() => {
+    if (selectedDay.value === "0") {
+        return Object.values(byDay.value || {}).flat()
+    }
+    return byDay.value[selectedDay.value] || [];
+})
 
 const weekdayLabel = {
-    1: "週一",
-    2: "週二",
-    3: "週三",
-    4: "週四",
-    5: "週五",
-    6: "週六",
-    7: "週日",
+    "0": "全部",
+    "1": "週一",
+    "2": "週二",
+    "3": "週三",
+    "4": "週四",
+    "5": "週五",
+    "6": "週六",
+    "7": "週日",
 }
 
 // Tooltip state
@@ -170,10 +177,6 @@ function handleMouseLeave() {
     tooltipError.value = null
 }
 
-function closeTooltip() {
-    handleMouseLeave()
-}
-
 function checkMobile() {
     isMobile.value = window.innerWidth < 768 || "ontouchstart" in window
 }
@@ -230,14 +233,14 @@ onUnmounted(() => {
                     </div>
 
                     <!-- Day Content -->
-                    <div v-if="!byDay[selectedDay] || !byDay[selectedDay].length" class="text-center py-12 text-gray-500 dark:text-gray-400">
+                    <div v-if="!displayedItems.length" class="text-center py-12 text-gray-500 dark:text-gray-400">
                         <span class="material-icons text-4xl mb-2 opacity-50">event_busy</span>
                         <p>今日暫無更新節目</p>
                     </div>
 
                     <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                         <NuxtLink
-                            v-for="item in byDay[selectedDay]"
+                            v-for="item in displayedItems"
                             :key="item.refId"
                             class="daily-item group"
                             :to="`/anime/${item.refId}`"
