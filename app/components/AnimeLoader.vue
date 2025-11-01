@@ -1,5 +1,26 @@
+<script setup>
+defineProps({
+    show: {
+        type: Boolean,
+        default: true,
+    },
+    message: {
+        type: String,
+        default: "",
+    },
+    showProgress: {
+        type: Boolean,
+        default: false,
+    },
+    centered: {
+        type: Boolean,
+        default: false,
+    },
+})
+</script>
+
 <template>
-    <div v-if="show" :class="[centered ? 'relative' : 'fixed top-4 right-4', 'z-50 flex items-center justify-center', centered ? 'p-8' : 'bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl shadow-lg p-6']">
+    <div v-if="show" :class="[centered ? 'relative' : 'fixed top-4 right-4', 'flex items-center justify-center', centered ? 'p-8' : 'bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl shadow-lg p-6']">
         <div class="flex flex-col items-center gap-4">
             <!-- Animated TV Icon -->
             <div class="relative">
@@ -62,27 +83,6 @@
         </div>
     </div>
 </template>
-
-<script setup>
-defineProps({
-    show: {
-        type: Boolean,
-        default: true,
-    },
-    message: {
-        type: String,
-        default: "",
-    },
-    showProgress: {
-        type: Boolean,
-        default: false,
-    },
-    centered: {
-        type: Boolean,
-        default: false,
-    },
-})
-</script>
 
 <style scoped>
 /* SVG Element Colors - Adapts to theme */
