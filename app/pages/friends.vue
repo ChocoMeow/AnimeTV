@@ -18,6 +18,11 @@ const openDropdown = ref(null)
 const blockedUsers = ref([])
 const blockedLoading = ref(false)
 
+const selectedFriend = ref(null)
+const showDeleteConfirm = ref(false)
+const showBlockConfirm = ref(false)
+const showUnblockConfirm = ref(false)
+
 let searchTimeout = null
 
 // Toggle dropdown
@@ -79,6 +84,23 @@ const isPending = (targetUserId) => {
         (req.user_id === userId.value || req.friend_id === userId.value)
     )
 }
+
+// Open modal
+function openConfirmModal(user, type) {
+  selectedFriend.value = user
+
+    const modalMap = {
+        delete: showDeleteConfirm,
+        block: showBlockConfirm,
+        unblock: showUnblockConfirm,
+    }
+
+    if (modalMap[type]) {
+        modalMap[type].value = true
+    }
+}
+
+
 // Search users
 async function searchUsers() {
     if (!searchQuery.value || searchQuery.value.length < 2) {
@@ -153,10 +175,8 @@ async function handleRejectRequest(friendshipId) {
 }
 
 // Remove friend handler
-async function handleRemoveFriend(friendshipId, friendName) {
-    if (!confirm(`確定要移除 ${friendName} 嗎？`)) return
-
-    const success = await removeFriend(friendshipId)
+async function handleRemoveFriend() {
+    const success = await removeFriend(selectedFriend.value.id)
 
     if (success) {
         showToast("已移除好友", "success")
@@ -167,13 +187,11 @@ async function handleRemoveFriend(friendshipId, friendName) {
 }
 
 // Block user handler
-async function handleBlockUser(friendId, friendName) {
-    if (!confirm(`確定要封鎖 ${friendName} 嗎？封鎖後您們將無法看到彼此的動態。`)) return
-
-    const success = await blockUser(friendId)
+async function handleBlockUser() {
+    const success = await blockUser(selectedFriend.value.id)
 
     if (success) {
-        showToast(`已封鎖 ${friendName}`, "success")
+        showToast(`已封鎖 ${selectedFriend.value.name}`, "success")
         openDropdown.value = null
         // Refresh blocked list if on that tab
         if (activeTab.value === 'blocked') {
@@ -185,13 +203,11 @@ async function handleBlockUser(friendId, friendName) {
 }
 
 // Unblock user handler
-async function handleUnblockUser(userId, userName) {
-    if (!confirm(`確定要解除封鎖 ${userName} 嗎？`)) return
-
-    const success = await unblockUser(userId)
+async function handleUnblockUser() {
+    const success = await unblockUser(selectedFriend.value.id)
 
     if (success) {
-        showToast(`已解除封鎖 ${userName}`, "success")
+        showToast(`已解除封鎖 ${selectedFriend.value.name}`, "success")
         await loadBlockedUsers()
     } else if (error.value) {
         showToast(`操作失敗: ${error.value}`, "error")
@@ -331,18 +347,18 @@ onUnmounted(() => {
 
                             <!-- Dropdown menu -->
                             <div class="relative friend-dropdown">
-                                <button @click.stop="toggleDropdown(friend.id)" class="p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded-lg transition-colors" title="更多選項">
+                                <button @click.stop="toggleDropdown(friend.id)" class="p-2 flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded-lg transition-colors" title="更多選項">
                                     <span class="material-icons">more_vert</span>
                                 </button>
 
                                 <!-- Dropdown content -->
                                 <transition name="dropdown">
                                     <div v-if="openDropdown === friend.id" class="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
-                                        <button @click="handleRemoveFriend(friend.friendshipId, friend.name)" class="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
+                                        <button @click="openConfirmModal(friend, 'delete')" class="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
                                             <span class="material-icons text-lg">person_remove</span>
                                             移除好友
                                         </button>
-                                        <button @click="handleBlockUser(friend.id, friend.name)" class="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2">
+                                        <button @click="openConfirmModal(friend, 'block')" class="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2">
                                             <span class="material-icons text-lg">block</span>
                                             封鎖用戶
                                         </button>
@@ -509,7 +525,7 @@ onUnmounted(() => {
                                 </p>
                             </div>
 
-                            <button @click="handleUnblockUser(blockedUser.id, blockedUser.name)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+                            <button @click="openConfirmModal(blockedUser, 'unblock')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
                                 <span class="material-icons text-sm">check_circle</span>
                                 解除封鎖
                             </button>
@@ -518,6 +534,36 @@ onUnmounted(() => {
                 </div>
             </div>
         </div>
+
+        <!-- Delete Confirmation Modal -->
+        <BaseModal :show="showDeleteConfirm" title="確認刪除" icon="person_remove" icon-color="text-red-500" @close="showDeleteConfirm = false">
+            <p class="text-gray-600 dark:text-gray-400 mb-6">確定要移除 {{ selectedFriend.name }} 嗎？</p>
+
+            <template #actions>
+                <button @click="showDeleteConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+                <button @click="handleRemoveFriend()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認刪除</button>
+            </template>
+        </BaseModal>
+
+        <!-- Block Confirmation Modal -->
+        <BaseModal :show="showBlockConfirm" title="確認封鎖" icon="block" icon-color="text-red-500" @close="showBlockConfirm = false">
+            <p class="text-gray-600 dark:text-gray-400 mb-6">確定要封鎖 {{ selectedFriend.name }} 嗎？封鎖後您們將無法看到彼此的動態。</p>
+
+            <template #actions>
+                <button @click="showBlockConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+                <button @click="handleBlockUser()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認封鎖</button>
+            </template>
+        </BaseModal>
+
+        <!-- Unblock Confirmation Modal -->
+        <BaseModal :show="showUnblockConfirm" title="確認解除封鎖" icon="deployed_code_account" icon-color="text-red-500" @close="showUnblockConfirm = false">
+            <p class="text-gray-600 dark:text-gray-400 mb-6">確定要解除封鎖 {{ selectedFriend.name }} 嗎？</p>
+
+            <template #actions>
+                <button @click="showUnblockConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+                <button @click="handleUnblockUser()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認解除封鎖</button>
+            </template>
+        </BaseModal>
     </div>
 </template>
 
