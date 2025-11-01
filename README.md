@@ -13,7 +13,7 @@ Welcome to **AnimeTV**, a project designed for anime enthusiasts in Taiwan and H
 -   **User Settings**: Customize user preferences for a personalized experience.
 -   **Favorite List**: Save favorite anime shows for easy access.
 -   **Custom Video Player**: Enjoy a tailored video playback experience.
--   **Friend List**: (Coming Soon) Connect with friends to share recommendations and watch together.
+-   **Friend List**: Connect with friends to share recommendations and watch together.
 
 ## Screenshot
 
