@@ -54,16 +54,15 @@ function unlockScroll() {
     document.body.style.overflow = ""
 }
 
-watch(
-    () => props.modelValue,
-    (val) => {
+onMounted(() => {
+    watch(
+        () => props.modelValue,
+        (val) => {
         if (val) lockScroll()
         else unlockScroll()
-    },
-    { immediate: true }
-)
-
-onMounted(() => {
+        },
+        { immediate: true }
+    )
     document.addEventListener("keydown", handleEscape)
 })
 
