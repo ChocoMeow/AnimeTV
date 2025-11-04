@@ -179,7 +179,7 @@ watch(
         <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
             <div v-if="paged.length === 0" class="text-center py-6 text-gray-500 dark:text-gray-400">找不到相關集數</div>
 
-            <div v-else class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-15 gap-2">
+            <div v-else class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-15 gap-2 z-0">
                 <button
                     v-for="ep in paged"
                     :key="ep"
@@ -196,7 +196,7 @@ watch(
                     :title="getEpisodeTitle(ep)"
                 >
                     <!-- Episode Number/Label -->
-                    <div class="relative z-10 flex flex-col items-center justify-center h-full overflow-hidden rounded-lg px-1">
+                    <div class="relative z-0 flex flex-col items-center justify-center h-full overflow-hidden rounded-lg px-1">
                         <span class="text-sm font-medium truncate max-w-full" :class="{ 'text-xs': String(ep).length > 4 }">
                             {{ getEpisodeLabel(ep) }}
                         </span>

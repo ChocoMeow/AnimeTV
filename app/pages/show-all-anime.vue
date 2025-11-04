@@ -162,176 +162,174 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
-        <!-- Filters Section -->
-        <div class="sticky top-16 z-40 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 shadow-sm rounded-2xl">
-            <div class="max-w-7xl mx-auto px-4 py-4">
-                <!-- Header with Toggle -->
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <h2 class="text-lg font-bold text-gray-900 dark:text-white">篩選條件</h2>
-                        <span
-                            v-if="selectedTags.length || selectedCategory || selectedSort !== '1'"
-                            class="px-2 py-1 text-xs font-semibold bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
-                        >
-                            {{ selectedTags.length + (selectedCategory ? 1 : 0) + (selectedSort !== "1" ? 1 : 0) }}
+    <!-- Filters Section -->
+    <div class="sticky top-16 z-40 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 shadow-sm rounded-2xl">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <!-- Header with Toggle -->
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-white">篩選條件</h2>
+                    <span
+                        v-if="selectedTags.length || selectedCategory || selectedSort !== '1'"
+                        class="px-2 py-1 text-xs font-semibold bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
+                    >
+                        {{ selectedTags.length + (selectedCategory ? 1 : 0) + (selectedSort !== "1" ? 1 : 0) }}
+                    </span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button
+                        v-if="selectedTags.length || selectedCategory || selectedSort !== '1'"
+                        @click="clearAllFilters"
+                        class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium transition-colors flex items-center gap-1"
+                    >
+                        <span class="material-icons text-sm">clear</span>
+                        清除全部
+                    </button>
+                    <button @click="showFilters = !showFilters" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center">
+                        <span class="material-icons text-gray-600 dark:text-gray-300">
+                            {{ showFilters ? "expand_less" : "expand_more" }}
                         </span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter Content -->
+            <transition name="filter-expand">
+                <div v-if="showFilters" class="space-y-4 mt-4">
+                    <!-- Sort Mode -->
+                    <div class="flex flex-wrap items-center gap-3">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[60px]">排序:</label>
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                v-for="option in sortOptions"
+                                :key="option.value"
+                                @click="selectedSort = option.value; fetchAnime(1)"
+                                :class="['category-pill', selectedSort === option.value ? 'category-pill-active' : 'category-pill-inactive']"
+                            >
+                                {{ option.label }}
+                            </button>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button
-                            v-if="selectedTags.length || selectedCategory || selectedSort !== '1'"
-                            @click="clearAllFilters"
-                            class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium transition-colors flex items-center gap-1"
-                        >
-                            <span class="material-icons text-sm">clear</span>
-                            清除全部
-                        </button>
-                        <button @click="showFilters = !showFilters" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center">
-                            <span class="material-icons text-gray-600 dark:text-gray-300">
-                                {{ showFilters ? "expand_less" : "expand_more" }}
-                            </span>
-                        </button>
+
+                    <!-- Category Filter -->
+                    <div class="flex flex-wrap items-center gap-3">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[60px]">類型:</label>
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                @click="selectedCategory = ''; fetchAnime(1)"
+                                :class="['category-pill', selectedCategory === '' ? 'category-pill-active' : 'category-pill-inactive']"
+                            >
+                                全部
+                            </button>
+                            <button
+                                v-for="cat in categories"
+                                :key="cat"
+                                @click="selectedCategory = cat; fetchAnime(1)"
+                                :class="['category-pill', selectedCategory === cat ? 'category-pill-active' : 'category-pill-inactive']"
+                            >
+                                {{ cat }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tags Filter -->
+                    <div class="flex flex-wrap items-start gap-3">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[60px] pt-1.5">標籤:</label>
+                        <div class="flex flex-wrap gap-2 flex-1">
+                            <button
+                                v-for="tag in tags"
+                                :key="tag"
+                                @click="toggleTag(tag)"
+                                :class="[
+                                    'tag-pill',
+                                    tag === '全部' && selectedTags.length === 0 ? 'tag-pill-active' : selectedTags.includes(tag) ? 'tag-pill-active' : 'tag-pill-inactive',
+                                ]"
+                            >
+                                {{ tag }}
+                            </button>
+                        </div>
                     </div>
                 </div>
+            </transition>
+        </div>
+    </div>
 
-                <!-- Filter Content -->
-                <transition name="filter-expand">
-                    <div v-if="showFilters" class="space-y-4 mt-4">
-                        <!-- Sort Mode -->
-                        <div class="flex flex-wrap items-center gap-3">
-                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[60px]">排序:</label>
-                            <div class="flex flex-wrap gap-2">
-                                <button
-                                    v-for="option in sortOptions"
-                                    :key="option.value"
-                                    @click="selectedSort = option.value; fetchAnime(1)"
-                                    :class="['category-pill', selectedSort === option.value ? 'category-pill-active' : 'category-pill-inactive']"
-                                >
-                                    {{ option.label }}
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Category Filter -->
-                        <div class="flex flex-wrap items-center gap-3">
-                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[60px]">類型:</label>
-                            <div class="flex flex-wrap gap-2">
-                                <button
-                                    @click="selectedCategory = ''; fetchAnime(1)"
-                                    :class="['category-pill', selectedCategory === '' ? 'category-pill-active' : 'category-pill-inactive']"
-                                >
-                                    全部
-                                </button>
-                                <button
-                                    v-for="cat in categories"
-                                    :key="cat"
-                                    @click="selectedCategory = cat; fetchAnime(1)"
-                                    :class="['category-pill', selectedCategory === cat ? 'category-pill-active' : 'category-pill-inactive']"
-                                >
-                                    {{ cat }}
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Tags Filter -->
-                        <div class="flex flex-wrap items-start gap-3">
-                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[60px] pt-1.5">標籤:</label>
-                            <div class="flex flex-wrap gap-2 flex-1">
-                                <button
-                                    v-for="tag in tags"
-                                    :key="tag"
-                                    @click="toggleTag(tag)"
-                                    :class="[
-                                        'tag-pill',
-                                        tag === '全部' && selectedTags.length === 0 ? 'tag-pill-active' : selectedTags.includes(tag) ? 'tag-pill-active' : 'tag-pill-inactive',
-                                    ]"
-                                >
-                                    {{ tag }}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </transition>
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Results Header -->
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">全部作品</h1>
+                <span v-if="!loading" class="text-sm text-gray-500 dark:text-gray-400"> 共 {{ animeList.length }} 部作品 </span>
             </div>
         </div>
 
-        <!-- Main Content -->
-        <div class="max-w-7xl mx-auto px-4 py-8">
-            <!-- Results Header -->
-            <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center gap-3">
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">全部作品</h1>
-                    <span v-if="!loading" class="text-sm text-gray-500 dark:text-gray-400"> 共 {{ animeList.length }} 部作品 </span>
-                </div>
+        <!-- Loading State -->
+        <div v-if="loading" class="flex items-center justify-center min-h-[400px]">
+            <AnimeLoader :show="loading" message="正在載入動畫資料..." centered />
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="!animeList.length" class="flex flex-col items-center justify-center min-h-[400px] text-center">
+            <div class="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                <span class="material-icons text-5xl text-gray-400 dark:text-gray-600">search_off</span>
             </div>
+            <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">找不到相關作品</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-4">請嘗試調整篩選條件</p>
+            <button @click="clearAllFilters" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">清除篩選條件</button>
+        </div>
 
-            <!-- Loading State -->
-            <div v-if="loading" class="flex items-center justify-center min-h-[400px]">
-                <AnimeLoader :show="loading" message="正在載入動畫資料..." centered />
-            </div>
+        <!-- Anime Grid -->
+        <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <NuxtLink v-for="anime in animeList" :key="anime.refId" :to="`/anime/${anime.refId}`" class="anime-card-item group">
+                <!-- Image Container -->
+                <div class="relative overflow-hidden rounded-t-xl aspect-[2/3] bg-gray-200 dark:bg-gray-700">
+                    <img :src="anime.image" :alt="anime.title" class="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110" />
+                    <!-- Gradient Overlay -->
+                    <div
+                        class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300"
+                    ></div>
 
-            <!-- Empty State -->
-            <div v-else-if="!animeList.length" class="flex flex-col items-center justify-center min-h-[400px] text-center">
-                <div class="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                    <span class="material-icons text-5xl text-gray-400 dark:text-gray-600">search_off</span>
-                </div>
-                <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">找不到相關作品</h3>
-                <p class="text-gray-500 dark:text-gray-400 mb-4">請嘗試調整篩選條件</p>
-                <button @click="clearAllFilters" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">清除篩選條件</button>
-            </div>
-
-            <!-- Anime Grid -->
-            <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                <NuxtLink v-for="anime in animeList" :key="anime.refId" :to="`/anime/${anime.refId}`" class="anime-card-item group">
-                    <!-- Image Container -->
-                    <div class="relative overflow-hidden rounded-t-xl aspect-[2/3] bg-gray-200 dark:bg-gray-700">
-                        <img :src="anime.image" :alt="anime.title" class="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110" />
-                        <!-- Gradient Overlay -->
-                        <div
-                            class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300"
-                        ></div>
-
-                        <!-- Year Badge -->
-                        <div class="badge-year">
-                            {{ anime.year }}
-                        </div>
-
-                        <!-- Hover Play Button -->
-                        <div
-                            class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100"
-                        >
-                            <div class="w-14 h-14 rounded-full bg-white/90 dark:bg-gray-900/90 flex items-center justify-center shadow-xl">
-                                <span class="material-icons text-indigo-600 dark:text-indigo-400 text-3xl">play_arrow</span>
-                            </div>
-                        </div>
+                    <!-- Year Badge -->
+                    <div class="badge-year">
+                        {{ anime.year }}
                     </div>
 
-                    <!-- Info Container -->
-                    <div class="p-3 space-y-2">
-                        <h3
-                            class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors"
-                        >
-                            {{ anime.title }}
-                        </h3>
-
-                        <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                            <div class="flex items-center gap-1">
-                                <span class="material-icons text-sm">movie</span>
-                                <span>{{ anime.episodes }}</span>
-                            </div>
-                            <div class="flex items-center gap-1">
-                                <span class="material-icons text-sm">visibility</span>
-                                <span>{{ formatViews(anime.views) }}</span>
-                            </div>
+                    <!-- Hover Play Button -->
+                    <div
+                        class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100"
+                    >
+                        <div class="w-14 h-14 rounded-full bg-white/90 dark:bg-gray-900/90 flex items-center justify-center shadow-xl">
+                            <span class="material-icons text-indigo-600 dark:text-indigo-400 text-3xl">play_arrow</span>
                         </div>
                     </div>
-                </NuxtLink>
-            </div>
+                </div>
 
-            <!-- Pagination -->
-            <div v-if="!loading && animeList.length" class="mt-8">
-                <Pagination :current-page="currentPage" :total-page="totalPage" @change="fetchAnime" />
-            </div>
+                <!-- Info Container -->
+                <div class="p-3 space-y-2">
+                    <h3
+                        class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors"
+                    >
+                        {{ anime.title }}
+                    </h3>
+
+                    <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                        <div class="flex items-center gap-1">
+                            <span class="material-icons text-sm">movie</span>
+                            <span>{{ anime.episodes }}</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="material-icons text-sm">visibility</span>
+                            <span>{{ formatViews(anime.views) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </NuxtLink>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="!loading && animeList.length" class="mt-8">
+            <Pagination :current-page="currentPage" :total-page="totalPage" @change="fetchAnime" />
         </div>
     </div>
 </template>

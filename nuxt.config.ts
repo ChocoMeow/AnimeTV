@@ -86,6 +86,17 @@ export default defineNuxtConfig({
             cleanupOutdatedCaches: true,
             runtimeCaching: [
                 {
+                    urlPattern: "/",
+                    handler: "NetworkFirst",
+                    options: {
+                        cacheName: "home-cache",
+                        expiration: {
+                            maxEntries: 1,
+                            maxAgeSeconds: 60 * 60, // Cache for 1 hour
+                        },
+                    },
+                },
+                {
                     urlPattern: /^\/auth\/.*/i,
                     handler: "NetworkOnly",
                 },

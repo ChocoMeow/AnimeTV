@@ -67,6 +67,7 @@ function closeMobileSearch() {
     mobileSearchOpen.value = false
     searchQuery.value = ""
     searchResults.value = []
+    unlockScroll()
 }
 
 function hideDropdownDelayed() {
@@ -89,11 +90,20 @@ function cancelHideUserMenu() {
 
 function openMobileSearch() {
     mobileSearchOpen.value = true
+    lockScroll()
     nextTick(() => {
         if (mobileSearchRef.value) {
             mobileSearchRef.value.focus()
         }
     })
+}
+
+function lockScroll() {
+    document.body.style.overflow = "hidden"
+}
+
+function unlockScroll() {
+    document.body.style.overflow = ""
 }
 
 async function saveSearchHistory(query) {
