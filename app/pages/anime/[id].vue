@@ -93,6 +93,45 @@ function handleEnded() {
     setOnline()
 }
 
+// Helper function to get sorted episode numbers and current index
+function getEpisodeInfo() {
+    if (!anime.value || !anime.value.episodes || !selectedEpisode.value) {
+        return { episodeNumbers: [], currentIndex: -1 }
+    }
+
+    // Get all episode numbers and sort them
+    const episodeNumbers = Object.keys(anime.value.episodes).sort((a, b) => {
+        // Try to sort numerically first, fallback to string comparison
+        const numA = parseInt(a)
+        const numB = parseInt(b)
+        if (!isNaN(numA) && !isNaN(numB)) {
+            return numA - numB
+        }
+        return a.localeCompare(b)
+    })
+
+    // Find current episode index
+    const currentIndex = episodeNumbers.indexOf(String(selectedEpisode.value))
+
+    return { episodeNumbers, currentIndex }
+}
+
+// Check if there's a next episode
+const hasNextEpisode = computed(() => {
+    const { episodeNumbers, currentIndex } = getEpisodeInfo()
+    return currentIndex !== -1 && currentIndex < episodeNumbers.length - 1
+})
+
+function handleNextEpisode() {
+    const { episodeNumbers, currentIndex } = getEpisodeInfo()
+    
+    // If there's a next episode, select it
+    if (currentIndex !== -1 && currentIndex < episodeNumbers.length - 1) {
+        const nextEpisode = episodeNumbers[currentIndex + 1]
+        selectedEpisode.value = nextEpisode
+    }
+}
+
 async function toggleFavorite() {
     if (!anime.value || !userSettings.value.id) return
     isFavorite.value = !isFavorite.value
@@ -511,7 +550,7 @@ onUnmounted(() => {
                     <p>暫無可用集數</p>
                 </div>
 
-                <VideoPlayer v-if="videoUrl || selectedEpisode" ref="videoPlayer" :src="videoUrl || ''" autoplay preload="metadata" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
+                <VideoPlayer v-if="videoUrl || selectedEpisode" ref="videoPlayer" :src="videoUrl || ''" autoplay preload="metadata" :has-next-episode="hasNextEpisode" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @next-episode="handleNextEpisode" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
 
                 <div v-else class="aspect-video bg-black relative rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-400">
                     <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>
