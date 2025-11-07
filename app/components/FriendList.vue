@@ -1,5 +1,6 @@
 <script setup>
 const { userSettings } = useUserSettings()
+const STORAGE_KEY = 'friendListOpen'
 const isOpen = ref(false)
 
 // Use the composable with proper reactivity
@@ -43,9 +44,17 @@ const formatLastSeen = (lastSeen) => {
     return `${diffDays} 天前`;
 };
 
+// Save state to localStorage
+const saveState = (open) => {
+    if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY, open.toString())
+    }
+}
+
 // UI controls
 const openFriendList = () => {
     isOpen.value = true
+    saveState(true)
     if (import.meta.client) {
         document.body.classList.add("friend-list-open")
     }
@@ -53,10 +62,22 @@ const openFriendList = () => {
 
 const closeFriendList = () => {
     isOpen.value = false
+    saveState(false)
     if (import.meta.client) {
         document.body.classList.remove("friend-list-open")
     }
 }
+
+onMounted(() => {
+    // Load saved state from localStorage after mount (client-side only)
+    if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem(STORAGE_KEY)
+        if (saved === 'true') {
+            isOpen.value = true
+            document.body.classList.add("friend-list-open")
+        }
+    }
+})
 
 onBeforeUnmount(() => {
     if (import.meta.client) {
@@ -211,6 +232,26 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
+                    <!-- Online Friends (Mobile) -->
+                    <div v-if="onlineFriends.length > 0" class="space-y-3">
+                        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">在線中 — {{ onlineFriends.length }}</h3>
+                        <div v-for="friend in onlineFriends" :key="friend.id" class="friend-card">
+                            <div class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700">
+                                <div class="relative flex-shrink-0">
+                                    <img :src="friend.avatar" :alt="friend.name" class="w-12 h-12 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover" />
+                                    <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <h4 class="font-semibold text-base text-gray-900 dark:text-white truncate">{{ friend.name }}</h4>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                        <span class="material-icons text-sm">computer</span>
+                                        在線
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- Idle Friends (Mobile) -->
                     <div v-if="idleFriends.length > 0" class="space-y-3">
                         <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">閒置中 — {{ idleFriends.length }}</h3>
@@ -225,26 +266,6 @@ onBeforeUnmount(() => {
                                     <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                         <span class="material-icons text-sm">schedule</span>
                                         暫時離開
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Idle Friends (Mobile) -->
-                    <div v-if="onlineFriends.length > 0" class="space-y-3">
-                        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">在線中 — {{ onlineFriends.length }}</h3>
-                        <div v-for="friend in onlineFriends" :key="friend.id" class="friend-card">
-                            <div class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700">
-                                <div class="relative flex-shrink-0">
-                                    <img :src="friend.avatar" :alt="friend.name" class="w-12 h-12 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover" />
-                                    <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <h4 class="font-semibold text-base text-gray-900 dark:text-white truncate">{{ friend.name }}</h4>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                        <span class="material-icons text-sm">computer</span>
-                                        在線
                                     </p>
                                 </div>
                             </div>
@@ -273,11 +294,13 @@ onBeforeUnmount(() => {
     </transition>
 
     <!-- Toggle Button - Desktop (when closed) -->
-    <transition v-if="friends.length" name="fade">
-        <button v-if="!isOpen" @click="openFriendList" class="lg:flex fixed right-4 top-1/2 -translate-y-1/2 z-30 bg-white dark:bg-gray-900 border-2 border-gray-300 dark:border-gray-600 p-2.5 rounded-lg hover:border-indigo-500 dark:hover:border-indigo-400 transition-all duration-300 shadow-md" title="顯示好友列表">
-            <span class="material-icons text-gray-600 dark:text-gray-300 text-xl">group</span>
-        </button>
-    </transition>
+    <ClientOnly>
+        <transition v-if="friends.length" name="fade">
+            <button v-if="!isOpen" @click="openFriendList" class="lg:flex fixed right-4 top-1/2 -translate-y-1/2 z-30 bg-white dark:bg-gray-900 border-2 border-gray-300 dark:border-gray-600 p-2.5 rounded-lg hover:border-indigo-500 dark:hover:border-indigo-400 transition-all duration-300 shadow-md" title="顯示好友列表">
+                <span class="material-icons text-gray-600 dark:text-gray-300 text-xl">group</span>
+            </button>
+        </transition>
+    </ClientOnly>
 </template>
 
 <style scoped>
