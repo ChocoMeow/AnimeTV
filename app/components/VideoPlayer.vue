@@ -42,8 +42,6 @@ const dragPreviewTime = ref(0)
 const isHoveringProgress = ref(false)
 const hoverPreviewTime = ref(0)
 const hoverPreviewPosition = ref(0)
-const showNativeControls = ref(false)
-const isAirPlayAvailable = ref(false)
 const isSpaceHeld = ref(false)
 const originalPlaybackRate = ref(1)
 
@@ -287,55 +285,6 @@ function handleVolumeAreaLeave() {
     showVolumeSlider.value = false
 }
 
-// AirPlay functions
-function checkAirPlayAvailability() {
-    if (!videoRef.value) {
-        isAirPlayAvailable.value = false
-        return false
-    }
-
-    // Check if AirPlay is available (Safari/WebKit)
-    const video = videoRef.value
-    // Check for WebKit AirPlay API
-    const hasAirPlay = typeof video.webkitShowPlaybackTargetPicker === 'function'
-
-    isAirPlayAvailable.value = hasAirPlay
-    return hasAirPlay
-}
-
-function handleAirPlayClick() {
-    if (!videoRef.value) return
-
-    // Use WebKit AirPlay API if available
-    if (videoRef.value.webkitShowPlaybackTargetPicker) {
-        try {
-            videoRef.value.webkitShowPlaybackTargetPicker()
-            showNotification("AirPlay", "cast")
-        } catch (error) {
-            console.warn('AirPlay not available:', error)
-            // Fallback: temporarily show native controls to access AirPlay button
-            showNativeControls.value = true
-            videoRef.value.controls = true
-            setTimeout(() => {
-                if (videoRef.value) {
-                    videoRef.value.controls = false
-                    showNativeControls.value = false
-                }
-            }, 2000)
-        }
-    } else {
-        // Fallback: temporarily show native controls to access AirPlay button
-        showNativeControls.value = true
-        videoRef.value.controls = true
-        setTimeout(() => {
-            if (videoRef.value) {
-                videoRef.value.controls = false
-                showNativeControls.value = false
-            }
-        }, 2000)
-    }
-}
-
 // Video event handlers
 function onPlay() {
     isPlaying.value = true
@@ -369,8 +318,6 @@ function onTimeUpdate() {
 function onLoadedMetadata() {
     if (!videoRef.value) return
     duration.value = videoRef.value.duration
-    // Check AirPlay availability after metadata is loaded
-    checkAirPlayAvailability()
 }
 
 function onLoadedData() {
@@ -577,8 +524,6 @@ watch(videoRef, (newVideo) => {
             newVideo.volume = volume.value
             newVideo.muted = isMuted.value
         }
-        // Check AirPlay availability
-        checkAirPlayAvailability()
     }
 })
 
@@ -612,7 +557,6 @@ watch(
         // Reset playback rate when source changes
         if (videoRef.value) {
             videoRef.value.playbackRate = 1
-            checkAirPlayAvailability()
         }
         // Clear any pending space press timeout
         if (spacePressTimeout) {
@@ -627,8 +571,7 @@ watch(
     <div ref="containerRef" class="relative w-full aspect-video bg-black rounded-lg overflow-hidden cursor-default"
         @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
         <!-- Video Element -->
-        <video v-if="src" ref="videoRef" :src="src" :autoplay="autoplay" :preload="preload"
-            x-webkit-airplay="allow" :controls="showNativeControls" class="w-full h-full block cursor-pointer"
+        <video v-if="src" ref="videoRef" :src="src" :autoplay="autoplay" :preload="preload" class="w-full h-full block cursor-pointer"
             @play="onPlay" @pause="onPause" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata"
             @loadeddata="onLoadedData" @loadstart="onLoadStart" @ended="onEnded" @volumechange="onVolumeChange"
             @click="togglePlay" />
@@ -742,13 +685,6 @@ watch(
                     </div>
 
                     <div class="flex items-center gap-1 sm:gap-3">
-                        <!-- AirPlay -->
-                        <button v-if="isAirPlayAvailable" @click="handleAirPlayClick"
-                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
-                            title="AirPlay">
-                            <span class="material-icons text-xl sm:text-2xl">cast</span>
-                        </button>
-
                         <!-- Next Episode -->
                         <button v-if="hasNextEpisode" @click="handleNextEpisode"
                             class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
