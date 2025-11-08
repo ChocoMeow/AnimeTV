@@ -136,11 +136,7 @@ function skip(seconds) {
 }
 
 function skipOP() {
-    if (!videoRef.value) return
-    // Skip to 1:25 (85 seconds)
-    const skipTime = 85
-    videoRef.value.currentTime = skipTime
-    currentTime.value = skipTime
+    skip(85) // Skip forward by 1:25 (85 seconds)
     showNotification("跳過片頭", "fast_forward")
 }
 
