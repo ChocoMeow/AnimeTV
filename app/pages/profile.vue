@@ -90,7 +90,7 @@ async function clearData() {
 
 //         // Optionally sign out
 //         // await client.auth.signOut()
-//         // navigateTo('/auth/login')
+//         // navigateTo('/login')
 //     } catch (err) {
 //         console.error("Failed to disable account:", err)
 //         showToast("停用失敗，請稍後再試", "error")

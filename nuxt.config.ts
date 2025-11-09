@@ -81,8 +81,8 @@ export default defineNuxtConfig({
         workbox: {
             navigateFallback: undefined,
             globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
-            globIgnores: ["**/auth/**"],
-            navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
+            globIgnores: [],
+            navigateFallbackDenylist: [/^\/api\//],
             cleanupOutdatedCaches: true,
             runtimeCaching: [
                 {
@@ -95,10 +95,6 @@ export default defineNuxtConfig({
                             maxAgeSeconds: 60 * 60, // Cache for 1 hour
                         },
                     },
-                },
-                {
-                    urlPattern: /^\/auth\/.*/i,
-                    handler: "NetworkOnly",
                 },
                 {
                     urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/.*/i,
@@ -173,8 +169,8 @@ export default defineNuxtConfig({
     supabase: {
         redirect: true,
         redirectOptions: {
-            login: "/auth/login",
-            callback: "/auth/confirm",
+            login: "/login",
+            callback: "/login",
             include: undefined,
             exclude: [],
             saveRedirectToCookie: true,

@@ -190,6 +190,9 @@ export const useUserStatus = () => {
      * Initialize status tracking with beforeunload handler
      */
     const initialize = () => {
+        // Only initialize if user is logged in
+        if (!userSettings.value?.id) return
+
         startTracking()
 
         // Set offline when page unloads

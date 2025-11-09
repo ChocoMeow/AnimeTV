@@ -185,7 +185,7 @@ async function fetchSearchSuggestions() {
 async function signOut() {
     showUserMenu.value = false
     const { error } = await client.auth.signOut()
-    navigateTo("/auth/login")
+    navigateTo("/login")
 }
 
 onMounted(() => {
