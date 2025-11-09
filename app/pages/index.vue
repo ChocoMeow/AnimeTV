@@ -1,4 +1,5 @@
 <script setup>
+const { isMobile } = useMobile()
 const appConfig = useAppConfig()
 const loading = ref(false)
 const byDay = ref({})
@@ -33,7 +34,6 @@ const animeDetails = ref(null)
 const tooltipLoading = ref(false)
 const tooltipError = ref(null)
 const tooltipPosition = ref({ x: 0, y: 0, placement: "top" })
-const isMobile = ref(false)
 let hoverTimer = null
 
 // Cache for anime details
@@ -177,23 +177,16 @@ function handleMouseLeave() {
     tooltipError.value = null
 }
 
-function checkMobile() {
-    isMobile.value = window.innerWidth < 768 || "ontouchstart" in window
-}
-
 useHead({ title: `每日新番 | ${appConfig.siteName}` })
 
 onMounted(() => {
     fetchHomeAnime()
-    checkMobile()
-    window.addEventListener("resize", checkMobile)
 })
 
 onUnmounted(() => {
     if (hoverTimer) {
         clearTimeout(hoverTimer)
     }
-    window.removeEventListener("resize", checkMobile)
 })
 </script>
 

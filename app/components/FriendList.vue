@@ -1,5 +1,6 @@
 <script setup>
 const { userSettings } = useUserSettings()
+const { isMobile } = useMobile()
 const STORAGE_KEY = 'friendListOpen'
 const isOpen = ref(false)
 
@@ -9,12 +10,17 @@ const { friends, loading, error } = useFriends(userId)
 
 // Computed friend categories with proper status mapping
 const watchingFriends = computed(() => friends.value.filter((f) => f.status === "watching"))
-
 const onlineFriends = computed(() => friends.value.filter((f) => f.status === "online"))
-
 const idleFriends = computed(() => friends.value.filter((f) => f.status === "idle"))
-
 const offlineFriends = computed(() => friends.value.filter((f) => f.status === "offline"))
+
+// Friend sections configuration (filtered to only show sections with friends)
+const friendSections = computed(() => [
+    { friends: watchingFriends.value, title: "正在觀看", status: "watching", dotColorClass: "bg-green-500", icon: "play_circle", text: "在線", isWatching: true },
+    { friends: onlineFriends.value, title: "在線中", status: "online", dotColorClass: "bg-green-500", icon: "computer", text: "在線" },
+    { friends: idleFriends.value, title: "閒置中", status: "idle", dotColorClass: "bg-yellow-500", icon: "schedule", text: "暫時離開" },
+    { friends: offlineFriends.value, title: "離線", status: "offline", dotColorClass: "bg-gray-400", icon: null, text: null, isOffline: true }
+].filter(section => section.friends.length > 0))
 
 // Helper to format last seen time
 const formatLastSeen = (lastSeen) => {
@@ -68,9 +74,22 @@ const closeFriendList = () => {
     }
 }
 
+// Watch isOpen to manage body class when changed by v-model (e.g., when drawer closes)
+watch(isOpen, (newValue) => {
+    if (import.meta.client) {
+        if (newValue) {
+            document.body.classList.add("friend-list-open")
+            saveState(true)
+        } else {
+            document.body.classList.remove("friend-list-open")
+            saveState(false)
+        }
+    }
+})
+
 onMounted(() => {
     // Load saved state from localStorage after mount (client-side only)
-    if (typeof localStorage !== 'undefined') {
+    if (!isMobile.value && typeof localStorage !== 'undefined') {
         const saved = localStorage.getItem(STORAGE_KEY)
         if (saved === 'true') {
             isOpen.value = true
@@ -97,15 +116,12 @@ onBeforeUnmount(() => {
 
             <!-- Friends List -->
             <div class="flex-1 overflow-y-auto p-3 space-y-3 pt-6">
-                <!-- Online/Watching Friends -->
-                <div v-if="watchingFriends.length > 0" class="space-y-2">
-                    <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1">正在觀看 — {{ watchingFriends.length }}</h3>
-                    <div v-for="friend in watchingFriends" :key="friend.id" class="friend-card">
-                        <div class="relative p-3 rounded-xl border border-indigo-200 dark:border-indigo-800 hover:shadow-md transition-shadow overflow-hidden">
-                            <!-- Anime Background Image -->
+                <div v-for="section in friendSections" :key="section.status" class="space-y-2">
+                    <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1">{{ section.title }} — {{ section.friends.length }}</h3>
+                    <div v-for="friend in section.friends" :key="friend.id" class="friend-card">
+                        <!-- Watching Friend Card -->
+                        <div v-if="section.isWatching" class="relative p-3 rounded-xl border border-indigo-200 dark:border-indigo-800 hover:shadow-md transition-shadow overflow-hidden">
                             <div v-if="friend.animeBackground" class="anime-background absolute inset-0 bg-cover bg-center" :style="{ backgroundImage: `url(${friend.animeBackground})` }"></div>
-
-                            <!-- Content Overlay -->
                             <div class="relative z-10">
                                 <div class="flex items-start gap-3 mb-3">
                                     <div class="relative flex-shrink-0">
@@ -124,61 +140,19 @@ onBeforeUnmount(() => {
                                 <NuxtLink :to="`/anime/${friend.animeId}?e=${friend.currentEpisode}`" class="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-md">前往</NuxtLink>
                             </div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Online Friends -->
-                <div v-if="onlineFriends.length > 0" class="space-y-2">
-                    <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1">在線中 — {{ onlineFriends.length }}</h3>
-                    <div v-for="friend in onlineFriends" :key="friend.id" class="friend-card">
-                        <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-700">
+                        <!-- Regular Friend Card -->
+                        <div v-else :class="['flex items-center gap-3 p-3 rounded-xl transition-colors border border-gray-200 dark:border-gray-700', section.isOffline ? 'bg-gray-50 dark:bg-gray-800/30 opacity-70' : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800']">
                             <div class="relative flex-shrink-0">
-                                <img :src="friend.avatar" :alt="friend.name" class="w-10 h-10 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover" />
-                                <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full" :title="friend.status"></span>
+                                <img :src="friend.avatar" :alt="friend.name" :class="['w-10 h-10 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover', section.isOffline && 'grayscale']" />
+                                <span :class="['absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-gray-900 rounded-full', section.dotColorClass]" :title="friend.status"></span>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <h4 class="font-medium text-sm text-gray-900 dark:text-white truncate">{{ friend.name }}</h4>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                    <span class="material-icons text-xs">computer</span>
-                                    在線
+                                <p v-if="section.isOffline" class="text-xs text-gray-500 dark:text-gray-400">上次上線 {{ formatLastSeen(friend.lastSeen) }}</p>
+                                <p v-else class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                    <span v-if="section.icon" class="material-icons text-xs">{{ section.icon }}</span>
+                                    {{ section.text }}
                                 </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Idle Friends -->
-                <div v-if="idleFriends.length > 0" class="space-y-2">
-                    <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1">閒置中 — {{ idleFriends.length }}</h3>
-                    <div v-for="friend in idleFriends" :key="friend.id" class="friend-card">
-                        <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-700">
-                            <div class="relative flex-shrink-0">
-                                <img :src="friend.avatar" :alt="friend.name" class="w-10 h-10 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover" />
-                                <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-yellow-500 border-2 border-white dark:border-gray-900 rounded-full" :title="friend.status"></span>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <h4 class="font-medium text-sm text-gray-900 dark:text-white truncate">{{ friend.name }}</h4>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                    <span class="material-icons text-xs">schedule</span>
-                                    暫時離開
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Offline Friends -->
-                <div v-if="offlineFriends.length > 0" class="space-y-2">
-                    <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1">離線 — {{ offlineFriends.length }}</h3>
-                    <div v-for="friend in offlineFriends" :key="friend.id" class="friend-card">
-                        <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/30 rounded-xl opacity-70 border border-gray-200 dark:border-gray-700">
-                            <div class="relative flex-shrink-0">
-                                <img :src="friend.avatar" :alt="friend.name" class="w-10 h-10 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover grayscale" />
-                                <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-gray-400 border-2 border-white dark:border-gray-900 rounded-full" :title="friend.status"></span>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <h4 class="font-medium text-sm text-gray-900 dark:text-white truncate">{{ friend.name }}</h4>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">上次上線 {{ formatLastSeen(friend.lastSeen) }}</p>
                             </div>
                         </div>
                     </div>
@@ -188,110 +162,59 @@ onBeforeUnmount(() => {
     </transition>
 
     <!-- Mobile Friend List Drawer -->
-    <transition name="slide-up">
-        <div v-if="isOpen" class="lg:hidden fixed inset-0 z-50">
-            <!-- Backdrop -->
-            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="closeFriendList"></div>
-
-            <!-- Drawer -->
-            <div class="absolute bottom-0 left-0 right-0 max-h-[85vh] bg-white dark:bg-gray-900 rounded-t-3xl shadow-2xl flex flex-col">
-                <!-- Toggle Button (Top with swipe down indicator) -->
-                <button @click="closeFriendList" class="pt-4 pb-5 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors w-full" title="關閉好友列表">
-                    <span class="material-icons text-gray-600 dark:text-gray-300 text-2xl">expand_more</span>
-                </button>
-
-                <!-- Mobile Friends List -->
-                <div class="flex-1 overflow-y-auto p-4 space-y-4 pb-8">
-                    <!-- Watching Friends (Mobile) -->
-                    <div v-if="watchingFriends.length > 0" class="space-y-3">
-                        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">正在觀看 — {{ watchingFriends.length }}</h3>
-                        <div v-for="friend in watchingFriends" :key="friend.id" class="friend-card">
-                            <div class="relative p-4 rounded-2xl border border-indigo-200 dark:border-indigo-800 overflow-hidden">
-                                <!-- Anime Background Image -->
-                                <div v-if="friend.animeBackground" class="anime-background absolute inset-0 bg-cover bg-center" :style="{ backgroundImage: `url(${friend.animeBackground})` }"></div>
-
-                                <!-- Content Overlay -->
-                                <div class="relative z-10">
-                                    <div class="flex items-start gap-3 mb-3">
-                                        <div class="relative flex-shrink-0">
-                                            <img :src="friend.avatar" :alt="friend.name" class="w-14 h-14 rounded-full border-2 border-white dark:border-gray-200 object-cover shadow-lg" />
-                                            <span class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-3 border-white dark:border-gray-900 rounded-full"></span>
-                                        </div>
-                                        <div class="flex-1 min-w-0">
-                                            <h4 class="font-bold text-base text-white drop-shadow-lg truncate mb-1">{{ friend.name }}</h4>
-                                            <div class="flex items-center gap-1.5 text-sm text-white drop-shadow-md mb-1">
-                                                <span class="material-icons text-base">play_circle</span>
-                                                <span class="truncate font-medium">{{ friend.currentAnime }}</span>
-                                            </div>
-                                            <div class="text-sm text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }} 集</div>
-                                        </div>
+    <ClientOnly>
+        <BaseBottomDrawer
+            v-if="isMobile"
+            v-model="isOpen"
+            title="好友列表"
+            :max-height="'max-h-[85vh]'"
+        >
+        <!-- Mobile Friends List -->
+        <div class="space-y-4 pb-4">
+            <div v-for="section in friendSections" :key="section.status" class="space-y-3">
+                <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{{ section.title }} — {{ section.friends.length }}</h3>
+                <div v-for="friend in section.friends" :key="friend.id" class="friend-card">
+                    <!-- Watching Friend Card (Mobile) -->
+                    <div v-if="section.isWatching" class="relative p-4 rounded-2xl border border-indigo-200 dark:border-indigo-800 overflow-hidden">
+                        <div v-if="friend.animeBackground" class="anime-background absolute inset-0 bg-cover bg-center" :style="{ backgroundImage: `url(${friend.animeBackground})` }"></div>
+                        <div class="relative z-10">
+                            <div class="flex items-start gap-3 mb-3">
+                                <div class="relative flex-shrink-0">
+                                    <img :src="friend.avatar" :alt="friend.name" class="w-14 h-14 rounded-full border-2 border-white dark:border-gray-200 object-cover shadow-lg" />
+                                    <span class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-3 border-white dark:border-gray-900 rounded-full"></span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <h4 class="font-bold text-base text-white drop-shadow-lg truncate mb-1">{{ friend.name }}</h4>
+                                    <div class="flex items-center gap-1.5 text-sm text-white drop-shadow-md mb-1">
+                                        <span class="material-icons text-base">play_circle</span>
+                                        <span class="truncate font-medium">{{ friend.currentAnime }}</span>
                                     </div>
-                                    <NuxtLink :to="`/anime/${friend.animeId}?e=${friend.currentEpisode}`" class="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md">前往</NuxtLink>
+                                    <div class="text-sm text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }} 集</div>
                                 </div>
                             </div>
+                            <NuxtLink :to="`/anime/${friend.animeId}?e=${friend.currentEpisode}`" class="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md">前往</NuxtLink>
                         </div>
                     </div>
-
-                    <!-- Online Friends (Mobile) -->
-                    <div v-if="onlineFriends.length > 0" class="space-y-3">
-                        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">在線中 — {{ onlineFriends.length }}</h3>
-                        <div v-for="friend in onlineFriends" :key="friend.id" class="friend-card">
-                            <div class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700">
-                                <div class="relative flex-shrink-0">
-                                    <img :src="friend.avatar" :alt="friend.name" class="w-12 h-12 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover" />
-                                    <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <h4 class="font-semibold text-base text-gray-900 dark:text-white truncate">{{ friend.name }}</h4>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                        <span class="material-icons text-sm">computer</span>
-                                        在線
-                                    </p>
-                                </div>
-                            </div>
+                    <!-- Regular Friend Card (Mobile) -->
+                    <div v-else :class="['flex items-center gap-3 p-4 rounded-2xl border border-gray-200 dark:border-gray-700', section.isOffline ? 'bg-gray-50 dark:bg-gray-800/30 opacity-70' : 'bg-gray-50 dark:bg-gray-800/50']">
+                        <div class="relative flex-shrink-0">
+                            <img :src="friend.avatar" :alt="friend.name" :class="['w-12 h-12 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover', section.isOffline && 'grayscale']" />
+                            <span :class="['absolute -bottom-0.5 -right-0.5 w-4 h-4 border-2 border-white dark:border-gray-900 rounded-full', section.dotColorClass]"></span>
                         </div>
-                    </div>
-                    
-                    <!-- Idle Friends (Mobile) -->
-                    <div v-if="idleFriends.length > 0" class="space-y-3">
-                        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">閒置中 — {{ idleFriends.length }}</h3>
-                        <div v-for="friend in idleFriends" :key="friend.id" class="friend-card">
-                            <div class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700">
-                                <div class="relative flex-shrink-0">
-                                    <img :src="friend.avatar" :alt="friend.name" class="w-12 h-12 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover" />
-                                    <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-yellow-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <h4 class="font-semibold text-base text-gray-900 dark:text-white truncate">{{ friend.name }}</h4>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                        <span class="material-icons text-sm">schedule</span>
-                                        暫時離開
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Offline Friends (Mobile) -->
-                    <div v-if="offlineFriends.length > 0" class="space-y-3">
-                        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">離線 — {{ offlineFriends.length }}</h3>
-                        <div v-for="friend in offlineFriends" :key="friend.id" class="friend-card">
-                            <div class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/30 rounded-2xl opacity-70 border border-gray-200 dark:border-gray-700">
-                                <div class="relative flex-shrink-0">
-                                    <img :src="friend.avatar" :alt="friend.name" class="w-12 h-12 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover grayscale" />
-                                    <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-gray-400 border-2 border-white dark:border-gray-900 rounded-full"></span>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <h4 class="font-semibold text-base text-gray-900 dark:text-white truncate">{{ friend.name }}</h4>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400">上次上線 {{ formatLastSeen(friend.lastSeen) }}</p>
-                                </div>
-                            </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-semibold text-base text-gray-900 dark:text-white truncate">{{ friend.name }}</h4>
+                            <p v-if="section.isOffline" class="text-sm text-gray-500 dark:text-gray-400">上次上線 {{ formatLastSeen(friend.lastSeen) }}</p>
+                            <p v-else class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                <span v-if="section.icon" class="material-icons text-sm">{{ section.icon }}</span>
+                                {{ section.text }}
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </transition>
+        </BaseBottomDrawer>
+    </ClientOnly>
 
     <!-- Toggle Button - Desktop (when closed) -->
     <ClientOnly>
@@ -320,24 +243,6 @@ onBeforeUnmount(() => {
     opacity: 0;
 }
 
-/* Slide up animation for mobile drawer */
-.slide-up-enter-active {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.slide-up-leave-active {
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.6, 1);
-}
-
-.slide-up-enter-from .absolute.bottom-0,
-.slide-up-leave-to .absolute.bottom-0 {
-    transform: translateY(100%);
-}
-
-.slide-up-enter-from .absolute.inset-0,
-.slide-up-leave-to .absolute.inset-0 {
-    opacity: 0;
-}
 
 /* Fade animation for the floating button */
 .fade-enter-active,

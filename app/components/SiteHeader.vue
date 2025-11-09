@@ -1,5 +1,6 @@
 <script setup>
 const { searchHistory, userSettings } = useUserSettings()
+const { isMobile } = useMobile()
 const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
@@ -21,12 +22,14 @@ let hideDropdownTimeout = null
 let hideUserMenuTimeout = null
 let searchDebounceTimeout = null
 
-function handleResize() {
-    if (window.innerWidth >= 768) {
+
+// Watch for mobile changes to close mobile menus when switching to desktop
+watch(isMobile, (newValue) => {
+    if (!newValue) {
         mobileSearchOpen.value = false
         mobileMenuOpen.value = false
     }
-}
+})
 
 function debouncedSearch() {
     if (searchDebounceTimeout) {
@@ -190,11 +193,9 @@ async function signOut() {
 
 onMounted(() => {
     fetchSearchHistory()
-    window.addEventListener("resize", handleResize)
 })
 
 onUnmounted(() => {
-    window.removeEventListener("resize", handleResize)
     if (searchDebounceTimeout) {
         clearTimeout(searchDebounceTimeout)
     }

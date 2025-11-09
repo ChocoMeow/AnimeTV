@@ -28,6 +28,8 @@ const props = defineProps({
 
 const emit = defineEmits(["close"])
 
+const { isMobile } = useMobile()
+
 function handleBackdropClick() {
     if (!props.persistent) {
         emit("close")
@@ -46,6 +48,10 @@ function lockScroll() {
 
 function unlockScroll() {
     document.body.style.overflow = ""
+}
+
+function handleDrawerClose() {
+    emit("close")
 }
 
 onMounted(() => {
@@ -68,7 +74,38 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <transition name="fade">
+    <!-- Mobile: Use Bottom Drawer -->
+    <BaseBottomDrawer
+        v-if="isMobile"
+        :model-value="show"
+        :title="title"
+        :persistent="persistent"
+        @update:model-value="handleDrawerClose"
+    >
+        <template #header>
+            <div v-if="title || icon" class="flex items-center gap-3">
+                <span v-if="icon" class="material-icons text-3xl" :class="iconColor">
+                    {{ icon }}
+                </span>
+                <h3 v-if="title" class="text-xl font-bold text-gray-900 dark:text-white">
+                    {{ title }}
+                </h3>
+            </div>
+        </template>
+
+        <!-- Content Slot -->
+        <slot />
+
+        <!-- Actions Slot (with default styling) -->
+        <template #footer>
+            <div v-if="$slots.actions" class="flex gap-3 justify-end">
+                <slot name="actions" />
+            </div>
+        </template>
+    </BaseBottomDrawer>
+
+    <!-- Desktop: Use Centered Modal -->
+    <transition v-else name="fade">
         <div v-if="show" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" @click="handleBackdropClick">
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full p-6" :class="maxWidth" @click.stop>
                 <!-- Header -->
