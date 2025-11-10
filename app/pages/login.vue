@@ -8,6 +8,8 @@ const error = ref(null)
 const featuredAnime = ref([])
 const randomMobileAnime = ref(null)
 const animeLoaded = ref(false)
+const animationsReady = ref(false)
+const scrollContainer = ref(null)
 
 // Auth status states
 const authStatus = ref("idle") // 'idle', 'verifying', 'success', 'error'
@@ -40,7 +42,26 @@ async function fetchFeaturedAnime() {
             await nextTick()
             setTimeout(() => {
                 animeLoaded.value = true
-            }, 100)
+                // Force Safari to recognize animations by triggering a reflow
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        // Force reflow by reading layout properties
+                        if (scrollContainer.value) {
+                            const lanes = scrollContainer.value.querySelectorAll('.anime-scroll-track')
+                            if (lanes.length > 0) {
+                                lanes.forEach(lane => {
+                                    // Trigger reflow - this forces Safari to recalculate and start animations
+                                    void lane.offsetHeight
+                                })
+                            }
+                        }
+                        // Small additional delay for Safari
+                        setTimeout(() => {
+                            animationsReady.value = true
+                        }, 50)
+                    })
+                })
+            }, 150)
         }
     } catch (err) {
         console.error("Failed to fetch featured anime:", err)
@@ -143,13 +164,13 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
         <!-- Left Side: Anime Showcase -->
         <div class="hidden lg:flex lg:w-2/3 relative overflow-hidden">
             <!-- Infinite Scrolling Lanes -->
-            <div class="absolute inset-0 flex flex-row gap-6">
-                <div
-                    v-for="(lane, i) in lanes"
-                    :key="i"
-                    :class="['anime-scroll-lane', lane.class, lane.extra]"
-                >
-                        <div class="anime-scroll-track">
+            <div ref="scrollContainer" class="absolute inset-0 flex flex-row gap-6">
+                    <div
+                        v-for="(lane, i) in lanes"
+                        :key="i"
+                        :class="['anime-scroll-lane', lane.class, lane.extra]"
+                    >
+                        <div :class="['anime-scroll-track', { 'animate-ready': animationsReady }]">
                             <div
                                 v-for="(anime, index) in lane.anime"
                                 :key="`${lane.class}-${anime.refId || index}-${index}`"
@@ -338,27 +359,36 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
     display: flex;
     flex-direction: column;
     will-change: transform;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
-/* All lanes scroll down with different speeds */
-.lane-down .anime-scroll-track {
+/* All lanes scroll down with different speeds - only when ready */
+.lane-down .anime-scroll-track.animate-ready {
     animation: scrollDown 120s linear infinite;
+    -webkit-animation: scrollDown 120s linear infinite;
 }
 
-.lane-2 .anime-scroll-track {
+.lane-2 .anime-scroll-track.animate-ready {
     animation: scrollDown 140s linear infinite;
+    -webkit-animation: scrollDown 140s linear infinite;
 }
 
-.lane-3 .anime-scroll-track {
+.lane-3 .anime-scroll-track.animate-ready {
     animation: scrollDown 110s linear infinite;
+    -webkit-animation: scrollDown 110s linear infinite;
 }
 
-.lane-4 .anime-scroll-track {
+.lane-4 .anime-scroll-track.animate-ready {
     animation: scrollDown 150s linear infinite;
+    -webkit-animation: scrollDown 150s linear infinite;
 }
 
-.lane-5 .anime-scroll-track {
+.lane-5 .anime-scroll-track.animate-ready {
     animation: scrollDown 130s linear infinite;
+    -webkit-animation: scrollDown 130s linear infinite;
 }
 
 .anime-scroll-item {
@@ -394,10 +424,12 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
 /* Infinite Scroll Animation - Top to Bottom */
 @keyframes scrollDown {
     0% {
-        transform: translateY(0);
+        transform: translate3d(0, 0, 0);
+        -webkit-transform: translate3d(0, 0, 0);
     }
     100% {
-        transform: translateY(-50%);
+        transform: translate3d(0, -50%, 0);
+        -webkit-transform: translate3d(0, -50%, 0);
     }
 }
 
