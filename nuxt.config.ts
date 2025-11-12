@@ -176,18 +176,18 @@ export default defineNuxtConfig({
             saveRedirectToCookie: true,
         },
         types: false,
-        cookieOptions: {
-            maxAge: 60 * 60 * 24 * 365, // 1 year
-            sameSite: "lax",
-            secure: true,
-        },
-        clientOptions: {
-            auth: {
-                flowType: "pkce",
-                autoRefreshToken: import.meta.client,
-                detectSessionInUrl: import.meta.client,
-                persistSession: true,
-            },
-        },
+        // cookieOptions: {
+        //     maxAge: 60 * 60 * 24 * 365, // 1 year
+        //     sameSite: "lax",
+        //     secure: true,
+        // },
+        // clientOptions: {
+        //     auth: {
+        //         flowType: "pkce",
+        //         autoRefreshToken: import.meta.client,
+        //         detectSessionInUrl: import.meta.client,
+        //         persistSession: true,
+        //     },
+        // },
     },
 })
