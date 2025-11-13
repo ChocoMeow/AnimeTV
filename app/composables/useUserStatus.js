@@ -67,7 +67,11 @@ export const useUserStatus = () => {
      */
     const setWatching = async (animeData) => {
         await updateStatus("watching", animeData)
-        resetIdleTimer()
+        // Clear idle timer when watching - user is actively watching, no need for idle timer
+        if (idleTimer) {
+            clearTimeout(idleTimer)
+            idleTimer = null
+        }
     }
 
     /**
@@ -97,11 +101,19 @@ export const useUserStatus = () => {
      * Reset idle timer
      */
     const resetIdleTimer = () => {
+        // Clear existing timer
         if (idleTimer) {
             clearTimeout(idleTimer)
+            idleTimer = null
+        }
+
+        // Don't set idle timer if status is "watching" or "offline"
+        if (currentStatus.value === "watching" || currentStatus.value === "offline") {
+            return
         }
 
         idleTimer = setTimeout(() => {
+            // Double check status hasn't changed to watching
             if (currentStatus.value !== "offline" && currentStatus.value !== "watching") {
                 setIdle()
             }
@@ -136,11 +148,15 @@ export const useUserStatus = () => {
      * Handle user activity (mouse, keyboard, touch)
      */
     const handleActivity = () => {
-        if (currentStatus.value === "idle") {
-            // If was idle, set back to online (or watching if video is playing)
-            setOnline()
+        if (currentStatus.value === "watching") {
+            return
         }
-        resetIdleTimer()
+        
+        if (currentStatus.value === "idle") {
+            setOnline()
+        } else {
+            resetIdleTimer()
+        }
     }
 
     /**
