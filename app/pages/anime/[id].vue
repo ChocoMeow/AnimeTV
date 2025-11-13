@@ -20,6 +20,7 @@ const isFavorite = ref(false)
 const showShareDialog = ref(false)
 const showDetailDialog = ref(false)
 const shareUrl = ref("")
+const showShortcutsModal = ref(false)
 
 // Continue Watching State
 const lastWatchedData = ref(null)
@@ -120,6 +121,12 @@ function getEpisodeInfo() {
 const hasNextEpisode = computed(() => {
     const { episodeNumbers, currentIndex } = getEpisodeInfo()
     return currentIndex !== -1 && currentIndex < episodeNumbers.length - 1
+})
+
+// Check if running on Mac (for displaying correct modifier key)
+const isMac = computed(() => {
+    if (typeof window === 'undefined') return false
+    return /Mac|iPhone|iPod|iPad/i.test(navigator.platform)
 })
 
 function handleNextEpisode() {
@@ -364,9 +371,19 @@ watch(selectedEpisode, async (epNum) => {
     }
 })
 
+// Keyboard shortcuts handler
+function handleShortcutsKeydown(e) {
+    // Handle Ctrl+/ or Cmd+/ to show shortcuts menu
+    if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+        e.preventDefault()
+        showShortcutsModal.value = !showShortcutsModal.value
+    }
+}
+
 onMounted(() => {
     fetchDetail()
     window.addEventListener("beforeunload", saveWatchHistory)
+    window.addEventListener("keydown", handleShortcutsKeydown)
 })
 
 onUnmounted(() => {
@@ -374,6 +391,7 @@ onUnmounted(() => {
     stopAutoSave()
     setOnline()
     window.removeEventListener("beforeunload", saveWatchHistory)
+    window.removeEventListener("keydown", handleShortcutsKeydown)
 })
 </script>
 
@@ -591,6 +609,99 @@ onUnmounted(() => {
 
     <!-- Detail Dialog Component -->
     <LazyAnimeDetailDialog v-if="anime" v-model="showDetailDialog" :anime-id="anime.detailId" />
+
+    <!-- Keyboard Shortcuts Dialog -->
+    <BaseDialog v-model="showShortcutsModal" max-width="max-w-2xl">
+        <template #header>
+            <div class="flex items-center gap-3">
+                <span class="material-icons text-3xl text-indigo-500">keyboard</span>
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white">鍵盤快捷鍵</h3>
+            </div>
+        </template>
+        <div class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Playback Controls -->
+                <div class="space-y-3">
+                    <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">播放控制</h4>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">播放/暫停</span>
+                            <div class="flex items-center gap-2">
+                                <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">Space</kbd>
+                                <span class="text-xs text-gray-400">或</span>
+                                <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">K</kbd>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">長按 Space (2x 速度)</span>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">Space (長按)</kbd>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">跳過片頭</span>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">Shift</kbd>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">前進 5 秒</span>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">→</kbd>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">後退 5 秒</span>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">←</kbd>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">前進 10 秒</span>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">L</kbd>
+                        </div>
+                        <div class="flex items-center justify-between py-2">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">後退 10 秒</span>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">J</kbd>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Volume & Display Controls -->
+                <div class="space-y-3">
+                    <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">音量與顯示</h4>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">增加音量</span>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">↑</kbd>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">減少音量</span>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">↓</kbd>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">靜音/取消靜音</span>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">M</kbd>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">全螢幕</span>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">F</kbd>
+                        </div>
+                        <div class="flex items-center justify-between py-2">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">顯示快捷鍵</span>
+                            <div class="flex items-center gap-1">
+                                <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">
+                                    <span v-if="isMac">⌘</span>
+                                    <span v-else>Ctrl</span>
+                                </kbd>
+                                <span class="text-xs text-gray-400">+</span>
+                                <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">/</kbd>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Info -->
+            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <p class="text-xs text-gray-500 dark:text-gray-400 text-center">
+                    提示：在輸入框中輸入時，快捷鍵將不會生效
+                </p>
+            </div>
+        </div>
+    </BaseDialog>
 </template>
 
 <style scoped>

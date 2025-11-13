@@ -385,6 +385,9 @@ function handleKeydown(e) {
             skip(5)
             showNotification("前進 5 秒", "fast_forward")
             break
+        case "Shift":
+            skipOP()
+            break
         case "ArrowUp": // Up arrow - increase volume
             {
                 const newVolume = Math.min(1, volume.value + 0.1)
