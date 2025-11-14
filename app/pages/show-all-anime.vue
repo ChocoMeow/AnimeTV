@@ -14,6 +14,9 @@ const selectedCategory = ref("")
 const selectedSort = ref("1") // 1: 依年份排列, 2: 依月人氣排序
 const showFilters = ref(true)
 
+// Flag to prevent watcher from triggering when we update URL programmatically
+const isUpdatingURL = ref(false)
+
 const tags = [
     "全部",
     "動作",
@@ -69,6 +72,7 @@ function initializeFromRoute() {
 
 // Update URL with current filters
 function updateURL() {
+    isUpdatingURL.value = true
     const query = {
         page: currentPage.value > 1 ? currentPage.value : undefined,
         category: selectedCategory.value || undefined,
@@ -76,7 +80,15 @@ function updateURL() {
         sort: selectedSort.value !== "1" ? selectedSort.value : undefined,
     }
 
-    router.push({ query })
+    router.replace({ query }).then(() => {
+        // Reset flag after navigation completes
+        nextTick(() => {
+            isUpdatingURL.value = false
+        })
+    }).catch(() => {
+        // Reset flag even if navigation fails
+        isUpdatingURL.value = false
+    })
 }
 
 // Fetch anime list (page + filters)
@@ -147,6 +159,10 @@ function formatViews(views) {
 watch(
     () => route.query,
     () => {
+        // Skip if we're updating the URL programmatically
+        if (isUpdatingURL.value) {
+            return
+        }
         initializeFromRoute()
         fetchAnime(currentPage.value)
     },
