@@ -82,15 +82,27 @@ function continueLast() {
 
 function handlePlay() {
     startAutoSave()
+    // Ensure watching status is maintained when video plays
+    if (anime.value && selectedEpisode.value) {
+        setWatching({
+            refId: anime.value.refId,
+            title: anime.value.title,
+            image: anime.value.image,
+            episode: selectedEpisode.value
+        })
+    }
 }
 
 function handlePause() {
     stopAutoSave()
+    // Keep watching status even when paused - user is still watching this anime
+    // The watching heartbeat will maintain the status
 }
 
 function handleEnded() {
     saveWatchHistory()
     stopAutoSave()
+    // When episode ends, set back to online (not watching anymore)
     setOnline()
 }
 
@@ -389,6 +401,7 @@ onMounted(() => {
 onUnmounted(() => {
     saveWatchHistory()
     stopAutoSave()
+    // Set online when leaving the anime page (not watching anymore)
     setOnline()
     window.removeEventListener("beforeunload", saveWatchHistory)
     window.removeEventListener("keydown", handleShortcutsKeydown)
