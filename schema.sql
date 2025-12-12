@@ -558,7 +558,9 @@ CREATE POLICY "Enable read access for own and friends status" ON "public"."user_
 
 
 
-CREATE POLICY "Enable read access for users" ON "public"."watch_history" FOR SELECT TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+CREATE POLICY "Enable read access for users and friends" ON "public"."watch_history" FOR SELECT TO "authenticated" USING ((("user_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
+   FROM "public"."friends" "f"
+  WHERE (("f"."status" = 'accepted'::"text") AND ((("f"."user_id" = "auth"."uid"()) AND ("f"."friend_id" = "watch_history"."user_id")) OR (("f"."friend_id" = "auth"."uid"()) AND ("f"."user_id" = "watch_history"."user_id")))))));
 
 
 
@@ -599,7 +601,9 @@ CREATE POLICY "insert_search_history" ON "public"."search_history" FOR INSERT TO
 ALTER TABLE "public"."search_history" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "select_favorites" ON "public"."favorites" FOR SELECT TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+CREATE POLICY "select_favorites" ON "public"."favorites" FOR SELECT TO "authenticated" USING ((("user_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
+   FROM "public"."friends" "f"
+  WHERE (("f"."status" = 'accepted'::"text") AND ((("f"."user_id" = "auth"."uid"()) AND ("f"."friend_id" = "favorites"."user_id")) OR (("f"."friend_id" = "auth"."uid"()) AND ("f"."user_id" = "favorites"."user_id")))))));
 
 
 
