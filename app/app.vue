@@ -1,11 +1,3 @@
-<script setup>
-const { initialize: initializeStatus } = useUserStatus()
-
-onMounted(() => {
-    initializeStatus()
-})
-</script>
-
 <template>
     <NuxtRouteAnnouncer />
     <NuxtPwaAssets />
