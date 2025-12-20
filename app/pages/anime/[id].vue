@@ -166,7 +166,11 @@ async function toggleFavorite() {
 async function fetchLastWatched() {
     try {
         if (!userSettings.value.id || !anime.value) return
-        const { data, error } = await client.from("watch_history").select("*").eq("anime_ref_id", anime.value.refId).order("updated_at", { ascending: false })
+        const { data, error } = await client.from("watch_history")
+            .select("*")
+            .eq("anime_ref_id", anime.value.refId)
+            .eq("user_id", userSettings.value.id)
+            .order("updated_at", { ascending: false })
 
         if (!error && data && data.length > 0) {
             allWatchProgress.value = {}
