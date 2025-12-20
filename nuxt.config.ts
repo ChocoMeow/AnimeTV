@@ -11,11 +11,6 @@ export default defineNuxtConfig({
     experimental: {
         entryImportMap: false,
     },
-    vite: {
-        esbuild: {
-            drop: ['console', 'debugger'],
-        }
-    },
     app: {
         head: {
             title: "AnimeTV",
@@ -170,9 +165,6 @@ export default defineNuxtConfig({
         prerender: {
             routes: ["/"],
         },
-        experimental: {
-            websocket: true
-        }
     },
     supabase: {
         redirect: true,
@@ -198,10 +190,4 @@ export default defineNuxtConfig({
         //     },
         // },
     },
-    runtimeConfig: {
-        private: {
-            supabaseUrl: process.env.SUPABASE_URL,
-            supabaseKey: process.env.SUPABASE_KEY,
-        }
-    }
 })
