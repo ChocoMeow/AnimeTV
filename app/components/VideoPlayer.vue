@@ -18,7 +18,7 @@ const props = defineProps({
     },
 })
 
-const emit = defineEmits(["play", "pause", "ended", "volumechange", "loadstart", "loadeddata", "timeupdate", "next-episode"])
+const emit = defineEmits(["play", "pause", "ended", "volumechange", "loadstart", "loadeddata", "timeupdate", "next-episode", "previous-episode"])
 
 // Refs
 const videoRef = ref(null)
@@ -350,7 +350,7 @@ function handleKeydown(e) {
     if (isTying) return
 
     // Prevent default for handled keys
-    const handledKeys = [" ", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "m", "f", "k", "j", "l"]
+    const handledKeys = [" ", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "m", "f", "k", "j", "l", "\\", "[", "]"]
     if (handledKeys.includes(e.key)) {
         e.preventDefault()
     }
@@ -385,8 +385,15 @@ function handleKeydown(e) {
             skip(5)
             showNotification("前進 5 秒", "fast_forward")
             break
-        case "Shift":
+        case "\\": // Backslash - skip OP
             skipOP()
+            break
+        case "[": // Left bracket - previous episode
+            emit("previous-episode")
+            showNotification("上一集", "skip_previous")
+            break
+        case "]": // Right bracket - next episode
+            handleNextEpisode()
             break
         case "ArrowUp": // Up arrow - increase volume
             {
@@ -687,7 +694,7 @@ watch(
                         <!-- Next Episode -->
                         <button v-if="hasNextEpisode" @click="handleNextEpisode"
                             class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
-                            title="下一集">
+                            title="下一集 (])">
                             <span class="material-icons text-xl sm:text-2xl">skip_next</span>
                         </button>
                         

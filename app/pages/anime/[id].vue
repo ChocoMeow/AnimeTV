@@ -139,6 +139,16 @@ function handleNextEpisode() {
     }
 }
 
+function handlePreviousEpisode() {
+    const { episodeNumbers, currentIndex } = getEpisodeInfo()
+    
+    // If there's a previous episode, select it
+    if (currentIndex !== -1 && currentIndex > 0) {
+        const prevEpisode = episodeNumbers[currentIndex - 1]
+        selectedEpisode.value = prevEpisode
+    }
+}
+
 async function toggleFavorite() {
     if (!anime.value || !userSettings.value.id) return
     isFavorite.value = !isFavorite.value
@@ -572,7 +582,7 @@ onUnmounted(() => {
                     <p>暫無可用集數</p>
                 </div>
 
-                <VideoPlayer v-if="videoUrl || selectedEpisode" ref="videoPlayer" :src="videoUrl || ''" autoplay preload="metadata" :has-next-episode="hasNextEpisode" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @next-episode="handleNextEpisode" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
+                <VideoPlayer v-if="videoUrl || selectedEpisode" ref="videoPlayer" :src="videoUrl || ''" autoplay preload="metadata" :has-next-episode="hasNextEpisode" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @next-episode="handleNextEpisode" @previous-episode="handlePreviousEpisode" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
 
                 <div v-else class="aspect-video bg-black relative rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-400">
                     <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>
@@ -642,7 +652,15 @@ onUnmounted(() => {
                         </div>
                         <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
                             <span class="text-sm text-gray-600 dark:text-gray-400">跳過片頭</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">Shift</kbd>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">\</kbd>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">上一集</span>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">[</kbd>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">下一集</span>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">]</kbd>
                         </div>
                         <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
                             <span class="text-sm text-gray-600 dark:text-gray-400">前進 5 秒</span>

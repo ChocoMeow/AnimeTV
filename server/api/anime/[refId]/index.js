@@ -166,7 +166,11 @@ export default defineEventHandler(async (event) => {
             throw createError({ statusCode: 404, statusMessage: "Anime not found" })
         }
 
-        const { data } = await client.from("favorites").select("id").eq("anime_ref_id", animeDetail.refId).single()
+        const { data } = await client.from("favorites")
+            .select("id")
+            .eq("anime_ref_id", animeDetail.refId)
+            .eq("user_id", user.sub)
+            .single()
         return { ...animeDetail, isFavorite: data !== null }
 
     } catch (error) {
