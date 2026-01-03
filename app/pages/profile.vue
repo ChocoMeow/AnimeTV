@@ -1,6 +1,6 @@
 <script setup>
 const { showToast } = useToast()
-const { searchHistory, userSettings, updateSetting } = useUserSettings()
+const { searchHistory, userSettings, updateSetting, getDefaultShortcuts, getShortcuts, resetShortcuts, formatShortcutKey } = useUserSettings()
 const appConfig = useAppConfig()
 const client = useSupabaseClient()
 
@@ -8,6 +8,103 @@ const loading = ref(false)
 const showDisableAccountModal = ref(false)
 const showClearDataModal = ref(false)
 const clearDataType = ref("") // 'history', 'favorites', 'search', 'all'
+const showShortcutsModal = ref(false)
+const editingShortcut = ref(null)
+const waitingForKey = ref(false)
+const shortcuts = computed(() => getShortcuts())
+const defaultShortcuts = getDefaultShortcuts()
+
+// Start editing a shortcut
+function startEditShortcut(action) {
+    editingShortcut.value = action
+    waitingForKey.value = true
+}
+
+// Cancel editing
+function cancelEditShortcut() {
+    editingShortcut.value = null
+    waitingForKey.value = false
+}
+
+// Handle key press for shortcut assignment
+function handleKeyPress(e) {
+    if (!waitingForKey.value || !editingShortcut.value) return
+    
+    e.preventDefault()
+    e.stopPropagation()
+    
+    // Ignore modifier keys alone
+    if (['Control', 'Alt', 'Meta', 'OS'].includes(e.key)) {
+        return
+    }
+    
+    // Get the key value
+    let keyValue = e.key
+    
+    // Handle special keys
+    if (e.key === ' ') {
+        keyValue = ' '
+    } else if (e.key.startsWith('Arrow')) {
+        keyValue = e.key
+    } else if (e.key.length === 1) {
+        keyValue = e.key.toLowerCase()
+    }
+    
+    // Check for duplicates before saving
+    const conflictingAction = checkDuplicateShortcut(editingShortcut.value, keyValue)
+    if (conflictingAction) {
+        const conflictingLabel = shortcuts.value[conflictingAction]?.label || conflictingAction
+        showToast(`此快捷鍵已被「${conflictingLabel}」使用，請先更改該功能的快捷鍵`, "error")
+        return
+    }
+    
+    // Save the shortcut
+    saveShortcut(editingShortcut.value, keyValue)
+}
+
+// Check if a shortcut key is already in use
+function checkDuplicateShortcut(action, key) {
+    const currentShortcuts = shortcuts.value
+    
+    // Check if the key is already used by another action
+    for (const [actionKey, actionValue] of Object.entries(currentShortcuts)) {
+        // Skip the current action being edited
+        if (actionKey === action) continue
+        
+        // Get the key from the shortcut object
+        const shortcutKey = typeof actionValue === 'string' ? actionValue : actionValue.key
+        
+        // Check if the key matches
+        if (shortcutKey === key) {
+            // Return the conflicting action name for better error message
+            return actionKey
+        }
+    }
+    
+    return null // No duplicate
+}
+
+// Save a shortcut
+async function saveShortcut(action, key) {
+    const currentShortcuts = userSettings.value?.custom_shortcuts || {}
+    const newShortcuts = { ...currentShortcuts, [action]: key }
+    
+    const success = await updateSetting('custom_shortcuts', newShortcuts)
+    if (success) {
+        editingShortcut.value = null
+        waitingForKey.value = false
+        showToast("快捷鍵已更新", "success")
+    }
+}
+
+// Reset all shortcuts to defaults
+async function resetAllShortcuts() {
+    const success = await resetShortcuts()
+    if (success) {
+        showToast("快捷鍵已重置為預設值", "success")
+    }
+}
+
 
 // Stats
 const stats = ref({
@@ -99,6 +196,22 @@ async function clearData() {
 
 onMounted(() => {
     fetchStats()
+    if (showShortcutsModal.value) {
+        window.addEventListener('keydown', handleKeyPress)
+    }
+})
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', handleKeyPress)
+})
+
+watch(showShortcutsModal, (isOpen) => {
+    if (isOpen) {
+        window.addEventListener('keydown', handleKeyPress)
+    } else {
+        window.removeEventListener('keydown', handleKeyPress)
+        cancelEditShortcut()
+    }
 })
 
 useHead({
@@ -190,6 +303,21 @@ useHead({
                     </div>
                 </div>
 
+                <!-- Keyboard Shortcuts -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <span class="material-icons text-gray-600 dark:text-gray-400">keyboard</span>
+                            <h3 class="text-xl font-semibold text-gray-900 dark:text-white">鍵盤快捷鍵</h3>
+                        </div>
+                        <button @click="showShortcutsModal = true" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium flex items-center gap-2">
+                            <span class="material-icons text-lg">edit</span>
+                            自訂快捷鍵
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">自訂影片播放器的鍵盤快捷鍵以符合你的使用習慣</p>
+                </div>
+
                 <!-- Data Management -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                     <div class="flex items-center gap-3 mb-6">
@@ -275,6 +403,56 @@ useHead({
             <template #actions>
                 <button @click="showDisableAccountModal = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
                 <button @click="disableAccount" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認停用</button>
+            </template>
+        </BaseModal>
+
+        <!-- Shortcuts Customization Modal -->
+        <BaseModal :show="showShortcutsModal" title="自訂快捷鍵" icon="keyboard" icon-color="text-indigo-500" max-width="max-w-3xl" @close="showShortcutsModal = false">
+            <div class="space-y-4">
+                <div v-if="waitingForKey && editingShortcut" class="mb-4 p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg">
+                    <p class="text-sm text-indigo-700 dark:text-indigo-300 font-medium">
+                        請按下你想要設定的按鍵...
+                    </p>
+                    <p class="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
+                        正在設定：{{ shortcuts[editingShortcut]?.label || editingShortcut }}
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">
+                    <div v-for="action in Object.keys(shortcuts)" :key="action" 
+                        class="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        :class="{ 'ring-2 ring-indigo-500': editingShortcut === action }">
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ shortcuts[action]?.label || action }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                預設: <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">{{ formatShortcutKey(defaultShortcuts[action]?.key || defaultShortcuts[action]) }}</kbd>
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">
+                                {{ formatShortcutKey(shortcuts[action]?.key || shortcuts[action]) }}
+                            </kbd>
+                            <button @click="editingShortcut === action ? cancelEditShortcut() : startEditShortcut(action)" 
+                                class="px-2 py-1 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded transition-colors">
+                                {{ editingShortcut === action ? '取消' : '編輯' }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button @click="resetAllShortcuts" 
+                        class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                        重置為預設值
+                    </button>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        提示：點擊「編輯」後按下你想要設定的按鍵
+                    </p>
+                </div>
+            </div>
+
+            <template #actions>
+                <button @click="showShortcutsModal = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">關閉</button>
             </template>
         </BaseModal>
     </div>

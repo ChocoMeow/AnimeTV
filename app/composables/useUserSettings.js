@@ -2,6 +2,7 @@ const userSettings = ref({
     id: null,
     watch_history_enabled: true,
     search_history_enabled: true,
+    custom_shortcuts: null,
 });
 
 const searchHistory = ref([]);
@@ -42,7 +43,10 @@ export const useUserSettings = () => {
             }
 
             if (data) {
-                userSettings.value = { ...data };
+                userSettings.value = { 
+                    ...data,
+                    custom_shortcuts: data.custom_shortcuts || null
+                };
             }
 
             subscribeToSettings()
@@ -130,6 +134,104 @@ export const useUserSettings = () => {
         }
     };
 
+    // Get default keyboard shortcuts with labels
+    const getDefaultShortcuts = () => ({
+        playPause: {
+            key: " ",
+            label: "播放/暫停"
+        },
+        skipOP: {
+            key: "\\",
+            label: "跳過片頭"
+        },
+        previousEpisode: {
+            key: "[",
+            label: "上一集"
+        },
+        nextEpisode: {
+            key: "]",
+            label: "下一集"
+        },
+        volumeUp: {
+            key: "ArrowUp",
+            label: "增加音量"
+        },
+        volumeDown: {
+            key: "ArrowDown",
+            label: "減少音量"
+        },
+        mute: {
+            key: "m",
+            label: "靜音/取消靜音"
+        },
+        fullscreen: {
+            key: "f",
+            label: "全螢幕/退出全螢幕"
+        },
+        seekForward5: {
+            key: "ArrowRight",
+            label: "前進 5 秒"
+        },
+        seekBackward5: {
+            key: "ArrowLeft",
+            label: "後退 5 秒"
+        },
+        seekForward10: {
+            key: "l",
+            label: "前進 10 秒"
+        },
+        seekBackward10: {
+            key: "j",
+            label: "後退 10 秒"
+        },
+    });
+
+    // Get merged shortcuts (custom + defaults)
+    const getShortcuts = () => {
+        const defaults = getDefaultShortcuts();
+        const custom = userSettings.value?.custom_shortcuts;
+        
+        if (!custom || typeof custom !== 'object') {
+            return defaults;
+        }
+        
+        // Merge custom shortcuts with defaults
+        // Custom shortcuts only contain keys, so we merge them with default structure
+        const merged = { ...defaults };
+        for (const [action, customKey] of Object.entries(custom)) {
+            if (merged[action]) {
+                merged[action] = {
+                    ...merged[action],
+                    key: customKey
+                };
+            }
+        }
+        
+        return merged;
+    };
+
+    // Reset shortcuts to defaults
+    const resetShortcuts = async () => {
+        return await updateSetting('custom_shortcuts', null);
+    };
+
+    // Format key for display in shortcuts
+    const formatShortcutKey = (key) => {
+        if (!key) return ""
+        // Handle both string keys and shortcut objects
+        const keyValue = typeof key === 'string' ? key : key.key || ""
+        if (!keyValue) return ""
+        if (keyValue === " ") return "Space"
+        if (keyValue.startsWith("Arrow")) {
+            const direction = keyValue.replace("Arrow", "")
+            const arrows = { Up: "↑", Down: "↓", Left: "←", Right: "→" }
+            return arrows[direction] || keyValue
+        }
+        if (keyValue === "\\") return "\\"
+        if (keyValue.length === 1) return keyValue.toUpperCase()
+        return keyValue
+    };
+
     return {
         userSettings: readonly(userSettings),
         settingsLoaded: readonly(settingsLoaded),
@@ -140,6 +242,10 @@ export const useUserSettings = () => {
         updateSetting,
         updateSettings,
         subscribeToSettings,
-        unsubscribe
+        unsubscribe,
+        getDefaultShortcuts,
+        getShortcuts,
+        resetShortcuts,
+        formatShortcutKey,
     };
 };

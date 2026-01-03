@@ -16,6 +16,10 @@ const props = defineProps({
         type: Boolean,
         default: true,
     },
+    shortcuts: {
+        type: Object,
+        default: () => null,
+    },
 })
 
 const emit = defineEmits(["play", "pause", "ended", "volumechange", "loadstart", "loadeddata", "timeupdate", "next-episode", "previous-episode"])
@@ -137,12 +141,12 @@ function skip(seconds) {
 
 function skipOP() {
     skip(85) // Skip forward by 1:25 (85 seconds)
-    showNotification("跳過片頭", "fast_forward")
+    showNotification(props.shortcuts.skipOP.label, "fast_forward")
 }
 
 function handleNextEpisode() {
     emit("next-episode")
-    showNotification("下一集", "skip_next")
+    showNotification(props.shortcuts.nextEpisode.label, "skip_next")
 }
 
 function calculateTimeFromPosition(e) {
@@ -349,114 +353,112 @@ function handleKeydown(e) {
     const isTying = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable
     if (isTying) return
 
-    // Prevent default for handled keys
-    const handledKeys = [" ", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "m", "f", "k", "j", "l", "\\", "[", "]"]
-    if (handledKeys.includes(e.key)) {
+    // Use shortcuts from props (already merged with defaults from useUserSettings)
+    const shortcuts = props.shortcuts || {}
+    const pressedKey = e.key
+
+    // Get all handled keys from shortcuts
+    const handledKeys = Object.values(shortcuts).map(s => typeof s === 'string' ? s : s.key)
+    if (handledKeys.includes(pressedKey)) {
         e.preventDefault()
     }
 
-    switch (e.key) {
-        case " ": // Space - play/pause or long press for 2x speed
-            if (!isSpaceHeld.value) {
-                isSpaceHeld.value = true
-                // Store original playback rate
-                if (videoRef.value) {
-                    originalPlaybackRate.value = videoRef.value.playbackRate || 1
-                }
-                
-                // Set timeout to detect long press (300ms)
-                spacePressTimeout = setTimeout(() => {
-                    if (isSpaceHeld.value && videoRef.value) {
-                        videoRef.value.playbackRate = 2
-                        showNotification("2x 速度", "fast_forward")
-                    }
-                }, 300)
+    // Check which action matches the pressed key
+    const action = Object.keys(shortcuts).find(key => {
+        const shortcut = shortcuts[key]
+        return (typeof shortcut === 'string' ? shortcut : shortcut.key) === pressedKey
+    })
+    
+    if (!action) return // No matching shortcut
+
+    // Handle actions based on the shortcut mapping
+    if (action === 'playPause') {
+        if (!isSpaceHeld.value) {
+            isSpaceHeld.value = true
+            // Store original playback rate
+            if (videoRef.value) {
+                originalPlaybackRate.value = videoRef.value.playbackRate || 1
             }
-            break
-        case "k": // K - play/pause (YouTube style)
-            e.preventDefault()
-            togglePlay()
-            break
-        case "ArrowLeft": // Left arrow - rewind 5 seconds
-            skip(-5)
-            showNotification("後退 5 秒", "fast_rewind")
-            break
-        case "ArrowRight": // Right arrow - forward 5 seconds
-            skip(5)
-            showNotification("前進 5 秒", "fast_forward")
-            break
-        case "\\": // Backslash - skip OP
-            skipOP()
-            break
-        case "[": // Left bracket - previous episode
-            emit("previous-episode")
-            showNotification("上一集", "skip_previous")
-            break
-        case "]": // Right bracket - next episode
-            handleNextEpisode()
-            break
-        case "ArrowUp": // Up arrow - increase volume
-            {
-                const newVolume = Math.min(1, volume.value + 0.1)
-                volume.value = newVolume
-                if (videoRef.value) {
-                    videoRef.value.volume = newVolume
+            
+            // Set timeout to detect long press (300ms)
+            spacePressTimeout = setTimeout(() => {
+                if (isSpaceHeld.value && videoRef.value) {
+                    videoRef.value.playbackRate = 2
+                    showNotification("2x 速度", "fast_forward")
                 }
-                isMuted.value = false
-                if (typeof localStorage !== "undefined") {
-                    localStorage.setItem("videoVolume", newVolume.toString())
-                }
-                showNotification(`音量 ${Math.round(newVolume * 100)}%`, newVolume === 0 ? "volume_off" : newVolume < 0.5 ? "volume_down" : "volume_up")
-            }
-            break
-        case "ArrowDown": // Down arrow - decrease volume
-            {
-                const newVolume = Math.max(0, volume.value - 0.1)
-                volume.value = newVolume
-                if (videoRef.value) {
-                    videoRef.value.volume = newVolume
-                }
-                isMuted.value = newVolume === 0
-                if (typeof localStorage !== "undefined") {
-                    localStorage.setItem("videoVolume", newVolume.toString())
-                }
-                showNotification(`音量 ${Math.round(newVolume * 100)}%`, newVolume === 0 ? "volume_off" : newVolume < 0.5 ? "volume_down" : "volume_up")
-            }
-            break
-        case "m": // M - toggle mute
-            {
-                const wasMuted = isMuted.value
-                toggleMute()
-                showNotification(wasMuted ? "取消靜音" : "已靜音", wasMuted ? "volume_up" : "volume_off")
-            }
-            break
-        case "f": // F - toggle fullscreen
-            {
-                const wasFullscreen = isFullscreen.value
-                toggleFullscreen()
-                showNotification(wasFullscreen ? "退出全螢幕" : "全螢幕", wasFullscreen ? "fullscreen_exit" : "fullscreen")
-            }
-            break
-        case "j": // J - rewind 10 seconds
-            skip(-10)
-            showNotification("後退 10 秒", "fast_rewind")
-            break
-        case "l": // L - forward 10 seconds
-            skip(10)
-            showNotification("前進 10 秒", "fast_forward")
-            break
+            }, 300)
+        }
+    } else if (action === 'seekBackward5') {
+        skip(-5)
+        showNotification(shortcuts.seekBackward5.label, "fast_rewind")
+    } else if (action === 'seekForward5') {
+        skip(5)
+        showNotification(shortcuts.seekForward5.label, "fast_forward")
+    } else if (action === 'skipOP') {
+        skipOP()
+        showNotification(shortcuts.skipOP.label, "fast_forward")
+    } else if (action === 'previousEpisode') {
+        emit("previous-episode")
+        showNotification(shortcuts.previousEpisode.label, "skip_previous")
+    } else if (action === 'nextEpisode') {
+        handleNextEpisode()
+    } else if (action === 'volumeUp') {
+        const newVolume = Math.min(1, volume.value + 0.1)
+        volume.value = newVolume
+        if (videoRef.value) {
+            videoRef.value.volume = newVolume
+        }
+        isMuted.value = false
+        if (typeof localStorage !== "undefined") {
+            localStorage.setItem("videoVolume", newVolume.toString())
+        }
+        showNotification(`音量 ${Math.round(newVolume * 100)}%`, newVolume === 0 ? "volume_off" : newVolume < 0.5 ? "volume_down" : "volume_up")
+            
+    } else if (action === 'volumeDown') {
+        const newVolume = Math.max(0, volume.value - 0.1)
+        volume.value = newVolume
+        if (videoRef.value) {
+            videoRef.value.volume = newVolume
+        }
+        isMuted.value = newVolume === 0
+        if (typeof localStorage !== "undefined") {
+            localStorage.setItem("videoVolume", newVolume.toString())
+        }
+        showNotification(`音量 ${Math.round(newVolume * 100)}%`, newVolume === 0 ? "volume_off" : newVolume < 0.5 ? "volume_down" : "volume_up")
+    } else if (action === 'mute') {
+        const wasMuted = isMuted.value
+        toggleMute()
+        const labels = shortcuts.mute.label.split("/")
+        showNotification(wasMuted ? labels[1] : labels[0], wasMuted ? "volume_up" : "volume_off")
+    } else if (action === 'fullscreen') {
+        const wasFullscreen = isFullscreen.value
+        toggleFullscreen()
+        const labels = shortcuts.fullscreen.label.split("/")
+        showNotification(wasFullscreen ? labels[1] : labels[0], wasFullscreen ? "fullscreen_exit" : "fullscreen")
+    } else if (action === 'seekBackward10') {
+        skip(-10)
+        showNotification(shortcuts.seekBackward10.label, "fast_rewind")
+    } else if (action === 'seekForward10') {
+        skip(10)
+        showNotification(shortcuts.seekForward10.label, "fast_forward")
     }
 }
 
-// Handle keyup for space bar (long press release)
+// Handle keyup for playPause shortcut (long press release)
 function handleKeyup(e) {
     if (!videoRef.value || !props.src) return
 
     const target = e.target
     const isTying = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable
     if (isTying) return
-
-    if (e.key === " ") {
+    
+    // Use shortcuts from props (already merged with defaults from useUserSettings)
+    const shortcuts = props.shortcuts || {}
+    const releasedKey = e.key
+    
+    // Check if the released key matches the playPause shortcut
+    const playPauseKey = typeof shortcuts.playPause === 'string' ? shortcuts.playPause : shortcuts.playPause?.key
+    if (playPauseKey === releasedKey) {
         e.preventDefault()
         
         // Clear the long press timeout
@@ -465,7 +467,7 @@ function handleKeyup(e) {
             spacePressTimeout = null
         }
         
-        // If space was held and speed was changed, reset it
+        // If the key was held and speed was changed, reset it
         if (isSpaceHeld.value) {
             const wasLongPress = videoRef.value && videoRef.value.playbackRate === 2
             
@@ -652,7 +654,7 @@ watch(
                         <!-- Play/Pause -->
                         <button @click="togglePlay"
                             class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
-                            title="播放/暫停 (Space)">
+                            title="播放/暫停">
                             <span v-if="isPlaying" class="material-icons text-xl sm:text-2xl">pause</span>
                             <span v-else class="material-icons text-xl sm:text-2xl">play_arrow</span>
                         </button>

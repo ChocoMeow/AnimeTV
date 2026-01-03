@@ -1,10 +1,13 @@
 <script setup>
 // Core
-const { userSettings } = useUserSettings()
+const { userSettings, getShortcuts, formatShortcutKey } = useUserSettings()
 const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
 const client = useSupabaseClient()
+
+// Get user shortcuts
+const userShortcuts = computed(() => getShortcuts())
 
 // User status tracking
 const { setWatching, setOnline } = useUserStatus()
@@ -582,7 +585,7 @@ onUnmounted(() => {
                     <p>暫無可用集數</p>
                 </div>
 
-                <VideoPlayer v-if="videoUrl || selectedEpisode" ref="videoPlayer" :src="videoUrl || ''" autoplay preload="metadata" :has-next-episode="hasNextEpisode" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @next-episode="handleNextEpisode" @previous-episode="handlePreviousEpisode" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
+                <VideoPlayer v-if="videoUrl || selectedEpisode" ref="videoPlayer" :src="videoUrl || ''" autoplay preload="metadata" :has-next-episode="hasNextEpisode" :shortcuts="userShortcuts" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @next-episode="handleNextEpisode" @previous-episode="handlePreviousEpisode" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
 
                 <div v-else class="aspect-video bg-black relative rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-400">
                     <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>
@@ -633,87 +636,41 @@ onUnmounted(() => {
             </div>
         </template>
         <div class="space-y-4">
+            <!-- Play/Pause and Long Press (special cases) -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <!-- Playback Controls -->
-                <div class="space-y-3">
-                    <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">播放控制</h4>
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">播放/暫停</span>
-                            <div class="flex items-center gap-2">
-                                <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">Space</kbd>
-                                <span class="text-xs text-gray-400">或</span>
-                                <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">K</kbd>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">長按 Space (2x 速度)</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">Space (長按)</kbd>
-                        </div>
-                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">跳過片頭</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">\</kbd>
-                        </div>
-                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">上一集</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">[</kbd>
-                        </div>
-                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">下一集</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">]</kbd>
-                        </div>
-                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">前進 5 秒</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">→</kbd>
-                        </div>
-                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">後退 5 秒</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">←</kbd>
-                        </div>
-                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">前進 10 秒</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">L</kbd>
-                        </div>
-                        <div class="flex items-center justify-between py-2">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">後退 10 秒</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">J</kbd>
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">{{ userShortcuts.playPause?.label || "播放/暫停" }}</span>
+                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">{{ formatShortcutKey(userShortcuts.playPause) }}</kbd>
+                    </div>
+                    <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">長按 {{ formatShortcutKey(userShortcuts.playPause) }} (2x 速度)</span>
+                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">{{ formatShortcutKey(userShortcuts.playPause) }} (長按)</kbd>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between py-2">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">顯示快捷鍵</span>
+                        <div class="flex items-center gap-1">
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">
+                                <span v-if="isMac">⌘</span>
+                                <span v-else>Ctrl</span>
+                            </kbd>
+                            <span class="text-xs text-gray-400">+</span>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">/</kbd>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Volume & Display Controls -->
-                <div class="space-y-3">
-                    <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">音量與顯示</h4>
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">增加音量</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">↑</kbd>
-                        </div>
-                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">減少音量</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">↓</kbd>
-                        </div>
-                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">靜音/取消靜音</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">M</kbd>
-                        </div>
-                        <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">全螢幕</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">F</kbd>
-                        </div>
-                        <div class="flex items-center justify-between py-2">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">顯示快捷鍵</span>
-                            <div class="flex items-center gap-1">
-                                <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">
-                                    <span v-if="isMac">⌘</span>
-                                    <span v-else>Ctrl</span>
-                                </kbd>
-                                <span class="text-xs text-gray-400">+</span>
-                                <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">/</kbd>
-                            </div>
-                        </div>
+            <!-- All other shortcuts in two columns -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                <template v-for="(shortcut, action) in userShortcuts" :key="action">
+                    <div v-if="action !== 'playPause' && shortcut?.label" class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">{{ shortcut.label }}</span>
+                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">{{ formatShortcutKey(shortcut) }}</kbd>
                     </div>
-                </div>
+                </template>
             </div>
 
             <!-- Additional Info -->
