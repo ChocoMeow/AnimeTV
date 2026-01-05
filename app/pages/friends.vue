@@ -22,6 +22,7 @@ const selectedFriend = ref(null)
 const showDeleteConfirm = ref(false)
 const showBlockConfirm = ref(false)
 const showUnblockConfirm = ref(false)
+const showProfileDialog = ref(false)
 
 let searchTimeout = null
 
@@ -93,6 +94,7 @@ function openConfirmModal(user, type) {
         delete: showDeleteConfirm,
         block: showBlockConfirm,
         unblock: showUnblockConfirm,
+        friendProfile: showProfileDialog
     }
 
     if (modalMap[type]) {
@@ -354,6 +356,10 @@ onUnmounted(() => {
                                 <!-- Dropdown content -->
                                 <transition name="dropdown">
                                     <div v-if="openDropdown === friend.id" class="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                                        <button @click="openConfirmModal(friend, 'friendProfile')" class="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
+                                            <span class="material-icons text-lg">analytics</span>
+                                            查看好友
+                                        </button>
                                         <button @click="openConfirmModal(friend, 'delete')" class="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
                                             <span class="material-icons text-lg">person_remove</span>
                                             移除好友
@@ -564,6 +570,9 @@ onUnmounted(() => {
                 <button @click="handleUnblockUser()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認解除封鎖</button>
             </template>
         </BaseModal>
+
+        <!-- User Profile Dialog -->
+        <LazyUserProfileDialog v-if="selectedFriend" v-model="showProfileDialog" :data="selectedFriend" />
     </div>
 </template>
 
