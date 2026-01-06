@@ -10,6 +10,7 @@ export default defineNuxtConfig({
     },
     experimental: {
         entryImportMap: false,
+        entryImportMap: true,
     },
     app: {
         head: {
