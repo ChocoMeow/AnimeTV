@@ -9,6 +9,7 @@ export default defineNuxtConfig({
         host: "0.0.0.0",
     },
     experimental: {
+        emitRouteChunkError: "automatic-immediate",
         entryImportMap: true,
     },
     app: {
@@ -93,19 +94,6 @@ export default defineNuxtConfig({
             exclude: [],
             saveRedirectToCookie: true,
         },
-        types: false,
-        // cookieOptions: {
-        //     maxAge: 60 * 60 * 24 * 365, // 1 year
-        //     sameSite: "lax",
-        //     secure: true,
-        // },
-        // clientOptions: {
-        //     auth: {
-        //         flowType: "pkce",
-        //         autoRefreshToken: import.meta.client,
-        //         detectSessionInUrl: import.meta.client,
-        //         persistSession: true,
-        //     },
-        // },
+        types: false
     },
 })
