@@ -9,7 +9,6 @@ export default defineNuxtConfig({
         host: "0.0.0.0",
     },
     experimental: {
-        entryImportMap: false,
         entryImportMap: true,
     },
     app: {
@@ -78,68 +77,7 @@ export default defineNuxtConfig({
                     label: "Application",
                 },
             ],
-        },
-        workbox: {
-            navigateFallback: undefined,
-            cleanupOutdatedCaches:  true,
-            globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
-            globIgnores: [],
-            navigateFallbackDenylist: [/^\/api\//],
-            runtimeCaching: [
-				{
-					urlPattern: /^\/$/,
-					handler: "NetworkFirst",
-					options: {
-						cacheName: "html-cache",
-						expiration: { maxEntries: 1, maxAgeSeconds: 60 * 5 },
-					},
-				},
-				{
-					urlPattern: /\/_nuxt\/.*/i,
-					handler: "StaleWhileRevalidate",
-					options: {
-						cacheName: "nuxt-assets",
-						expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 }, // 7 days
-					},
-				},
-				{
-					urlPattern: /\/api\/.*/i,
-					handler: "NetworkFirst",
-					options: {
-						cacheName: "api-cache",
-						networkTimeoutSeconds: 10,
-						expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 }, // 1 day
-						cacheableResponse: { statuses: [0, 200] },
-					},
-				},
-				{
-					urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-					handler: "StaleWhileRevalidate",
-					options: {
-						cacheName: "google-fonts-stylesheets",
-						expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-						cacheableResponse: { statuses: [0, 200] },
-					},
-				},
-				{
-					urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-					handler: "CacheFirst",
-					options: {
-						cacheName: "gstatic-fonts-cache",
-						expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-						cacheableResponse: { statuses: [0, 200] },
-					},
-				},
-				{
-					urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/.*/i,
-					handler: "NetworkOnly",
-				},
-            ],
-        },
-        client: {
-            installPrompt: true,
-            periodicSyncForUpdates: 3600, // Check for updates every hour
-        },
+        }
     },
     nitro: {
         prerender: {
