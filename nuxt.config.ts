@@ -10,7 +10,7 @@ export default defineNuxtConfig({
     },
     experimental: {
         emitRouteChunkError: "automatic-immediate",
-        entryImportMap: true,
+        entryImportMap: false,
     },
     app: {
         head: {

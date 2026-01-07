@@ -572,7 +572,7 @@ onUnmounted(() => {
         </BaseModal>
 
         <!-- User Profile Dialog -->
-        <LazyUserProfileDialog v-if="selectedFriend" v-model="showProfileDialog" :data="selectedFriend" />
+        <UserProfileDialog v-if="selectedFriend" v-model="showProfileDialog" :data="selectedFriend" />
     </div>
 </template>
 
