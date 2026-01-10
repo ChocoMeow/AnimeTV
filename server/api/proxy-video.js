@@ -17,8 +17,8 @@ const httpsAgent = new https.Agent({
     timeout: 30000
 })
 
-// Maximum chunk size: 5MB (completes well within Vercel's 60s limit)
-const MAX_CHUNK_SIZE = 5 * 1024 * 1024
+// Maximum chunk size: 10MB (completes well within Vercel's 60s limit)
+const MAX_CHUNK_SIZE = 10 * 1024 * 1024
 
 export default defineEventHandler(async (event) => {
     const { url: videoUrl, cookie } = getQuery(event)

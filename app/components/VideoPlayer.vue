@@ -1,4 +1,6 @@
 <script setup>
+const { formatShortcutKey } = useUserSettings()
+
 const props = defineProps({
     src: {
         type: String,
@@ -48,6 +50,10 @@ const hoverPreviewTime = ref(0)
 const hoverPreviewPosition = ref(0)
 const isSpaceHeld = ref(false)
 const originalPlaybackRate = ref(1)
+const playbackRate = ref(1)
+
+// Playback speed options
+const playbackSpeeds = [0.5, 0.75, 1, 1.25, 1.5, 2, 3]
 
 // Notification state
 const notification = ref({
@@ -265,6 +271,13 @@ function toggleMute() {
     }
 }
 
+function setPlaybackRate(rate) {
+    if (!videoRef.value) return
+    playbackRate.value = rate
+    videoRef.value.playbackRate = rate
+    showNotification(`${rate}x 速度`, "speed")
+}
+
 function toggleFullscreen() {
     if (!document.fullscreenElement) {
         containerRef.value?.requestFullscreen()
@@ -284,6 +297,18 @@ function handleVolumeAreaLeave() {
     isHoveringVolume.value = false
     showVolumeSlider.value = false
 }
+
+// Computed for dynamic tooltip labels
+const tooltipLabels = computed(() => {
+    const shortcuts = props.shortcuts || {}
+    return {
+        playPause: shortcuts.playPause ? `${shortcuts.playPause.label} (${formatShortcutKey(shortcuts.playPause)})` : "播放/暫停",
+        skipOP: shortcuts.skipOP ? `${shortcuts.skipOP.label} (${formatShortcutKey(shortcuts.skipOP)})` : "跳過片頭",
+        mute: shortcuts.mute ? `${shortcuts.mute.label.split("/")[0]} (${formatShortcutKey(shortcuts.mute)})` : "靜音",
+        nextEpisode: shortcuts.nextEpisode ? `${shortcuts.nextEpisode.label} (${formatShortcutKey(shortcuts.nextEpisode)})` : "下一集",
+        fullscreen: shortcuts.fullscreen ? `${shortcuts.fullscreen.label.split("/")[0]} (${formatShortcutKey(shortcuts.fullscreen)})` : "全螢幕",
+    }
+})
 
 // Video event handlers
 function onPlay() {
@@ -328,6 +353,21 @@ function onLoadedData() {
 function onLoadStart() {
     isLoading.value = true
     emit("loadstart")
+}
+
+function onWaiting() {
+    // Video is waiting for data (buffering)
+    if (isPlaying.value) {
+        isLoading.value = true
+    }
+}
+
+function onCanPlay() {
+    isLoading.value = false
+}
+
+function onCanPlayThrough() {
+    isLoading.value = false
 }
 
 function onEnded() {
@@ -532,6 +572,7 @@ watch(videoRef, (newVideo) => {
             newVideo.volume = volume.value
             newVideo.muted = isMuted.value
         }
+        newVideo.playbackRate = playbackRate.value
     }
 })
 
@@ -562,7 +603,7 @@ watch(
         buffered.value = 0
         isSpaceHeld.value = false
         originalPlaybackRate.value = 1
-        // Reset playback rate when source changes
+        playbackRate.value = 1
         if (videoRef.value) {
             videoRef.value.playbackRate = 1
         }
@@ -582,6 +623,7 @@ watch(
         <video v-if="src" ref="videoRef" :src="src" :autoplay="autoplay" :preload="preload" class="w-full h-full block cursor-pointer"
             @play="onPlay" @pause="onPause" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata"
             @loadeddata="onLoadedData" @loadstart="onLoadStart" @ended="onEnded" @volumechange="onVolumeChange"
+            @waiting="onWaiting" @canplay="onCanPlay" @canplaythrough="onCanPlayThrough"
             @click="togglePlay" />
 
         <!-- No Video Message -->
@@ -654,7 +696,7 @@ watch(
                         <!-- Play/Pause -->
                         <button @click="togglePlay"
                             class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
-                            title="播放/暫停">
+                            :title="tooltipLabels.playPause">
                             <span v-if="isPlaying" class="material-icons text-xl sm:text-2xl">pause</span>
                             <span v-else class="material-icons text-xl sm:text-2xl">play_arrow</span>
                         </button>
@@ -662,7 +704,7 @@ watch(
                         <!-- Skip OP -->
                         <button @click="skipOP"
                             class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
-                            title="跳過片頭 (1:25)">
+                            :title="tooltipLabels.skipOP">
                             <span class="material-icons text-xl sm:text-2xl">fast_forward</span>
                         </button>
 
@@ -670,7 +712,7 @@ watch(
                         <div class="relative flex items-center gap-1 sm:gap-2" @mouseenter="handleVolumeAreaEnter" @mouseleave="handleVolumeAreaLeave">
                             <button @click="toggleMute"
                                 class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
-                                title="靜音 (M)">
+                                :title="tooltipLabels.mute">
                                 <span v-if="isMuted || volume === 0"
                                     class="material-icons text-xl sm:text-2xl">volume_off</span>
                                 <span v-else-if="volume < 0.5"
@@ -693,17 +735,38 @@ watch(
                     </div>
 
                     <div class="flex items-center gap-1 sm:gap-3">
+                        <!-- Playback Speed Control -->
+                        <div class="relative flex items-center group">
+                            <button
+                                class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
+                                title="播放速度">
+                                <span class="text-xs sm:text-sm font-medium">{{ playbackRate }}x</span>
+                            </button>
+
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/90 backdrop-blur-md rounded-lg shadow-2xl border border-white/20 py-2 z-[4] min-w-[80px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-2 group-hover:translate-y-0">
+                                <button
+                                    v-for="speed in playbackSpeeds"
+                                    :key="speed"
+                                    @click="setPlaybackRate(speed)"
+                                    class="w-full px-4 py-2 text-left text-white text-sm hover:bg-white/10 transition-colors flex items-center justify-between"
+                                    :class="{ 'bg-indigo-500/30 text-indigo-300': playbackRate === speed }">
+                                    <span>{{ speed }}x</span>
+                                    <span v-if="playbackRate === speed" class="material-icons text-sm">check</span>
+                                </button>
+                            </div>
+                        </div>
+                        
                         <!-- Next Episode -->
                         <button v-if="hasNextEpisode" @click="handleNextEpisode"
                             class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
-                            title="下一集 (])">
+                            :title="tooltipLabels.nextEpisode">
                             <span class="material-icons text-xl sm:text-2xl">skip_next</span>
                         </button>
                         
                         <!-- Fullscreen -->
                         <button @click="toggleFullscreen"
                             class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
-                            title="全螢幕 (F)">
+                            :title="tooltipLabels.fullscreen">
                             <span v-if="isFullscreen" class="material-icons text-xl sm:text-2xl">fullscreen_exit</span>
                             <span v-else class="material-icons text-xl sm:text-2xl">fullscreen</span>
                         </button>
