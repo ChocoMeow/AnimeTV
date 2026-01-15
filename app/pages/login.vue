@@ -178,7 +178,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
 </script>
 
 <template>
-    <div class="min-h-screen flex relative overflow-hidden bg-white dark:bg-gray-900">
+    <div class="min-h-screen flex relative overflow-hidden bg-white dark:bg-gray-950">
         <!-- Left Side: Anime Showcase -->
         <div class="hidden lg:flex lg:w-2/3 relative overflow-hidden">
             <!-- Infinite Scrolling Lanes -->
@@ -209,12 +209,12 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
             </div>
             
             <!-- Gradient Overlay -->
-            <div class="absolute inset-0 bg-gradient-to-r from-white/60 via-white/40 to-transparent dark:from-gray-900 dark:via-gray-900/80 dark:to-transparent z-[5]"></div>
+            <div class="absolute inset-0 bg-gradient-to-r from-white/60 via-white/40 to-transparent dark:from-gray-950 dark:via-gray-950/80 dark:to-transparent z-[5]"></div>
             
             <!-- Info Overlay -->
             <div class="absolute bottom-0 left-0 right-0 p-8 z-20 pointer-events-none">
                 <div class="space-y-2">
-                    <h3 class="text-3xl font-bold text-gray-900 dark:text-white drop-shadow-lg">
+                    <h3 class="text-3xl font-bold text-gray-950 dark:text-white drop-shadow-lg">
                         探索精彩動漫
                     </h3>
                     <p class="text-gray-700 dark:text-white/80 text-sm">
@@ -232,7 +232,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                 <div v-if="authStatus === 'verifying'" class="text-center space-y-6">
                     <div class="relative inline-flex items-center justify-center">
                         <!-- Outer rotating ring -->
-                        <div class="absolute w-20 h-20 border-4 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin"></div>
+                        <div class="absolute w-20 h-20 border-4 border-gray-300 dark:border-gray-600 border-t-gray-950 dark:border-t-gray-100 rounded-full animate-spin"></div>
                         <!-- Inner icon -->
                         <div class="w-16 h-16 rounded-full bg-gray-600 dark:bg-gray-800 flex items-center justify-center shadow-lg">
                             <span class="material-icons text-white text-3xl">security</span>
@@ -240,7 +240,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                     </div>
 
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">驗證中</h2>
+                        <h2 class="text-2xl font-bold text-gray-950 dark:text-white mb-2">驗證中</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">{{ authMessage }}</p>
                     </div>
 
@@ -264,7 +264,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                     </div>
 
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">登入成功！</h2>
+                        <h2 class="text-2xl font-bold text-gray-950 dark:text-white mb-2">登入成功！</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">歡迎回來，{{ userName }}</p>
                     </div>
 
@@ -276,7 +276,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                             </div>
                             <div class="text-left">
                                 <p class="text-xs text-gray-500 dark:text-gray-400">已登入為</p>
-                                <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ userEmail }}</p>
+                                <p class="text-sm font-semibold text-gray-950 dark:text-white">{{ userEmail }}</p>
                             </div>
                         </div>
                     </div>
@@ -296,7 +296,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                     
                     <!-- Welcome Section -->
                     <div class="text-center lg:text-left space-y-3">
-                        <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white">
+                        <h1 class="text-4xl sm:text-5xl font-bold text-gray-950 dark:text-white">
                             歡迎回來
                         </h1>
                         <p class="text-lg text-gray-600 dark:text-gray-300">
@@ -340,7 +340,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                                 </template>
 
                                 <!-- Loading Spinner -->
-                                <div v-if="loading" class="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-white rounded-full animate-spin"></div>
+                                <div v-if="loading" class="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 border-t-gray-950 dark:border-t-white rounded-full animate-spin"></div>
 
                                 <span class="font-semibold text-base">
                                     {{ loading ? "登入中..." : provider.label }}
@@ -353,9 +353,9 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                     <div class="pt-6 border-t border-gray-200 dark:border-white/10">
                         <p class="text-xs text-center text-gray-500 dark:text-gray-400">
                             登入即表示您同意我們的
-                            <a href="#" class="text-gray-700 dark:text-white/80 hover:text-gray-900 dark:hover:text-white hover:underline transition-colors">服務條款</a>
+                            <a href="#" class="text-gray-700 dark:text-white/80 hover:text-gray-950 dark:hover:text-white hover:underline transition-colors">服務條款</a>
                             和
-                            <a href="#" class="text-gray-700 dark:text-white/80 hover:text-gray-900 dark:hover:text-white hover:underline transition-colors">隱私政策</a>
+                            <a href="#" class="text-gray-700 dark:text-white/80 hover:text-gray-950 dark:hover:text-white hover:underline transition-colors">隱私政策</a>
                         </p>
                     </div>
                 </div>
@@ -371,7 +371,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                     class="w-full h-full object-cover"
                 />
             </div>
-            <div class="absolute inset-0 bg-gradient-to-b from-white via-white/90 to-white dark:from-gray-900 dark:via-gray-900/90 dark:to-gray-900"></div>
+            <div class="absolute inset-0 bg-gradient-to-b from-white via-white/90 to-white dark:from-gray-950 dark:via-gray-950/90 dark:to-gray-950"></div>
         </div>
     </div>
 </template>
@@ -439,9 +439,9 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
            hover:bg-gray-50 dark:hover:bg-gray-50
            hover:shadow-lg dark:hover:shadow-none
            active:bg-gray-100 dark:active:bg-gray-100
-           focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-white focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900
+           focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-white focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-950
            disabled:opacity-50 disabled:cursor-not-allowed
-           text-gray-900;
+           text-gray-950;
 }
 
 /* Discord Login Button */
@@ -454,7 +454,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
            hover:bg-[#4752C4] dark:hover:bg-[#4752C4]
            hover:shadow-lg dark:hover:shadow-lg
            active:bg-[#3C45A5] dark:active:bg-[#3C45A5]
-           focus:outline-none focus:ring-2 focus:ring-[#5865F2] dark:focus:ring-[#5865F2] focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900
+           focus:outline-none focus:ring-2 focus:ring-[#5865F2] dark:focus:ring-[#5865F2] focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-950
            disabled:opacity-50 disabled:cursor-not-allowed
            text-white;
 }

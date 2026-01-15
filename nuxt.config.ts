@@ -38,8 +38,8 @@ export default defineNuxtConfig({
             name: "AnimeTV",
             short_name: "AnimeTV",
             description: "Stream your favorite anime series and movies anytime, anywhere.",
-            theme_color: "#111827",
-            background_color: "#111827",
+            theme_color: "#030712",
+            background_color: "#030712",
             display: "standalone",
             start_url: "/",
             icons: [
