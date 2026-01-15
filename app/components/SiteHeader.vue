@@ -408,7 +408,7 @@ watch(
                 <div class="flex-1 overflow-y-auto">
                     <!-- Mobile Search History -->
                     <div v-if="!searchQuery && searchHistory.length" class="bg-white dark:bg-gray-950">
-                        <div class="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide sticky top-0">最近搜尋</div>
+                        <div class="px-4 py-3 bg-white dark:bg-gray-950 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide sticky top-0">最近搜尋</div>
                         <ul>
                             <li v-for="item in searchHistory" :key="item.id" class="px-4 py-2 hover:bg-black/10 dark:hover:bg-white/20 cursor-pointer transition-colors flex items-center justify-between group" @click="searchFromHistory(item.query)">
                                 <div class="flex items-center gap-2">
