@@ -208,7 +208,7 @@ onUnmounted(() => {
 
             <!-- Loading inside section -->
             <div v-if="loading" class="flex justify-center py-12">
-                <div class="inline-block w-8 h-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                <div class="inline-block w-8 h-8 border-3 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin"></div>
             </div>
 
             <template v-else>
@@ -246,7 +246,7 @@ onUnmounted(() => {
                             <!-- Play icon overlay -->
                             <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <div class="w-10 h-10 rounded-full bg-white/90 dark:bg-gray-900/90 flex items-center justify-center shadow-lg">
-                                    <span class="material-icons text-indigo-600 dark:text-indigo-400 text-2xl">play_arrow</span>
+                                    <span class="material-icons text-2xl">play_arrow</span>
                                 </div>
                             </div>
                         </div>
@@ -255,7 +255,7 @@ onUnmounted(() => {
                             <div class="font-semibold text-xs sm:text-sm text-gray-900 dark:text-white line-clamp-2 mb-1 leading-tight">
                                 {{ item.title }}
                             </div>
-                            <div class="flex items-center text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                            <div class="flex items-center text-xs text-gray-500 dark:text-gray-400 font-medium">
                                 <span class="material-icons text-xs mr-1">play_circle</span>
                                 {{ item.episode }}
                             </div>
@@ -278,50 +278,11 @@ onUnmounted(() => {
 
                     <!-- Anime Grid -->
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                        <NuxtLink v-for="item in items" :key="item.refId || item.video_url" class="anime-card-item group" :to="`/anime/${item.refId}`">
-                            <!-- Image Container -->
-                            <div class="relative overflow-hidden rounded-t-xl aspect-[2/3] bg-gray-200 dark:bg-gray-700">
-                                <img :src="item.image" :alt="item.title" class="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110" />
-                                <!-- Gradient Overlay -->
-                                <div
-                                    class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300"
-                                ></div>
-
-                                <!-- Year Badge -->
-                                <div class="absolute top-2 right-2 badge-year">
-                                    {{ item.year }}
-                                </div>
-
-                                <!-- Hover Play Button -->
-                                <div
-                                    class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100"
-                                >
-                                    <div class="w-14 h-14 rounded-full bg-white/90 dark:bg-gray-900/90 flex items-center justify-center shadow-xl">
-                                        <span class="material-icons text-indigo-600 dark:text-indigo-400 text-3xl">play_arrow</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Info Container -->
-                            <div class="p-3 space-y-2">
-                                <h3
-                                    class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors"
-                                >
-                                    {{ item.title }}
-                                </h3>
-
-                                <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                    <div class="flex items-center gap-1">
-                                        <span class="material-icons text-sm">movie</span>
-                                        <span>{{ item.episodes }}</span>
-                                    </div>
-                                    <div class="flex items-center gap-1">
-                                        <span class="material-icons text-sm">visibility</span>
-                                        <span>{{ formatViews(item.views) }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </NuxtLink>
+                        <AnimeCard 
+                            v-for="item in items" 
+                            :key="item.refId || item.video_url" 
+                            :anime="item" 
+                        />
                     </div>
                 </div>
             </div>
@@ -393,7 +354,7 @@ onUnmounted(() => {
                         <span
                             v-for="tag in animeDetails.tags.slice(0, 5)"
                             :key="tag"
-                            class="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-medium"
+                            class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium"
                         >
                             {{ tag }}
                         </span>
@@ -416,7 +377,7 @@ onUnmounted(() => {
                 }"
             >
                 <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <div class="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin"></div>
                     <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-300">載入詳情...</span>
                 </div>
             </div>
@@ -444,7 +405,7 @@ onUnmounted(() => {
 <style scoped>
 /* Card Styles */
 .anime-card {
-    @apply bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl;
+    @apply bg-gray-950/5 dark:bg-white/10 rounded-2xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl;
 }
 
 /* Day Tab Styles */
@@ -453,46 +414,25 @@ onUnmounted(() => {
 }
 
 .day-tab-inactive {
-    @apply bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 
-           border-2 border-gray-200 dark:border-gray-700
-           hover:border-indigo-300 dark:hover:border-indigo-600
-           hover:text-indigo-600 dark:hover:text-indigo-400
+    @apply bg-white dark:bg-white/10 text-gray-600 dark:text-gray-300 
+           border-2 border-black/10 dark:border-white/10
+           hover:bg-black/10 dark:hover:bg-white/20
            hover:shadow-md hover:-translate-y-0.5;
 }
 
 .day-tab-active {
-    @apply bg-gradient-to-r from-indigo-600 to-purple-600 text-white 
-           border-2 border-indigo-600 dark:border-purple-600
-           shadow-lg shadow-indigo-500/30 dark:shadow-purple-500/30
+    @apply bg-black/70 dark:bg-white text-white dark:text-black 
+           border-2 border-black/10 dark:border-white/10
+           shadow-lg shadow-black/30 dark:shadow-white/30
            transform -translate-y-1;
 }
 
 /* Daily Item Styles */
 .daily-item {
-    @apply bg-white dark:bg-gray-800 rounded-xl overflow-hidden
+    @apply bg-white dark:bg-black/5 rounded-xl overflow-hidden
            cursor-pointer transition-all duration-300 hover:shadow-lg 
-           hover:-translate-y-1 border border-gray-100 dark:border-gray-700
-           hover:border-indigo-300 dark:hover:border-indigo-600;
-}
-
-/* Anime Card Item Styles */
-.anime-card-item {
-    @apply bg-white dark:bg-gray-800 rounded-xl overflow-hidden 
-           cursor-pointer transition-all duration-300
-           hover:shadow-2xl hover:-translate-y-2
-           border border-gray-100 dark:border-gray-700
-           hover:border-indigo-300 dark:hover:border-indigo-600;
-}
-
-/* Year Badge */
-.badge-year {
-    @apply bg-gradient-to-r from-indigo-500 to-purple-600 text-white 
-           text-xs font-bold px-3 py-1 rounded-full shadow-lg
-           backdrop-blur-sm transform transition-transform duration-300;
-}
-
-.group:hover .badge-year {
-    @apply scale-110;
+           hover:-translate-y-1 border border-gray-950/5 dark:border-white/10
+           hover:border-black/10 dark:hover:border-white/10;
 }
 
 /* Anime Tooltip Styles */
@@ -542,7 +482,7 @@ onUnmounted(() => {
 }
 
 .tooltip-content {
-    @apply bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-3 sm:p-4;
+    @apply bg-white dark:bg-gray-950 rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 p-3 sm:p-4;
     position: relative;
 }
 
@@ -607,7 +547,7 @@ onUnmounted(() => {
 .anime-tooltip-loading {
     position: fixed;
     z-index: 9999;
-    @apply bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-2;
+    @apply bg-white dark:bg-white/10 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-2;
 }
 
 .anime-tooltip-loading.tooltip-top {
@@ -634,7 +574,7 @@ onUnmounted(() => {
 .anime-tooltip-error {
     position: fixed;
     z-index: 9999;
-    @apply bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-red-300 dark:border-red-700 px-3 sm:px-4 py-2;
+    @apply bg-white dark:bg-white/10 rounded-lg shadow-lg border border-red-300 dark:border-red-700 px-3 sm:px-4 py-2;
 }
 
 .anime-tooltip-error.tooltip-top {
@@ -730,7 +670,7 @@ onUnmounted(() => {
 }
 
 ::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-gray-800;
+    @apply bg-gray-100 dark:bg-white/10;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -739,22 +679,5 @@ onUnmounted(() => {
 
 ::-webkit-scrollbar-thumb:hover {
     @apply bg-gray-400 dark:bg-gray-500;
-}
-
-/* Animation Keyframes */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.anime-card,
-.anime-card-item {
-    animation: fadeInUp 0.6s ease-out;
 }
 </style>

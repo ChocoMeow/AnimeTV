@@ -179,7 +179,7 @@ onMounted(() => {
 
 <template>
     <!-- Filters Section -->
-    <div class="sticky top-16 z-40 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 shadow-sm rounded-2xl">
+    <div class="sticky top-16 z-40 bg-white/95 dark:bg-gray-950/90 backdrop-blur-sm border-b border-gray-200 dark:border-white/10 shadow-sm rounded-2xl">
         <div class="max-w-7xl mx-auto px-4 py-4">
             <!-- Header with Toggle -->
             <div class="flex items-center justify-between">
@@ -187,7 +187,7 @@ onMounted(() => {
                     <h2 class="text-lg font-bold text-gray-900 dark:text-white">篩選條件</h2>
                     <span
                         v-if="selectedTags.length || selectedCategory || selectedSort !== '1'"
-                        class="px-2 py-1 text-xs font-semibold bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
+                        class="px-2 py-1 text-xs font-semibold bg-black/10 dark:bg-white/10 text-gray-600 dark:text-gray-300 rounded-full"
                     >
                         {{ selectedTags.length + (selectedCategory ? 1 : 0) + (selectedSort !== "1" ? 1 : 0) }}
                     </span>
@@ -196,12 +196,12 @@ onMounted(() => {
                     <button
                         v-if="selectedTags.length || selectedCategory || selectedSort !== '1'"
                         @click="clearAllFilters"
-                        class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium transition-colors flex items-center gap-1"
+                        class="text-sm text-black/70 dark:text-white hover:text-black/100 dark:hover:text-white font-medium transition-colors flex items-center gap-1"
                     >
                         <span class="material-icons text-sm">clear</span>
                         清除全部
                     </button>
-                    <button @click="showFilters = !showFilters" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center">
+                    <button @click="showFilters = !showFilters" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-white/20 flex items-center justify-center">
                         <span class="material-icons text-gray-600 dark:text-gray-300">
                             {{ showFilters ? "expand_less" : "expand_more" }}
                         </span>
@@ -292,55 +292,17 @@ onMounted(() => {
             </div>
             <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">找不到相關作品</h3>
             <p class="text-gray-500 dark:text-gray-400 mb-4">請嘗試調整篩選條件</p>
-            <button @click="clearAllFilters" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">清除篩選條件</button>
+            <button @click="clearAllFilters" class="px-6 py-2 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors">清除篩選條件</button>
         </div>
 
         <!-- Anime Grid -->
         <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            <NuxtLink v-for="anime in animeList" :key="anime.refId" :to="`/anime/${anime.refId}`" class="anime-card-item group">
-                <!-- Image Container -->
-                <div class="relative overflow-hidden rounded-t-xl aspect-[2/3] bg-gray-200 dark:bg-gray-700">
-                    <img :src="anime.image" :alt="anime.title" class="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110" />
-                    <!-- Gradient Overlay -->
-                    <div
-                        class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300"
-                    ></div>
-
-                    <!-- Year Badge -->
-                    <div class="badge-year">
-                        {{ anime.year }}
-                    </div>
-
-                    <!-- Hover Play Button -->
-                    <div
-                        class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100"
-                    >
-                        <div class="w-14 h-14 rounded-full bg-white/90 dark:bg-gray-900/90 flex items-center justify-center shadow-xl">
-                            <span class="material-icons text-indigo-600 dark:text-indigo-400 text-3xl">play_arrow</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Info Container -->
-                <div class="p-3 space-y-2">
-                    <h3
-                        class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors"
-                    >
-                        {{ anime.title }}
-                    </h3>
-
-                    <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                        <div class="flex items-center gap-1">
-                            <span class="material-icons text-sm">movie</span>
-                            <span>{{ anime.episodes }}</span>
-                        </div>
-                        <div class="flex items-center gap-1">
-                            <span class="material-icons text-sm">visibility</span>
-                            <span>{{ formatViews(anime.views) }}</span>
-                        </div>
-                    </div>
-                </div>
-            </NuxtLink>
+            <AnimeCard 
+                v-for="anime in animeList" 
+                :key="anime.refId" 
+                :anime="anime"
+                :show-hover-title-color="true"
+            />
         </div>
 
         <!-- Pagination -->
@@ -357,17 +319,17 @@ onMounted(() => {
 }
 
 .category-pill-inactive {
-    @apply bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300
-           border border-gray-200 dark:border-gray-600
-           hover:border-indigo-300 dark:hover:border-indigo-600
-           hover:text-indigo-600 dark:hover:text-indigo-400
+    @apply bg-white dark:bg-white/10 text-gray-600 dark:text-gray-300
+           border-2 border-black/10 dark:border-white/10
+           hover:bg-black/10 dark:hover:bg-white/20
            hover:shadow-md hover:-translate-y-0.5;
 }
 
 .category-pill-active {
-    @apply bg-gradient-to-r from-indigo-600 to-purple-600 text-white 
-           border border-indigo-600 dark:border-purple-600
-           shadow-lg shadow-indigo-500/30 dark:shadow-purple-500/30;
+    @apply bg-black/70 dark:bg-white text-white dark:text-black 
+           border-2 border-black/10 dark:border-white/10
+           shadow-lg shadow-black/30 dark:shadow-white/30
+           transform -translate-y-1;
 }
 
 /* Tag Pills */
@@ -376,34 +338,15 @@ onMounted(() => {
 }
 
 .tag-pill-inactive {
-    @apply bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300
-           border border-gray-200 dark:border-gray-600
-           hover:bg-indigo-50 dark:hover:bg-gray-600
-           hover:border-indigo-300 dark:hover:border-indigo-600
-           hover:text-indigo-600 dark:hover:text-indigo-400
+    @apply bg-white dark:bg-white/10 text-gray-600 dark:text-gray-300
+           border border-gray-200 dark:border-white/10
+           hover:bg-black/10 dark:hover:bg-white/20
            hover:shadow-sm hover:-translate-y-0.5;
 }
 
 .tag-pill-active {
-    @apply bg-indigo-600 text-white border border-indigo-600
-           shadow-md shadow-indigo-500/30 transform -translate-y-0.5;
-}
-
-/* Anime Card Item */
-.anime-card-item {
-    @apply bg-white dark:bg-gray-800 rounded-xl overflow-hidden 
-           cursor-pointer transition-all duration-300
-           hover:shadow-2xl hover:-translate-y-2
-           border border-gray-100 dark:border-gray-700
-           hover:border-indigo-300 dark:hover:border-indigo-600;
-    animation: fadeInUp 0.6s ease-out;
-}
-
-/* Year Badge */
-.badge-year {
-    @apply absolute top-2 right-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white 
-           text-xs font-bold px-3 py-1 rounded-full shadow-lg
-           backdrop-blur-sm transform transition-transform duration-300;
+    @apply bg-black/70 dark:bg-white text-white dark:text-black
+           shadow-md shadow-gray-500/30 dark:shadow-gray-400/30 transform -translate-y-0.5;
 }
 
 .group:hover .badge-year {
@@ -430,18 +373,6 @@ onMounted(() => {
 .filter-expand-leave-to {
     max-height: 0;
     opacity: 0;
-}
-
-/* Animations */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 /* Scrollbar */

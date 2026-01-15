@@ -415,10 +415,6 @@ onUnmounted(() => {
 <template>
     <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center min-h-screen">
-        <!-- <div class="text-center">
-            <div class="inline-block w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-            <p class="text-gray-600 dark:text-gray-400 text-lg">載入動漫詳情中...</p>
-        </div> -->
         <AnimeLoader :show="loading" message="載入動漫詳情中..." centered />
     </div>
 
@@ -429,7 +425,7 @@ onUnmounted(() => {
         </div>
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">載入失敗</h2>
         <p class="text-red-600 dark:text-red-400 mb-6 max-w-md">{{ error }}</p>
-        <button @click="router.back()" class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">返回上一頁</button>
+        <button @click="router.back()" class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">返回上一頁</button>
     </div>
 
     <!-- Empty State -->
@@ -441,11 +437,11 @@ onUnmounted(() => {
     <!-- Content -->
     <div v-else>
         <!-- Hero Section -->
-        <div class="relative overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-gray-900 text-white">
-            <div class="absolute inset-0 opacity-70">
+        <div class="relative overflow-hidden bg-gradient-to-br from-gray-100 via-gray-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-gray-900 dark:text-white">
+            <div class="absolute inset-0 opacity-70 dark:opacity-70">
                 <img :src="anime.image" :alt="anime.title" class="w-full h-full object-cover blur-2xl scale-110" />
             </div>
-            <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/80 to-transparent"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-white via-white/90 to-transparent dark:from-gray-950 dark:via-gray-900/80 dark:to-transparent"></div>
 
             <div class="relative max-w-7xl mx-auto px-4 py-12">
                 <div class="flex flex-col md:flex-row gap-8">
@@ -460,30 +456,30 @@ onUnmounted(() => {
                             <div class="flex flex-col md:flex-row items-center justify-between gap-4 mb-3">
                                 <h1 class="text-4xl md:text-5xl font-bold leading-tight text-center md:text-left">{{ anime.title }}</h1>
                                 <div class="flex items-center gap-2 flex-shrink-0">
-                                    <button v-if="anime.detailId" @click="showDetailDialog = true" class="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all flex items-center justify-center" title="Details">
-                                        <span class="material-icons text-xl">info</span>
+                                    <button v-if="anime.detailId" @click="showDetailDialog = true" class="w-10 h-10 bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-lg border border-gray-200 dark:border-white/20 hover:bg-white dark:hover:bg-white/20 transition-all flex items-center justify-center" title="Details">
+                                        <span class="material-icons text-xl text-gray-900 dark:text-white">info</span>
                                     </button>
-                                    <button @click="openShareDialog" class="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all flex items-center justify-center" title="Share">
-                                        <span class="material-icons text-xl">share</span>
+                                    <button @click="openShareDialog" class="w-10 h-10 bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-lg border border-gray-200 dark:border-white/20 hover:bg-white dark:hover:bg-white/20 transition-all flex items-center justify-center" title="Share">
+                                        <span class="material-icons text-xl text-gray-900 dark:text-white">share</span>
                                     </button>
                                 </div>
                             </div>
                             <div class="flex flex-wrap items-center justify-center md:justify-start gap-3">
-                                <div class="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
+                                <div class="flex items-center gap-2 px-4 py-2 bg-gray-950/5 dark:bg-white/10 backdrop-blur-sm rounded-lg border border-gray-950/5 dark:border-white/20">
                                     <span class="material-icons text-yellow-400">star</span>
-                                    <span class="font-bold text-lg">{{ formatRating(anime.userRating?.score) }}</span>
-                                    <span class="text-sm text-gray-300">({{ anime.userRating?.count || 0 }})</span>
+                                    <span class="font-bold text-lg text-gray-900 dark:text-white">{{ formatRating(anime.userRating?.score) }}</span>
+                                    <span class="text-sm text-gray-600 dark:text-gray-300">({{ anime.userRating?.count || 0 }})</span>
                                 </div>
 
-                                <button @click="toggleFavorite" class="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all flex items-center gap-2">
-                                    <span class="material-icons" :class="isFavorite ? 'text-red-500' : 'text-white'">{{ isFavorite ? "favorite" : "favorite_border" }}</span>
-                                    <span>{{ isFavorite ? "已收藏" : "收藏" }}</span>
+                                <button @click="toggleFavorite" class="px-4 py-2 bg-gray-950/5 dark:bg-white/10 backdrop-blur-sm rounded-lg border border-gray-950/5 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center gap-2">
+                                    <span class="material-icons" :class="isFavorite ? 'text-red-500' : 'text-gray-900 dark:text-white'">{{ isFavorite ? "favorite" : "favorite_border" }}</span>
+                                    <span class="text-gray-900 dark:text-white">{{ isFavorite ? "已收藏" : "收藏" }}</span>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="prose prose-invert max-w-none">
-                            <p class="text-gray-200 leading-relaxed text-lg">{{ anime.description || "暫無簡介" }}</p>
+                        <div class="prose max-w-none">
+                            <p class="text-gray-700 dark:text-gray-200 leading-relaxed text-lg">{{ anime.description || "暫無簡介" }}</p>
                         </div>
 
                         <!-- Tags Section -->
@@ -493,9 +489,9 @@ onUnmounted(() => {
                                     v-for="tag in anime.tags"
                                     :key="tag"
                                     :to="`/show-all-anime?tags=${encodeURIComponent(tag)}`"
-                                    class="px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 
-                                            text-sm font-medium text-white
-                                            hover:bg-white/20 hover:border-white/40 hover:scale-105
+                                    class="px-3 py-1.5 bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-full border border-gray-200 dark:border-white/20 
+                                            text-sm font-medium text-gray-900 dark:text-white
+                                            hover:bg-white dark:hover:bg-white/20 hover:border-gray-300 dark:hover:border-white/40 hover:scale-105
                                             transition-all duration-200 transform
                                             flex items-center gap-1.5"
                                 >
@@ -507,34 +503,34 @@ onUnmounted(() => {
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                             <div class="info-card" v-if="anime.director">
-                                <span class="material-icons text-indigo-400">person</span>
+                                <span class="material-icons text-gray-600 dark:text-gray-300">person</span>
                                 <div>
-                                    <p class="text-gray-400 text-xs">導演監督</p>
-                                    <p class="font-semibold">{{ anime.director }}</p>
+                                    <p class="text-gray-500 dark:text-gray-400 text-xs">導演監督</p>
+                                    <p class="font-semibold text-gray-900 dark:text-white">{{ anime.director }}</p>
                                 </div>
                             </div>
 
                             <div class="info-card" v-if="anime.productionCompany">
-                                <span class="material-icons text-purple-400">business</span>
+                                <span class="material-icons text-gray-600 dark:text-gray-300">business</span>
                                 <div>
-                                    <p class="text-gray-400 text-xs">代理廠商</p>
-                                    <p class="font-semibold">{{ anime.productionCompany }}</p>
+                                    <p class="text-gray-500 dark:text-gray-400 text-xs">代理廠商</p>
+                                    <p class="font-semibold text-gray-900 dark:text-white">{{ anime.productionCompany }}</p>
                                 </div>
                             </div>
 
                             <div class="info-card" v-if="anime.premiereDate">
                                 <span class="material-icons text-pink-400">event</span>
                                 <div>
-                                    <p class="text-gray-400 text-xs">首播日期</p>
-                                    <p class="font-semibold">{{ anime.premiereDate }}</p>
+                                    <p class="text-gray-500 dark:text-gray-400 text-xs">首播日期</p>
+                                    <p class="font-semibold text-gray-900 dark:text-white">{{ anime.premiereDate }}</p>
                                 </div>
                             </div>
 
                             <div class="info-card" v-if="anime.distributor">
                                 <span class="material-icons text-blue-400">local_shipping</span>
                                 <div>
-                                    <p class="text-gray-400 text-xs">發行商</p>
-                                    <p class="font-semibold">{{ anime.distributor }}</p>
+                                    <p class="text-gray-500 dark:text-gray-400 text-xs">發行商</p>
+                                    <p class="font-semibold text-gray-900 dark:text-white">{{ anime.distributor }}</p>
                                 </div>
                             </div>
                         </div>
@@ -546,7 +542,7 @@ onUnmounted(() => {
         <!-- Continue Watching Prompt -->
         <transition name="slide-down">
             <div v-if="showContinuePrompt && lastWatchedData" class="max-w-7xl mx-auto px-4 -mt-8 relative z-10">
-                <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-2xl p-6 text-white">
+                <div class="bg-gray-900 dark:bg-gray-800 rounded-2xl shadow-2xl p-6 text-white">
                     <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                         <div class="flex items-start gap-4">
                             <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
@@ -561,7 +557,7 @@ onUnmounted(() => {
                             </div>
                         </div>
                         <div class="flex gap-3 w-full md:w-auto">
-                            <button @click="continueLast" class="flex-1 md:flex-none px-6 py-3 bg-white text-indigo-600 hover:bg-gray-100 rounded-lg transition-all font-medium flex items-center justify-center gap-2">
+                            <button @click="continueLast" class="flex-1 md:flex-none px-6 py-3 bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 hover:bg-gray-100 dark:hover:bg-gray-200 rounded-lg transition-all font-medium flex items-center justify-center gap-2">
                                 <span class="material-icons text-xl">play_arrow</span>
                                 繼續播放
                             </button>
@@ -587,7 +583,7 @@ onUnmounted(() => {
 
                 <VideoPlayer v-if="videoUrl || selectedEpisode" ref="videoPlayer" :src="videoUrl || ''" autoplay preload="metadata" :has-next-episode="hasNextEpisode" :shortcuts="userShortcuts" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @next-episode="handleNextEpisode" @previous-episode="handlePreviousEpisode" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
 
-                <div v-else class="aspect-video bg-black relative rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-400">
+                <div v-else class="aspect-video bg-black dark:bg-gray-950/50 relative rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-400">
                     <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>
                     <p class="text-lg">請選擇集數開始播放</p>
                 </div>
@@ -598,24 +594,14 @@ onUnmounted(() => {
                 <div class="flex items-center gap-3 mb-6">
                     <h2 class="text-2xl font-bold text-gray-900 dark:text-white">相關動漫</h2>
                 </div>
-
+                
+                
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    <NuxtLink v-for="rel in anime.relatedAnime" :key="rel.refId" :to="`/anime/${rel.refId}`" class="related-card group">
-                        <div class="relative overflow-hidden rounded-t-xl aspect-[2/3] bg-gray-200 dark:bg-gray-700">
-                            <img :src="rel.image" :alt="rel.title" class="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110" />
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-
-                            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100">
-                                <div class="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-xl">
-                                    <span class="material-icons text-indigo-600 text-2xl">play_arrow</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="p-3">
-                            <p class="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{{ rel.title }}</p>
-                        </div>
-                    </NuxtLink>
+                    <AnimeCard 
+                        v-for="item in anime.relatedAnime" 
+                        :key="item.refId || item.video_url" 
+                        :anime="item" 
+                    />
                 </div>
             </section>
         </div>
@@ -631,7 +617,7 @@ onUnmounted(() => {
     <BaseDialog v-model="showShortcutsModal" max-width="max-w-2xl">
         <template #header>
             <div class="flex items-center gap-3">
-                <span class="material-icons text-3xl text-indigo-500">keyboard</span>
+                <span class="material-icons text-3xl text-gray-600 dark:text-gray-400">keyboard</span>
                 <h3 class="text-2xl font-bold text-gray-900 dark:text-white">鍵盤快捷鍵</h3>
             </div>
         </template>
@@ -685,18 +671,15 @@ onUnmounted(() => {
 
 <style scoped>
 .content-card {
-    @apply bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl;
+    @apply bg-gray-950/5 dark:bg-white/10 rounded-2xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl;
 }
 
 .info-card {
-    @apply flex items-center gap-3 px-4 py-3 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20;
+    @apply flex items-center gap-3 px-4 py-3 bg-gray-950/5 backdrop-blur-sm rounded-lg border border-white/20;
 }
 
-.related-card {
-    @apply bg-white dark:bg-gray-800 rounded-xl overflow-hidden cursor-pointer 
-           transition-all duration-300 hover:shadow-2xl hover:-translate-y-2
-           border border-gray-100 dark:border-gray-700
-           hover:border-indigo-300 dark:hover:border-indigo-600;
+.anime-card-item {
+    @apply bg-white dark:bg-black/5 !important;
 }
 
 .slide-down-enter-active,
@@ -712,22 +695,6 @@ onUnmounted(() => {
 .slide-down-leave-to {
     opacity: 0;
     transform: translateY(-20px);
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.content-card,
-.related-card {
-    animation: fadeInUp 0.6s ease-out;
 }
 
 ::-webkit-scrollbar {

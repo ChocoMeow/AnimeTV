@@ -156,7 +156,7 @@ watch(
             <div class="flex items-center gap-2">
                 <label class="text-sm text-gray-600 dark:text-gray-400">跳至:</label>
                 <input v-model="jumpInput" type="text" class="input-field w-32" placeholder="集數或特別篇" @keyup.enter="jumpTo" />
-                <button @click="jumpTo" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg transition-colors">確定</button>
+                <button @click="jumpTo" class="px-4 py-2 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 text-sm rounded-lg transition-colors">確定</button>
             </div>
 
             <!-- Total Count -->
@@ -171,7 +171,7 @@ watch(
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">範圍:</span>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button v-for="(start, idx) in Array.from({ length: totalPages }, (_, i) => episodeList[i * pageSize])" :key="start" @click="applyRange(start)" :class="['px-4 py-2 text-sm rounded-lg border transition-colors', currentPage === idx + 1 ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-indigo-600 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-400']">{{ getEpisodeLabel(start) }}–{{ getEpisodeLabel(episodeList[Math.min((idx + 1) * pageSize - 1, episodeList.length - 1)]) }}</button>
+                <button v-for="(start, idx) in Array.from({ length: totalPages }, (_, i) => episodeList[i * pageSize])" :key="start" @click="applyRange(start)" :class="['px-4 py-2 text-sm rounded-lg border transition-colors', currentPage === idx + 1 ? 'bg-black/70 dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-white/10 border-2 border-black/10 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20']">{{ getEpisodeLabel(start) }}–{{ getEpisodeLabel(episodeList[Math.min((idx + 1) * pageSize - 1, episodeList.length - 1)]) }}</button>
             </div>
         </div>
 
@@ -211,7 +211,7 @@ watch(
                     </div>
 
                     <!-- Progress Bar -->
-                    <div v-if="hasWatched(ep) && String(ep) !== String(modelValue)" class="absolute bottom-0 left-0 h-1 z-0 transition-all rounded-bl-lg" :class="isCompleted(ep) ? 'bg-green-500' : 'bg-indigo-500'" :style="{ width: `${getProgressPercentage(ep)}%` }"></div>
+                    <div v-if="hasWatched(ep) && String(ep) !== String(modelValue)" class="absolute bottom-0 left-0 h-1 z-0 transition-all rounded-bl-lg" :class="isCompleted(ep) ? 'bg-green-500' : 'bg-gray-600 dark:bg-gray-400'" :style="{ width: `${getProgressPercentage(ep)}%` }"></div>
 
                     <!-- Hover Tooltip -->
                     <div v-if="watchProgress[String(ep)]" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 shadow-xl">
@@ -221,7 +221,7 @@ watch(
                                 {{ formatTime(watchProgress[String(ep)].playback_time) }} /
                                 {{ formatTime(watchProgress[String(ep)].video_duration) }}
                             </div>
-                            <div :class="isCompleted(ep) ? 'text-green-400' : 'text-indigo-400'">{{ getProgressPercentage(ep) }}% 完成</div>
+                            <div :class="isCompleted(ep) ? 'text-green-400' : 'text-gray-400'">{{ getProgressPercentage(ep) }}% 完成</div>
                         </div>
                         <!-- Arrow -->
                         <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
@@ -234,32 +234,33 @@ watch(
 
 <style scoped>
 .input-field {
-    @apply px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600
+    @apply px-3 py-2 bg-white dark:bg-gray-950/50 border border-gray-300 dark:border-gray-600
            text-gray-900 dark:text-gray-100 rounded-lg text-sm
-           focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+           focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-transparent
            transition-shadow;
 }
 
 .episode-button {
     @apply aspect-square rounded-lg text-sm font-medium border-2 transition-all duration-300
-           bg-white dark:bg-gray-800 
-           border-gray-300 dark:border-gray-600
+           bg-gray-950/5 dark:bg-white/10
+           border-gray-300 dark:border-gray-700
            text-gray-700 dark:text-gray-300
-           hover:border-indigo-600 hover:text-indigo-600 
-           dark:hover:border-indigo-400 dark:hover:text-indigo-400
+           hover:bg-gray-950/10 dark:hover:bg-white/20
+           hover:border-gray-400 dark:hover:border-gray-600
+           hover:text-gray-900 dark:hover:text-gray-100
            hover:shadow-md
            flex items-center justify-center
            cursor-pointer;
 }
 
 .episode-button.active {
-    @apply bg-indigo-600 border-indigo-600 text-white
+    @apply bg-gray-900 dark:bg-gray-100 border-gray-900 dark:border-gray-100 text-white dark:text-gray-900
            shadow-lg scale-105;
 }
 
 .episode-button.watched {
-    @apply border-indigo-300 dark:border-indigo-700
-           bg-indigo-50 dark:bg-indigo-900/20;
+    @apply border-gray-300 dark:border-gray-700
+           bg-gray-50 dark:bg-gray-900/20;
 }
 
 .episode-button.completed {
@@ -269,22 +270,22 @@ watch(
 }
 
 .episode-button.special {
-    @apply bg-gradient-to-br from-purple-500 to-pink-500 
-           border-purple-400 dark:border-purple-600
+    @apply bg-gradient-to-br from-gray-600 to-gray-800 
+           border-gray-500 dark:border-gray-600
            text-white font-semibold
-           hover:from-purple-600 hover:to-pink-600
-           hover:border-purple-500;
+           hover:from-gray-700 hover:to-gray-900
+           hover:border-gray-600;
 }
 
 .episode-button.special.active {
-    @apply from-purple-700 to-pink-700 
-           border-purple-700
-           shadow-xl shadow-purple-500/50;
+    @apply from-gray-800 to-gray-950 
+           border-gray-800
+           shadow-xl shadow-gray-500/50;
 }
 
 .episode-button.special.watched:not(.active) {
-    @apply from-purple-400 to-pink-400 
-           border-purple-300 dark:border-purple-600
+    @apply from-gray-500 to-gray-700 
+           border-gray-400 dark:border-gray-600
            opacity-80;
 }
 
@@ -293,7 +294,7 @@ watch(
 }
 
 .episode-button.watched:not(.completed):not(.special) .material-icons {
-    @apply text-indigo-600 dark:text-indigo-400;
+    @apply text-gray-600 dark:text-gray-400;
 }
 
 .episode-button.special .material-icons {

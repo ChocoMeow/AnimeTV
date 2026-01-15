@@ -16,7 +16,7 @@ const socialLinks = [
 </script>
 
 <template>
-    <footer class="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
+    <footer class="border-t border-gray-200 dark:border-white/10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <!-- Desktop Layout -->
             <div class="hidden md:flex items-center justify-between">
@@ -25,7 +25,7 @@ const socialLinks = [
 
                 <!-- Right: Social Links -->
                 <div class="flex items-center gap-4">
-                    <a v-for="social in socialLinks" :key="social.name" :href="social.url" target="_blank" rel="noopener noreferrer" :aria-label="social.name" class="text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                    <a v-for="social in socialLinks" :key="social.name" :href="social.url" target="_blank" rel="noopener noreferrer" :aria-label="social.name" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path :d="social.icon" />
                         </svg>
@@ -37,7 +37,7 @@ const socialLinks = [
             <div class="md:hidden space-y-4">
                 <!-- Social Links (Top on mobile) -->
                 <div class="flex items-center justify-center gap-6">
-                    <a v-for="social in socialLinks" :key="social.name" :href="social.url" target="_blank" rel="noopener noreferrer" :aria-label="social.name" class="text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                    <a v-for="social in socialLinks" :key="social.name" :href="social.url" target="_blank" rel="noopener noreferrer" :aria-label="social.name" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors">
                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path :d="social.icon" />
                         </svg>

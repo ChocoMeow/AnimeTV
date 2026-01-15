@@ -14,9 +14,9 @@ const props = defineProps({
     },
     iconColor: {
         type: String,
-        default: "text-indigo-500",
+        default: "text-gray-500",
     },
-    maxWidth: {
+    maxWidth: { 
         type: String,
         default: "max-w-md",
     },
@@ -107,7 +107,7 @@ onBeforeUnmount(() => {
     <!-- Desktop: Use Centered Modal -->
     <transition v-else name="fade">
         <div v-if="show" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" @click="handleBackdropClick">
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full p-6" :class="maxWidth" @click.stop>
+            <div class="bg-white dark:bg-gray-950 rounded-xl shadow-2xl w-full p-6 border-1 border-gray-950/5 dark:border-white/10" :class="maxWidth" @click.stop>
                 <!-- Header -->
                 <div v-if="title || icon" class="flex items-center gap-3 mb-4">
                     <span v-if="icon" class="material-icons text-3xl" :class="iconColor">

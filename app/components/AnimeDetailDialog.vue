@@ -44,7 +44,7 @@ watch(
     <BaseDialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)" title="動漫詳情" max-width="max-w-4xl" scrollable>
         <!-- Loading State -->
         <div v-if="loading" class="flex flex-col items-center justify-center py-12">
-            <div class="inline-block w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+            <div class="inline-block w-12 h-12 border-4 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin mb-4"></div>
             <p class="text-gray-600 dark:text-gray-400">載入詳情中...</p>
         </div>
 
@@ -59,14 +59,14 @@ watch(
             <!-- Staff Section -->
             <div v-if="animeDetails.staff?.length" class="detail-section">
                 <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2 sticky top-0 bg-white dark:bg-gray-800 z-10 p-2">
-                    <span class="material-icons text-indigo-600 dark:text-indigo-400">badge</span>
+                    <span class="material-icons text-gray-600 dark:text-gray-400">badge</span>
                     製作人員 (STAFF)
                 </h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div v-for="staff in animeDetails.staff" :key="staff.id" class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                         <img v-if="staff.image" :src="staff.image" :alt="staff.name" class="w-12 h-12 rounded-full object-cover" />
-                        <div class="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center" v-else>
-                            <span class="material-icons text-indigo-600 dark:text-indigo-400">person</span>
+                        <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center" v-else>
+                            <span class="material-icons text-gray-600 dark:text-gray-400">person</span>
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="font-medium text-gray-900 dark:text-white truncate">{{ staff.name }}</p>
@@ -79,14 +79,14 @@ watch(
             <!-- Cast Section -->
             <div v-if="animeDetails.cast?.length" class="detail-section">
                 <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2 sticky top-0 bg-white dark:bg-gray-800 z-10 p-2">
-                    <span class="material-icons text-purple-600 dark:text-purple-400">mic</span>
+                    <span class="material-icons text-gray-600 dark:text-gray-400">mic</span>
                     聲優陣容 (CAST)
                 </h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div v-for="cast in animeDetails.cast" :key="cast.id" class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                         <img v-if="cast.image" :src="cast.image" :alt="cast.name" class="w-12 h-12 rounded-full object-cover" />
-                        <div class="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center" v-else>
-                            <span class="material-icons text-purple-600 dark:text-purple-400">person</span>
+                        <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center" v-else>
+                            <span class="material-icons text-gray-600 dark:text-gray-400">person</span>
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="font-medium text-gray-900 dark:text-white truncate">{{ cast.name }}</p>

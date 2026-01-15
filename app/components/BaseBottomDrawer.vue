@@ -236,7 +236,7 @@ onBeforeUnmount(() => {
                 <!-- Drawer Container -->
                 <div 
                     ref="drawerRef"
-                    class="bg-white dark:bg-gray-800 rounded-t-3xl shadow-2xl w-full will-change-transform" 
+                    class="bg-white dark:bg-gray-950 rounded-t-3xl shadow-2xl w-full will-change-transform" 
                     :class="maxHeight"
                     @click.stop
                 >

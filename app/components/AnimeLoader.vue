@@ -78,7 +78,7 @@ defineProps({
 
             <!-- Progress Bar (optional) -->
             <div v-if="showProgress" :class="[centered ? 'w-80' : 'w-64', 'h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden']">
-                <div class="h-full bg-gradient-to-r from-indigo-500 to-purple-600 animate-progress rounded-full"></div>
+                <div class="h-full bg-gradient-to-r from-gray-600 to-gray-800 dark:from-gray-400 dark:to-gray-600 animate-progress rounded-full"></div>
             </div>
         </div>
     </div>
@@ -87,19 +87,19 @@ defineProps({
 <style scoped>
 /* SVG Element Colors - Adapts to theme */
 .tv-icon .antenna line {
-    stroke: rgb(99 102 241); /* indigo-500 */
+    stroke: rgb(75 85 99); /* gray-600 */
 }
 
 .tv-icon .antenna circle {
-    fill: rgb(99 102 241); /* indigo-500 */
+    fill: rgb(75 85 99); /* gray-600 */
 }
 
 .tv-icon .tv-body {
-    fill: rgb(199 210 254); /* indigo-200 */
+    fill: rgb(209 213 219); /* gray-300 */
 }
 
 .tv-icon .tv-screen {
-    fill: rgb(238 242 255); /* indigo-50 */
+    fill: rgb(243 244 246); /* gray-100 */
 }
 
 .tv-icon .eye-white {
@@ -120,19 +120,19 @@ defineProps({
 
 /* Dark mode colors */
 :global(.dark) .tv-icon .antenna line {
-    stroke: rgb(129 140 248); /* indigo-400 */
+    stroke: rgb(156 163 175); /* gray-400 */
 }
 
 :global(.dark) .tv-icon .antenna circle {
-    fill: rgb(129 140 248); /* indigo-400 */
+    fill: rgb(156 163 175); /* gray-400 */
 }
 
 :global(.dark) .tv-icon .tv-body {
-    fill: rgb(79 70 229); /* indigo-600 */
+    fill: rgb(55 65 81); /* gray-700 */
 }
 
 :global(.dark) .tv-icon .tv-screen {
-    fill: rgb(55 48 163); /* indigo-800 */
+    fill: rgb(31 41 55); /* gray-800 */
 }
 
 :global(.dark) .tv-icon .eye-white {

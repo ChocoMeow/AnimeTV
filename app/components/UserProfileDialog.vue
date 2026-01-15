@@ -142,7 +142,7 @@ function formatDate(dateString) {
         <!-- Loading State -->
         <div v-if="loading" class="flex flex-col items-center justify-center py-12">
             <div
-                class="inline-block w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4">
+                class="inline-block w-12 h-12 border-4 border-gray-600 border-t-gray-200 rounded-full animate-spin mb-4">
             </div>
             <p class="text-gray-600 dark:text-gray-400">載入資料中...</p>
         </div>
@@ -156,7 +156,7 @@ function formatDate(dateString) {
         <!-- Profile Content -->
         <div v-else-if="profile" class="space-y-0">
             <!-- Profile Header -->
-            <div class="bg-white dark:bg-gray-800">
+            <div class="">
                 <div class="flex items-center gap-4 mb-4">
                     <!-- Avatar -->
                     <div class="relative flex-shrink-0">
@@ -165,7 +165,7 @@ function formatDate(dateString) {
                             <img :src="friendAvatar" :alt="friendName" class="w-full h-full object-cover" />
                         </div>
                         <div v-else
-                            class="w-20 h-20 rounded-full border-4 border-white dark:border-gray-800 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
+                            class="w-20 h-20 rounded-full border-4 border-white dark:border-gray-800 bg-gradient-to-br from-gray-600 to-gray-800 dark:from-gray-700 dark:to-gray-900 flex items-center justify-center text-white text-2xl font-bold">
                             {{ initials }}
                         </div>
                     </div>
@@ -216,7 +216,7 @@ function formatDate(dateString) {
                                     </div>
                                     <!-- Progress bar -->
                                     <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-800/50">
-                                        <div class="h-full bg-indigo-500"
+                                        <div class="h-full bg-gray-600 dark:bg-gray-400"
                                             :style="{ width: `${anime.progress_percentage}%` }"></div>
                                     </div>
                                 </div>
@@ -283,7 +283,7 @@ function formatDate(dateString) {
                         <img :src="friendAvatar" :alt="friendName" class="w-full h-full object-cover" />
                     </div>
                     <div v-else
-                        class="w-16 h-16 rounded-full border-4 border-white dark:border-gray-800 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
+                        class="w-16 h-16 rounded-full border-4 border-white dark:border-gray-800 bg-gradient-to-br from-gray-600 to-gray-800 dark:from-gray-700 dark:to-gray-900 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
                         {{ initials }}
                     </div>
                     <div class="flex-1 min-w-0">
@@ -300,7 +300,7 @@ function formatDate(dateString) {
 
         <!-- Loading State -->
         <div v-if="loading" class="flex items-center justify-center py-12">
-            <div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+            <div class="w-12 h-12 border-4 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin"></div>
         </div>
 
         <!-- Error State -->
@@ -325,7 +325,7 @@ function formatDate(dateString) {
                             <img :src="anime.anime_image" :alt="anime.anime_title" class="w-full h-full object-cover" />
                             <!-- Progress bar -->
                             <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-800/50">
-                                <div class="h-full bg-indigo-500" :style="{ width: `${anime.progress_percentage}%` }">
+                                <div class="h-full bg-gray-600 dark:bg-gray-400" :style="{ width: `${anime.progress_percentage}%` }">
                                 </div>
                             </div>
                         </div>

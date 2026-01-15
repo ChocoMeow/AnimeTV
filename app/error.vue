@@ -30,8 +30,8 @@ useHead({
         <div class="absolute inset-0 bg-grid-pattern opacity-[0.02] dark:opacity-[0.03]"></div>
 
         <!-- Gradient Orbs -->
-        <div class="absolute top-20 left-10 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl animate-float"></div>
-        <div class="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float-delay"></div>
+        <div class="absolute top-20 left-10 w-72 h-72 bg-gray-500/10 rounded-full blur-3xl animate-float"></div>
+        <div class="absolute bottom-20 right-10 w-96 h-96 bg-gray-500/10 rounded-full blur-3xl animate-float-delay"></div>
 
         <main class="max-w-4xl w-full relative z-10">
             <div class="text-center space-y-8 py-12">
@@ -43,7 +43,7 @@ useHead({
                         </span>
                     </h1>
                     <!-- Decorative line -->
-                    <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"></div>
+                    <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 w-24 h-1 bg-gray-600 dark:bg-gray-400 rounded-full"></div>
                 </div>
 
                 <!-- Error Title -->

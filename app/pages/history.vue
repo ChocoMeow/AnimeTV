@@ -17,6 +17,14 @@ const currentPage = ref(0)
 const hasMore = ref(true)
 const loadingMore = ref(false)
 
+// Filter options
+const filterOptions = [
+    { value: "all", label: "全部" },
+    { value: "today", label: "今天" },
+    { value: "week", label: "本週" },
+    { value: "month", label: "本月" },
+]
+
 // Computed filtered history
 const filteredHistory = computed(() => {
     if (!searchQuery.value) return historyItems.value
@@ -279,154 +287,161 @@ useHead({
 </script>
 
 <template>
-    <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div class="max-w-7xl mx-auto px-4 py-6">
-            <!-- Header -->
-            <div class="mb-6">
-                <!-- Title and Search Row -->
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 flex-shrink-0">觀看紀錄</h1>
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Header -->
+        <div class="mb-6">
+            <!-- Title and Search Row -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 flex-shrink-0">觀看紀錄</h1>
 
-                    <!-- Search -->
-                    <div class="relative w-full sm:max-w-xs">
-                        <input v-model="searchQuery" type="text" placeholder="搜尋動漫..." class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm focus:ring-2 focus:ring-indigo-400 outline-none" />
-                        <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
-                    </div>
-                </div>
-
-                <!-- Filters and Actions Row -->
-                <div class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-                    <!-- Time Filters -->
-                    <div class="flex gap-2 flex-wrap">
-                        <button @click="selectedFilter = 'all'" :class="selectedFilter === 'all' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md">全部</button>
-                        <button @click="selectedFilter = 'today'" :class="selectedFilter === 'today' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md">今天</button>
-                        <button @click="selectedFilter = 'week'" :class="selectedFilter === 'week' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md">本週</button>
-                        <button @click="selectedFilter = 'month'" :class="selectedFilter === 'month' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md">本月</button>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div v-if="historyItems.length > 0" class="flex items-center gap-3 flex-wrap">
-                        <button @click="selectAll" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2">
-                            <span class="material-icons text-lg">
-                                {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? "check_box" : "check_box_outline_blank" }}
-                            </span>
-                            {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? "取消全選" : "全選" }}
-                        </button>
-
-                        <button v-if="selectedItems.size > 0" @click="deleteSelected" class="text-sm px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2">
-                            <span class="material-icons text-lg">delete</span>
-                            刪除已選 ({{ selectedItems.size }})
-                        </button>
-
-                        <button @click="showDeleteAllConfirm = true" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
-                            <span class="material-icons text-lg">delete_sweep</span>
-                            清除全部
-                        </button>
-                    </div>
+                <!-- Search -->
+                <div class="relative w-full sm:max-w-xs">
+                    <input v-model="searchQuery" type="text" placeholder="搜尋動漫..." class="w-full bg-white dark:bg-white/10 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm " />
+                    <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
                 </div>
             </div>
 
-            <!-- Loading State -->
-            <div v-if="loading" class="flex items-center justify-center py-20">
-                <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
-            </div>
+            <!-- Filters and Actions Row -->
+            <div class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                <!-- Time Filters -->
+                <div class="flex gap-2 flex-wrap">
+                    <button
+                        v-for="filter in filterOptions"
+                        :key="filter.value"
+                        @click="selectedFilter = filter.value"
+                        :class="[
+                            'px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md',
+                            selectedFilter === filter.value
+                                ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                                : 'bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300'
+                        ]"
+                    >
+                        {{ filter.label }}
+                    </button>
+                </div>
 
-            <!-- Empty State -->
-            <div v-else-if="historyItems.length === 0" class="text-center py-20">
-                <span class="material-icons text-gray-400 text-6xl mb-4">history</span>
-                <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">還沒有觀看紀錄</h3>
-                <p class="text-gray-500 dark:text-gray-400 mb-6">開始觀看動漫，這裡會記錄你的觀看歷史</p>
-                <NuxtLink to="/" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">探索動漫</NuxtLink>
-            </div>
+                <!-- Action Buttons -->
+                <div v-if="historyItems.length > 0" class="flex items-center gap-3 flex-wrap">
+                    <button @click="selectAll" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2">
+                        <span class="material-icons text-lg">
+                            {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? "check_box" : "check_box_outline_blank" }}
+                        </span>
+                        {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? "取消全選" : "全選" }}
+                    </button>
 
-            <!-- No Search Results -->
-            <div v-else-if="filteredHistory.length === 0" class="text-center py-20">
-                <span class="material-icons text-gray-400 text-6xl mb-4">search_off</span>
-                <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">找不到相關紀錄</h3>
-                <p class="text-gray-500 dark:text-gray-400">試試其他搜尋關鍵字或篩選條件</p>
-            </div>
+                    <button v-if="selectedItems.size > 0" @click="deleteSelected" class="text-sm px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2">
+                        <span class="material-icons text-lg">delete</span>
+                        刪除已選 ({{ selectedItems.size }})
+                    </button>
 
-            <!-- History List -->
-            <div v-else class="space-y-8">
-                <div v-for="(items, dateLabel) in groupedHistory" :key="dateLabel">
-                    <!-- Date Header -->
-                    <div class="flex items-center gap-3 mb-4">
-                        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ dateLabel }}</h2>
-                        <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
-                    </div>
-
-                    <!-- History Items -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div v-for="item in items" :key="item.id" class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-all overflow-hidden group relative">
-                            <!-- Checkbox - Now always visible when selected -->
-                            <button @click="toggleSelectItem(item.anime_ref_id, $event)" class="absolute top-3 left-3 z-10 w-6 h-6 rounded bg-white dark:bg-gray-700 shadow-md flex items-center justify-center transition-opacity" :class="selectedItems.has(item.anime_ref_id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'">
-                                <span v-if="selectedItems.has(item.anime_ref_id)" class="material-icons text-indigo-600 text-lg">check_box</span>
-                                <span v-else class="material-icons text-gray-400 text-lg">check_box_outline_blank</span>
-                            </button>
-
-                            <!-- Clickable Link - Wraps content -->
-                            <NuxtLink :to="`/anime/${item.anime_ref_id}?e=${item.episode_number}&t=${item.playback_time}`" class="block cursor-pointer">
-                                <div class="flex gap-4 p-4">
-                                    <!-- Thumbnail -->
-                                    <div class="w-24 h-32 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700 relative">
-                                        <img v-if="item.anime_image" :src="item.anime_image" :alt="item.anime_title" class="w-full h-full object-cover" />
-                                        <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
-                                            <span class="material-icons text-4xl">movie</span>
-                                        </div>
-
-                                        <!-- Progress Bar -->
-                                        <div v-if="item.progress_percentage > 0" class="absolute bottom-0 left-0 right-0 h-1 bg-gray-800/50">
-                                            <div class="h-full bg-indigo-600" :style="{ width: `${item.progress_percentage}%` }"></div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Info -->
-                                    <div class="flex-1 min-w-0 flex flex-col">
-                                        <h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
-                                            {{ item.anime_title }}
-                                        </h3>
-
-                                        <div class="space-y-1 text-sm text-gray-600 dark:text-gray-400 mb-3">
-                                            <p class="flex items-center gap-2">
-                                                <span class="material-icons text-xs">play_circle</span>
-                                                上次觀看：第 {{ item.episode_number }} 集
-                                            </p>
-                                            <p class="flex items-center gap-2">
-                                                <span class="material-icons text-xs">schedule</span>
-                                                {{ formatTime(item.updated_at) }}
-                                            </p>
-                                            <p v-if="item.playback_time" class="flex items-center gap-2">
-                                                <span class="material-icons text-xs">timer</span>
-                                                觀看 {{ formatDuration(item.playback_time) }} / {{ formatDuration(item.video_duration) }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </NuxtLink>
-                        </div>
-                    </div>
+                    <button @click="showDeleteAllConfirm = true" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
+                        <span class="material-icons text-lg">delete_sweep</span>
+                        清除全部
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Delete Confirmation Modal -->
-        <BaseModal :show="showDeleteConfirm" title="確認刪除" icon="warning" icon-color="text-red-500" @close="showDeleteConfirm = false">
-            <p class="text-gray-600 dark:text-gray-400">確定要刪除 {{ selectedItems.size }} 部動漫的所有觀看紀錄嗎？此操作無法復原。</p>
+        <!-- Loading State -->
+        <div v-if="loading" class="flex items-center justify-center py-20">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-600 border-t-transparent"></div>
+        </div>
 
-            <template #actions>
-                <button @click="showDeleteConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
-                <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認刪除</button>
-            </template>
-        </BaseModal>
+        <!-- Empty State -->
+        <div v-else-if="historyItems.length === 0" class="text-center py-20">
+            <span class="material-icons text-gray-400 text-6xl mb-4">history</span>
+            <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">還沒有觀看紀錄</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-6">開始觀看動漫，這裡會記錄你的觀看歷史</p>
+            <NuxtLink to="/" class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors">探索動漫</NuxtLink>
+        </div>
 
-        <!-- Delete All Modal -->
-        <BaseModal :show="showDeleteAllConfirm" title="清除全部紀錄" icon="delete_sweep" icon-color="text-red-500" @close="showDeleteAllConfirm = false">
-            <p class="text-gray-600 dark:text-gray-400 mb-2">確定要清除所有觀看紀錄嗎？此操作無法復原。</p>
+        <!-- No Search Results -->
+        <div v-else-if="filteredHistory.length === 0" class="text-center py-20">
+            <span class="material-icons text-gray-400 text-6xl mb-4">search_off</span>
+            <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">找不到相關紀錄</h3>
+            <p class="text-gray-500 dark:text-gray-400">試試其他搜尋關鍵字或篩選條件</p>
+        </div>
 
-            <template #actions>
-                <button @click="showDeleteAllConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
-                <button @click="confirmDeleteAll" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認清除</button>
-            </template>
-        </BaseModal>
+        <!-- History List -->
+        <div v-else class="space-y-8">
+            <div v-for="(items, dateLabel) in groupedHistory" :key="dateLabel">
+                <!-- Date Header -->
+                <div class="flex items-center gap-3 mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ dateLabel }}</h2>
+                    <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                </div>
+
+                <!-- History Items -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div v-for="item in items" :key="item.id" class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow hover:shadow-lg transition-all overflow-hidden group relative">
+                        <!-- Checkbox - Now always visible when selected -->
+                        <button @click="toggleSelectItem(item.anime_ref_id, $event)" class="absolute top-3 left-3 z-10 w-6 h-6 rounded bg-white dark:bg-gray-700 shadow-md flex items-center justify-center transition-opacity" :class="selectedItems.has(item.anime_ref_id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'">
+                            <span v-if="selectedItems.has(item.anime_ref_id)" class="material-icons text-gray-900 dark:text-gray-100 text-lg">check_box</span>
+                            <span v-else class="material-icons text-gray-400 text-lg">check_box_outline_blank</span>
+                        </button>
+
+                        <!-- Clickable Link - Wraps content -->
+                        <NuxtLink :to="`/anime/${item.anime_ref_id}?e=${item.episode_number}&t=${item.playback_time}`" class="block cursor-pointer">
+                            <div class="flex gap-4 p-4">
+                                <!-- Thumbnail -->
+                                <div class="w-24 h-32 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700 relative">
+                                    <img v-if="item.anime_image" :src="item.anime_image" :alt="item.anime_title" class="w-full h-full object-cover" />
+                                    <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
+                                        <span class="material-icons text-4xl">movie</span>
+                                    </div>
+
+                                    <!-- Progress Bar -->
+                                    <div v-if="item.progress_percentage > 0" class="absolute bottom-0 left-0 right-0 h-1 bg-gray-800/50">
+                                        <div class="h-full bg-gray-600 dark:bg-gray-400" :style="{ width: `${item.progress_percentage}%` }"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Info -->
+                                <div class="flex-1 min-w-0 flex flex-col">
+                                    <h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
+                                        {{ item.anime_title }}
+                                    </h3>
+
+                                    <div class="space-y-1 text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                        <p class="flex items-center gap-2">
+                                            <span class="material-icons text-xs">play_circle</span>
+                                            上次觀看：第 {{ item.episode_number }} 集
+                                        </p>
+                                        <p class="flex items-center gap-2">
+                                            <span class="material-icons text-xs">schedule</span>
+                                            {{ formatTime(item.updated_at) }}
+                                        </p>
+                                        <p v-if="item.playback_time" class="flex items-center gap-2">
+                                            <span class="material-icons text-xs">timer</span>
+                                            觀看 {{ formatDuration(item.playback_time) }} / {{ formatDuration(item.video_duration) }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </NuxtLink>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <BaseModal :show="showDeleteConfirm" title="確認刪除" icon="warning" icon-color="text-red-500" @close="showDeleteConfirm = false">
+        <p class="text-gray-600 dark:text-gray-400">確定要刪除 {{ selectedItems.size }} 部動漫的所有觀看紀錄嗎？此操作無法復原。</p>
+
+        <template #actions>
+            <button @click="showDeleteConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+            <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認刪除</button>
+        </template>
+    </BaseModal>
+
+    <!-- Delete All Modal -->
+    <BaseModal :show="showDeleteAllConfirm" title="清除全部紀錄" icon="delete_sweep" icon-color="text-red-500" @close="showDeleteAllConfirm = false">
+        <p class="text-gray-600 dark:text-gray-400 mb-2">確定要清除所有觀看紀錄嗎？此操作無法復原。</p>
+
+        <template #actions>
+            <button @click="showDeleteAllConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+            <button @click="confirmDeleteAll" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認清除</button>
+        </template>
+    </BaseModal>
 </template>

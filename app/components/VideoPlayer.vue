@@ -617,7 +617,7 @@ watch(
 </script>
 
 <template>
-    <div ref="containerRef" class="relative w-full aspect-video bg-black rounded-lg overflow-hidden cursor-default"
+    <div ref="containerRef" class="relative w-full aspect-video bg-black dark:bg-gray-950/50 rounded-lg overflow-hidden cursor-default"
         @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
         <!-- Video Element -->
         <video v-if="src" ref="videoRef" :src="src" :autoplay="autoplay" :preload="preload" class="w-full h-full block cursor-pointer"
@@ -636,7 +636,7 @@ watch(
         <div v-if="isLoading && src"
             class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-10">
             <div
-                class="w-10 h-10 sm:w-12 sm:h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4">
+                class="w-10 h-10 sm:w-12 sm:h-12 border-4 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin mb-4">
             </div>
             <p class="text-white text-sm sm:text-base">載入影片中...</p>
         </div>
@@ -669,7 +669,7 @@ watch(
                             :style="{ width: `${buffered}%` }" />
 
                         <!-- Played Progress -->
-                        <div class="absolute h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full pointer-events-none"
+                        <div class="absolute h-full bg-white rounded-full pointer-events-none"
                             :class="isDraggingProgress ? 'transition-none' : 'transition-all duration-100'"
                             :style="{ width: `${progress}%` }">
                             <div class="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white rounded-full shadow-lg transition-opacity duration-200"
@@ -695,7 +695,7 @@ watch(
                     <div class="flex items-center gap-1 sm:gap-3">
                         <!-- Play/Pause -->
                         <button @click="togglePlay"
-                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
+                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-gray-300 hover:bg-white/10"
                             :title="tooltipLabels.playPause">
                             <span v-if="isPlaying" class="material-icons text-xl sm:text-2xl">pause</span>
                             <span v-else class="material-icons text-xl sm:text-2xl">play_arrow</span>
@@ -703,7 +703,7 @@ watch(
 
                         <!-- Skip OP -->
                         <button @click="skipOP"
-                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
+                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-gray-300 hover:bg-white/10"
                             :title="tooltipLabels.skipOP">
                             <span class="material-icons text-xl sm:text-2xl">fast_forward</span>
                         </button>
@@ -711,7 +711,7 @@ watch(
                         <!-- Volume Control -->
                         <div class="relative flex items-center gap-1 sm:gap-2" @mouseenter="handleVolumeAreaEnter" @mouseleave="handleVolumeAreaLeave">
                             <button @click="toggleMute"
-                                class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
+                                class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-gray-300 hover:bg-white/10"
                                 :title="tooltipLabels.mute">
                                 <span v-if="isMuted || volume === 0"
                                     class="material-icons text-xl sm:text-2xl">volume_off</span>
@@ -729,7 +729,7 @@ watch(
 
                         <!-- Time Display -->
                         <span class="text-white text-xs sm:text-sm font-medium whitespace-nowrap"
-                            :class="{ 'text-indigo-400': isDraggingProgress }">
+                            :class="{ 'text-gray-300': isDraggingProgress }">
                             {{ formatTime(displayTime) }} / {{ formatTime(duration) }}
                         </span>
                     </div>
@@ -738,7 +738,7 @@ watch(
                         <!-- Playback Speed Control -->
                         <div class="relative flex items-center group">
                             <button
-                                class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
+                                class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-gray-300 hover:bg-white/10"
                                 title="播放速度">
                                 <span class="text-xs sm:text-sm font-medium">{{ playbackRate }}x</span>
                             </button>
@@ -749,7 +749,7 @@ watch(
                                     :key="speed"
                                     @click="setPlaybackRate(speed)"
                                     class="w-full px-4 py-2 text-left text-white text-sm hover:bg-white/10 transition-colors flex items-center justify-between"
-                                    :class="{ 'bg-indigo-500/30 text-indigo-300': playbackRate === speed }">
+                                    :class="{ 'bg-gray-500/30 text-gray-300': playbackRate === speed }">
                                     <span>{{ speed }}x</span>
                                     <span v-if="playbackRate === speed" class="material-icons text-sm">check</span>
                                 </button>
@@ -758,14 +758,14 @@ watch(
                         
                         <!-- Next Episode -->
                         <button v-if="hasNextEpisode" @click="handleNextEpisode"
-                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
+                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-gray-300 hover:bg-white/10"
                             :title="tooltipLabels.nextEpisode">
                             <span class="material-icons text-xl sm:text-2xl">skip_next</span>
                         </button>
                         
                         <!-- Fullscreen -->
                         <button @click="toggleFullscreen"
-                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-indigo-500 hover:bg-white/10"
+                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-gray-300 hover:bg-white/10"
                             :title="tooltipLabels.fullscreen">
                             <span v-if="isFullscreen" class="material-icons text-xl sm:text-2xl">fullscreen_exit</span>
                             <span v-else class="material-icons text-xl sm:text-2xl">fullscreen</span>
@@ -784,7 +784,7 @@ watch(
         <transition name="fade-scale">
             <div v-if="notification.show" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[20] pointer-events-none">
                 <div class="bg-black/90 backdrop-blur-md text-white px-4 py-3 sm:px-6 sm:py-4 rounded-2xl shadow-2xl border border-white/20 flex items-center justify-center gap-3 sm:gap-4 min-w-[160px] sm:min-w-[200px]">
-                    <span class="material-icons text-2xl sm:text-3xl text-indigo-400">{{ notification.icon }}</span>
+                    <span class="material-icons text-2xl sm:text-3xl text-gray-300">{{ notification.icon }}</span>
                     <span class="text-lg sm:text-xl font-semibold">{{ notification.message }}</span>
                 </div>
             </div>

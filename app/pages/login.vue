@@ -232,9 +232,9 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                 <div v-if="authStatus === 'verifying'" class="text-center space-y-6">
                     <div class="relative inline-flex items-center justify-center">
                         <!-- Outer rotating ring -->
-                        <div class="absolute w-20 h-20 border-4 border-indigo-200 dark:border-indigo-900 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin"></div>
+                        <div class="absolute w-20 h-20 border-4 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin"></div>
                         <!-- Inner icon -->
-                        <div class="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg">
+                        <div class="w-16 h-16 rounded-full bg-gray-600 dark:bg-gray-800 flex items-center justify-center shadow-lg">
                             <span class="material-icons text-white text-3xl">security</span>
                         </div>
                     </div>
@@ -246,9 +246,9 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
 
                     <!-- Loading dots animation -->
                     <div class="flex justify-center gap-2">
-                        <div class="w-2 h-2 bg-indigo-600 dark:bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
-                        <div class="w-2 h-2 bg-indigo-600 dark:bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
-                        <div class="w-2 h-2 bg-indigo-600 dark:bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+                        <div class="w-2 h-2 bg-gray-600 dark:bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+                        <div class="w-2 h-2 bg-gray-600 dark:bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+                        <div class="w-2 h-2 bg-gray-600 dark:bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
                     </div>
                 </div>
 
@@ -269,9 +269,9 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                     </div>
 
                     <!-- User info -->
-                    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-indigo-100 dark:border-indigo-800">
+                    <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
                         <div class="flex items-center justify-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center overflow-hidden">
+                            <div class="w-10 h-10 rounded-full bg-gray-600 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
                                 <img v-if="userAvatarUrl" :src="userAvatarUrl" alt="" class="w-full h-full object-cover" />
                             </div>
                             <div class="text-left">

@@ -49,7 +49,7 @@ function goToPage(page) {
 
 <template>
     <div class="flex justify-center items-center">
-        <div class="inline-flex items-center gap-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-2 border border-gray-200 dark:border-gray-700">
+        <div class="inline-flex items-center gap-2 bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-lg p-2 border border-gray-200 dark:border-gray-700">
             <!-- First Page (Mobile Hidden) -->
             <button v-if="currentPage > 3" @click="emit('change', 1)" class="pagination-button hidden sm:flex" :disabled="currentPage === 1">
                 <span class="material-icons text-sm">first_page</span>
@@ -95,7 +95,7 @@ function goToPage(page) {
     <!-- Page Info (Mobile) -->
     <div class="flex justify-center mt-3 sm:hidden">
         <span class="text-sm text-gray-600 dark:text-gray-400">
-            第 <span class="font-semibold text-indigo-600 dark:text-indigo-400">{{ currentPage }}</span> / {{ totalPage }} 頁
+            第 <span class="font-semibold text-gray-900 dark:text-gray-100">{{ currentPage }}</span> / {{ totalPage }} 頁
         </span>
     </div>
 </template>
@@ -110,8 +110,8 @@ function goToPage(page) {
 
 /* Navigation Buttons (Prev/Next/First/Last) */
 .pagination-nav {
-    @apply bg-gradient-to-r from-indigo-600 to-purple-600 text-white
-           hover:from-indigo-700 hover:to-purple-700
+    @apply bg-black/70 dark:bg-white text-white dark:text-black
+           hover:bg-black/80 dark:hover:bg-gray-200
            hover:shadow-lg hover:-translate-y-0.5
            active:translate-y-0;
 }
@@ -125,16 +125,15 @@ function goToPage(page) {
 
 /* Active Page */
 .pagination-active {
-    @apply bg-gradient-to-r from-indigo-600 to-purple-600 text-white
-           shadow-lg shadow-indigo-500/30 dark:shadow-purple-500/30
-           transform scale-110 font-bold;
+    @apply bg-black/70 dark:bg-white text-white dark:text-black
+           shadow-lg shadow-black/30 dark:shadow-white/30
 }
 
 /* Inactive Pages */
 .pagination-inactive {
-    @apply bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300
-           hover:bg-indigo-50 dark:hover:bg-gray-600
-           hover:text-indigo-600 dark:hover:text-indigo-400
+    @apply bg-white dark:bg-white/10 text-gray-600 dark:text-gray-300 
+           hover:bg-black/10 dark:hover:bg-white/20
+           hover:text-black/70 dark:hover:text-white
            hover:shadow-md hover:-translate-y-0.5
            active:translate-y-0;
 }
