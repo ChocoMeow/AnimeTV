@@ -227,9 +227,8 @@ useHead({
             <p class="text-gray-600 dark:text-gray-400">管理你的帳號設定和偏好</p>
         </div>
 
-        <!-- Loading State -->
-        <div v-if="loading" class="flex items-center justify-center py-20">
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-600 dark:border-gray-400 border-t-transparent"></div>
+        <div v-if="loading" class="text-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-600 border-t-transparent mx-auto"></div>
         </div>
 
         <div v-else class="space-y-6">
@@ -419,7 +418,7 @@ useHead({
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">
                 <div v-for="action in Object.keys(shortcuts)" :key="action" 
-                    class="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    class="flex items-center justify-between p-3 bg-gray-950/5 dark:bg-white/10 rounded-lg hover:bg-gray-950/10 dark:hover:bg-white/20 transition-colors"
                     :class="{ 'ring-2 ring-gray-500 dark:ring-gray-400': editingShortcut === action }">
                     <div class="flex-1">
                         <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ shortcuts[action]?.label || action }}</p>
