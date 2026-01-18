@@ -3,6 +3,7 @@ const props = defineProps({
     episodes: { type: Object, required: true },
     watchProgress: { type: Object, default: () => ({}) },
     modelValue: { type: [String, Number], default: null },
+    compact: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(["update:modelValue", "select"])
@@ -10,7 +11,6 @@ const emit = defineEmits(["update:modelValue", "select"])
 const pageSize = 12
 const currentPage = ref(1)
 const query = ref("")
-const jumpInput = ref("")
 
 // Helper function to check if a string is a pure number
 function isNumericEpisode(ep) {
@@ -70,35 +70,6 @@ function applyRange(rangeStart) {
     }
 }
 
-function jumpTo() {
-    const input = jumpInput.value.trim()
-    if (!input) return
-
-    // Try to find exact match first (case insensitive)
-    let target = episodeList.value.find((ep) => String(ep).toLowerCase() === input.toLowerCase())
-
-    // If no exact match and input is numeric, try numeric matching with clamping
-    if (!target && isNumericEpisode(input)) {
-        const n = Number(input)
-        const numericEpisodes = episodeList.value.filter((ep) => isNumericEpisode(ep))
-        if (numericEpisodes.length > 0) {
-            const max = Math.max(...numericEpisodes)
-            const min = Math.min(...numericEpisodes)
-            const clamped = Math.min(Math.max(n, min), max)
-            target = clamped
-        }
-    }
-
-    if (target !== undefined) {
-        selectEpisode(target)
-        const idx = episodeList.value.findIndex((ep) => String(ep) === String(target))
-        if (idx !== -1) {
-            currentPage.value = Math.floor(idx / pageSize) + 1
-        }
-    }
-
-    jumpInput.value = ""
-}
 
 function getProgressPercentage(ep) {
     return props.watchProgress[String(ep)]?.progress_percentage || 0
@@ -143,25 +114,98 @@ watch(
 </script>
 
 <template>
-    <div class="space-y-4">
+    <!-- Compact Grid Mode (for sidebar) -->
+    <div v-if="compact" class="space-y-4" role="list" aria-label="Episode list">
+        <!-- Search -->
+        <div class="flex items-center gap-2">
+            <input 
+                v-model="query" 
+                type="text" 
+                class="input-field flex-1 text-sm" 
+                placeholder="搜尋集數..." 
+                aria-label="Search episodes"
+            />
+        </div>
+
+        <!-- Range Selector -->
+        <div v-if="totalPages > 1" class="flex flex-wrap gap-2">
+            <button 
+                v-for="(start, idx) in Array.from({ length: totalPages }, (_, i) => episodeList[i * pageSize])" 
+                :key="start" 
+                @click="applyRange(start)" 
+                :class="['px-3 py-1.5 text-xs rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-2', currentPage === idx + 1 ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-900 dark:border-gray-100' : 'bg-white dark:bg-white/10 border-gray-200 dark:border-white/20 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/20']"
+            >
+                {{ getEpisodeLabel(start) }}–{{ getEpisodeLabel(episodeList[Math.min((idx + 1) * pageSize - 1, episodeList.length - 1)]) }}
+            </button>
+        </div>
+
+        <!-- Episodes Grid -->
+        <div>
+            <div v-if="paged.length === 0" class="text-center py-6 text-gray-500 dark:text-gray-400 text-sm">找不到相關集數</div>
+
+            <div v-else class="grid grid-cols-6 sm:grid-cols-7 md:grid-cols-8 lg:grid-cols-10 gap-1.5" role="list">
+                <button
+                    v-for="ep in paged"
+                    :key="ep"
+                    @click="selectEpisode(ep)"
+                    class="episode-button relative group"
+                    :class="{
+                        active: String(ep) === String(modelValue),
+                        watched: hasWatched(ep) && String(ep) !== String(modelValue),
+                        completed: isCompleted(ep) && String(ep) !== String(modelValue),
+                        disabled: !props.episodes[String(ep)],
+                        special: !isNumericEpisode(ep),
+                    }"
+                    :disabled="!props.episodes[String(ep)]"
+                    :title="getEpisodeTitle(ep)"
+                    :aria-label="getEpisodeTitle(ep)"
+                    :aria-current="String(ep) === String(modelValue) ? 'true' : undefined"
+                    role="listitem"
+                >
+                    <!-- Episode Number/Label -->
+                    <div class="relative z-0 flex flex-col items-center justify-center h-full overflow-hidden rounded-lg px-0.5">
+                        <span class="text-xs sm:text-sm font-medium truncate max-w-full">
+                            {{ getEpisodeLabel(ep) }}
+                        </span>
+
+                        <!-- Progress Indicator -->
+                        <div v-if="hasWatched(ep) && String(ep) !== String(modelValue)" class="text-[8px] sm:text-[10px] opacity-75 flex items-center gap-0.5 mt-0.5">
+                            <span class="material-icons text-[8px] sm:text-[10px]">
+                                {{ isCompleted(ep) ? "check_circle" : "play_circle" }}
+                            </span>
+                            <span>{{ getProgressPercentage(ep) }}%</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div v-if="hasWatched(ep) && String(ep) !== String(modelValue)" class="absolute bottom-0 left-0 h-0.5 sm:h-1 z-0 transition-all rounded-bl-lg" :class="isCompleted(ep) ? 'bg-green-500' : 'bg-gray-600 dark:bg-gray-400'" :style="{ width: `${getProgressPercentage(ep)}%` }"></div>
+
+                    <!-- Hover Tooltip -->
+                    <div v-if="watchProgress[String(ep)]" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                        <div class="flex flex-col gap-1">
+                            <div class="font-semibold">{{ getEpisodeTitle(ep) }}</div>
+                            <div class="text-gray-300">
+                                {{ formatTime(watchProgress[String(ep)].playback_time) }} /
+                                {{ formatTime(watchProgress[String(ep)].video_duration) }}
+                            </div>
+                            <div :class="isCompleted(ep) ? 'text-green-400' : 'text-gray-400'">{{ getProgressPercentage(ep) }}% 完成</div>
+                        </div>
+                        <!-- Arrow -->
+                        <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full Grid Mode (default) -->
+    <div v-else class="space-y-4">
         <!-- Controls -->
         <div class="flex flex-wrap items-center gap-3">
             <!-- Search -->
             <div class="flex items-center gap-2">
                 <label class="text-sm text-gray-600 dark:text-gray-400">搜尋:</label>
                 <input v-model="query" type="text" class="input-field w-32" placeholder="集數或特別篇" />
-            </div>
-
-            <!-- Jump To -->
-            <div class="flex items-center gap-2">
-                <label class="text-sm text-gray-600 dark:text-gray-400">跳至:</label>
-                <input v-model="jumpInput" type="text" class="input-field w-32" placeholder="集數或特別篇" @keyup.enter="jumpTo" />
-                <button @click="jumpTo" class="px-4 py-2 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 text-sm rounded-lg transition-colors">確定</button>
-            </div>
-
-            <!-- Total Count -->
-            <div class="ml-auto text-sm text-gray-600 dark:text-gray-400">
-                共 <span class="font-semibold text-gray-900 dark:text-white">{{ episodeList.length }}</span> 集
             </div>
         </div>
 
@@ -250,7 +294,8 @@ watch(
            hover:text-gray-900 dark:hover:text-gray-100
            hover:shadow-md
            flex items-center justify-center
-           cursor-pointer;
+           cursor-pointer
+           min-w-0;
 }
 
 .episode-button.active {
@@ -320,4 +365,5 @@ watch(
         grid-template-columns: repeat(15, minmax(0, 1fr));
     }
 }
+
 </style>
