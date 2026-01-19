@@ -68,6 +68,65 @@ function formatDuration(seconds) {
     return `${mins}:${secs.toString().padStart(2, "0")}`
 }
 
+function formatViews(views) {
+    if (!views) return "0"
+    if (views >= 1000000) {
+        return (views / 1000000).toFixed(1) + "M"
+    } else if (views >= 1000) {
+        return (views / 1000).toFixed(1) + "K"
+    }
+    return views.toString()
+}
+
+// Additional Details Configuration
+const additionalDetails = computed(() => {
+    if (!anime.value) return []
+    
+    const details = []
+    
+    if (anime.value.premiereDate) {
+        details.push({
+            label: "首播日期",
+            value: anime.value.premiereDate,
+            icon: "event",
+            iconBg: "bg-pink-100 dark:bg-pink-900/30",
+            iconColor: "text-pink-600 dark:text-pink-400"
+        })
+    }
+    
+    if (anime.value.productionCompany) {
+        details.push({
+            label: "代理廠商",
+            value: anime.value.productionCompany,
+            icon: "business",
+            iconBg: "bg-gray-100 dark:bg-gray-800",
+            iconColor: "text-gray-600 dark:text-gray-400"
+        })
+    }
+    
+    if (anime.value.director) {
+        details.push({
+            label: "導演監督",
+            value: anime.value.director,
+            icon: "person",
+            iconBg: "bg-gray-100 dark:bg-gray-800",
+            iconColor: "text-gray-600 dark:text-gray-400"
+        })
+    }
+    
+    if (anime.value.distributor) {
+        details.push({
+            label: "發行商",
+            value: anime.value.distributor,
+            icon: "local_shipping",
+            iconBg: "bg-blue-100 dark:bg-blue-900/30",
+            iconColor: "text-blue-600 dark:text-blue-400"
+        })
+    }
+    
+    return details
+})
+
 // Continue Watching Functions
 function continueLast() {
     if (!lastWatchedData.value) return
@@ -435,175 +494,318 @@ onUnmounted(() => {
     </div>
 
     <!-- Content -->
-    <div v-else>
-        <!-- Hero Section -->
-        <div class="relative overflow-hidden bg-gradient-to-br from-gray-100 via-gray-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-gray-900 dark:text-white">
-            <div class="absolute inset-0 opacity-70 dark:opacity-70">
-                <img :src="anime.image" :alt="anime.title" class="w-full h-full object-cover blur-2xl scale-110" />
-            </div>
-            <div class="absolute inset-0 bg-gradient-to-t from-white via-white/90 to-transparent dark:from-gray-950 dark:via-gray-900/80 dark:to-transparent"></div>
+    <div v-else class="bg-white dark:bg-gray-950">
+        <!-- Main Content Area - YouTube-style Layout -->
+        <div class="space-y-8 max-w-[96rem] mx-auto px-3 sm:px-4 py-4 sm:py-8">
+            <div class="flex flex-col lg:flex-row gap-6">
+                <!-- Left Column (70% on wide screens) -->
+                <div class="flex-1 lg:w-[75%] space-y-4">
+                    <!-- Video Player -->
+                    <section class="w-full" aria-label="Video player">
+                        <VideoPlayer 
+                            v-if="videoUrl || selectedEpisode" 
+                            ref="videoPlayer" 
+                            :src="videoUrl || ''" 
+                            :autoplay="false"
+                            preload="metadata" 
+                            :has-next-episode="hasNextEpisode" 
+                            :shortcuts="userShortcuts" 
+                            @play="handlePlay" 
+                            @pause="handlePause" 
+                            @ended="handleEnded" 
+                            @next-episode="handleNextEpisode" 
+                            @previous-episode="handlePreviousEpisode" 
+                            @loadstart="videoLoading = true" 
+                            @loadeddata="onVideoReady" 
+                        />
 
-            <div class="relative max-w-7xl mx-auto px-4 py-12">
-                <div class="flex flex-col md:flex-row gap-8">
-                    <div class="flex-shrink-0 mx-auto md:mx-0">
-                        <div class="relative group">
-                            <img :src="anime.image" :alt="anime.title" class="w-64 md:w-72 rounded-2xl shadow-2xl object-cover transform transition-transform duration-300 group-hover:scale-105" />
+                        <div v-else class="aspect-video bg-black dark:bg-white/10 relative rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-400">
+                            <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>
+                            <p class="text-lg">請選擇集數開始播放</p>
                         </div>
+                    </section>
+
+                    <!-- Mobile: Continue Prompt and Episode Picker -->
+                    <div class="lg:hidden space-y-4">
+                        <!-- Continue Watching Prompt -->
+                        <transition name="slide-down">
+                            <section v-if="showContinuePrompt && lastWatchedData" aria-label="Continue watching">
+                                <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-lg overflow-hidden">
+                                    <div class="p-4 space-y-3">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 bg-black/70 dark:bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                <span class="material-icons text-xl text-white dark:text-white">play_circle</span>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-0.5">繼續觀看</h3>
+                                                <p class="text-xs text-gray-600 dark:text-white/80 truncate">
+                                                    第 {{ lastWatchedData.episode_number }} 集
+                                                </p>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Progress Bar -->
+                                        <div class="space-y-1.5">
+                                            <div class="flex items-center justify-between text-xs text-gray-600 dark:text-white/70">
+                                                <span>{{ formatDuration(lastWatchedData.playback_time) }} / {{ formatDuration(lastWatchedData.video_duration) }}</span>
+                                                <span>{{ lastWatchedData.progress_percentage }}%</span>
+                                            </div>
+                                            <div class="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                                                <div 
+                                                    class="h-full bg-black/70 dark:bg-white rounded-full transition-all"
+                                                    :style="{ width: `${lastWatchedData.progress_percentage}%` }"
+                                                ></div>
+                                            </div>
+                                        </div>
+                                        
+                                        <button 
+                                            @click="continueLast" 
+                                            class="w-full px-4 py-2.5 bg-black/70 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 rounded-lg transition-all font-medium flex items-center justify-center gap-2 text-sm"
+                                        >
+                                            <span class="material-icons text-lg">play_arrow</span>
+                                            繼續播放
+                                        </button>
+                                    </div>
+                                </div>
+                            </section>
+                        </transition>
+
+                        <!-- Episode Picker -->
+                        <section aria-label="Episode selector">
+                            <div class="flex items-center justify-between mb-4">
+                                <h2 class="text-xl font-bold text-gray-900 dark:text-white">選擇集數</h2>
+                                <span v-if="anime?.episodes" class="text-sm text-gray-600 dark:text-gray-400">
+                                    共 <span class="font-semibold text-gray-900 dark:text-white">{{ Object.keys(anime.episodes).length }}</span> 集
+                                </span>
+                            </div>
+                            <EpisodesPicker 
+                                v-if="anime?.episodes" 
+                                :episodes="anime.episodes" 
+                                :watch-progress="allWatchProgress" 
+                                :compact="true"
+                                :anime-image="anime.image"
+                                v-model="selectedEpisode" 
+                                @select="(n) => (selectedEpisode = n)" 
+                            />
+                            <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
+                                <span class="material-icons text-4xl mb-2 opacity-50">video_library</span>
+                                <p>暫無可用集數</p>
+                            </div>
+                        </section>
                     </div>
 
-                    <div class="flex-1 space-y-6">
-                        <div>
-                            <div class="flex flex-col md:flex-row items-center justify-between gap-4 mb-3">
-                                <h1 class="text-4xl md:text-5xl font-bold leading-tight text-center md:text-left">{{ anime.title }}</h1>
-                                <div class="flex items-center gap-2 flex-shrink-0">
-                                    <button v-if="anime.detailId" @click="showDetailDialog = true" class="w-10 h-10 bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-lg border border-gray-200 dark:border-white/20 hover:bg-white dark:hover:bg-white/20 transition-all flex items-center justify-center" title="Details">
-                                        <span class="material-icons text-xl text-gray-900 dark:text-white">info</span>
-                                    </button>
-                                    <button @click="openShareDialog" class="w-10 h-10 bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-lg border border-gray-200 dark:border-white/20 hover:bg-white dark:hover:bg-white/20 transition-all flex items-center justify-center" title="Share">
-                                        <span class="material-icons text-xl text-gray-900 dark:text-white">share</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="flex flex-wrap items-center justify-center md:justify-start gap-3">
-                                <div class="flex items-center gap-2 px-4 py-2 bg-gray-950/5 dark:bg-white/10 backdrop-blur-sm rounded-lg border border-gray-950/5 dark:border-white/20">
-                                    <span class="material-icons text-yellow-400">star</span>
-                                    <span class="font-bold text-lg text-gray-900 dark:text-white">{{ formatRating(anime.userRating?.score) }}</span>
-                                    <span class="text-sm text-gray-600 dark:text-gray-300">({{ anime.userRating?.count || 0 }})</span>
-                                </div>
-
-                                <button @click="toggleFavorite" class="px-4 py-2 bg-gray-950/5 dark:bg-white/10 backdrop-blur-sm rounded-lg border border-gray-950/5 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center gap-2">
+                    <!-- Anime Information Block -->
+                    <section class="space-y-4" aria-label="Anime information">
+                        <!-- Title and Actions -->
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">{{ anime.title }}</h1>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <button 
+                                    v-if="anime.detailId" 
+                                    @click="showDetailDialog = true" 
+                                    class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-2" 
+                                    title="Details"
+                                    aria-label="View anime details"
+                                >
+                                    <span class="material-icons text-xl text-gray-900 dark:text-white">info</span>
+                                </button>
+                                <button 
+                                    @click="openShareDialog" 
+                                    class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-2" 
+                                    title="Share"
+                                    aria-label="Share anime"
+                                >
+                                    <span class="material-icons text-xl text-gray-900 dark:text-white">share</span>
+                                </button>
+                                <button 
+                                    @click="toggleFavorite" 
+                                    class="px-4 py-2 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-2"
+                                    aria-label="Toggle favorite"
+                                >
                                     <span class="material-icons" :class="isFavorite ? 'text-red-500' : 'text-gray-900 dark:text-white'">{{ isFavorite ? "favorite" : "favorite_border" }}</span>
-                                    <span class="text-gray-900 dark:text-white">{{ isFavorite ? "已收藏" : "收藏" }}</span>
+                                    <span class="text-sm text-gray-900 dark:text-white hidden sm:inline">{{ isFavorite ? "已收藏" : "收藏" }}</span>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="prose max-w-none">
-                            <p class="text-gray-700 dark:text-gray-200 leading-relaxed text-lg">{{ anime.description || "暫無簡介" }}</p>
+                        <!-- Views and Likes -->
+                        <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                            <div class="flex items-center gap-1.5">
+                                <span class="material-icons text-base">visibility</span>
+                                <span class="text-gray-900 dark:text-white">{{ formatViews(anime.views) }}</span>
+                                <span>觀看</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="material-icons text-base">favorite</span>
+                                <span class="text-gray-900 dark:text-white">{{ anime.userRating?.count || 0 }}</span>
+                                <span>喜歡</span>
+                            </div>
+                            <div v-if="anime.userRating?.score" class="flex items-center gap-1.5">
+                                <span class="material-icons text-base text-yellow-400">star</span>
+                                <span class="text-gray-900 dark:text-white">{{ formatRating(anime.userRating.score) }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="text-gray-700 dark:text-gray-200 leading-relaxed" role="region" aria-label="Anime description">
+                            {{ anime.description || "暫無簡介" }}
                         </div>
 
                         <!-- Tags Section -->
                         <div v-if="anime.tags && anime.tags.length > 0" class="flex flex-wrap items-center gap-2">
-                            <div class="flex flex-wrap gap-2">
-                                <NuxtLink
-                                    v-for="tag in anime.tags"
-                                    :key="tag"
-                                    :to="`/show-all-anime?tags=${encodeURIComponent(tag)}`"
-                                    class="px-3 py-1.5 bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-full border border-gray-200 dark:border-white/20 
-                                            text-sm font-medium text-gray-900 dark:text-white
-                                            hover:bg-white dark:hover:bg-white/20 hover:border-gray-300 dark:hover:border-white/40 hover:scale-105
-                                            transition-all duration-200 transform
-                                            flex items-center gap-1.5"
+                            <NuxtLink
+                                v-for="tag in anime.tags"
+                                :key="tag"
+                                :to="`/show-all-anime?tags=${encodeURIComponent(tag)}`"
+                                class="px-3 py-1.5 bg-gray-950/5 dark:bg-white/10 rounded-full border border-gray-200 dark:border-white/20 
+                                        text-sm font-medium text-gray-900 dark:text-white
+                                        hover:bg-gray-950/10 dark:hover:bg-white/20 hover:border-gray-300 dark:hover:border-white/40
+                                        transition-all duration-200
+                                        flex items-center gap-1.5
+                                        focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-2"
+                            >
+                                <span class="material-icons text-xs">tag</span>
+                                {{ tag }}
+                            </NuxtLink>
+                        </div>
+
+                        <!-- Additional Details -->
+                        <div v-if="additionalDetails.length > 0" class="pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">詳細資訊</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div 
+                                    v-for="detail in additionalDetails" 
+                                    :key="detail.label"
+                                    class="bg-gray-950/5 dark:bg-white/10 rounded-xl p-4"
                                 >
-                                    <span class="material-icons text-xs">tag</span>
-                                    {{ tag }}
-                                </NuxtLink>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                            <div class="info-card" v-if="anime.director">
-                                <span class="material-icons text-gray-600 dark:text-gray-300">person</span>
-                                <div>
-                                    <p class="text-gray-500 dark:text-gray-400 text-xs">導演監督</p>
-                                    <p class="font-semibold text-gray-900 dark:text-white">{{ anime.director }}</p>
-                                </div>
-                            </div>
-
-                            <div class="info-card" v-if="anime.productionCompany">
-                                <span class="material-icons text-gray-600 dark:text-gray-300">business</span>
-                                <div>
-                                    <p class="text-gray-500 dark:text-gray-400 text-xs">代理廠商</p>
-                                    <p class="font-semibold text-gray-900 dark:text-white">{{ anime.productionCompany }}</p>
-                                </div>
-                            </div>
-
-                            <div class="info-card" v-if="anime.premiereDate">
-                                <span class="material-icons text-pink-400">event</span>
-                                <div>
-                                    <p class="text-gray-500 dark:text-gray-400 text-xs">首播日期</p>
-                                    <p class="font-semibold text-gray-900 dark:text-white">{{ anime.premiereDate }}</p>
-                                </div>
-                            </div>
-
-                            <div class="info-card" v-if="anime.distributor">
-                                <span class="material-icons text-blue-400">local_shipping</span>
-                                <div>
-                                    <p class="text-gray-500 dark:text-gray-400 text-xs">發行商</p>
-                                    <p class="font-semibold text-gray-900 dark:text-white">{{ anime.distributor }}</p>
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="detail.iconBg">
+                                            <span class="material-icons text-xl" :class="detail.iconColor">{{ detail.icon }}</span>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{{ detail.label }}</p>
+                                            <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ detail.value }}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
+
+                <!-- Right Column (30% on wide screens) - Desktop Only -->
+                <aside class="hidden lg:block lg:w-[25%] lg:sticky lg:top-20 lg:self-start space-y-6" aria-label="Episode list and related content">
+                    <!-- Continue Watching Prompt -->
+                    <transition name="slide-down">
+                        <section v-if="showContinuePrompt && lastWatchedData" aria-label="Continue watching">
+                            <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-lg overflow-hidden">
+                                <div class="p-4 space-y-3">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-black/70 dark:bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                            <span class="material-icons text-xl text-white dark:text-white">play_circle</span>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-0.5">繼續觀看</h3>
+                                            <p class="text-xs text-gray-600 dark:text-white/80 truncate">
+                                                第 {{ lastWatchedData.episode_number }} 集
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Progress Bar -->
+                                    <div class="space-y-1.5">
+                                        <div class="flex items-center justify-between text-xs text-gray-600 dark:text-white/70">
+                                            <span>{{ formatDuration(lastWatchedData.playback_time) }} / {{ formatDuration(lastWatchedData.video_duration) }}</span>
+                                            <span>{{ lastWatchedData.progress_percentage }}%</span>
+                                        </div>
+                                        <div class="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                                            <div 
+                                                class="h-full bg-black/70 dark:bg-white rounded-full transition-all"
+                                                :style="{ width: `${lastWatchedData.progress_percentage}%` }"
+                                            ></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <button 
+                                        @click="continueLast" 
+                                        class="w-full px-4 py-2.5 bg-black/70 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 rounded-lg transition-all font-medium flex items-center justify-center gap-2 text-sm"
+                                    >
+                                        <span class="material-icons text-lg">play_arrow</span>
+                                        繼續播放
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+                    </transition>
+
+                    <!-- Episode Picker -->
+                    <section aria-label="Episode selector">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold text-gray-900 dark:text-white">選擇集數</h2>
+                            <span v-if="anime?.episodes" class="text-sm text-gray-600 dark:text-gray-400">
+                                共 <span class="font-semibold text-gray-900 dark:text-white">{{ Object.keys(anime.episodes).length }}</span> 集
+                            </span>
+                        </div>
+                        <EpisodesPicker 
+                            v-if="anime?.episodes" 
+                            :episodes="anime.episodes" 
+                            :watch-progress="allWatchProgress" 
+                            :compact="true"
+                            :anime-image="anime.image"
+                            v-model="selectedEpisode" 
+                            @select="(n) => (selectedEpisode = n)" 
+                        />
+                        <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
+                            <span class="material-icons text-4xl mb-2 opacity-50">video_library</span>
+                            <p>暫無可用集數</p>
+                        </div>
+                    </section>
+
+                    <!-- Related Anime -->
+                    <section v-if="anime.relatedAnime && anime.relatedAnime.length" aria-label="Related anime">
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">相關動漫</h2>
+                        <div class="space-y-3" role="list" aria-label="Related anime list">
+                            <NuxtLink
+                                v-for="item in anime.relatedAnime"
+                                :key="item.refId || item.video_url"
+                                :to="`/anime/${item.refId}`"
+                                class="flex gap-3 p-2 rounded-lg hover:bg-gray-950/5 dark:hover:bg-white/10 transition-colors group focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-2"
+                                role="listitem"
+                                :aria-label="`View ${item.title}`"
+                            >
+                                <div class="flex-shrink-0 w-32 aspect-video rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
+                                    <img
+                                        :src="item.image"
+                                        :alt="`${item.title} thumbnail`"
+                                        loading="lazy"
+                                        decoding="async"
+                                        class="w-full h-full object-cover transform transition-transform duration-300 group-hover:scale-110"
+                                    />
+                                </div>
+                                <div class="flex-1 min-w-0 space-y-1">
+                                    <h3 class="font-semibold text-sm text-gray-900 dark:text-white line-clamp-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
+                                        {{ item.title }}
+                                    </h3>
+                                    <div class="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+                                        <span v-if="item.year" class="flex items-center gap-1" aria-label="Release year">
+                                            <span class="material-icons text-xs" aria-hidden="true">calendar_today</span>
+                                            {{ item.year }}
+                                        </span>
+                                        <span v-if="item.episodes" class="flex items-center gap-1" aria-label="Episode count">
+                                            <span class="material-icons text-xs" aria-hidden="true">movie</span>
+                                            {{ item.episodes }}
+                                        </span>
+                                        <span v-if="item.views" class="flex items-center gap-1" aria-label="Views">
+                                            <span class="material-icons text-xs" aria-hidden="true">visibility</span>
+                                            {{ formatViews(item.views) }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </NuxtLink>
+                        </div>
+                    </section>
+                </aside>
             </div>
-        </div>
-
-        <!-- Continue Watching Prompt -->
-        <transition name="slide-down">
-            <div v-if="showContinuePrompt && lastWatchedData" class="max-w-7xl mx-auto px-4 -mt-8 relative z-10">
-                <div class="bg-gray-900 dark:bg-gray-800 rounded-2xl shadow-2xl p-6 text-white">
-                    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
-                                <span class="material-icons text-2xl">play_circle</span>
-                            </div>
-                            <div>
-                                <h3 class="text-xl font-bold mb-1">繼續觀看</h3>
-                                <p class="text-white/90 text-sm">
-                                    第 {{ lastWatchedData.episode_number }} 集 - {{ formatDuration(lastWatchedData.playback_time) }} / {{ formatDuration(lastWatchedData.video_duration) }}
-                                    <span class="inline-block ml-2 px-2 py-0.5 bg-white/20 rounded text-xs">{{ lastWatchedData.progress_percentage }}% 完成</span>
-                                </p>
-                            </div>
-                        </div>
-                        <div class="flex gap-3 w-full md:w-auto">
-                            <button @click="continueLast" class="flex-1 md:flex-none px-6 py-3 bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 hover:bg-gray-100 dark:hover:bg-gray-200 rounded-lg transition-all font-medium flex items-center justify-center gap-2">
-                                <span class="material-icons text-xl">play_arrow</span>
-                                繼續播放
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </transition>
-
-        <!-- Main Content Area -->
-        <div class="max-w-7xl mx-auto px-4 py-4 space-y-8">
-            <!-- Episode Selector -->
-            <section class="content-card">
-                <div class="flex items-center gap-3 mb-4">
-                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">選擇集數</h2>
-                </div>
-
-                <EpisodesPicker v-if="anime?.episodes" :episodes="anime.episodes" :watch-progress="allWatchProgress" v-model="selectedEpisode" @select="(n) => (selectedEpisode = n)" class="mb-4" />
-                <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400 mb-4">
-                    <span class="material-icons text-4xl mb-2 opacity-50">video_library</span>
-                    <p>暫無可用集數</p>
-                </div>
-
-                <VideoPlayer v-if="videoUrl || selectedEpisode" ref="videoPlayer" :src="videoUrl || ''" autoplay preload="metadata" :has-next-episode="hasNextEpisode" :shortcuts="userShortcuts" @play="handlePlay" @pause="handlePause" @ended="handleEnded" @next-episode="handleNextEpisode" @previous-episode="handlePreviousEpisode" @loadstart="videoLoading = true" @loadeddata="onVideoReady" />
-
-                <div v-else class="aspect-video bg-black dark:bg-gray-950/50 relative rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-400">
-                    <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>
-                    <p class="text-lg">請選擇集數開始播放</p>
-                </div>
-            </section>
-
-            <!-- Related Anime -->
-            <section v-if="anime.relatedAnime && anime.relatedAnime.length" class="content-card">
-                <div class="flex items-center gap-3 mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">相關動漫</h2>
-                </div>
-                
-                
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    <AnimeCard 
-                        v-for="item in anime.relatedAnime" 
-                        :key="item.refId || item.video_url" 
-                        :anime="item" 
-                    />
-                </div>
-            </section>
         </div>
     </div>
 
@@ -697,20 +899,21 @@ onUnmounted(() => {
     transform: translateY(-20px);
 }
 
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+/* Ensure video player maintains 16:9 aspect ratio */
+section[aria-label="Video player"] > div {
+    @apply w-full;
 }
 
-::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-gray-800;
+/* Line clamp utility for description */
+.line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400 dark:bg-gray-500;
+/* Focus visible styles for better accessibility */
+*:focus-visible {
+    @apply outline-none ring-2 ring-gray-900 dark:ring-white ring-offset-2;
 }
 </style>

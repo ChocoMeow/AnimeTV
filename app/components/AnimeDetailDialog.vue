@@ -138,22 +138,6 @@ watch(
     @apply pb-6 border-b border-gray-200 dark:border-gray-700 last:border-0;
 }
 
-.custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-gray-900 rounded-full;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400 dark:bg-gray-500;
-}
-
 .dialog-enter-active,
 .dialog-leave-active {
     transition: all 0.3s ease-out;

@@ -537,20 +537,4 @@ watch(
     opacity: 0;
     transform: translateY(-10px);
 }
-
-/* Custom scrollbar for dropdown */
-.overflow-y-auto::-webkit-scrollbar {
-    width: 6px;
-}
-.overflow-y-auto::-webkit-scrollbar-track {
-    background: transparent;
-}
-.overflow-y-auto::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-}
-.dark .overflow-y-auto::-webkit-scrollbar-thumb {
-    /* background: #475569; */
-    @apply dark:bg-white/10;
-}
 </style>

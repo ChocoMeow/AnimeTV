@@ -340,32 +340,6 @@ onBeforeUnmount(() => {
     }
 }
 
-/* Custom scrollbar for friend list */
-.overflow-y-auto::-webkit-scrollbar {
-    width: 6px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-    background: rgb(209 213 219);
-    border-radius: 3px;
-}
-
-.dark .overflow-y-auto::-webkit-scrollbar-thumb {
-    background: rgb(75 85 99);
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
-    background: rgb(156 163 175);
-}
-
-.dark .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-    background: rgb(107 114 128);
-}
-
 /* Smooth touch interactions on mobile */
 @media (max-width: 1023px) {
     .friend-card {
