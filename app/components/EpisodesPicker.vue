@@ -143,7 +143,7 @@ watch(
         <div>
             <div v-if="paged.length === 0" class="text-center py-6 text-gray-500 dark:text-gray-400 text-sm">找不到相關集數</div>
 
-            <div v-else class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-2" role="list">
+            <div v-else class="episode-grid-compact gap-2" role="list">
                 <button
                     v-for="ep in paged"
                     :key="ep"
@@ -215,7 +215,7 @@ watch(
         <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
             <div v-if="paged.length === 0" class="text-center py-6 text-gray-500 dark:text-gray-400">找不到相關集數</div>
 
-            <div v-else class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-15 gap-2 z-0">
+            <div v-else class="episode-grid-full gap-2 z-0">
                 <button
                     v-for="ep in paged"
                     :key="ep"
@@ -343,10 +343,37 @@ watch(
            hover:from-gray-400 hover:to-gray-500;
 }
 
-/* Extra large grid support */
-@media (min-width: 1536px) {
-    .xl\:grid-cols-15 {
-        grid-template-columns: repeat(15, minmax(0, 1fr));
+/* Responsive episode grids - auto-size based on container width */
+.episode-grid-compact {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(2.5rem, 4rem));
+    max-width: 100%;
+}
+
+.episode-grid-full {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(3rem, 5rem));
+    max-width: 100%;
+}
+
+/* Adjust for larger screens to allow more buttons per row */
+@media (min-width: 640px) {
+    .episode-grid-compact {
+        grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
+    }
+    
+    .episode-grid-full {
+        grid-template-columns: repeat(auto-fill, minmax(3.25rem, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .episode-grid-compact {
+        grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr));
+    }
+    
+    .episode-grid-full {
+        grid-template-columns: repeat(auto-fill, minmax(3.5rem, 1fr));
     }
 }
 

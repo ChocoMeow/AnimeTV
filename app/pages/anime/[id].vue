@@ -430,6 +430,7 @@ watch(selectedEpisode, async (epNum) => {
     }
 
     videoLoading.value = true
+    showContinuePrompt.value = false
     try {
         const res = await $fetch(`/api/episode/${token}`)
         if (res?.s?.length) {
@@ -691,6 +692,50 @@ onUnmounted(() => {
                             </div>
                         </div>
                     </section>
+
+                    <!-- Related Anime - Mobile Only -->
+                    <section v-if="anime.relatedAnime && anime.relatedAnime.length" class="lg:hidden" aria-label="Related anime">
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">相關動漫</h2>
+                        <div class="space-y-3" role="list" aria-label="Related anime list">
+                            <NuxtLink
+                                v-for="item in anime.relatedAnime"
+                                :key="item.refId || item.video_url"
+                                :to="`/anime/${item.refId}`"
+                                class="flex gap-3 p-2 rounded-lg hover:bg-gray-950/5 dark:hover:bg-white/10 transition-colors group focus:outline-none"
+                                role="listitem"
+                                :aria-label="`View ${item.title}`"
+                            >
+                                <div class="flex-shrink-0 w-32 aspect-video rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
+                                    <img
+                                        :src="item.image"
+                                        :alt="`${item.title} thumbnail`"
+                                        loading="lazy"
+                                        decoding="async"
+                                        class="w-full h-full object-cover transform transition-transform duration-300 group-hover:scale-110"
+                                    />
+                                </div>
+                                <div class="flex-1 min-w-0 space-y-1">
+                                    <h3 class="font-semibold text-sm text-gray-900 dark:text-white line-clamp-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
+                                        {{ item.title }}
+                                    </h3>
+                                    <div class="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+                                        <span v-if="item.year" class="flex items-center gap-1" aria-label="Release year">
+                                            <span class="material-icons text-xs" aria-hidden="true">calendar_today</span>
+                                            {{ item.year }}
+                                        </span>
+                                        <span v-if="item.episodes" class="flex items-center gap-1" aria-label="Episode count">
+                                            <span class="material-icons text-xs" aria-hidden="true">movie</span>
+                                            {{ item.episodes }}
+                                        </span>
+                                        <span v-if="item.views" class="flex items-center gap-1" aria-label="Views">
+                                            <span class="material-icons text-xs" aria-hidden="true">visibility</span>
+                                            {{ formatViews(item.views) }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </NuxtLink>
+                        </div>
+                    </section>
                 </div>
 
                 <!-- Right Column (30% on wide screens) - Desktop Only -->
@@ -769,7 +814,7 @@ onUnmounted(() => {
                                 v-for="item in anime.relatedAnime"
                                 :key="item.refId || item.video_url"
                                 :to="`/anime/${item.refId}`"
-                                class="flex gap-3 p-2 rounded-lg hover:bg-gray-950/5 dark:hover:bg-white/10 transition-colors group focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-2"
+                                class="flex gap-3 p-2 rounded-lg hover:bg-gray-950/5 dark:hover:bg-white/10 transition-colors group focus:outline-none"
                                 role="listitem"
                                 :aria-label="`View ${item.title}`"
                             >
