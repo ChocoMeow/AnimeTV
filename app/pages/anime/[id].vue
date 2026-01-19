@@ -603,7 +603,7 @@ onUnmounted(() => {
                                 <button 
                                     v-if="anime.detailId" 
                                     @click="showDetailDialog = true" 
-                                    class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-2" 
+                                    class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none" 
                                     title="Details"
                                     aria-label="View anime details"
                                 >
@@ -611,7 +611,7 @@ onUnmounted(() => {
                                 </button>
                                 <button 
                                     @click="openShareDialog" 
-                                    class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-2" 
+                                    class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none" 
                                     title="Share"
                                     aria-label="Share anime"
                                 >
@@ -619,11 +619,11 @@ onUnmounted(() => {
                                 </button>
                                 <button 
                                     @click="toggleFavorite" 
-                                    class="px-4 py-2 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-2"
+                                    class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
                                     aria-label="Toggle favorite"
+                                    :title="isFavorite ? '已收藏' : '收藏'"
                                 >
-                                    <span class="material-icons" :class="isFavorite ? 'text-red-500' : 'text-gray-900 dark:text-white'">{{ isFavorite ? "favorite" : "favorite_border" }}</span>
-                                    <span class="text-sm text-gray-900 dark:text-white hidden sm:inline">{{ isFavorite ? "已收藏" : "收藏" }}</span>
+                                    <span class="material-icons text-xl" :class="isFavorite ? 'text-red-500' : 'text-gray-900 dark:text-white'">{{ isFavorite ? "favorite" : "favorite_border" }}</span>
                                 </button>
                             </div>
                         </div>
@@ -662,7 +662,7 @@ onUnmounted(() => {
                                         hover:bg-gray-950/10 dark:hover:bg-white/20 hover:border-gray-300 dark:hover:border-white/40
                                         transition-all duration-200
                                         flex items-center gap-1.5
-                                        focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-2"
+                                        focus:outline-none"
                             >
                                 <span class="material-icons text-xs">tag</span>
                                 {{ tag }}
