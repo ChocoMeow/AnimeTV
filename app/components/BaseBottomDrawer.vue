@@ -266,7 +266,7 @@ onBeforeUnmount(() => {
                     <!-- Content -->
                     <div 
                         ref="contentRef"
-                        class="overflow-y-auto custom-scrollbar px-4 py-4"
+                        class="overflow-y-auto px-4 py-4"
                         style="max-height: calc(90vh - 120px);"
                     >
                         <slot />
@@ -307,22 +307,6 @@ onBeforeUnmount(() => {
 
 .drawer-leave-to > div {
     transform: translateY(100%);
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-gray-900 rounded-full;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400 dark:bg-gray-500;
 }
 
 /* Mobile-first: Hide on larger screens by default, but can be overridden */

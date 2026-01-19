@@ -662,22 +662,4 @@ onUnmounted(() => {
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
-
-/* Smooth Scrollbar */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-white/10;
-}
-
-::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400 dark:bg-gray-500;
-}
 </style>

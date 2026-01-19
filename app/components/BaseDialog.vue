@@ -91,7 +91,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <!-- Content -->
-                    <div :class="scrollable ? 'max-h-[70vh] overflow-y-auto custom-scrollbar pr-2' : ''">
+                    <div :class="scrollable ? 'max-h-[70vh] overflow-y-auto pr-2' : ''">
                         <slot />
                     </div>
 
@@ -130,21 +130,5 @@ onBeforeUnmount(() => {
 
 .dialog-leave-to > div {
     transform: scale(0.95) translateY(20px);
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-gray-900 rounded-full;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400 dark:bg-gray-500;
 }
 </style>

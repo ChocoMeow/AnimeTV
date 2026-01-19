@@ -128,12 +128,12 @@ watch(
         </div>
 
         <!-- Range Selector -->
-        <div v-if="totalPages > 1" class="flex flex-wrap gap-2">
+        <div v-if="totalPages > 1" class="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
             <button 
                 v-for="(start, idx) in Array.from({ length: totalPages }, (_, i) => episodeList[i * pageSize])" 
                 :key="start" 
                 @click="applyRange(start)" 
-                :class="['px-3 py-1.5 text-xs rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-2', currentPage === idx + 1 ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-900 dark:border-gray-100' : 'bg-white dark:bg-white/10 border-gray-200 dark:border-white/20 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/20']"
+                :class="['px-3 py-1.5 text-xs rounded-lg border transition-colors focus:outline-none flex-shrink-0', currentPage === idx + 1 ? 'bg-black/70 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-900 dark:border-gray-100' : 'bg-white dark:bg-white/10 border-gray-200 dark:border-white/20 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/20']"
             >
                 {{ getEpisodeLabel(start) }}–{{ getEpisodeLabel(episodeList[Math.min((idx + 1) * pageSize - 1, episodeList.length - 1)]) }}
             </button>
@@ -143,7 +143,7 @@ watch(
         <div>
             <div v-if="paged.length === 0" class="text-center py-6 text-gray-500 dark:text-gray-400 text-sm">找不到相關集數</div>
 
-            <div v-else class="grid grid-cols-6 sm:grid-cols-7 md:grid-cols-8 lg:grid-cols-10 gap-1.5" role="list">
+            <div v-else class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-2" role="list">
                 <button
                     v-for="ep in paged"
                     :key="ep"
@@ -163,25 +163,17 @@ watch(
                     role="listitem"
                 >
                     <!-- Episode Number/Label -->
-                    <div class="relative z-0 flex flex-col items-center justify-center h-full overflow-hidden rounded-lg px-0.5">
-                        <span class="text-xs sm:text-sm font-medium truncate max-w-full">
+                    <div class="relative z-0 flex flex-col items-center justify-center h-full overflow-hidden rounded-lg px-1">
+                        <span class="text-sm sm:text-base font-medium truncate max-w-full">
                             {{ getEpisodeLabel(ep) }}
                         </span>
-
-                        <!-- Progress Indicator -->
-                        <div v-if="hasWatched(ep) && String(ep) !== String(modelValue)" class="text-[8px] sm:text-[10px] opacity-75 flex items-center gap-0.5 mt-0.5">
-                            <span class="material-icons text-[8px] sm:text-[10px]">
-                                {{ isCompleted(ep) ? "check_circle" : "play_circle" }}
-                            </span>
-                            <span>{{ getProgressPercentage(ep) }}%</span>
-                        </div>
                     </div>
 
                     <!-- Progress Bar -->
-                    <div v-if="hasWatched(ep) && String(ep) !== String(modelValue)" class="absolute bottom-0 left-0 h-0.5 sm:h-1 z-0 transition-all rounded-bl-lg" :class="isCompleted(ep) ? 'bg-green-500' : 'bg-gray-600 dark:bg-gray-400'" :style="{ width: `${getProgressPercentage(ep)}%` }"></div>
+                    <div v-if="hasWatched(ep) && String(ep) !== String(modelValue)" class="absolute bottom-0 left-0 h-0.5 z-0 transition-all rounded-bl-lg" :class="isCompleted(ep) ? 'bg-green-500' : 'bg-gray-600 dark:bg-gray-400'" :style="{ width: `${getProgressPercentage(ep)}%` }"></div>
 
                     <!-- Hover Tooltip -->
-                    <div v-if="watchProgress[String(ep)]" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                    <div v-if="watchProgress[String(ep)]" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-black/70 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 shadow-xl">
                         <div class="flex flex-col gap-1">
                             <div class="font-semibold">{{ getEpisodeTitle(ep) }}</div>
                             <div class="text-gray-300">
@@ -214,8 +206,8 @@ watch(
             <div class="flex items-center gap-2 mb-3">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">範圍:</span>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <button v-for="(start, idx) in Array.from({ length: totalPages }, (_, i) => episodeList[i * pageSize])" :key="start" @click="applyRange(start)" :class="['px-4 py-2 text-sm rounded-lg border transition-colors', currentPage === idx + 1 ? 'bg-black/70 dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-white/10 border-2 border-black/10 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20']">{{ getEpisodeLabel(start) }}–{{ getEpisodeLabel(episodeList[Math.min((idx + 1) * pageSize - 1, episodeList.length - 1)]) }}</button>
+            <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
+                <button v-for="(start, idx) in Array.from({ length: totalPages }, (_, i) => episodeList[i * pageSize])" :key="start" @click="applyRange(start)" :class="['px-4 py-2 text-sm rounded-lg border transition-colors flex-shrink-0', currentPage === idx + 1 ? 'bg-black/70 dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-white/10 border-2 border-black/10 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20']">{{ getEpisodeLabel(start) }}–{{ getEpisodeLabel(episodeList[Math.min((idx + 1) * pageSize - 1, episodeList.length - 1)]) }}</button>
             </div>
         </div>
 
@@ -244,21 +236,13 @@ watch(
                         <span class="text-sm font-medium truncate max-w-full" :class="{ 'text-xs': String(ep).length > 4 }">
                             {{ getEpisodeLabel(ep) }}
                         </span>
-
-                        <!-- Progress Indicator -->
-                        <div v-if="hasWatched(ep) && String(ep) !== String(modelValue)" class="text-[10px] opacity-75 flex items-center gap-0.5 mt-0.5">
-                            <span class="material-icons text-[10px]">
-                                {{ isCompleted(ep) ? "check_circle" : "play_circle" }}
-                            </span>
-                            <span>{{ getProgressPercentage(ep) }}%</span>
-                        </div>
                     </div>
 
                     <!-- Progress Bar -->
-                    <div v-if="hasWatched(ep) && String(ep) !== String(modelValue)" class="absolute bottom-0 left-0 h-1 z-0 transition-all rounded-bl-lg" :class="isCompleted(ep) ? 'bg-green-500' : 'bg-gray-600 dark:bg-gray-400'" :style="{ width: `${getProgressPercentage(ep)}%` }"></div>
+                    <div v-if="hasWatched(ep) && String(ep) !== String(modelValue)" class="absolute bottom-0 left-0 h-0.5 z-0 transition-all rounded-bl-lg" :class="isCompleted(ep) ? 'bg-green-500' : 'bg-gray-600 dark:bg-gray-400'" :style="{ width: `${getProgressPercentage(ep)}%` }"></div>
 
                     <!-- Hover Tooltip -->
-                    <div v-if="watchProgress[String(ep)]" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                    <div v-if="watchProgress[String(ep)]" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-black/70 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 shadow-xl">
                         <div class="flex flex-col gap-1">
                             <div class="font-semibold">{{ getEpisodeTitle(ep) }}</div>
                             <div class="text-gray-300">
@@ -299,7 +283,7 @@ watch(
 }
 
 .episode-button.active {
-    @apply bg-gray-900 dark:bg-gray-100 border-gray-900 dark:border-gray-100 text-white dark:text-gray-900
+    @apply bg-black/70 dark:bg-gray-100 border-gray-900 dark:border-gray-100 text-white dark:text-gray-900
            shadow-lg scale-105;
 }
 

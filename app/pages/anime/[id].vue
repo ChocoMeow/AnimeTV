@@ -78,6 +78,55 @@ function formatViews(views) {
     return views.toString()
 }
 
+// Additional Details Configuration
+const additionalDetails = computed(() => {
+    if (!anime.value) return []
+    
+    const details = []
+    
+    if (anime.value.premiereDate) {
+        details.push({
+            label: "首播日期",
+            value: anime.value.premiereDate,
+            icon: "event",
+            iconBg: "bg-pink-100 dark:bg-pink-900/30",
+            iconColor: "text-pink-600 dark:text-pink-400"
+        })
+    }
+    
+    if (anime.value.productionCompany) {
+        details.push({
+            label: "代理廠商",
+            value: anime.value.productionCompany,
+            icon: "business",
+            iconBg: "bg-gray-100 dark:bg-gray-800",
+            iconColor: "text-gray-600 dark:text-gray-400"
+        })
+    }
+    
+    if (anime.value.director) {
+        details.push({
+            label: "導演監督",
+            value: anime.value.director,
+            icon: "person",
+            iconBg: "bg-gray-100 dark:bg-gray-800",
+            iconColor: "text-gray-600 dark:text-gray-400"
+        })
+    }
+    
+    if (anime.value.distributor) {
+        details.push({
+            label: "發行商",
+            value: anime.value.distributor,
+            icon: "local_shipping",
+            iconBg: "bg-blue-100 dark:bg-blue-900/30",
+            iconColor: "text-blue-600 dark:text-blue-400"
+        })
+    }
+    
+    return details
+})
+
 // Continue Watching Functions
 function continueLast() {
     if (!lastWatchedData.value) return
@@ -446,36 +495,8 @@ onUnmounted(() => {
 
     <!-- Content -->
     <div v-else class="bg-white dark:bg-gray-950">
-        <!-- Continue Watching Prompt -->
-        <transition name="slide-down">
-            <div v-if="showContinuePrompt && lastWatchedData" class="max-w-[1920px] mx-auto px-4 pt-4 relative z-10">
-                <div class="bg-gray-900 dark:bg-gray-800 rounded-2xl shadow-2xl p-6 text-white">
-                    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
-                                <span class="material-icons text-2xl">play_circle</span>
-                            </div>
-                            <div>
-                                <h3 class="text-xl font-bold mb-1">繼續觀看</h3>
-                                <p class="text-white/90 text-sm">
-                                    第 {{ lastWatchedData.episode_number }} 集 - {{ formatDuration(lastWatchedData.playback_time) }} / {{ formatDuration(lastWatchedData.video_duration) }}
-                                    <span class="inline-block ml-2 px-2 py-0.5 bg-white/20 rounded text-xs">{{ lastWatchedData.progress_percentage }}% 完成</span>
-                                </p>
-                            </div>
-                        </div>
-                        <div class="flex gap-3 w-full md:w-auto">
-                            <button @click="continueLast" class="flex-1 md:flex-none px-6 py-3 bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 hover:bg-gray-100 dark:hover:bg-gray-200 rounded-lg transition-all font-medium flex items-center justify-center gap-2">
-                                <span class="material-icons text-xl">play_arrow</span>
-                                繼續播放
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </transition>
-
         <!-- Main Content Area - YouTube-style Layout -->
-        <div class="space-y-8 max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
+        <div class="space-y-8 max-w-[96rem] mx-auto px-3 sm:px-4 py-4 sm:py-8">
             <div class="flex flex-col lg:flex-row gap-6">
                 <!-- Left Column (70% on wide screens) -->
                 <div class="flex-1 lg:w-[75%] space-y-4">
@@ -503,6 +524,75 @@ onUnmounted(() => {
                             <p class="text-lg">請選擇集數開始播放</p>
                         </div>
                     </section>
+
+                    <!-- Mobile: Continue Prompt and Episode Picker -->
+                    <div class="lg:hidden space-y-4">
+                        <!-- Continue Watching Prompt -->
+                        <transition name="slide-down">
+                            <section v-if="showContinuePrompt && lastWatchedData" aria-label="Continue watching">
+                                <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-lg overflow-hidden">
+                                    <div class="p-4 space-y-3">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 bg-black/70 dark:bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                <span class="material-icons text-xl text-white dark:text-white">play_circle</span>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-0.5">繼續觀看</h3>
+                                                <p class="text-xs text-gray-600 dark:text-white/80 truncate">
+                                                    第 {{ lastWatchedData.episode_number }} 集
+                                                </p>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Progress Bar -->
+                                        <div class="space-y-1.5">
+                                            <div class="flex items-center justify-between text-xs text-gray-600 dark:text-white/70">
+                                                <span>{{ formatDuration(lastWatchedData.playback_time) }} / {{ formatDuration(lastWatchedData.video_duration) }}</span>
+                                                <span>{{ lastWatchedData.progress_percentage }}%</span>
+                                            </div>
+                                            <div class="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                                                <div 
+                                                    class="h-full bg-black/70 dark:bg-white rounded-full transition-all"
+                                                    :style="{ width: `${lastWatchedData.progress_percentage}%` }"
+                                                ></div>
+                                            </div>
+                                        </div>
+                                        
+                                        <button 
+                                            @click="continueLast" 
+                                            class="w-full px-4 py-2.5 bg-black/70 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 rounded-lg transition-all font-medium flex items-center justify-center gap-2 text-sm"
+                                        >
+                                            <span class="material-icons text-lg">play_arrow</span>
+                                            繼續播放
+                                        </button>
+                                    </div>
+                                </div>
+                            </section>
+                        </transition>
+
+                        <!-- Episode Picker -->
+                        <section aria-label="Episode selector">
+                            <div class="flex items-center justify-between mb-4">
+                                <h2 class="text-xl font-bold text-gray-900 dark:text-white">選擇集數</h2>
+                                <span v-if="anime?.episodes" class="text-sm text-gray-600 dark:text-gray-400">
+                                    共 <span class="font-semibold text-gray-900 dark:text-white">{{ Object.keys(anime.episodes).length }}</span> 集
+                                </span>
+                            </div>
+                            <EpisodesPicker 
+                                v-if="anime?.episodes" 
+                                :episodes="anime.episodes" 
+                                :watch-progress="allWatchProgress" 
+                                :compact="true"
+                                :anime-image="anime.image"
+                                v-model="selectedEpisode" 
+                                @select="(n) => (selectedEpisode = n)" 
+                            />
+                            <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
+                                <span class="material-icons text-4xl mb-2 opacity-50">video_library</span>
+                                <p>暫無可用集數</p>
+                            </div>
+                        </section>
+                    </div>
 
                     <!-- Anime Information Block -->
                     <section class="space-y-4" aria-label="Anime information">
@@ -550,6 +640,10 @@ onUnmounted(() => {
                                 <span class="text-gray-900 dark:text-white">{{ anime.userRating?.count || 0 }}</span>
                                 <span>喜歡</span>
                             </div>
+                            <div v-if="anime.userRating?.score" class="flex items-center gap-1.5">
+                                <span class="material-icons text-base text-yellow-400">star</span>
+                                <span class="text-gray-900 dark:text-white">{{ formatRating(anime.userRating.score) }}</span>
+                            </div>
                         </div>
 
                         <!-- Description -->
@@ -576,46 +670,76 @@ onUnmounted(() => {
                         </div>
 
                         <!-- Additional Details -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                            <div v-if="anime.premiereDate" class="flex items-center gap-3">
-                                <span class="material-icons text-pink-400 text-xl">event</span>
-                                <div>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">首播日期</p>
-                                    <p class="font-semibold text-gray-900 dark:text-white">{{ anime.premiereDate }}</p>
-                                </div>
-                            </div>
-
-                            <div v-if="anime.productionCompany" class="flex items-center gap-3">
-                                <span class="material-icons text-gray-600 dark:text-gray-300 text-xl">business</span>
-                                <div>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">代理廠商</p>
-                                    <p class="font-semibold text-gray-900 dark:text-white">{{ anime.productionCompany }}</p>
-                                </div>
-                            </div>
-
-                            <div v-if="anime.director" class="flex items-center gap-3">
-                                <span class="material-icons text-gray-600 dark:text-gray-300 text-xl">person</span>
-                                <div>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">導演監督</p>
-                                    <p class="font-semibold text-gray-900 dark:text-white">{{ anime.director }}</p>
-                                </div>
-                            </div>
-
-                            <div v-if="anime.distributor" class="flex items-center gap-3">
-                                <span class="material-icons text-blue-400 text-xl">local_shipping</span>
-                                <div>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">發行商</p>
-                                    <p class="font-semibold text-gray-900 dark:text-white">{{ anime.distributor }}</p>
+                        <div v-if="additionalDetails.length > 0" class="pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">詳細資訊</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div 
+                                    v-for="detail in additionalDetails" 
+                                    :key="detail.label"
+                                    class="bg-gray-950/5 dark:bg-white/10 rounded-xl p-4"
+                                >
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="detail.iconBg">
+                                            <span class="material-icons text-xl" :class="detail.iconColor">{{ detail.icon }}</span>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{{ detail.label }}</p>
+                                            <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ detail.value }}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </section>
                 </div>
 
-                <!-- Right Column (30% on wide screens) -->
-                <aside class="lg:w-[25%] space-y-6" aria-label="Episode list and related content">
+                <!-- Right Column (30% on wide screens) - Desktop Only -->
+                <aside class="hidden lg:block lg:w-[25%] lg:sticky lg:top-20 lg:self-start space-y-6" aria-label="Episode list and related content">
+                    <!-- Continue Watching Prompt -->
+                    <transition name="slide-down">
+                        <section v-if="showContinuePrompt && lastWatchedData" aria-label="Continue watching">
+                            <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-lg overflow-hidden">
+                                <div class="p-4 space-y-3">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-black/70 dark:bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                            <span class="material-icons text-xl text-white dark:text-white">play_circle</span>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-0.5">繼續觀看</h3>
+                                            <p class="text-xs text-gray-600 dark:text-white/80 truncate">
+                                                第 {{ lastWatchedData.episode_number }} 集
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Progress Bar -->
+                                    <div class="space-y-1.5">
+                                        <div class="flex items-center justify-between text-xs text-gray-600 dark:text-white/70">
+                                            <span>{{ formatDuration(lastWatchedData.playback_time) }} / {{ formatDuration(lastWatchedData.video_duration) }}</span>
+                                            <span>{{ lastWatchedData.progress_percentage }}%</span>
+                                        </div>
+                                        <div class="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                                            <div 
+                                                class="h-full bg-black/70 dark:bg-white rounded-full transition-all"
+                                                :style="{ width: `${lastWatchedData.progress_percentage}%` }"
+                                            ></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <button 
+                                        @click="continueLast" 
+                                        class="w-full px-4 py-2.5 bg-black/70 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 rounded-lg transition-all font-medium flex items-center justify-center gap-2 text-sm"
+                                    >
+                                        <span class="material-icons text-lg">play_arrow</span>
+                                        繼續播放
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+                    </transition>
+
                     <!-- Episode Picker -->
-                    <section class="lg:sticky lg:top-4" aria-label="Episode selector">
+                    <section aria-label="Episode selector">
                         <div class="flex items-center justify-between mb-4">
                             <h2 class="text-xl font-bold text-gray-900 dark:text-white">選擇集數</h2>
                             <span v-if="anime?.episodes" class="text-sm text-gray-600 dark:text-gray-400">
@@ -640,7 +764,7 @@ onUnmounted(() => {
                     <!-- Related Anime -->
                     <section v-if="anime.relatedAnime && anime.relatedAnime.length" aria-label="Related anime">
                         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">相關動漫</h2>
-                        <div class="space-y-3 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent" role="list" aria-label="Related anime list">
+                        <div class="space-y-3" role="list" aria-label="Related anime list">
                             <NuxtLink
                                 v-for="item in anime.relatedAnime"
                                 :key="item.refId || item.video_url"
@@ -659,10 +783,10 @@ onUnmounted(() => {
                                     />
                                 </div>
                                 <div class="flex-1 min-w-0 space-y-1">
-                                    <h3 class="font-semibold text-sm text-gray-900 dark:text-white line-clamp-2 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
+                                    <h3 class="font-semibold text-sm text-gray-900 dark:text-white line-clamp-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
                                         {{ item.title }}
                                     </h3>
-                                    <div class="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                    <div class="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
                                         <span v-if="item.year" class="flex items-center gap-1" aria-label="Release year">
                                             <span class="material-icons text-xs" aria-hidden="true">calendar_today</span>
                                             {{ item.year }}
@@ -670,6 +794,10 @@ onUnmounted(() => {
                                         <span v-if="item.episodes" class="flex items-center gap-1" aria-label="Episode count">
                                             <span class="material-icons text-xs" aria-hidden="true">movie</span>
                                             {{ item.episodes }}
+                                        </span>
+                                        <span v-if="item.views" class="flex items-center gap-1" aria-label="Views">
+                                            <span class="material-icons text-xs" aria-hidden="true">visibility</span>
+                                            {{ formatViews(item.views) }}
                                         </span>
                                     </div>
                                 </div>
@@ -769,40 +897,6 @@ onUnmounted(() => {
 .slide-down-leave-to {
     opacity: 0;
     transform: translateY(-20px);
-}
-
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-gray-800;
-}
-
-::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400 dark:bg-gray-500;
-}
-
-/* Custom scrollbar for related anime */
-.scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-track {
-    @apply bg-transparent;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400 dark:bg-gray-500;
 }
 
 /* Ensure video player maintains 16:9 aspect ratio */
