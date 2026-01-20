@@ -507,7 +507,6 @@ onUnmounted(() => {
                             v-if="videoUrl || selectedEpisode" 
                             ref="videoPlayer" 
                             :src="videoUrl || ''" 
-                            :autoplay="false"
                             preload="metadata" 
                             :has-next-episode="hasNextEpisode" 
                             :shortcuts="userShortcuts" 
@@ -518,6 +517,7 @@ onUnmounted(() => {
                             @previous-episode="handlePreviousEpisode" 
                             @loadstart="videoLoading = true" 
                             @loadeddata="onVideoReady" 
+                            autoplay
                         />
 
                         <div v-else class="aspect-video bg-black dark:bg-white/10 relative rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-400">
