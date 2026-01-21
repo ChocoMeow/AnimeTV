@@ -520,7 +520,7 @@ onUnmounted(() => {
                             autoplay
                         />
 
-                        <div v-else class="aspect-video bg-black dark:bg-white/10 relative rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-400">
+                        <div v-else class="aspect-video bg-gray-950/5 dark:bg-white/10 relative rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-400">
                             <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>
                             <p class="text-lg">請選擇集數開始播放</p>
                         </div>

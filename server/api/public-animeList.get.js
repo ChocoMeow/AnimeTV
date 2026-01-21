@@ -32,26 +32,14 @@ export default defineEventHandler(async (event) => {
             const { html } = await cfFetch(url)
             const $ = cheerio.load(html)
 
-            const getText = (el, selector) => $(el).find(selector).text().trim() || null
             const getAttr = (el, selector, attr) => $(el).find(selector).attr(attr)?.trim() || null
 
-            const animeList = $(".theme-list-block .theme-list-main")
-                .map((_, movie) => {
-                    const href = $(movie).attr("href") || ""
-                    const refId = href.match(/sn=(\d+)/)?.[1] || null
-
-                    return {
-                        refId,
-                        image: getAttr(movie, ".theme-img", "data-src"),
-                        title: getText(movie, ".theme-name"),
-                    }
-                })
+            const imageUrls = $(".theme-list-block .theme-list-main")
+                .map((_, movie) => getAttr(movie, ".theme-img", "data-src"))
                 .get()
+                .filter(image => image) // Filter out null/empty values
 
-            // For public API, we return the raw scraped data without matching
-            // This is sufficient for display purposes (like login page backgrounds)
-            const results = animeList.filter(anime => anime.image && anime.title)
-            const response = { results }
+            const response = imageUrls
 
             // Cache the result
             PUBLIC_ANIME_LIST_CACHE.data = response
@@ -62,7 +50,7 @@ export default defineEventHandler(async (event) => {
         } catch (err) {
             console.error("Error scraping anime list (public):", err.message)
             PUBLIC_ANIME_LIST_CACHE.fetchPromise = null // Reset on error to allow retries
-            return { results: [], totalPage: "0" }
+            return []
         }
     })()
 

@@ -617,7 +617,7 @@ watch(
 </script>
 
 <template>
-    <div ref="containerRef" class="relative w-full aspect-video bg-black dark:bg-gray-950/50 rounded-lg overflow-hidden cursor-default"
+    <div ref="containerRef" class="relative w-full aspect-video bg-gray-950/5 dark:bg-white/10 rounded-lg overflow-hidden cursor-default"
         @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
         <!-- Video Element -->
         <video v-if="src" ref="videoRef" :src="src" :autoplay="autoplay" :preload="preload" class="w-full h-full block cursor-pointer"
