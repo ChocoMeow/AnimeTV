@@ -19,6 +19,17 @@ export default defineNuxtConfig({
                 { name: "description", content: "Stream your favorite anime series and movies anytime, anywhere." },
                 { charset: "utf-8" },
                 { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" },
+                // Open Graph / Facebook
+                { property: "og:type", content: "website" },
+                { property: "og:site_name", content: "AnimeTV" },
+                { property: "og:title", content: "AnimeTV" },
+                { property: "og:description", content: "Stream your favorite anime series and movies anytime, anywhere." },
+                { property: "og:image", content: "/icons/icon_512x512.png" },
+                // Twitter Card
+                { name: "twitter:card", content: "summary_large_image" },
+                { name: "twitter:title", content: "AnimeTV" },
+                { name: "twitter:description", content: "Stream your favorite anime series and movies anytime, anywhere." },
+                { name: "twitter:image", content: "/icons/icon_512x512.png" },
                 // iOS specific meta tags
                 { name: "apple-mobile-web-app-capable", content: "yes" },
                 { name: "apple-mobile-web-app-status-bar-style", content: "default" },
