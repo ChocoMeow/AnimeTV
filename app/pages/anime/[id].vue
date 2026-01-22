@@ -380,29 +380,6 @@ async function fetchDetail() {
         anime.value = res
         isFavorite.value = res.isFavorite
         useHead({ title: `${res.title} | ${appConfig.siteName}` })
-        
-        // Set Open Graph tags for social sharing
-        const requestURL = useRequestURL()
-        const baseUrl = `${requestURL.protocol}//${requestURL.host}`
-        const currentUrl = `${baseUrl}${route.path}${route.query.e ? `?e=${route.query.e}` : ''}`
-        const ogImage = res.image ? (res.image.startsWith('http') ? res.image : `${baseUrl}${res.image}`) : `${baseUrl}/icons/icon_512x512.png`
-        const ogDescription = res.description || `觀看 ${res.title} 在 ${appConfig.siteName}`
-        
-        useSeoMeta({
-            title: `${res.title} | ${appConfig.siteName}`,
-            description: ogDescription,
-            ogTitle: res.title,
-            ogDescription: ogDescription,
-            ogImage: ogImage,
-            ogUrl: currentUrl,
-            ogType: 'website',
-            ogSiteName: appConfig.siteName,
-            twitterCard: 'summary_large_image',
-            twitterTitle: res.title,
-            twitterDescription: ogDescription,
-            twitterImage: ogImage,
-        })
-        
         await fetchLastWatched()
 
         // Handle episode from query parameter (can be number or text)
