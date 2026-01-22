@@ -503,10 +503,42 @@ onUnmounted(() => {
                 <div class="flex-1 lg:w-[75%] space-y-4">
                     <!-- Video Player -->
                     <section class="w-full" aria-label="Video player">
+                        <!-- Thumbnail Display (when no video) -->
+                        <div v-if="!videoUrl && anime?.image" 
+                            class="aspect-video relative rounded-lg overflow-hidden bg-gray-900 dark:bg-gray-950">
+                            <!-- Thumbnail as background with subtle blur to reduce pixelation -->
+                            <div class="absolute inset-0 w-full h-full">
+                                <img 
+                                    :src="anime.image" 
+                                    alt="Anime thumbnail background"
+                                    class="w-full h-full object-cover"
+                                    style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; filter: blur(1px);"
+                                />
+                            </div>
+                            
+                            <!-- Dark overlay for better contrast -->
+                            <div class="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80"></div>
+                            
+                            <!-- Content overlay with episode selection guidance -->
+                            <div class="absolute inset-0 flex flex-col items-center justify-center z-[1] px-4 sm:px-8">
+                                <!-- Play icon -->
+                                <span class="material-icons text-white text-4xl sm:text-5xl pb-4">play_circle_outline</span>
+                                
+                                <!-- Call to action text -->
+                                <div class="text-center space-y-2 sm:space-y-3">
+                                    <h3 class="text-xl sm:text-2xl font-bold text-white mb-2">選擇集數開始播放</h3>
+                                    <p class="text-sm sm:text-base text-white/80 max-w-md">
+                                        請從右側（或下方）選擇您想觀看的集數
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Video Player (when video is available) -->
                         <VideoPlayer 
-                            v-if="videoUrl || selectedEpisode" 
+                            v-if="videoUrl"
                             ref="videoPlayer" 
-                            :src="videoUrl || ''" 
+                            :src="videoUrl" 
                             preload="metadata" 
                             :has-next-episode="hasNextEpisode" 
                             :shortcuts="userShortcuts" 
@@ -519,11 +551,6 @@ onUnmounted(() => {
                             @loadeddata="onVideoReady" 
                             autoplay
                         />
-
-                        <div v-else class="aspect-video bg-gray-950/5 dark:bg-white/10 relative rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-400">
-                            <span class="material-icons text-6xl mb-4 opacity-50">play_circle_outline</span>
-                            <p class="text-lg">請選擇集數開始播放</p>
-                        </div>
                     </section>
 
                     <!-- Mobile: Continue Prompt and Episode Picker -->
