@@ -346,7 +346,7 @@ watch(
 /* Responsive episode grids - auto-size based on container width */
 .episode-grid-compact {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(2.5rem, 4rem));
+    grid-template-columns: repeat(auto-fill, minmax(2.5rem, 1fr));
     max-width: 100%;
 }
 
