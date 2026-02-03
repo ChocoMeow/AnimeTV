@@ -270,8 +270,14 @@ async function onVideoReady() {
 
     let startTime = null
 
+    // Priority 1: Check URL query parameter
     if (route.query.t) {
         startTime = parseFloat(route.query.t)
+    }
+    // Priority 2: Check watch history for this episode
+    else if (selectedEpisode.value && allWatchProgress.value[String(selectedEpisode.value)]) {
+        const watchHistory = allWatchProgress.value[String(selectedEpisode.value)]
+        startTime = watchHistory.playback_time
     }
 
     if (startTime && videoPlayer.value && !isNaN(startTime) && startTime > 0) {
@@ -306,7 +312,6 @@ async function onVideoReady() {
         }, 100)
     }
 
-    await saveWatchHistory()
     
     if (anime.value && selectedEpisode.value) {
         setWatching({
@@ -331,8 +336,12 @@ function stopAutoSave() {
     }
 }
 
-async function saveWatchHistory() {
-    if (!userSettings.value.watch_history_enabled || !userSettings.value.id || !anime.value || !selectedEpisode.value || !videoPlayer.value) return
+async function saveWatchHistory(episodeNumber = null) {
+    if (!userSettings.value.watch_history_enabled || !userSettings.value.id || !anime.value || !videoPlayer.value) return
+
+    // Use provided episode number or fall back to current selected episode
+    const epNum = episodeNumber || selectedEpisode.value
+    if (!epNum) return
 
     const duration = videoPlayer.value.duration
     const currentTime = videoPlayer.value.currentTime
@@ -347,7 +356,7 @@ async function saveWatchHistory() {
             anime_ref_id: anime.value.refId,
             anime_title: anime.value.title,
             anime_image: anime.value.image,
-            episode_number: String(selectedEpisode.value),
+            episode_number: String(epNum),
             playback_time: Math.floor(currentTime),
             video_duration: Math.floor(duration),
             progress_percentage: progressPercentage,
@@ -403,12 +412,17 @@ async function fetchDetail() {
     }
 }
 
-watch(selectedEpisode, async (epNum) => {
+watch(selectedEpisode, async (epNum, oldEpNum) => {
     if (!epNum || !anime.value?.episodes) return
 
     const isManualChange = previousEpisode.value !== null && previousEpisode.value !== epNum
 
     if (isManualChange) {
+        // Save watch history for the OLD episode before switching
+        if (oldEpNum && videoPlayer.value) {
+            await saveWatchHistory(oldEpNum)
+        }
+        
         hasSetInitialTime.value = false
         if (route.query.t || route.query.e) {
             const newQuery = { ...route.query }
