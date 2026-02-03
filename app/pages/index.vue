@@ -1,5 +1,4 @@
 <script setup>
-const { isMobile } = useMobile()
 const appConfig = useAppConfig()
 const loading = ref(false)
 const byDay = ref({})
@@ -28,26 +27,17 @@ const weekdayLabel = {
     "7": "週日",
 }
 
-// Tooltip state
-const hoveredAnime = ref(null)
-const animeDetails = ref(null)
-const tooltipLoading = ref(false)
-const tooltipError = ref(null)
-const tooltipPosition = ref({ x: 0, y: 0, placement: "top" })
-let hoverTimer = null
-
-// Cache for anime details
-const animeCache = ref(new Map())
-
-function formatViews(views) {
-    if (!views) return "0"
-    if (views >= 1000000) {
-        return (views / 1000000).toFixed(1) + "M"
-    } else if (views >= 1000) {
-        return (views / 1000).toFixed(1) + "K"
-    }
-    return views
-}
+// Use shared tooltip composable
+const {
+    hoveredAnime,
+    animeDetails,
+    tooltipLoading,
+    tooltipError,
+    tooltipPosition,
+    handleMouseEnter,
+    handleMouseLeave,
+    cleanup,
+} = useAnimeTooltip()
 
 async function fetchHomeAnime() {
     loading.value = true
@@ -65,118 +55,6 @@ async function fetchHomeAnime() {
     }
 }
 
-function calculateTooltipPosition(event) {
-    const rect = event.currentTarget.getBoundingClientRect()
-    const tooltipWidth = 360
-    const tooltipHeight = 400
-    const padding = 16
-
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
-
-    let x = rect.left + rect.width / 2
-    let y = rect.top
-    let placement = "top"
-
-    const spaceTop = rect.top
-    const spaceBottom = viewportHeight - rect.bottom
-    const spaceLeft = rect.left
-    const spaceRight = viewportWidth - rect.right
-
-    // Determine best placement based on available space
-    if (spaceTop >= tooltipHeight + padding) {
-        placement = "top"
-        y = rect.top
-        x = rect.left + rect.width / 2
-    } else if (spaceBottom >= tooltipHeight + padding) {
-        placement = "bottom"
-        y = rect.bottom
-        x = rect.left + rect.width / 2
-    } else if (spaceRight >= tooltipWidth + padding) {
-        placement = "right"
-        x = rect.right
-        y = rect.top + rect.height / 2
-    } else if (spaceLeft >= tooltipWidth + padding) {
-        placement = "left"
-        x = rect.left
-        y = rect.top + rect.height / 2
-    } else {
-        // Default to top if no good space
-        placement = "top"
-        y = rect.top
-        x = rect.left + rect.width / 2
-    }
-
-    // Adjust horizontal position for top/bottom placements
-    if (placement === "top" || placement === "bottom") {
-        const halfTooltipWidth = tooltipWidth / 2
-        if (x - halfTooltipWidth < padding) {
-            x = halfTooltipWidth + padding
-        } else if (x + halfTooltipWidth > viewportWidth - padding) {
-            x = viewportWidth - halfTooltipWidth - padding
-        }
-    }
-
-    // Adjust vertical position for left/right placements
-    if (placement === "left" || placement === "right") {
-        const halfTooltipHeight = tooltipHeight / 2
-        if (y - halfTooltipHeight < padding) {
-            y = halfTooltipHeight + padding
-        } else if (y + halfTooltipHeight > viewportHeight - padding) {
-            y = viewportHeight - halfTooltipHeight - padding
-        }
-    }
-
-    return { x, y, placement }
-}
-
-async function handleMouseEnter(item, event) {
-    if (isMobile.value) return
-
-    hoveredAnime.value = item.refId
-    tooltipPosition.value = calculateTooltipPosition(event)
-    tooltipError.value = null
-
-    // Check cache first
-    if (animeCache.value.has(item.refId)) {
-        animeDetails.value = animeCache.value.get(item.refId)
-        return
-    }
-
-    hoverTimer = setTimeout(async () => {
-        if (hoveredAnime.value === item.refId) {
-            tooltipLoading.value = true
-            tooltipError.value = null
-            try {
-                const details = await $fetch(`/api/anime/${item.refId}`)
-                if (hoveredAnime.value === item.refId) {
-                    animeDetails.value = details
-                    // Cache the result
-                    animeCache.value.set(item.refId, details)
-                }
-            } catch (err) {
-                console.error("Failed to fetch anime details:", err)
-                if (hoveredAnime.value === item.refId) {
-                    tooltipError.value = "無法載入動畫詳情"
-                }
-            } finally {
-                tooltipLoading.value = false
-            }
-        }
-    }, 2000)
-}
-
-function handleMouseLeave() {
-    if (hoverTimer) {
-        clearTimeout(hoverTimer)
-        hoverTimer = null
-    }
-    hoveredAnime.value = null
-    animeDetails.value = null
-    tooltipLoading.value = false
-    tooltipError.value = null
-}
-
 useHead({ title: `每日新番 | ${appConfig.siteName}` })
 
 onMounted(() => {
@@ -184,9 +62,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-    if (hoverTimer) {
-        clearTimeout(hoverTimer)
-    }
+    cleanup()
 })
 </script>
 
@@ -281,7 +157,9 @@ onUnmounted(() => {
                         <AnimeCard 
                             v-for="item in items" 
                             :key="item.refId || item.video_url" 
-                            :anime="item" 
+                            :anime="item"
+                            :on-mouse-enter="handleMouseEnter"
+                            :on-mouse-leave="handleMouseLeave"
                         />
                     </div>
                 </div>
@@ -289,117 +167,14 @@ onUnmounted(() => {
         </section>
     </div>
 
-    <!-- Anime Details Tooltip (Desktop Only) -->
-    <Teleport to="body">
-        <Transition name="tooltip-fade">
-            <div
-                v-if="hoveredAnime && animeDetails && !isMobile"
-                :class="['anime-tooltip', `tooltip-${tooltipPosition.placement}`]"
-                :style="{
-                    left: tooltipPosition.x + 'px',
-                    top: tooltipPosition.y + 'px',
-                }"
-            >
-                <div class="tooltip-content">
-                    <!-- Header with Image -->
-                    <div class="flex gap-3 mb-3">
-                        <img :src="animeDetails.image" :alt="animeDetails.title" class="w-20 sm:w-24 h-28 sm:h-32 object-cover rounded-lg shadow-lg flex-shrink-0" />
-                        <div class="flex-1 min-w-0">
-                            <h3 class="font-bold text-base sm:text-lg text-gray-900 dark:text-white mb-2 line-clamp-2">
-                                {{ animeDetails.title }}
-                            </h3>
-                            <div class="space-y-1 text-xs sm:text-sm">
-                                <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                                    <span class="material-icons text-sm text-yellow-400">star</span>
-                                    <span class="font-bold text-sm">{{ animeDetails.userRating?.score }}</span>
-                                    <span class="text-sm text-gray-300">({{ animeDetails.userRating?.count || 0 }})</span>
-                                </div>
-                                <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                                    <span class="material-icons text-sm">visibility</span>
-                                    <span>{{ animeDetails.views }}</span>
-                                </div>
-                                <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                                    <span class="material-icons text-sm">movie</span>
-                                    <span>共{{ Object.keys(animeDetails.episodes).length }}集</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Description -->
-                    <div v-if="animeDetails.description" class="mb-3">
-                        <p class="text-xs sm:text-sm text-gray-700 dark:text-gray-300 line-clamp-3">
-                            {{ animeDetails.description }}
-                        </p>
-                    </div>
-
-                    <!-- Meta Info -->
-                    <div class="space-y-1.5 text-xs">
-                        <div v-if="animeDetails.premiereDate" class="flex gap-2">
-                            <span class="font-semibold text-gray-900 dark:text-white whitespace-nowrap">首播:</span>
-                            <span class="text-gray-600 dark:text-gray-300 truncate">{{ animeDetails.premiereDate }}</span>
-                        </div>
-                        <div v-if="animeDetails.director" class="flex gap-2">
-                            <span class="font-semibold text-gray-900 dark:text-white whitespace-nowrap">導演:</span>
-                            <span class="text-gray-600 dark:text-gray-300 truncate">{{ animeDetails.director }}</span>
-                        </div>
-                        <div v-if="animeDetails.productionCompany" class="flex gap-2">
-                            <span class="font-semibold text-gray-900 dark:text-white whitespace-nowrap">製作:</span>
-                            <span class="text-gray-600 dark:text-gray-300 truncate">{{ animeDetails.productionCompany }}</span>
-                        </div>
-                    </div>
-
-                    <!-- Tags -->
-                    <div v-if="animeDetails.tags && animeDetails.tags.length" class="mt-3 flex flex-wrap gap-1.5">
-                        <span
-                            v-for="tag in animeDetails.tags.slice(0, 5)"
-                            :key="tag"
-                            class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium"
-                        >
-                            {{ tag }}
-                        </span>
-                    </div>
-
-                    <!-- Tooltip Arrow -->
-                    <div class="tooltip-arrow"></div>
-                </div>
-            </div>
-        </Transition>
-
-        <!-- Loading Tooltip (Desktop Only) -->
-        <Transition name="tooltip-fade">
-            <div
-                v-if="hoveredAnime && tooltipLoading && !animeDetails && !isMobile"
-                :class="['anime-tooltip-loading', `tooltip-${tooltipPosition.placement}`]"
-                :style="{
-                    left: tooltipPosition.x + 'px',
-                    top: tooltipPosition.y + 'px',
-                }"
-            >
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin"></div>
-                    <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-300">載入詳情...</span>
-                </div>
-            </div>
-        </Transition>
-
-        <!-- Error Tooltip (Desktop Only) -->
-        <Transition name="tooltip-fade">
-            <div
-                v-if="hoveredAnime && tooltipError && !animeDetails && !isMobile"
-                :class="['anime-tooltip-error', `tooltip-${tooltipPosition.placement}`]"
-                :style="{
-                    left: tooltipPosition.x + 'px',
-                    top: tooltipPosition.y + 'px',
-                }"
-            >
-                <div class="flex items-center gap-2">
-                    <span class="material-icons text-red-500 text-base">error_outline</span>
-                    <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-300">{{ tooltipError }}</span>
-                </div>
-            </div>
-        </Transition>
-    </Teleport>
+    <!-- Anime Tooltip Component -->
+    <AnimeTooltip
+        :hovered-anime="hoveredAnime"
+        :anime-details="animeDetails"
+        :tooltip-loading="tooltipLoading"
+        :tooltip-error="tooltipError"
+        :tooltip-position="tooltipPosition"
+    />
 </template>
 
 <style scoped>
@@ -433,233 +208,5 @@ onUnmounted(() => {
            cursor-pointer transition-all duration-300 hover:shadow-lg 
            hover:-translate-y-1 border border-gray-950/5 dark:border-white/10
            hover:border-black/10 dark:hover:border-white/10;
-}
-
-/* Anime Tooltip Styles */
-.anime-tooltip {
-    position: fixed;
-    z-index: 9999;
-    max-width: min(360px, calc(100vw - 32px));
-    width: max-content;
-}
-
-.anime-tooltip.tooltip-top {
-    transform: translate(-50%, -100%);
-    margin-top: -16px;
-}
-
-.anime-tooltip.tooltip-bottom {
-    transform: translate(-50%, 0);
-    margin-top: 16px;
-}
-
-.anime-tooltip.tooltip-left {
-    transform: translate(-100%, -50%);
-    margin-left: -16px;
-}
-
-.anime-tooltip.tooltip-right {
-    transform: translate(0, -50%);
-    margin-left: 16px;
-}
-
-/* Mobile specific styles */
-@media (max-width: 767px) {
-    .anime-tooltip {
-        position: fixed;
-        top: 50% !important;
-        left: 50% !important;
-        transform: translate(-50%, -50%) !important;
-        max-width: calc(100vw - 32px);
-        max-height: calc(100vh - 64px);
-        overflow-y: auto;
-        margin: 0 !important;
-    }
-
-    .anime-tooltip .tooltip-arrow {
-        display: none;
-    }
-}
-
-.tooltip-content {
-    @apply bg-white dark:bg-gray-950 rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 p-3 sm:p-4;
-    position: relative;
-}
-
-.tooltip-arrow {
-    position: absolute;
-    width: 0;
-    height: 0;
-}
-
-.tooltip-top .tooltip-arrow {
-    bottom: -8px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-top: 8px solid white;
-}
-
-.tooltip-bottom .tooltip-arrow {
-    top: -8px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-bottom: 8px solid white;
-}
-
-.tooltip-left .tooltip-arrow {
-    right: -8px;
-    top: 50%;
-    transform: translateY(-50%);
-    border-top: 8px solid transparent;
-    border-bottom: 8px solid transparent;
-    border-left: 8px solid white;
-}
-
-.tooltip-right .tooltip-arrow {
-    left: -8px;
-    top: 50%;
-    transform: translateY(-50%);
-    border-top: 8px solid transparent;
-    border-bottom: 8px solid transparent;
-    border-right: 8px solid white;
-}
-
-.dark .tooltip-top .tooltip-arrow {
-    border-top-color: rgb(31, 41, 55);
-}
-
-.dark .tooltip-bottom .tooltip-arrow {
-    border-bottom-color: rgb(31, 41, 55);
-}
-
-.dark .tooltip-left .tooltip-arrow {
-    border-left-color: rgb(31, 41, 55);
-}
-
-.dark .tooltip-right .tooltip-arrow {
-    border-right-color: rgb(31, 41, 55);
-}
-
-.anime-tooltip-loading {
-    position: fixed;
-    z-index: 9999;
-    @apply bg-white dark:bg-white/10 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-2;
-}
-
-.anime-tooltip-loading.tooltip-top {
-    transform: translate(-50%, -100%);
-    margin-top: -16px;
-}
-
-.anime-tooltip-loading.tooltip-bottom {
-    transform: translate(-50%, 0);
-    margin-top: 16px;
-}
-
-.anime-tooltip-loading.tooltip-left {
-    transform: translate(-100%, -50%);
-    margin-left: -16px;
-}
-
-.anime-tooltip-loading.tooltip-right {
-    transform: translate(0, -50%);
-    margin-left: 16px;
-}
-
-/* Error Tooltip */
-.anime-tooltip-error {
-    position: fixed;
-    z-index: 9999;
-    @apply bg-white dark:bg-white/10 rounded-lg shadow-lg border border-red-300 dark:border-red-700 px-3 sm:px-4 py-2;
-}
-
-.anime-tooltip-error.tooltip-top {
-    transform: translate(-50%, -100%);
-    margin-top: -16px;
-}
-
-.anime-tooltip-error.tooltip-bottom {
-    transform: translate(-50%, 0);
-    margin-top: 16px;
-}
-
-.anime-tooltip-error.tooltip-left {
-    transform: translate(-100%, -50%);
-    margin-left: -16px;
-}
-
-.anime-tooltip-error.tooltip-right {
-    transform: translate(0, -50%);
-    margin-left: 16px;
-}
-
-/* Tooltip backdrop for mobile */
-.tooltip-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: -1;
-}
-
-/* Tooltip Transitions */
-.tooltip-fade-enter-active,
-.tooltip-fade-leave-active {
-    transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.tooltip-fade-enter-from,
-.tooltip-fade-leave-to {
-    opacity: 0;
-}
-
-@media (min-width: 768px) {
-    .tooltip-fade-enter-from.tooltip-top,
-    .tooltip-fade-leave-to.tooltip-top {
-        transform: translate(-50%, -100%) scale(0.95);
-    }
-
-    .tooltip-fade-enter-from.tooltip-bottom,
-    .tooltip-fade-leave-to.tooltip-bottom {
-        transform: translate(-50%, 0) scale(0.95);
-    }
-
-    .tooltip-fade-enter-from.tooltip-left,
-    .tooltip-fade-leave-to.tooltip-left {
-        transform: translate(-100%, -50%) scale(0.95);
-    }
-
-    .tooltip-fade-enter-from.tooltip-right,
-    .tooltip-fade-leave-to.tooltip-right {
-        transform: translate(0, -50%) scale(0.95);
-    }
-}
-
-@media (max-width: 767px) {
-    .tooltip-fade-enter-from,
-    .tooltip-fade-leave-to {
-        transform: translate(-50%, -50%) scale(0.95) !important;
-    }
-}
-
-/* Line Clamp Utility */
-.line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.line-clamp-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
 }
 </style>

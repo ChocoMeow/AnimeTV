@@ -8,6 +8,14 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    onMouseEnter: {
+        type: Function,
+        default: null,
+    },
+    onMouseLeave: {
+        type: Function,
+        default: null,
+    },
 });
 
 function formatViews(views) {
@@ -20,10 +28,27 @@ function formatViews(views) {
     }
     return views.toString();
 }
+
+function handleMouseEnter(event) {
+    if (props.onMouseEnter) {
+        props.onMouseEnter(props.anime, event)
+    }
+}
+
+function handleMouseLeave() {
+    if (props.onMouseLeave) {
+        props.onMouseLeave()
+    }
+}
 </script>
 
 <template>
-    <NuxtLink :to="`/anime/${anime.refId}`" class="anime-card-item group">
+    <NuxtLink 
+        :to="`/anime/${anime.refId}`" 
+        class="anime-card-item group"
+        @mouseenter="handleMouseEnter"
+        @mouseleave="handleMouseLeave"
+    >
         <!-- Image Container -->
         <div class="relative overflow-hidden rounded-t-xl aspect-[2/3] bg-gray-200 dark:bg-gray-700">
             <img

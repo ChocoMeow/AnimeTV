@@ -17,6 +17,18 @@ const showFilters = ref(true)
 // Flag to prevent watcher from triggering when we update URL programmatically
 const isUpdatingURL = ref(false)
 
+// Use shared tooltip composable
+const {
+    hoveredAnime,
+    animeDetails,
+    tooltipLoading,
+    tooltipError,
+    tooltipPosition,
+    handleMouseEnter,
+    handleMouseLeave,
+    cleanup,
+} = useAnimeTooltip()
+
 const tags = [
     "全部",
     "動作",
@@ -175,6 +187,10 @@ onMounted(() => {
     initializeFromRoute()
     fetchAnime(currentPage.value)
 })
+
+onUnmounted(() => {
+    cleanup()
+})
 </script>
 
 <template>
@@ -302,6 +318,8 @@ onMounted(() => {
                 :key="anime.refId" 
                 :anime="anime"
                 :show-hover-title-color="true"
+                :on-mouse-enter="handleMouseEnter"
+                :on-mouse-leave="handleMouseLeave"
             />
         </div>
 
@@ -310,6 +328,15 @@ onMounted(() => {
             <Pagination :current-page="currentPage" :total-page="totalPage" @change="fetchAnime" />
         </div>
     </div>
+
+    <!-- Anime Tooltip Component -->
+    <AnimeTooltip
+        :hovered-anime="hoveredAnime"
+        :anime-details="animeDetails"
+        :tooltip-loading="tooltipLoading"
+        :tooltip-error="tooltipError"
+        :tooltip-position="tooltipPosition"
+    />
 </template>
 
 <style scoped>
