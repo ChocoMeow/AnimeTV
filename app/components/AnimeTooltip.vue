@@ -23,6 +23,16 @@ const props = defineProps({
 })
 
 const { isMobile } = useMobile()
+
+function formatViews(views) {
+    if (!views) return "0"
+    // Use Chinese unit 萬 for values >= 10,000
+    if (views >= 10000) {
+        const value = (views / 10000).toFixed(1)
+        return `${value.endsWith(".0") ? value.slice(0, -2) : value}萬`
+    }
+    return views.toString()
+}
 </script>
 
 <template>
@@ -53,15 +63,15 @@ const { isMobile } = useMobile()
                                 <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
                                     <span class="material-icons text-sm text-yellow-400">star</span>
                                     <span class="font-bold text-sm">{{ animeDetails.userRating?.score }}</span>
-                                    <span class="text-sm text-gray-300">({{ animeDetails.userRating?.count || 0 }})</span>
+                                    <span class="text-sm text-gray-300">({{ formatViews(animeDetails.userRating.votes) }})</span>
                                 </div>
                                 <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
                                     <span class="material-icons text-sm">visibility</span>
-                                    <span>{{ animeDetails.views }}</span>
+                                    <span>{{ formatViews(animeDetails.views) }}</span>
                                 </div>
                                 <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
                                     <span class="material-icons text-sm">movie</span>
-                                    <span>共{{ Object.keys(animeDetails.episodes || {}).length }}集</span>
+                                    <span>{{ animeDetails.episodeCount ?? Object.keys(animeDetails.episodes || {}).length }}</span>
                                 </div>
                             </div>
                         </div>

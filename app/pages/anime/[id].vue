@@ -68,16 +68,6 @@ function formatDuration(seconds) {
     return `${mins}:${secs.toString().padStart(2, "0")}`
 }
 
-function formatViews(views) {
-    if (!views) return "0"
-    if (views >= 1000000) {
-        return (views / 1000000).toFixed(1) + "M"
-    } else if (views >= 1000) {
-        return (views / 1000).toFixed(1) + "K"
-    }
-    return views.toString()
-}
-
 // Additional Details Configuration
 const additionalDetails = computed(() => {
     if (!anime.value) return []
@@ -380,7 +370,7 @@ async function fetchDetail() {
     selectedEpisode.value = null
 
     try {
-        const res = await $fetch(`/api/anime/${route.params.id}`)
+        const res = await $fetch(`/api/anime/${route.params.id}?withEpisodes=true`)
         if (!res || Object.keys(res).length === 0) {
             error.value = "找不到此動漫的詳細資訊"
             return
@@ -679,7 +669,7 @@ onUnmounted(() => {
                             </div>
                             <div class="flex items-center gap-1.5">
                                 <span class="material-icons text-base">favorite</span>
-                                <span class="text-gray-900 dark:text-white">{{ anime.userRating?.count || 0 }}</span>
+                                <span class="text-gray-900 dark:text-white">{{ formatViews(anime.userRating.votes) }}</span>
                                 <span>喜歡</span>
                             </div>
                             <div v-if="anime.userRating?.score" class="flex items-center gap-1.5">

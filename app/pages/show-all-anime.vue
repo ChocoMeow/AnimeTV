@@ -157,16 +157,6 @@ function clearAllFilters() {
     fetchAnime(1)
 }
 
-function formatViews(views) {
-    if (!views) return "0"
-    if (views >= 1000000) {
-        return (views / 1000000).toFixed(1) + "M"
-    } else if (views >= 1000) {
-        return (views / 1000).toFixed(1) + "K"
-    }
-    return views
-}
-
 // Watch for route changes (e.g., browser back/forward)
 watch(
     () => route.query,

@@ -81,13 +81,19 @@ export function useAnimeTooltip() {
         if (isMobile.value) return
         
         const refId = item.refId || item.id
+        const episodeCount = item.episode ?? item.episodes ?? null
         hoveredAnime.value = refId
         tooltipPosition.value = calculateTooltipPosition(event)
         tooltipError.value = null
         
         // Check cache first
         if (animeCache.value.has(refId)) {
-            animeDetails.value = animeCache.value.get(refId)
+            const cached = animeCache.value.get(refId)
+            // Ensure cached details also carry episodeCount if provided
+            animeDetails.value = {
+                ...cached,
+                episodeCount: cached.episodeCount ?? episodeCount ?? null,
+            }
             return
         }
         
@@ -97,10 +103,15 @@ export function useAnimeTooltip() {
                 tooltipError.value = null
                 try {
                     const details = await $fetch(`/api/anime/${refId}`)
+                    const enrichedDetails = {
+                        ...details,
+                        // Pass episode count from list item so we don't need full episodes map
+                        episodeCount: details.episodeCount ?? episodeCount ?? null,
+                    }
                     if (hoveredAnime.value === refId) {
-                        animeDetails.value = details
+                        animeDetails.value = enrichedDetails
                         // Cache the result
-                        animeCache.value.set(refId, details)
+                        animeCache.value.set(refId, enrichedDetails)
                     }
                 } catch (err) {
                     console.error("Failed to fetch anime details:", err)
