@@ -5,7 +5,7 @@ const appConfig = useAppConfig()
 const route = useRoute()
 const client = useSupabaseClient()
 
-const favoriteItems = ref([])
+const favoriteItems = ref([]) // each item will have seasonYear/seasonIndex/seasonLabel precomputed
 const loading = ref(true)
 const searchQuery = ref("")
 const selectedItems = ref(new Set())
@@ -15,9 +15,43 @@ const pageSize = 20
 const currentPage = ref(0)
 const hasMore = ref(true)
 const loadingMore = ref(false)
-const sortBy = ref("recent") // recent, title
+const sortBy = ref("recent") // recent, title, season
 
-// Computed filtered favorites
+// ---------- Season helpers ----------
+function enrichWithSeason(favorites, metaRows) {
+    const metaBySourceId = (metaRows || []).reduce((acc, m) => {
+        acc[m.source_id] = m
+        return acc
+    }, {})
+
+    const seasonNames = ["冬季", "春季", "夏季", "秋季"]
+
+    return (favorites || []).map((item) => {
+        const m = metaBySourceId[item.anime_ref_id]
+        let year = 0
+        let month = 0
+
+        const premiere = m?.premiere_date
+        if (premiere) {
+            const [y, mo] = String(premiere).split("-")
+            year = Number(y) || 0
+            month = Number(mo) || 0
+        }
+
+        let seasonIndex = -1
+        if (month >= 1 && month <= 3) seasonIndex = 0
+        else if (month >= 4 && month <= 6) seasonIndex = 1
+        else if (month >= 7 && month <= 9) seasonIndex = 2
+        else if (month >= 10 && month <= 12) seasonIndex = 3
+
+        const label =
+            year && seasonIndex >= 0 ? `${year} 年${seasonNames[seasonIndex]}` : "未分類季節"
+
+        return { ...item, seasonYear: year, seasonIndex, seasonLabel: label }
+    })
+}
+
+// Computed filtered favorites (flat list used for grid and grouping)
 const filteredFavorites = computed(() => {
     let filtered = [...favoriteItems.value]
 
@@ -30,12 +64,48 @@ const filteredFavorites = computed(() => {
     // Sort
     if (sortBy.value === "title") {
         filtered.sort((a, b) => a.anime_title.localeCompare(b.anime_title))
+    } else if (sortBy.value === "season") {
+        // Sort by season (newest season first), fallback to recent if no season info
+        filtered.sort((a, b) => {
+            const yearA = a.seasonYear || 0
+            const yearB = b.seasonYear || 0
+            const idxA = typeof a.seasonIndex === "number" ? a.seasonIndex : -1
+            const idxB = typeof b.seasonIndex === "number" ? b.seasonIndex : -1
+
+            // If both have valid season info, sort by year desc, then seasonIndex desc
+            if (yearA && yearB) {
+                if (yearA !== yearB) {
+                    return yearB - yearA
+                }
+                if (idxA !== idxB) {
+                    return idxB - idxA
+                }
+            } else if (yearA && !yearB) {
+                return -1
+            } else if (!yearA && yearB) {
+                return 1
+            }
+
+            // Fallback: recent created_at
+            return new Date(b.created_at) - new Date(a.created_at)
+        })
     } else {
         // Sort by recent (created_at)
         filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     }
 
     return filtered
+})
+
+// Group favorites by season label for season view
+const groupedFavoritesBySeason = computed(() => {
+    if (sortBy.value !== "season") return {}
+
+    return filteredFavorites.value.reduce((acc, item) => {
+        const label = item.seasonLabel || "未分類季節"
+        ;(acc[label] ||= []).push(item)
+        return acc
+    }, {})
 })
 
 function toggleSelectItem(id, event) {
@@ -68,12 +138,24 @@ async function loadMore() {
         const orderColumn = sortBy.value === "title" ? "anime_title" : "created_at"
         const ascending = sortBy.value === "title"
 
-        const { data, error } = await client.from("favorites").select("*").eq("user_id", userSettings.value.id).order(orderColumn, { ascending }).range(from, to)
+        // Fetch favorites page
+        const { data, error } = await client
+            .from("favorites")
+            .select("*")
+            .eq("user_id", userSettings.value.id)
+            .order(orderColumn, { ascending })
+            .range(from, to)
 
         if (error) throw error
 
         if (data && data.length > 0) {
-            favoriteItems.value = [...favoriteItems.value, ...data]
+            const ids = [...new Set(data.map((i) => i.anime_ref_id).filter(Boolean))]
+            const { data: metaRows, error: metaError } = ids.length
+                ? await client.from("anime_meta").select("source_id, premiere_date").in("source_id", ids)
+                : { data: [], error: null }
+            if (metaError) console.error("Failed to fetch anime_meta for favorites (loadMore):", metaError)
+
+            favoriteItems.value = [...favoriteItems.value, ...enrichWithSeason(data, metaRows)]
             currentPage.value = nextPage
 
             // Check if we got fewer records than requested
@@ -161,7 +243,13 @@ async function fetchFavorites() {
 
         if (error) throw error
 
-        favoriteItems.value = data || []
+        const ids = [...new Set((data || []).map((i) => i.anime_ref_id).filter(Boolean))]
+        const { data: metaRows, error: metaError } = ids.length
+            ? await client.from("anime_meta").select("source_id, premiere_date, season").in("source_id", ids)
+            : { data: [], error: null }
+        if (metaError) console.error("Failed to fetch anime_meta for favorites (initial):", metaError)
+
+        favoriteItems.value = enrichWithSeason(data, metaRows)
         currentPage.value = 0
 
         // Check if there might be more records
@@ -243,6 +331,10 @@ useHead({
                         <span class="material-icons text-lg">sort_by_alpha</span>
                         名稱排序
                     </button>
+                    <button @click="sortBy = 'season'" :class="sortBy === 'season' ? 'text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900' : 'bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md flex items-center gap-2">
+                        <span class="material-icons text-lg">event</span>
+                        季節排序
+                    </button>
                 </div>
 
                 <!-- Action Buttons -->
@@ -295,10 +387,77 @@ useHead({
 
         <!-- Favorites Grid -->
         <div v-else>
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                <div v-for="item in filteredFavorites" :key="item.id" class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow hover:shadow-xl transition-all overflow-hidden group relative">
+            <!-- Season grouped view (similar to history date groups) -->
+            <div v-if="sortBy === 'season'" class="space-y-8">
+                <div v-for="(items, seasonLabel) in groupedFavoritesBySeason" :key="seasonLabel">
+                    <!-- Season Header -->
+                    <div class="flex items-center gap-3 mb-4">
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ seasonLabel }}</h2>
+                        <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                    </div>
+
+                    <!-- Season Favorites Grid -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                        <div
+                            v-for="item in items"
+                            :key="item.id"
+                            class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow hover:shadow-xl transition-all overflow-hidden group relative"
+                        >
+                            <!-- Checkbox -->
+                            <button
+                                @click="toggleSelectItem(item.id, $event)"
+                                class="absolute top-2 left-2 z-10 w-7 h-7 rounded bg-white/90 dark:bg-gray-700/90 shadow-md flex items-center justify-center transition-opacity backdrop-blur-sm"
+                                :class="selectedItems.has(item.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+                            >
+                                <span v-if="selectedItems.has(item.id)" class="material-icons text-gray-900 dark:text-gray-100 text-lg">check_box</span>
+                                <span v-else class="material-icons text-gray-400 text-lg">check_box_outline_blank</span>
+                            </button>
+
+                            <!-- Favorite Badge -->
+                            <div class="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-red-500 shadow-md flex items-center justify-center">
+                                <span class="material-icons text-white text-sm">favorite</span>
+                            </div>
+
+                            <!-- Clickable Link -->
+                            <NuxtLink :to="`/anime/${item.anime_ref_id}`" class="block">
+                                <!-- Poster -->
+                                <div class="aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
+                                    <img
+                                        v-if="item.anime_image"
+                                        :src="item.anime_image"
+                                        :alt="item.anime_title"
+                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    />
+                                    <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
+                                        <span class="material-icons text-5xl">movie</span>
+                                    </div>
+                                </div>
+
+                                <!-- Title -->
+                                <div class="p-3">
+                                    <h3 class="font-medium text-gray-900 dark:text-gray-100 text-sm line-clamp-2 leading-snug" :title="item.anime_title">
+                                        {{ item.anime_title }}
+                                    </h3>
+                                </div>
+                            </NuxtLink>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Default flat grid view -->
+            <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                <div
+                    v-for="item in filteredFavorites"
+                    :key="item.id"
+                    class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow hover:shadow-xl transition-all overflow-hidden group relative"
+                >
                     <!-- Checkbox -->
-                    <button @click="toggleSelectItem(item.id, $event)" class="absolute top-2 left-2 z-10 w-7 h-7 rounded bg-white/90 dark:bg-gray-700/90 shadow-md flex items-center justify-center transition-opacity backdrop-blur-sm" :class="selectedItems.has(item.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'">
+                    <button
+                        @click="toggleSelectItem(item.id, $event)"
+                        class="absolute top-2 left-2 z-10 w-7 h-7 rounded bg-white/90 dark:bg-gray-700/90 shadow-md flex items-center justify-center transition-opacity backdrop-blur-sm"
+                        :class="selectedItems.has(item.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+                    >
                         <span v-if="selectedItems.has(item.id)" class="material-icons text-gray-900 dark:text-gray-100 text-lg">check_box</span>
                         <span v-else class="material-icons text-gray-400 text-lg">check_box_outline_blank</span>
                     </button>
@@ -312,7 +471,12 @@ useHead({
                     <NuxtLink :to="`/anime/${item.anime_ref_id}`" class="block">
                         <!-- Poster -->
                         <div class="aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
-                            <img v-if="item.anime_image" :src="item.anime_image" :alt="item.anime_title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                            <img
+                                v-if="item.anime_image"
+                                :src="item.anime_image"
+                                :alt="item.anime_title"
+                                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
                             <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
                                 <span class="material-icons text-5xl">movie</span>
                             </div>
