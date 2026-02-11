@@ -6,10 +6,9 @@ import { URL } from 'node:url'
 
 dns.setDefaultResultOrder('ipv4first')
 
-// Shorter timeouts for serverless environments
 const httpAgent = new http.Agent({
-    keepAlive: false, // Disable keep-alive in serverless
-    timeout: 30000 // 30 second timeout
+    keepAlive: false,
+    timeout: 30000
 })
 
 const httpsAgent = new https.Agent({
@@ -17,17 +16,28 @@ const httpsAgent = new https.Agent({
     timeout: 30000
 })
 
-// Maximum chunk size: 10MB (completes well within Vercel's 60s limit)
-const MAX_CHUNK_SIZE = 10 * 1024 * 1024
+// OPTIMIZATION 1: Reduce chunk size dramatically for initial requests
+// Most video players only need small chunks to start playback
+const MAX_CHUNK_SIZE = 512 * 1024 // 512KB instead of 10MB (20x reduction!)
+
+// OPTIMIZATION 2: Cache video metadata to avoid repeated HEAD requests
+const metadataCache = new Map()
+const METADATA_CACHE_TTL = 300000 // 5 minutes
 
 export default defineEventHandler(async (event) => {
-    const { url: videoUrl, cookie } = getQuery(event)
+    const { url: videoUrl, cookie, redirect } = getQuery(event)
 
     if (!videoUrl || !cookie) {
         return sendError(
             event,
             createError({ statusCode: 400, statusMessage: 'Missing parameters' })
         )
+    }
+
+    // OPTIMIZATION 3: Return signed redirect URL instead of proxying
+    // This makes the client download directly from source, bypassing Vercel entirely
+    if (redirect === 'true') {
+        return await handleRedirect(videoUrl, cookie, event)
     }
 
     let parsedUrl
@@ -42,8 +52,23 @@ export default defineEventHandler(async (event) => {
 
     const rangeHeader = getHeader(event, 'range')
 
-    // CRITICAL: Get video size first to enable proper range requests
-    const headInfo = await getVideoInfo(videoUrl, cookie)
+    // Check cache first
+    const cacheKey = `${videoUrl}:${cookie}`
+    let headInfo = metadataCache.get(cacheKey)
+    
+    if (!headInfo || Date.now() - headInfo.timestamp > METADATA_CACHE_TTL) {
+        headInfo = await getVideoInfo(videoUrl, cookie)
+        if (headInfo.success) {
+            headInfo.timestamp = Date.now()
+            metadataCache.set(cacheKey, headInfo)
+            
+            // OPTIMIZATION 4: Limit cache size
+            if (metadataCache.size > 100) {
+                const firstKey = metadataCache.keys().next().value
+                metadataCache.delete(firstKey)
+            }
+        }
+    }
 
     if (!headInfo.success) {
         return sendError(
@@ -55,9 +80,16 @@ export default defineEventHandler(async (event) => {
     const totalSize = headInfo.contentLength
     const supportsRange = headInfo.acceptsRanges
 
+    // OPTIMIZATION 5: For small videos, consider returning redirect instead of proxying
+    if (totalSize < 5 * 1024 * 1024 && headInfo.directUrl) { // Less than 5MB
+        console.log('Small video detected, redirecting to save bandwidth')
+        setResponseStatus(event, 302)
+        setResponseHeader(event, 'Location', headInfo.directUrl)
+        return
+    }
+
     console.log(`Video info: ${totalSize} bytes, Range support: ${supportsRange}`)
 
-    // Parse range request or create one
     let start = 0
     let end = totalSize - 1
 
@@ -66,8 +98,7 @@ export default defineEventHandler(async (event) => {
         start = parseInt(parts[0], 10)
         end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1
     } else if (supportsRange) {
-        // Force chunked requests even if client doesn't ask for them
-        // This prevents single long-running requests on Vercel
+        // OPTIMIZATION 6: Smaller initial chunk for faster start
         end = Math.min(start + MAX_CHUNK_SIZE - 1, totalSize - 1)
     }
 
@@ -75,14 +106,20 @@ export default defineEventHandler(async (event) => {
     const requestedSize = end - start + 1
     if (requestedSize > MAX_CHUNK_SIZE && supportsRange) {
         end = start + MAX_CHUNK_SIZE - 1
-        console.log(`Limiting chunk to ${MAX_CHUNK_SIZE} bytes for serverless compatibility`)
+        console.log(`Limiting chunk to ${MAX_CHUNK_SIZE} bytes for bandwidth optimization`)
     }
 
     const chunkSize = end - start + 1
 
     console.log(`Serving range: ${start}-${end}/${totalSize} (${chunkSize} bytes)`)
 
-    // Stream the requested range
+    // OPTIMIZATION 7: Add aggressive caching headers
+    const cacheHeaders = {
+        'Cache-Control': 'public, max-age=31536000, immutable', // 1 year cache
+        'CDN-Cache-Control': 'public, max-age=31536000',
+        'Vercel-CDN-Cache-Control': 'public, max-age=31536000'
+    }
+
     let clientDisconnected = false
     let proxyRequest = null
     let bytesTransferred = 0
@@ -123,15 +160,15 @@ export default defineEventHandler(async (event) => {
                 path: targetUrl.pathname + targetUrl.search,
                 method: 'GET',
                 agent,
-                timeout: 30000, // 30 second timeout for serverless
+                timeout: 30000,
                 headers: {
                     'Cookie': cookie,
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                     'Accept': 'video/webm,video/ogg,video/*;q=0.9,*/*;q=0.5',
                     'Accept-Encoding': 'identity',
-                    'Connection': 'close', // Close after request in serverless
+                    'Connection': 'close',
                     'Referer': targetUrl.origin,
-                    'Range': `bytes=${start}-${end}` // Always use range requests
+                    'Range': `bytes=${start}-${end}`
                 }
             }
 
@@ -173,13 +210,12 @@ export default defineEventHandler(async (event) => {
                     return
                 }
 
-                // Success - set up streaming
                 const statusCode = res.statusCode === 206 ? 206 : 200
 
                 const headers = {
                     'Content-Type': res.headers['content-type'] || 'video/mp4',
                     'Accept-Ranges': 'bytes',
-                    'Cache-Control': 'public, max-age=3600',
+                    ...cacheHeaders, // OPTIMIZATION 7: Apply cache headers
                     'Access-Control-Allow-Origin': '*',
                     'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
                     'Access-Control-Allow-Headers': 'Range',
@@ -187,7 +223,6 @@ export default defineEventHandler(async (event) => {
                     'Connection': 'close'
                 }
 
-                // Always include Content-Range for partial content
                 if (statusCode === 206) {
                     headers['Content-Range'] = `bytes ${start}-${end}/${totalSize}`
                     headers['Content-Length'] = chunkSize.toString()
@@ -218,7 +253,6 @@ export default defineEventHandler(async (event) => {
                     return
                 }
 
-                // Track data
                 res.on('data', (chunk) => {
                     bytesTransferred += chunk.length
                 })
@@ -240,11 +274,9 @@ export default defineEventHandler(async (event) => {
                     resolve()
                 })
 
-                // Pipe with backpressure handling
                 res.pipe(event.node.res, { end: true })
             })
 
-            // Timeout for serverless - must complete quickly
             proxyRequest.setTimeout(30000, () => {
                 console.log('Request timeout after 30s')
                 proxyRequest.destroy(new Error('Request timeout'))
@@ -286,6 +318,97 @@ export default defineEventHandler(async (event) => {
         cleanupRequest('finally')
     }
 })
+
+// OPTIMIZATION 8: Handle redirect mode (best for bandwidth saving)
+async function handleRedirect(videoUrl, cookie, event) {
+    try {
+        // Get the final URL after any redirects
+        const finalUrl = await getFinalUrl(videoUrl, cookie)
+        
+        if (!finalUrl) {
+            return sendError(
+                event,
+                createError({ statusCode: 502, statusMessage: 'Could not resolve video URL' })
+            )
+        }
+
+        // Return the direct URL to the client
+        // Client will download directly from source, using 0 Vercel bandwidth
+        return {
+            success: true,
+            url: finalUrl,
+            message: 'Use this URL to stream directly and save bandwidth'
+        }
+    } catch (error) {
+        return sendError(event, error)
+    }
+}
+
+// Get final URL after redirects
+async function getFinalUrl(videoUrl, cookie, maxRedirects = 5) {
+    return new Promise((resolve) => {
+        let currentUrl = videoUrl
+        let redirectCount = 0
+
+        const followRedirect = (url) => {
+            if (redirectCount >= maxRedirects) {
+                resolve(null)
+                return
+            }
+
+            let targetUrl
+            try {
+                targetUrl = new URL(url)
+            } catch (err) {
+                resolve(null)
+                return
+            }
+
+            const client = targetUrl.protocol === 'https:' ? https : http
+            const agent = targetUrl.protocol === 'https:' ? httpsAgent : httpAgent
+
+            const requestOptions = {
+                hostname: targetUrl.hostname,
+                port: targetUrl.port || (targetUrl.protocol === 'https:' ? 443 : 80),
+                path: targetUrl.pathname + targetUrl.search,
+                method: 'HEAD',
+                agent,
+                timeout: 10000,
+                headers: {
+                    'Cookie': cookie,
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept': 'video/*',
+                    'Connection': 'close'
+                }
+            }
+
+            const req = client.request(requestOptions, (res) => {
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    redirectCount++
+                    const nextUrl = new URL(res.headers.location, url).toString()
+                    followRedirect(nextUrl)
+                } else if (res.statusCode === 200) {
+                    resolve(url)
+                } else {
+                    resolve(null)
+                }
+            })
+
+            req.setTimeout(10000, () => {
+                req.destroy()
+                resolve(null)
+            })
+
+            req.on('error', () => {
+                resolve(null)
+            })
+
+            req.end()
+        }
+
+        followRedirect(currentUrl)
+    })
+}
 
 // Helper function to get video info via HEAD request
 async function getVideoInfo(videoUrl, cookie) {
@@ -341,7 +464,8 @@ async function getVideoInfo(videoUrl, cookie) {
                 success: true,
                 contentLength,
                 acceptsRanges,
-                contentType: res.headers['content-type']
+                contentType: res.headers['content-type'],
+                directUrl: videoUrl // Store for potential redirect
             })
         })
 
