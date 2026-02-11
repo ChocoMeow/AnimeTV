@@ -1,19 +1,17 @@
+const numberFormat = new Intl.NumberFormat("en-US")
+
 export function formatViews(views) {
-    if (!views) return "0"
+    if (views === null || views === undefined) return "0"
 
-    const n = Number(views) || 0
+    const n = Number(views)
+    if (Number.isNaN(n) || n < 0) return "0"
 
-    // If value >= 10,000, show in 萬 unit
+    // If value >= 10,000, show in 萬 unit (e.g. 27.9萬)
     if (n >= 10000) {
         const wanValue = Math.round(n / 10000)
-        const formattedWan = new Intl.NumberFormat("en-US").format(wanValue)
-        return `${formattedWan}萬`
+        return `${numberFormat.format(wanValue)}萬`
     }
 
-    // If value >= 1,000, add thousands separators (e.g. 1,234)
-    if (n >= 1000) {
-        return new Intl.NumberFormat("en-US").format(n)
-    }
-
-    return n.toString()
+    // Format with thousands separators (e.g. 8,000)
+    return numberFormat.format(n)
 }

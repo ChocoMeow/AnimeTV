@@ -23,16 +23,6 @@ const props = defineProps({
 })
 
 const { isMobile } = useMobile()
-
-function formatViews(views) {
-    if (!views) return "0"
-    // Use Chinese unit 萬 for values >= 10,000
-    if (views >= 10000) {
-        const value = (views / 10000).toFixed(1)
-        return `${value.endsWith(".0") ? value.slice(0, -2) : value}萬`
-    }
-    return views.toString()
-}
 </script>
 
 <template>
