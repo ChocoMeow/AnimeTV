@@ -416,7 +416,7 @@ onMounted(() => {
                             @click="handleCreateNew"
                         >
                             <span class="material-icons text-base">add</span>
-                            新增紀錄
+                            <span class="hidden sm:inline">新增紀錄</span>
                         </button>
                         <button
                             v-if="selectedRecord"
@@ -426,7 +426,7 @@ onMounted(() => {
                             @click="handleDelete"
                         >
                             <span class="material-icons text-base">delete</span>
-                            刪除
+                            <span class="hidden sm:inline">刪除</span>
                         </button>
                         <button
                             type="button"
@@ -435,7 +435,7 @@ onMounted(() => {
                             @click="handleSave"
                         >
                             <span class="material-icons text-base">save</span>
-                            {{ saving ? "儲存中..." : "儲存" }}
+                            <span class="hidden sm:inline">{{ saving ? "儲存中..." : "儲存" }}</span>
                         </button>
                     </div>
                 </div>
