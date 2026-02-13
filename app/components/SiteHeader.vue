@@ -1,6 +1,7 @@
 <script setup>
 const { searchHistory, userSettings } = useUserSettings()
 const { isMobile } = useMobile()
+const { isAdmin, clearAdmin } = useAdmin()
 const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
@@ -187,6 +188,7 @@ async function fetchSearchSuggestions() {
 
 async function signOut() {
     showUserMenu.value = false
+    clearAdmin()
     const { error } = await client.auth.signOut()
     navigateTo("/login")
 }
@@ -362,6 +364,11 @@ watch(
                                     <span class="text-sm font-medium">我的好友</span>
                                 </NuxtLink>
 
+                                <NuxtLink v-if="isAdmin" to="/admin" class="w-full px-4 py-2.5 text-left hover:bg-black/10 dark:hover:bg-white/20 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300" @click.native="showUserMenu = false">
+                                    <span class="material-icons text-gray-500 dark:text-gray-400">admin_panel_settings</span>
+                                    <span class="text-sm font-medium">管理後台</span>
+                                </NuxtLink>
+
                                 <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
 
                                 <button @click="signOut" class="w-full px-4 py-2.5 text-left hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-3 text-red-600 dark:text-red-400">
@@ -505,6 +512,10 @@ watch(
                 <NuxtLink to="/friends" class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3">
                     <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">group</span>
                     <span>我的好友</span>
+                </NuxtLink>
+                <NuxtLink v-if="isAdmin" to="/admin" class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3">
+                    <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">admin_panel_settings</span>
+                    <span>管理後台</span>
                 </NuxtLink>
 
                 <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>

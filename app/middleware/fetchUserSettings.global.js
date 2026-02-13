@@ -1,5 +1,6 @@
 export default defineNuxtRouteMiddleware(async (to, from) => {
     const { fetchSettings, settingsLoaded } = useUserSettings();
+    const { fetchSettings, settingsLoaded } = useUserSettings()
 
     // Skip if settings are already loaded
     if (settingsLoaded.value) {

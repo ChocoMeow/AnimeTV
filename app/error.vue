@@ -7,9 +7,11 @@ const appConfig = useAppConfig()
 const router = useRouter()
 
 const is404 = ref(props.error?.statusCode === 404)
-const errorMessage = ref(is404.value ? "抱歉，我們找不到這個頁面" : "伺服器發生問題，請稍後再試")
-
-const errorTitle = ref(is404.value ? "頁面不存在" : "出現錯誤")
+const is403 = ref(props.error?.statusCode === 403)
+const errorMessage = ref(
+    is404.value ? "抱歉，我們找不到這個頁面" : is403.value ? "您沒有權限訪問此頁面，僅限管理員。" : "伺服器發生問題，請稍後再試",
+)
+const errorTitle = ref(is404.value ? "頁面不存在" : is403.value ? "沒有權限" : "出現錯誤")
 
 function goHome() {
     router.push("/")
@@ -20,7 +22,7 @@ function goBack() {
 }
 
 useHead({
-    title: is404.value ? `404 - 頁面不存在 | ${appConfig.siteName}` : `錯誤 | ${appConfig.siteName}`,
+    title: is404.value ? `404 - 頁面不存在 | ${appConfig.siteName}` : is403.value ? `403 - 沒有權限 | ${appConfig.siteName}` : `錯誤 | ${appConfig.siteName}`,
 })
 </script>
 
@@ -58,8 +60,8 @@ useHead({
                     </p>
                 </div>
 
-                <!-- Error Details (for non-404 errors) -->
-                <div v-if="error?.message && !is404" class="max-w-2xl mx-auto">
+                <!-- Error Details (for non-404/403 errors) -->
+                <div v-if="error?.message && !is404 && !is403" class="max-w-2xl mx-auto">
                     <details class="text-left group">
                         <summary class="cursor-pointer text-sm text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors flex items-center justify-center gap-2">
                             <span class="material-icons text-base group-open:rotate-180 transition-transform">expand_more</span>

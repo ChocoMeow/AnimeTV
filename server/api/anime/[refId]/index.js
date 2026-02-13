@@ -58,25 +58,29 @@ const normalizeEpisodeId = (episodeId) => {
 // Data Processing Functions
 // ============================================================================
 
-const buildAnimeMetaPayload = (scraped) => ({
-    title: scraped.title,
-    description: scraped.description,
-    thumbnail: scraped.image,
-    premiere_date: parsePremiereDate(scraped.premiereDate),
-    director: scraped.director,
-    distributor: scraped.distributor,
-    production_company: scraped.productionCompany,
-    tags: scraped.tags || [],
-    views: parseViews(scraped.views),
-    user_rating: normalizeUserRating(scraped.userRating),
-    related_anime_source_ids: (scraped.relatedAnime || [])
-        .map((item) => item.refId)
-        .filter(Boolean),
-    source_id: scraped.refId,
-    source_details_id: scraped.detailId,
-    video_id: scraped.videoId || null,
-    season: scraped.season || null,
-})
+const buildAnimeMetaPayload = (scraped) => {
+    const { score, votes } = normalizeUserRating(scraped.userRating)
+    return {
+        title: scraped.title,
+        description: scraped.description,
+        thumbnail: scraped.image,
+        premiere_date: parsePremiereDate(scraped.premiereDate),
+        director: scraped.director,
+        distributor: scraped.distributor,
+        production_company: scraped.productionCompany,
+        tags: scraped.tags || [],
+        views: parseViews(scraped.views),
+        score,
+        votes,
+        related_anime_source_ids: (scraped.relatedAnime || [])
+            .map((item) => item.refId)
+            .filter(Boolean),
+        source_id: scraped.refId,
+        source_details_id: scraped.detailId,
+        video_id: scraped.videoId || null,
+        season: scraped.season || null,
+    }
+}
 
 const processEpisodeArticle = ($, element, episodes) => {
     const fullTitle = $(element).find("h2.entry-title a").text().trim()
@@ -290,7 +294,7 @@ const buildAnimeResponse = (meta, episodes, relatedAnime, isFavorite) => ({
     distributor: meta.distributor,
     productionCompany: meta.production_company,
     tags: meta.tags || [],
-    userRating: normalizeUserRating(meta.user_rating),
+    userRating: normalizeUserRating({ score: meta.score, votes: meta.votes }),
     relatedAnime,
     videoId: meta.video_id,
     season: meta.season,
