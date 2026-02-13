@@ -1,15 +1,17 @@
 export default defineNuxtRouteMiddleware(async (to, from) => {
-    const { fetchSettings, settingsLoaded } = useUserSettings();
-    const { fetchSettings, settingsLoaded } = useUserSettings()
+    const userSettings = useUserSettings()
 
     // Skip if settings are already loaded
-    if (settingsLoaded.value) {
-        return;
+    if (userSettings.settingsLoaded.value) {
+        return
     }
 
     // Only fetch settings if user is logged in
-    const user = useSupabaseUser();
+    const user = useSupabaseUser()
     if (user.value) {
-        await fetchSettings();
+        await userSettings.fetchSettings()
+        // Load admin role once so middleware/header can use cached value
+        const { fetchAdminRole } = useAdmin()
+        await fetchAdminRole()
     }
-});
+})
