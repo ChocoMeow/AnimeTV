@@ -298,36 +298,12 @@ watch(
            text-green-700 dark:text-green-400;
 }
 
-.episode-button.special {
-    @apply bg-gradient-to-br from-gray-600 to-gray-800 
-           border-gray-500 dark:border-gray-600
-           text-white font-semibold
-           hover:from-gray-700 hover:to-gray-900
-           hover:border-gray-600;
-}
-
-.episode-button.special.active {
-    @apply from-gray-800 to-gray-950 
-           border-gray-800
-           shadow-xl shadow-gray-500/50;
-}
-
-.episode-button.special.watched:not(.active) {
-    @apply from-gray-500 to-gray-700 
-           border-gray-400 dark:border-gray-600
-           opacity-80;
-}
-
 .episode-button.completed .material-icons {
     @apply text-green-600 dark:text-green-400;
 }
 
-.episode-button.watched:not(.completed):not(.special) .material-icons {
+.episode-button.watched:not(.completed) .material-icons {
     @apply text-gray-600 dark:text-gray-400;
-}
-
-.episode-button.special .material-icons {
-    @apply text-white;
 }
 
 .episode-button.disabled {
@@ -335,12 +311,6 @@ watch(
            hover:border-gray-300 hover:text-gray-700 
            dark:hover:border-gray-600 dark:hover:text-gray-300
            hover:shadow-none;
-}
-
-.episode-button.disabled.special {
-    @apply from-gray-400 to-gray-500 
-           border-gray-400
-           hover:from-gray-400 hover:to-gray-500;
 }
 
 /* Responsive episode grids - auto-size based on container width */
