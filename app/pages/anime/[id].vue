@@ -16,6 +16,7 @@ const { setWatching, setOnline } = useUserStatus()
 const anime = ref(null)
 const selectedEpisode = ref(null)
 const videoUrl = ref(null)
+const videoIsHls = ref(false)
 const error = ref(null)
 const loading = ref(true)
 const videoLoading = ref(false)
@@ -367,6 +368,7 @@ async function fetchDetail() {
     loading.value = true
     error.value = null
     videoUrl.value = null
+    videoIsHls.value = false
     selectedEpisode.value = null
 
     try {
@@ -430,6 +432,7 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
     const token = anime.value.episodes[String(epNum)]
     if (!token) {
         videoUrl.value = null
+        videoIsHls.value = false
         return
     }
 
@@ -440,13 +443,17 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
         if (res?.s?.length) {
             const raw = res.s[0].src
             const finalUrl = raw.startsWith("http") ? raw : `https:${raw}`
+            const isM3u8 = /\.m3u8(\?|$)/i.test(finalUrl) || finalUrl.toLowerCase().includes("m3u8")
             videoUrl.value = `/api/proxy-video?url=${encodeURIComponent(finalUrl)}&cookie=${encodeURIComponent(res.videoCookie)}`
+            videoIsHls.value = isM3u8
         } else {
             videoUrl.value = null
+            videoIsHls.value = false
         }
     } catch (err) {
         console.error("Episode fetch failed:", err)
         videoUrl.value = null
+        videoIsHls.value = false
     } finally {
         videoLoading.value = false
     }
@@ -543,6 +550,7 @@ onUnmounted(() => {
                             v-if="videoUrl"
                             ref="videoPlayer" 
                             :src="videoUrl" 
+                            :is-hls="videoIsHls"
                             preload="metadata" 
                             :has-next-episode="hasNextEpisode" 
                             :shortcuts="userShortcuts" 

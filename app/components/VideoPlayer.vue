@@ -6,6 +6,10 @@ const props = defineProps({
         type: String,
         required: true,
     },
+    isHls: {
+        type: Boolean,
+        default: false,
+    },
     autoplay: {
         type: Boolean,
         default: false,
@@ -30,6 +34,9 @@ const emit = defineEmits(["play", "pause", "ended", "volumechange", "loadstart",
 const videoRef = ref(null)
 const containerRef = ref(null)
 const progressRef = ref(null)
+const hlsRef = ref(null)
+/** When using HLS via hls.js, we must not set video.src; when using native HLS we set this to props.src */
+const effectiveVideoSrc = ref("")
 
 // State
 const isPlaying = ref(false)
@@ -577,6 +584,10 @@ watch(videoRef, (newVideo) => {
 })
 
 onUnmounted(() => {
+    if (hlsRef.value) {
+        hlsRef.value.destroy()
+        hlsRef.value = null
+    }
     if (controlsTimeout) {
         clearTimeout(controlsTimeout)
     }
@@ -593,7 +604,58 @@ onUnmounted(() => {
     document.removeEventListener("mouseup", handleProgressMouseUp)
 })
 
-// Watch for src changes
+// HLS setup / teardown when src, isHls, or videoRef change
+async function applyHlsOrSrc() {
+    const { src, isHls } = props
+    const video = videoRef.value
+
+    if (hlsRef.value) {
+        hlsRef.value.destroy()
+        hlsRef.value = null
+    }
+
+    if (!src) {
+        effectiveVideoSrc.value = ""
+        return
+    }
+
+    if (!isHls) {
+        effectiveVideoSrc.value = src
+        return
+    }
+
+    if (!video) {
+        effectiveVideoSrc.value = ""
+        return
+    }
+
+    const Hls = (await import("hls.js")).default
+    if (Hls.isSupported()) {
+        effectiveVideoSrc.value = ""
+        const hls = new Hls()
+        hlsRef.value = hls
+        hls.loadSource(src)
+        hls.attachMedia(video)
+        hls.on(Hls.Events.ERROR, (_, data) => {
+            if (data.fatal) {
+                hls.destroy()
+                hlsRef.value = null
+            }
+        })
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        effectiveVideoSrc.value = src
+    } else {
+        effectiveVideoSrc.value = src
+    }
+}
+
+watch(
+    [() => props.src, () => props.isHls, videoRef],
+    () => { applyHlsOrSrc() },
+    { immediate: true }
+)
+
+// Watch for src changes (reset playback state)
 watch(
     () => props.src,
     () => {
@@ -620,7 +682,7 @@ watch(
     <div ref="containerRef" class="relative w-full aspect-video bg-gray-950/5 dark:bg-white/10 rounded-lg overflow-hidden cursor-default"
         @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
         <!-- Video Element -->
-        <video v-if="src" ref="videoRef" :src="src" :autoplay="autoplay" :preload="preload" class="w-full h-full block cursor-pointer"
+        <video v-if="src" ref="videoRef" :src="effectiveVideoSrc || undefined" :autoplay="autoplay" :preload="preload" class="w-full h-full block cursor-pointer"
             @play="onPlay" @pause="onPause" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata"
             @loadeddata="onLoadedData" @loadstart="onLoadStart" @ended="onEnded" @volumechange="onVolumeChange"
             @waiting="onWaiting" @canplay="onCanPlay" @canplaythrough="onCanPlayThrough"
