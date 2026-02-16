@@ -63,12 +63,6 @@ function formatRating(score) {
     return score ? parseFloat(score).toFixed(1) : "N/A"
 }
 
-function formatDuration(seconds) {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, "0")}`
-}
-
 // Additional Details Configuration
 const additionalDetails = computed(() => {
     if (!anime.value) return []
@@ -587,7 +581,7 @@ onUnmounted(() => {
                                         <!-- Progress Bar -->
                                         <div class="space-y-1.5">
                                             <div class="flex items-center justify-between text-xs text-gray-600 dark:text-white/70">
-                                                <span>{{ formatDuration(lastWatchedData.playback_time) }} / {{ formatDuration(lastWatchedData.video_duration) }}</span>
+                                                <span>{{ formatTime(lastWatchedData.playback_time) }} / {{ formatTime(lastWatchedData.video_duration) }}</span>
                                                 <span>{{ lastWatchedData.progress_percentage }}%</span>
                                             </div>
                                             <div class="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
@@ -799,7 +793,7 @@ onUnmounted(() => {
                                     <!-- Progress Bar -->
                                     <div class="space-y-1.5">
                                         <div class="flex items-center justify-between text-xs text-gray-600 dark:text-white/70">
-                                            <span>{{ formatDuration(lastWatchedData.playback_time) }} / {{ formatDuration(lastWatchedData.video_duration) }}</span>
+                                            <span>{{ formatTime(lastWatchedData.playback_time) }} / {{ formatTime(lastWatchedData.video_duration) }}</span>
                                             <span>{{ lastWatchedData.progress_percentage }}%</span>
                                         </div>
                                         <div class="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">

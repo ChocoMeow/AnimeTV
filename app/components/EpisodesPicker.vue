@@ -83,12 +83,6 @@ function isCompleted(ep) {
     return getProgressPercentage(ep) >= 90
 }
 
-function formatTime(seconds) {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, "0")}`
-}
-
 // Get display label for episodes
 function getEpisodeLabel(ep) {
     return isNumericEpisode(ep) ? String(ep) : ep

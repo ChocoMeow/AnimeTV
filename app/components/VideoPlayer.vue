@@ -84,14 +84,6 @@ const displayTime = computed(() => {
     return isDraggingProgress.value ? dragPreviewTime.value : currentTime.value
 })
 
-// Format time helper
-function formatTime(time) {
-    if (isNaN(time)) return "0:00"
-    const minutes = Math.floor(time / 60)
-    const seconds = Math.floor(time % 60)
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`
-}
-
 // Show notification helper
 function showNotification(message, icon) {
     notification.value.message = message

@@ -5,6 +5,17 @@ const appConfig = useAppConfig()
 const route = useRoute()
 const client = useSupabaseClient()
 
+const {
+    hoveredAnime,
+    animeDetails,
+    tooltipLoading,
+    tooltipError,
+    tooltipPosition,
+    handleMouseEnter: onTooltipMouseEnter,
+    handleMouseLeave: onTooltipMouseLeave,
+    cleanup: cleanupTooltip,
+} = useAnimeTooltip()
+
 const historyItems = ref([])
 const loading = ref(true)
 const selectedFilter = ref("all")
@@ -61,6 +72,10 @@ const groupedHistory = computed(() => {
     return groups
 })
 
+function handleTooltipEnter(item, event) {
+    onTooltipMouseEnter({ refId: item.anime_ref_id }, event)
+}
+
 function isSameDay(date1, date2) {
     return date1.getDate() === date2.getDate() && date1.getMonth() === date2.getMonth() && date1.getFullYear() === date2.getFullYear()
 }
@@ -70,19 +85,6 @@ function formatDate(date) {
     const month = date.getMonth() + 1
     const day = date.getDate()
     return `${year}年${month}月${day}日`
-}
-
-function formatTime(dateString) {
-    const date = new Date(dateString)
-    const hours = date.getHours().toString().padStart(2, "0")
-    const minutes = date.getMinutes().toString().padStart(2, "0")
-    return `${hours}:${minutes}`
-}
-
-function formatDuration(seconds) {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, "0")}`
 }
 
 function toggleSelectItem(animeRefId, event) {
@@ -259,6 +261,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     window.removeEventListener("scroll", handleScroll)
+    cleanupTooltip()
 })
 
 // Reset when filters change
@@ -373,7 +376,13 @@ useHead({
 
                 <!-- History Items -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div v-for="item in items" :key="item.id" class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow hover:shadow-lg transition-all overflow-hidden group relative">
+                    <div
+                        v-for="item in items"
+                        :key="item.id"
+                        class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow hover:shadow-lg transition-all overflow-hidden group relative"
+                        @mouseenter="handleTooltipEnter(item, $event)"
+                        @mouseleave="onTooltipMouseLeave"
+                    >
                         <!-- Checkbox - Now always visible when selected -->
                         <button @click="toggleSelectItem(item.anime_ref_id, $event)" class="absolute top-3 left-3 z-10 w-6 h-6 rounded bg-white dark:bg-gray-700 shadow-md flex items-center justify-center transition-opacity" :class="selectedItems.has(item.anime_ref_id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'">
                             <span v-if="selectedItems.has(item.anime_ref_id)" class="material-icons text-gray-900 dark:text-gray-100 text-lg">check_box</span>
@@ -409,11 +418,11 @@ useHead({
                                         </p>
                                         <p class="flex items-center gap-2">
                                             <span class="material-icons text-xs">schedule</span>
-                                            {{ formatTime(item.updated_at) }}
+                                            {{ formatClockTime(item.updated_at) }}
                                         </p>
                                         <p v-if="item.playback_time" class="flex items-center gap-2">
                                             <span class="material-icons text-xs">timer</span>
-                                            觀看 {{ formatDuration(item.playback_time) }} / {{ formatDuration(item.video_duration) }}
+                                            觀看 {{ formatTime(item.playback_time) }} / {{ formatTime(item.video_duration) }}
                                         </p>
                                     </div>
                                 </div>
@@ -424,6 +433,15 @@ useHead({
             </div>
         </div>
     </div>
+
+    <!-- Anime Tooltip -->
+    <AnimeTooltip
+        :hovered-anime="hoveredAnime"
+        :anime-details="animeDetails"
+        :tooltip-loading="tooltipLoading"
+        :tooltip-error="tooltipError"
+        :tooltip-position="tooltipPosition"
+    />
 
     <!-- Delete Confirmation Modal -->
     <BaseModal :show="showDeleteConfirm" title="確認刪除" icon="warning" icon-color="text-red-500" @close="showDeleteConfirm = false">
