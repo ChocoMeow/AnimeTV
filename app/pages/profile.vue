@@ -106,30 +106,68 @@ async function resetAllShortcuts() {
 }
 
 
-// Stats
+// Stats (used for Data Management buttons)
 const stats = ref({
     watchHistory: 0,
     favorites: 0,
     searchHistory: 0,
 })
 
-// Fetch user stats
+// Activity insights: period & chart data
+const statsPeriod = ref("week")
+const periodOptions = [
+    { value: "day", label: "日" },
+    { value: "week", label: "週" },
+    { value: "month", label: "月" },
+    { value: "year", label: "年" },
+]
+const chartData = ref({
+    timeSpent: { labels: [], values: [] },
+    genreDistribution: [],
+    period: "week",
+})
+const chartLoading = ref(false)
+
+function formatDuration(seconds) {
+    if (!seconds || seconds < 60) return `${seconds || 0} 秒`
+    const m = Math.floor(seconds / 60)
+    const h = Math.floor(m / 60)
+    const mins = m % 60
+    if (h > 0) return `${h} 小時 ${mins} 分鐘`
+    return `${mins} 分鐘`
+}
+
+// Fetch user stats (counts for clear buttons)
 async function fetchStats() {
-    loading.value = true;
     try {
         const [historyRes, favoritesRes, searchRes] = await Promise.all([
             client.from("watch_history").select("id", { count: "exact", head: true }).eq("user_id", userSettings.value.id),
             client.from("favorites").select("id", { count: "exact", head: true }).eq("user_id", userSettings.value.id),
             client.from("search_history").select("id", { count: "exact", head: true }).eq("user_id", userSettings.value.id)
         ])
-
         stats.value.watchHistory = historyRes.count || 0
         stats.value.favorites = favoritesRes.count || 0
         stats.value.searchHistory = searchRes.count || 0
     } catch (err) {
         console.error("Failed to fetch stats:", err)
+    }
+}
+
+// Fetch activity charts for selected period
+async function fetchChartData() {
+    chartLoading.value = true
+    try {
+        const data = await $fetch("/api/profile/stats", { query: { period: statsPeriod.value } })
+        chartData.value = {
+            timeSpent: data.timeSpent || { labels: [], values: [] },
+            genreDistribution: data.genreDistribution || [],
+            period: data.period || statsPeriod.value,
+        }
+    } catch (err) {
+        console.error("Failed to fetch chart data:", err)
+        chartData.value = { timeSpent: { labels: [], values: [] }, genreDistribution: [], period: statsPeriod.value }
     } finally {
-        loading.value = false
+        chartLoading.value = false
     }
 }
 
@@ -194,11 +232,20 @@ async function clearData() {
 //     }
 // }
 
-onMounted(() => {
-    fetchStats()
+onMounted(async () => {
+    loading.value = true
+    try {
+        await Promise.all([fetchStats(), fetchChartData()])
+    } finally {
+        loading.value = false
+    }
     if (showShortcutsModal.value) {
         window.addEventListener('keydown', handleKeyPress)
     }
+})
+
+watch(statsPeriod, () => {
+    fetchChartData()
 })
 
 onUnmounted(() => {
@@ -227,46 +274,90 @@ useHead({
             <p class="text-gray-600 dark:text-gray-400">管理你的帳號設定和偏好</p>
         </div>
 
-        <div v-if="loading" class="text-center py-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-600 border-t-transparent mx-auto"></div>
-        </div>
+        <div v-if="loading" class="absolute right-8 top-1/2 -translate-y-1/2">
+                <div class="h-4 w-4 rounded-full animate-spin border-2 border-gray-300 border-t-gray-900 dark:border-gray-600 dark:border-t-white"></div>
+            </div>
 
         <div v-else class="space-y-6">
-            <!-- Stats Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center">
-                            <span class="material-icons text-gray-600 dark:text-gray-400">history</span>
-                        </div>
-                        <div>
-                            <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ stats.watchHistory }}</p>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">觀看紀錄</p>
-                        </div>
-                    </div>
+            <!-- Activity & insights -->
+            <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="material-icons text-gray-600 dark:text-gray-400">insights</span>
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">活動與偏好</h3>
                 </div>
 
-                <div class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                            <span class="material-icons text-red-600 dark:text-red-400">favorite</span>
-                        </div>
-                        <div>
-                            <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ stats.favorites }}</p>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">我的收藏</p>
-                        </div>
-                    </div>
+                <div class="flex flex-wrap gap-2 mb-6">
+                    <button
+                        v-for="opt in periodOptions"
+                        :key="opt.value"
+                        @click="statsPeriod = opt.value"
+                        :class="[
+                            'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                            statsPeriod === opt.value
+                                ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
+                        ]"
+                    >
+                        {{ opt.label }}
+                    </button>
                 </div>
 
-                <div class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center">
-                            <span class="material-icons text-gray-600 dark:text-gray-400">search</span>
+                <div v-if="chartLoading" class="flex justify-center py-12">
+                    <div class="animate-spin rounded-full h-10 w-10 border-2 border-gray-400 border-t-transparent"></div>
+                </div>
+
+                <div v-else class="space-y-8">
+                    <!-- Time spent chart -->
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3 flex items-center gap-2">
+                            <span class="material-icons text-lg">schedule</span>
+                            觀看時間
+                        </h4>
+                        <div v-if="chartData.timeSpent.values.some(v => v > 0)" class="space-y-2">
+                            <div class="flex items-end gap-0.5 sm:gap-1 h-36" role="img" :aria-label="'Bar chart: watch time by period'">
+                                <div
+                                    v-for="(val, i) in chartData.timeSpent.values"
+                                    :key="i"
+                                    class="flex-1 min-w-0 flex flex-col items-center justify-end gap-1"
+                                >
+                                    <div
+                                        class="w-full bg-gray-400 dark:bg-gray-500 rounded-t transition-all min-h-[4px]"
+                                        :style="{ height: Math.max(4, (Math.max(0, val) / Math.max(1, Math.max(...chartData.timeSpent.values))) * 120) + 'px' }"
+                                        :title="chartData.timeSpent.labels[i] + ': ' + formatDuration(val)"
+                                    />
+                                    <span class="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate w-full text-center">{{ chartData.timeSpent.labels[i] }}</span>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                總計 {{ formatDuration(chartData.timeSpent.values.reduce((a, b) => a + b, 0)) }}
+                            </p>
                         </div>
-                        <div>
-                            <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ stats.searchHistory }}</p>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">搜尋紀錄</p>
+                        <p v-else class="text-sm text-gray-500 dark:text-gray-400 py-4">此區間尚無觀看紀錄</p>
+                    </div>
+
+                    <!-- Anime types (tags) chart -->
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3 flex items-center gap-2">
+                            <span class="material-icons text-lg">category</span>
+                            喜歡的動漫類型
+                        </h4>
+                        <div v-if="chartData.genreDistribution.length" class="space-y-2">
+                            <div
+                                v-for="(item, i) in chartData.genreDistribution"
+                                :key="item.label"
+                                class="flex items-center gap-3"
+                            >
+                                <span class="text-sm text-gray-700 dark:text-gray-300 w-24 sm:w-28 truncate" :title="item.label">{{ item.label }}</span>
+                                <div class="flex-1 h-6 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden">
+                                    <div
+                                        class="h-full bg-gray-600 dark:bg-gray-400 rounded transition-all"
+                                        :style="{ width: (item.value / chartData.genreDistribution.reduce((sum, g) => sum + g.value, 0) * 100) + '%' }"
+                                    />
+                                </div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 w-12 text-right">{{ Math.round((item.value / chartData.genreDistribution.reduce((sum, g) => sum + g.value, 0)) * 100) }}%</span>
+                            </div>
                         </div>
+                        <p v-else class="text-sm text-gray-500 dark:text-gray-400 py-4">此區間尚無類型資料（需有觀看紀錄且動漫已有關聯標籤）</p>
                     </div>
                 </div>
             </div>
