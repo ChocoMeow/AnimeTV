@@ -13,7 +13,12 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    const { data, error } = await client.from('anime_meta').insert(body).select('*').single()
+    // Get field types dynamically and convert body
+    const fields = Object.keys(body)
+    const fieldTypes = await getFieldTypesFromData(client, 'anime_meta', fields)
+    const convertedBody = convertBody(body, fieldTypes)
+
+    const { data, error } = await client.from('anime_meta').insert(convertedBody).select('*').single()
 
     if (error) {
         console.error('Failed to insert anime_meta record:', error)

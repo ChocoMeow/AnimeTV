@@ -1,28 +1,28 @@
 import { serverSupabaseClient } from '#supabase/server'
 
-// Fallback list so the admin UI always sees all important columns,
-// even when the current page has no rows (e.g. after a filtered search).
-const DEFAULT_FIELDS = [
-    'id',
-    'source_id',
-    'title',
-    'description',
-    'thumbnail',
-    'premiere_date',
-    'director',
-    'distributor',
-    'production_company',
-    'tags',
-    'views',
-    'score',
-    'votes',
-    'related_anime_source_ids',
-    'source_details_id',
-    'video_id',
-    'season',
-    'created_at',
-    'updated_at',
-]
+import { getFieldTypesFromData } from '../../utils/fieldTypes'
+
+// Get field names from database by querying actual data
+async function getFieldsFromDatabase(client) {
+    try {
+        // Try to get at least one row to get column names
+        // Even if filtered search returns no results, we can get schema from any row
+        const { data: sampleData } = await client
+            .from('anime_meta')
+            .select('*')
+            .limit(1)
+            .maybeSingle()
+        
+        if (sampleData && typeof sampleData === 'object') {
+            return Object.keys(sampleData)
+        }
+        
+        return []
+    } catch (error) {
+        console.error('Error fetching fields from database:', error)
+        return []
+    }
+}
 
 export default defineEventHandler(async (event) => {
     await authAdmin(event)
@@ -35,8 +35,19 @@ export default defineEventHandler(async (event) => {
     const search = typeof query.search === 'string' ? query.search.trim() : ''
     const field = typeof query.field === 'string' ? query.field.trim() : ''
     const operator = (typeof query.operator === 'string' ? query.operator.trim().toLowerCase() : 'eq') || 'eq'
+    const orderBy = typeof query.orderBy === 'string' ? query.orderBy.trim() : 'updated_at'
+    const order = (typeof query.order === 'string' ? query.order.trim().toLowerCase() : 'desc') || 'desc'
+    const ascending = order === 'asc'
 
-    let dbQuery = client.from('anime_meta').select('*', { count: 'exact' }).order('updated_at', { ascending: false, nullsFirst: false })
+    // Build query with ordering
+    let dbQuery = client.from('anime_meta').select('*', { count: 'exact' })
+    
+    // Apply ordering - use search field if provided, otherwise default to updated_at
+    if (orderBy) {
+        dbQuery = dbQuery.order(orderBy, { ascending, nullsFirst: false })
+    } else {
+        dbQuery = dbQuery.order('updated_at', { ascending: false, nullsFirst: false })
+    }
 
     if (search && field) {
         switch (operator) {
@@ -85,10 +96,56 @@ export default defineEventHandler(async (event) => {
 
     const items = data || []
 
-    // Merge actual keys from the first row with our default list,
-    // so the dropdown always contains all fields even when there are no results.
-    const dynamicKeys = items[0] ? Object.keys(items[0]) : []
-    const fields = Array.from(new Set([...dynamicKeys, ...DEFAULT_FIELDS]))
+    // Get field names from database (from actual data rows)
+    let fieldNames = []
+    
+    // First, try to get fields from current page results
+    if (items.length > 0 && items[0]) {
+        fieldNames = Object.keys(items[0])
+    }
+    
+    // If no fields found in current results, query database directly
+    if (fieldNames.length === 0) {
+        fieldNames = await getFieldsFromDatabase(client)
+    }
+    
+    // Ensure we have unique field names
+    fieldNames = Array.from(new Set(fieldNames))
+
+    // Get field types dynamically by analyzing actual data
+    const fieldTypes = await getFieldTypesFromData(client, 'anime_meta', fieldNames)
+
+    // Field labels (can be moved to database or config file later)
+    const fieldLabels = {
+        id: '內部編號',
+        source_id: '外部作品編號（source_id）',
+        title: '作品標題',
+        description: '作品簡介',
+        thumbnail: '封面圖片連結',
+        premiere_date: '首播日期',
+        director: '導演',
+        distributor: '發行商',
+        production_company: '製作公司',
+        tags: '標籤（tags）',
+        views: '觀看次數',
+        score: '評分（score）',
+        votes: '評分人數（votes）',
+        related_anime_source_ids: '相關作品編號（related_anime_source_ids）',
+        source_details_id: '詳細資料編號（source_details_id）',
+        video_id: '站內片源 ID（video_id）',
+        season: '季數（season）',
+        created_at: '建立時間',
+        updated_at: '更新時間',
+    }
+
+    // Build fields array with name, type, and label
+    const fields = fieldNames.map(name => ({
+        name,
+        type: fieldTypes[name] || 'text',
+        label: fieldLabels[name] || name,
+        readOnly: ['id', 'created_at', 'updated_at'].includes(name),
+        isPrimaryKey: name === 'source_id',
+    }))
 
     return {
         items,

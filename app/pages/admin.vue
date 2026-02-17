@@ -13,15 +13,21 @@ const editableRecord = ref(null)
 
 const searchField = ref('')
 const searchValue = ref('')
-const searchOperator = ref('eq')
+const searchOperator = ref('like')
+const sortOrder = ref('desc')
 
 const searchOperatorOptions = [
-    { value: 'eq', label: '等於 (=)' },
     { value: 'like', label: '包含 (LIKE)' },
+    { value: 'eq', label: '等於 (=)' },
     { value: 'gte', label: '大於等於 (>=)' },
     { value: 'lte', label: '小於等於 (<=)' },
     { value: 'neq', label: '不等於 (≠)' },
     { value: 'in', label: '在列表中 (IN，逗號分隔)' },
+]
+
+const sortOrderOptions = [
+    { value: 'asc', label: '升序 (A-Z)' },
+    { value: 'desc', label: '降序 (Z-A)' },
 ]
 
 const page = ref(1)
@@ -30,31 +36,63 @@ const total = ref(0)
 
 const isCreating = ref(false)
 
-// Chinese (Hong Kong) labels for anime_meta fields
-const fieldLabels = {
-    id: '內部編號',
-    source_id: '外部作品編號（source_id）',
-    title: '作品標題',
-    description: '作品簡介',
-    thumbnail: '封面圖片連結',
-    premiere_date: '首播日期',
-    director: '導演',
-    distributor: '發行商',
-    production_company: '製作公司',
-    tags: '標籤（tags）',
-    views: '觀看次數',
-    score: '評分（score）',
-    votes: '評分人數（votes）',
-    related_anime_source_ids: '相關作品編號（related_anime_source_ids）',
-    source_details_id: '詳細資料編號（source_details_id）',
-    video_id: '站內片源 ID（video_id）',
-    season: '季數（season）',
-    created_at: '建立時間',
-    updated_at: '更新時間',
+// Field labels are now provided by backend in fields array
+
+function formatValueForInput(value, type) {
+    if (value === null || value === undefined) {
+        // Return appropriate default based on type
+        if (type === 'array') return []
+        if (type === 'boolean') return false
+        if (type === 'number' || type === 'double') return null
+        return ''
+    }
+    
+    switch (type) {
+        case 'datetime':
+            if (typeof value === 'string') {
+                const date = new Date(value)
+                if (!isNaN(date.getTime())) {
+                    return date.toISOString().slice(0, 16)
+                }
+            }
+            return ''
+        case 'array':
+            // Convert null/undefined to empty array for display, empty array stays as is
+            if (Array.isArray(value)) return value
+            if (value === null || value === undefined) return []
+            // Try to parse string as array
+            try {
+                const parsed = JSON.parse(value)
+                return Array.isArray(parsed) ? parsed : []
+            } catch {
+                return []
+            }
+        case 'boolean':
+            return Boolean(value)
+        case 'double':
+            // Format to 1 decimal place
+            if (value !== null && value !== undefined) {
+                const num = Number(value)
+                return isNaN(num) ? '' : num.toFixed(1)
+            }
+            return ''
+        case 'number':
+            return value !== null && value !== undefined ? String(value) : ''
+        default:
+            return String(value)
+    }
 }
 
 function toEditableRecord(raw) {
-    return { ...(raw || {}) }
+    const editable = {}
+    // Use fields from backend to get types
+    const fieldMap = new Map(fields.value.map(f => [f.name, f]))
+    for (const [key, value] of Object.entries(raw || {})) {
+        const field = fieldMap.get(key)
+        const type = field?.type || 'text'
+        editable[key] = formatValueForInput(value, type)
+    }
+    return editable
 }
 
 async function loadRecords() {
@@ -72,6 +110,12 @@ async function loadRecords() {
             query.append('search', searchValue.value)
             query.append('operator', searchOperator.value)
         }
+        
+        // Add sort order if search field is selected (works even without search value)
+        if (searchField.value) {
+            query.append('orderBy', searchField.value)
+            query.append('order', sortOrder.value)
+        }
 
         const res = await $fetch(`/api/admin/anime-meta?${query.toString()}`)
 
@@ -82,7 +126,7 @@ async function loadRecords() {
         // Initialize default search field, but
         // do NOT auto-select any record in the editor.
         if (!searchField.value && fields.value.length) {
-            searchField.value = fields.value[0]
+            searchField.value = fields.value[0].name
         }
     } catch (err) {
         console.error('Failed to load anime_meta records:', err)
@@ -105,8 +149,14 @@ function handleSelect(record) {
 function handleCreateNew() {
     const base = {}
     for (const field of fields.value) {
-        if (['id', 'created_at', 'updated_at'].includes(field)) continue
-        base[field] = ''
+        if (field.readOnly) continue
+        if (field.type === 'array') {
+            base[field.name] = []
+        } else if (field.type === 'number' || field.type === 'double') {
+            base[field.name] = null
+        } else {
+            base[field.name] = ''
+        }
     }
     editableRecord.value = toEditableRecord(base)
     selectedRecord.value = null
@@ -194,9 +244,9 @@ const totalPages = computed(() => {
     return Math.max(1, Math.ceil(total.value / pageSize.value))
 })
 
-// Search field dropdown options with Chinese labels
+// Search field dropdown options with labels
 const searchFieldOptions = computed(() =>
-    fields.value.map((f) => ({ value: f, label: fieldLabels[f] || f }))
+    fields.value.map((f) => ({ value: f.name, label: f.label || f.name }))
 )
 
 function changePage(newPage) {
@@ -209,6 +259,14 @@ function applySearch() {
     page.value = 1
     loadRecords()
 }
+
+// Watch sortOrder changes to reload records
+watch(sortOrder, () => {
+    if (searchField.value) {
+        page.value = 1
+        loadRecords()
+    }
+})
 
 useHead({
     title: `管理後台 | ${appConfig.siteName}`,
@@ -265,6 +323,16 @@ onMounted(() => {
                                 v-model="searchOperator"
                                 :options="searchOperatorOptions"
                                 placeholder="請選擇"
+                            />
+                        </div>
+
+                        <div class="flex flex-col gap-2">
+                            <label class="text-xs font-medium text-gray-600 dark:text-gray-300">排序</label>
+                            <Dropdown
+                                v-model="sortOrder"
+                                :options="sortOrderOptions"
+                                placeholder="請選擇排序方式"
+                                :disabled="!searchField"
                             />
                         </div>
 
@@ -418,25 +486,15 @@ onMounted(() => {
                             <span class="material-icons text-base">add</span>
                             <span class="hidden sm:inline">新增紀錄</span>
                         </button>
-                        <button
-                            v-if="selectedRecord"
-                            type="button"
-                            class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
-                            :disabled="saving"
-                            @click="handleDelete"
+                        <NuxtLink
+                            v-if="selectedRecord?.source_id"
+                            :to="`/anime/${selectedRecord.source_id}`"
+                            target="_blank"
+                            class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                         >
-                            <span class="material-icons text-base">delete</span>
-                            <span class="hidden sm:inline">刪除</span>
-                        </button>
-                        <button
-                            type="button"
-                            class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                            :disabled="saving || !editableRecord"
-                            @click="handleSave"
-                        >
-                            <span class="material-icons text-base">save</span>
-                            <span class="hidden sm:inline">{{ saving ? "儲存中..." : "儲存" }}</span>
-                        </button>
+                            <span class="material-icons text-base">open_in_new</span>
+                            <span class="hidden sm:inline">查看動漫</span>
+                        </NuxtLink>
                     </div>
                 </div>
 
@@ -482,54 +540,124 @@ onMounted(() => {
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div
                                     v-for="field in fields"
-                                    :key="field"
+                                    :key="field.name"
                                     class="space-y-1.5"
                                 >
                                     <label class="text-xs font-medium text-gray-700 dark:text-gray-200 flex items-center gap-1">
-                                        <span>{{ fieldLabels[field] || field }}</span>
+                                        <span>{{ field.label }}</span>
                                         <span
-                                            v-if="field === 'source_id'"
+                                            v-if="field.isPrimaryKey"
                                             class="px-1.5 py-0.5 rounded-full bg-black/80 dark:bg-white text-white dark:text-black text-[10px] font-semibold"
                                         >
                                             主鍵
                                         </span>
                                         <span
-                                            v-else-if="['id', 'created_at', 'updated_at'].includes(field)"
+                                            v-else-if="field.readOnly"
                                             class="px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-[10px] text-gray-600 dark:text-gray-300"
                                         >
                                             只讀
                                         </span>
                                     </label>
 
-                                    <!-- Tags chip input (textarea-like) -->
-                                    <div v-if="field === 'tags'">
+                                    <!-- Array fields (chip input) -->
+                                    <div v-if="field.type === 'array'">
                                         <ChipInput
-                                            v-model="editableRecord.tags"
-                                            placeholder="輸入標籤後按空白或 Enter"
-                                            hint='會儲存為字串陣列，例如 ["動作","冒險"]'
+                                            v-model="editableRecord[field.name]"
+                                            placeholder="輸入值後按空白或 Enter"
+                                            hint="會儲存為陣列格式"
                                         />
                                     </div>
 
-                                    <!-- Related anime chip input (textarea-like) -->
-                                    <div v-else-if="field === 'related_anime_source_ids'">
-                                        <ChipInput
-                                            v-model="editableRecord.related_anime_source_ids"
-                                            placeholder="輸入作品編號後按空白或 Enter"
-                                            hint='會儲存為外部編號陣列，例如 ["12345","67890"]'
+                                    <!-- Number fields -->
+                                    <div v-else-if="field.type === 'number'" class="relative">
+                                        <input
+                                            v-model.number="editableRecord[field.name]"
+                                            :readonly="field.readOnly"
+                                            type="number"
+                                            step="1"
+                                            class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                         />
                                     </div>
 
-                                    <!-- Normal text fields -->
+                                    <!-- Double/Decimal fields -->
+                                    <div v-else-if="field.type === 'double'" class="relative">
+                                        <input
+                                            :value="editableRecord[field.name]"
+                                            @input="editableRecord[field.name] = $event.target.value === '' ? null : parseFloat(parseFloat($event.target.value).toFixed(1))"
+                                            :readonly="field.readOnly"
+                                            type="number"
+                                            step="0.1"
+                                            class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                        />
+                                    </div>
+
+                                    <!-- Datetime fields -->
+                                    <div v-else-if="field.type === 'datetime'" class="relative">
+                                        <input
+                                            v-model="editableRecord[field.name]"
+                                            :readonly="field.readOnly"
+                                            type="datetime-local"
+                                            class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
+                                        />
+                                    </div>
+
+                                    <!-- Boolean fields -->
+                                    <div v-else-if="field.type === 'boolean'" class="flex items-center gap-2">
+                                        <input
+                                            :id="`checkbox-${field.name}`"
+                                            v-model="editableRecord[field.name]"
+                                            :readonly="field.readOnly"
+                                            type="checkbox"
+                                            class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-black/70 dark:focus:ring-white/70 disabled:opacity-60"
+                                        />
+                                        <label :for="`checkbox-${field.name}`" class="text-sm text-gray-700 dark:text-gray-300">
+                                            {{ editableRecord[field.name] ? '是' : '否' }}
+                                        </label>
+                                    </div>
+
+                                    <!-- Textbox fields (textarea) -->
+                                    <textarea
+                                        v-else-if="field.type === 'textbox'"
+                                        v-model="editableRecord[field.name]"
+                                        :readonly="field.readOnly"
+                                        rows="4"
+                                        class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/70 dark:focus:ring-white/70 disabled:opacity-60 resize-y"
+                                    />
+
+                                    <!-- Text fields (default) -->
                                     <input
                                         v-else
-                                        v-model="editableRecord[field]"
-                                        :readonly="['id', 'created_at', 'updated_at'].includes(field)"
+                                        v-model="editableRecord[field.name]"
+                                        :readonly="field.readOnly"
                                         type="text"
                                         class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/70 dark:focus:ring-white/70 disabled:opacity-60"
                                     />
                                 </div>
                             </div>
                         </form>
+
+                        <!-- Action Buttons at Bottom -->
+                        <div v-if="editableRecord" class="flex items-center justify-end gap-3 pt-4 mt-4 border-t border-gray-100 dark:border-white/10">
+                            <button
+                                v-if="selectedRecord"
+                                type="button"
+                                class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                :disabled="saving"
+                                @click="handleDelete"
+                            >
+                                <span class="material-icons text-base">delete</span>
+                                <span class="hidden sm:inline">刪除</span>
+                            </button>
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                :disabled="saving || !editableRecord"
+                                @click="handleSave"
+                            >
+                                <span class="material-icons text-base">save</span>
+                                <span class="hidden sm:inline">{{ saving ? "儲存中..." : "儲存" }}</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

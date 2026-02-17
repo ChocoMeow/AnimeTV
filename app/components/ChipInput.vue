@@ -24,9 +24,10 @@ function addChips() {
 
     const current = Array.isArray(props.modelValue) ? [...props.modelValue] : []
 
-    // Split on whitespace so user can paste multiple tokens
+    // Split on comma first, then on whitespace, so user can paste comma-separated values
     const parts = raw
-        .split(/\s+/)
+        .split(',')
+        .flatMap(part => part.split(/\s+/))
         .map((p) => p.trim())
         .filter(Boolean)
 
@@ -43,6 +44,14 @@ function addChips() {
 function handleKeydown(event) {
     if (event.key === ' ' || event.key === 'Enter' || event.key === 'Tab') {
         event.preventDefault()
+        addChips()
+    }
+}
+
+function handleInput(event) {
+    const value = event.target.value
+    // Auto-split on comma
+    if (value.includes(',')) {
         addChips()
     }
 }
@@ -75,6 +84,7 @@ function removeChip(value) {
                 :placeholder="placeholder"
                 class="flex-1 min-w-[80px] border-none outline-none bg-transparent text-xs text-gray-800 dark:text-gray-100 px-1 py-0.5"
                 @keydown="handleKeydown"
+                @input="handleInput"
             />
         </div>
         <p v-if="hint" class="text-[11px] text-gray-400 dark:text-gray-500">

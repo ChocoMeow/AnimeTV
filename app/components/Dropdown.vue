@@ -37,6 +37,7 @@ const selectedLabel = computed(() => {
 
 function updatePanelPosition() {
     if (!triggerRef.value || !open.value) return
+    
     const rect = triggerRef.value.getBoundingClientRect()
     panelStyle.value = {
         position: 'fixed',
@@ -65,13 +66,23 @@ function onClickOutside(event) {
 function onOpen() {
     open.value = !open.value
     if (open.value) {
-        nextTick(() => updatePanelPosition())
+        // Wait for panel to be rendered in DOM (teleported to body)
+        nextTick(() => {
+            requestAnimationFrame(() => {
+                updatePanelPosition()
+            })
+        })
     }
 }
 
 watch(open, (isOpen) => {
     if (isOpen) {
-        nextTick(() => updatePanelPosition())
+        // Wait for panel to be rendered in DOM (teleported to body)
+        nextTick(() => {
+            requestAnimationFrame(() => {
+                updatePanelPosition()
+            })
+        })
         window.addEventListener('scroll', updatePanelPosition, true)
         window.addEventListener('resize', updatePanelPosition)
     } else {
