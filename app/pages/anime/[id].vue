@@ -324,8 +324,14 @@ function stopAutoSave() {
 async function saveWatchHistory(episodeNumber = null) {
     if (!userSettings.value.watch_history_enabled || !userSettings.value.id || !anime.value || !videoPlayer.value) return
 
+    // Normalize episodeNumber in case it was called as an event handler (e.g. beforeunload)
+    const normalizedEpisodeNumber =
+        typeof episodeNumber === "number" || typeof episodeNumber === "string"
+            ? episodeNumber
+            : null
+
     // Use provided episode number or fall back to current selected episode
-    const epNum = episodeNumber || selectedEpisode.value
+    const epNum = normalizedEpisodeNumber || selectedEpisode.value
     if (!epNum) return
 
     const duration = videoPlayer.value.duration
@@ -464,7 +470,9 @@ function handleShortcutsKeydown(e) {
 
 onMounted(() => {
     fetchDetail()
-    window.addEventListener("beforeunload", saveWatchHistory)
+    window.addEventListener("beforeunload", () => {
+        saveWatchHistory()
+    })
     window.addEventListener("keydown", handleShortcutsKeydown)
 })
 

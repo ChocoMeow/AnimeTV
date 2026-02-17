@@ -50,13 +50,20 @@ export async function getFieldTypesFromData(client, tableName, fields) {
                 break
             }
             
-            // String detection - check for datetime patterns
+            // String detection - check for date/datetime patterns
             if (typeof value === 'string') {
-                // Check if it's a datetime string (ISO format or common patterns)
-                const datePattern = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})?/
-                if (datePattern.test(value) && (field.includes('date') || field.includes('time') || field.includes('_at'))) {
-                    detectedType = 'datetime'
-                    break
+                // Check if it's a date or datetime string (ISO format or common patterns)
+                const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/
+                const dateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
+                if (field.includes('date') || field.includes('time')) {
+                    if (dateTimePattern.test(value)) {
+                        detectedType = 'datetime'
+                        break
+                    }
+                    if (dateOnlyPattern.test(value)) {
+                        detectedType = 'date'
+                        break
+                    }
                 }
                 
                 // Check if it's a long text (description field)
@@ -74,8 +81,10 @@ export async function getFieldTypesFromData(client, tableName, fields) {
         
         // Apply smart defaults based on field name patterns
         if (!detectedType) {
-            if (field.includes('date') || field.includes('time') || field.endsWith('_at')) {
+            if (field.endsWith('_at') || field.includes('time')) {
                 detectedType = 'datetime'
+            } else if (field.includes('date')) {
+                detectedType = 'date'
             } else if (field === 'description') {
                 detectedType = 'textbox'
             } else if (field === 'id' || (field.includes('_id') && !field.includes('source_ids'))) {
@@ -110,6 +119,20 @@ export function convertValue(value, fieldType) {
         case 'double':
             const dbl = Number(value)
             return isNaN(dbl) ? null : Math.round(dbl * 10) / 10 // Round to 1 decimal place
+        case 'date':
+            if (value instanceof Date) {
+                return value.toISOString().slice(0, 10)
+            }
+            if (typeof value === 'string') {
+                // Accept both date-only and datetime strings, store as YYYY-MM-DD
+                const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/
+                if (dateOnlyPattern.test(value)) {
+                    return value
+                }
+                const date = new Date(value)
+                return isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10)
+            }
+            return null
         case 'array':
             if (Array.isArray(value)) {
                 // Return null if array is empty, otherwise return the array

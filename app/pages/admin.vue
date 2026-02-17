@@ -48,6 +48,19 @@ function formatValueForInput(value, type) {
     }
     
     switch (type) {
+        case 'date':
+            if (typeof value === 'string') {
+                // Handle both date-only and datetime strings, return YYYY-MM-DD for input[type="date"]
+                const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/
+                if (dateOnlyPattern.test(value)) {
+                    return value
+                }
+                const date = new Date(value)
+                if (!isNaN(date.getTime())) {
+                    return date.toISOString().slice(0, 10)
+                }
+            }
+            return ''
         case 'datetime':
             if (typeof value === 'string') {
                 const date = new Date(value)
@@ -588,6 +601,16 @@ onMounted(() => {
                                             type="number"
                                             step="0.1"
                                             class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                        />
+                                    </div>
+
+                                    <!-- Datetime fields -->
+                                    <div v-else-if="field.type === 'date'" class="relative">
+                                        <input
+                                            v-model="editableRecord[field.name]"
+                                            :readonly="field.readOnly"
+                                            type="date"
+                                            class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
                                         />
                                     </div>
 
