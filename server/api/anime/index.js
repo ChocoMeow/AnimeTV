@@ -1,159 +1,152 @@
 import * as cheerio from "cheerio"
+import { serverSupabaseClient } from "#supabase/server"
+import { cfFetch, fetchAnimeData, matchAnimeWithDb } from "~~/server/utils/anime"
+import { GAMER_BASE_URL, ANIME_CACHE, CHINESE_WEEKDAY_MAP } from "~~/server/utils/global"
 
-/* Helper: extract date label text for a .newanime-date-area element */
-function extractDateLabel($, $el) {
-    let dateLabel = $el.find(".anime-date-info").first().text()
-    if (!dateLabel || !dateLabel.trim()) {
-        dateLabel =
-            $el.children(".anime-date-info").first().text() ||
-            $el.find(".anime-date-info-block-arrow").first().text() ||
-            $el.find(".anime-date-info-block-rectangle").first().text() ||
-            $el.nextAll(".anime-date-info").first().text() ||
-            $el.parent().find(".anime-date-info").first().text() ||
-            ""
+const THEME_SELECTOR = [
+    "#blockHotAnime.animate-theme-list",
+    "#blockAnimeNewArrive.animate-theme-list",
+    '[id^="blockAnimeNewArrive-"].animate-theme-list',
+].join(", ")
+
+const ITEM_SELECTOR = [
+    ".theme-list-block", ".theme-list .theme-list-block",
+    ".theme-item", ".theme-list-item",
+    ".theme-list a", ".theme-list-block a",
+].join(", ")
+
+const text = ($, el, sel) => $(el).find(sel).text().trim() || null
+const attr = ($, el, sel, a) => $(el).find(sel).attr(a)?.trim() || null
+
+function isAncestor(ancestor, node) {
+    for (let n = node?.parent; n; n = n.parent) {
+        if (n === ancestor) return true
     }
-    return (dateLabel || "").trim()
+    return false
 }
 
-/* Helper: given dateLabel and element attrs, resolve weekday numeric code string */
+function leafOnly(nodes) {
+    return nodes.filter(el => !nodes.some(other => other !== el && isAncestor(el, other)))
+}
+
+function extractDateLabel($, $el) {
+    const selectors = [
+        () => $el.find(".anime-date-info").first().text(),
+        () => $el.children(".anime-date-info").first().text(),
+        () => $el.find(".anime-date-info-block-arrow").first().text(),
+        () => $el.find(".anime-date-info-block-rectangle").first().text(),
+        () => $el.nextAll(".anime-date-info").first().text(),
+        () => $el.parent().find(".anime-date-info").first().text(),
+    ]
+    for (const fn of selectors) {
+        const t = fn()?.trim()
+        if (t) return t
+    }
+    return ""
+}
+
 function resolveDayCode(dateLabel, $el) {
-    const dateMatch = dateLabel.match(/(\d{1,2}\s*\/\s*\d{1,2})(?:\s*[\uFF08(]\s*([一二三四五六日])\s*[\uFF09)])?/)
-    const dayChar = dateMatch && dateMatch[2] ? dateMatch[2] : null
-
-    if (dayChar && CHINESE_WEEKDAY_MAP[dayChar]) return CHINESE_WEEKDAY_MAP[dayChar]
-
-    const dataDateCode = $el.attr("data-date-code")
-    if (dataDateCode) return String(dataDateCode)
-
-    return null
+    const m = dateLabel.match(/(\d{1,2}\s*\/\s*\d{1,2})(?:\s*[\uFF08(]\s*([一二三四五六日])\s*[\uFF09)])?/)
+    if (m?.[2] && CHINESE_WEEKDAY_MAP[m[2]]) return CHINESE_WEEKDAY_MAP[m[2]]
+    return $el.attr("data-date-code") ? String($el.attr("data-date-code")) : null
 }
 
-/* Scrape anime blocks synchronously from loaded cheerio $ */
-async function scrapeAnimeBlocksAndMatch($) {
+function scrapeAnimeBlocks($) {
     const items = []
     $(".newanime-date-area").each((_, el) => {
         const $el = $(el)
-
-        const dateLabel = extractDateLabel($, $el)
-        const dayCode = resolveDayCode(dateLabel, $el)
-        if (!dayCode) return // skip if can't resolve day
-
-        const getText = (selector) => $el.find(selector).text().trim() || null
-        const getAttr = (selector, attr) => $el.find(selector).attr(attr)?.trim() || null
+        const dayCode = resolveDayCode(extractDateLabel($, $el), $el)
+        if (!dayCode) return
 
         const refId = $el.attr("data-animesn") || null
-        const title = getText(".anime-name")
-        const episode = getText(".anime-episode p")
-        const thumbnail = getAttr(".anime-blocker img", "data-src") || getAttr(".anime-blocker img", "src") || null
-
+        const title = text($, el, ".anime-name")
+        const thumbnail = attr($, el, ".anime-blocker img", "data-src") || attr($, el, ".anime-blocker img", "src")
         if (!refId || !title || !thumbnail) return
 
-        items.push({
-            refId,
-            title,
-            episode,
-            thumbnail,
-            dayCode,
-        })
+        items.push({ refId, title, episode: text($, el, ".anime-episode p"), thumbnail, dayCode })
     })
-
-    const matched = await matchAnime(items)
-
-    const byDay = {}
-    for (const item of matched) {
-        const { dayCode, searchResult, ...payload } = item
-        if (!byDay[dayCode]) byDay[dayCode] = []
-        byDay[dayCode].push({ ...payload, searchResult })
-    }
-    return byDay
+    return items
 }
 
-async function scrapeThemesAndMatch($) {
-    const themes = {}
+function scrapeThemes($) {
+    const themeEls = $(THEME_SELECTOR).toArray()
+    const allRawItems = []
+    const themeRanges = []
 
-    const getText = ($, el, sel) => $(el).find(sel).text().trim() || null
-    const getAttr = ($, el, sel, attr) => $(el).find(sel).attr(attr)?.trim() || null
-
-    // Select theme containers that themselves have the allowed ids AND the animate-theme-list class
-    const selector = ["#blockHotAnime.animate-theme-list", "#blockAnimeNewArrive.animate-theme-list", '[id^="blockAnimeNewArrive-"].animate-theme-list'].join(", ")
-
-    const themeEls = $(selector).toArray()
-
-    if (!themeEls.length) {
-        console.warn("No theme elements found with selector:", selector)
-    }
-
-    // Extract raw lists and run matchAnime for each non-empty list
     for (let i = 0; i < themeEls.length; i++) {
-        const el = themeEls[i]
-        const $el = $(el)
+        const $el = $(themeEls[i])
         const themeTitle = $el.find(".theme-title").text().trim() || $el.attr("id") || `unknown-${i}`
 
-        // Try multiple likely item selectors
-        const itemSelectors = [".theme-list-block", ".theme-list .theme-list-block", ".theme-item", ".theme-list-item", ".theme-list a", ".theme-list-block a"]
-        let $items = $el.find(itemSelectors.join(", "))
+        let $items = $el.find(ITEM_SELECTOR)
+        if (!$items.length) $items = $el.nextAll().find(ITEM_SELECTOR)
+        if (!$items.length) $items = $el.parent().find(ITEM_SELECTOR)
 
-        // fallback: check nearby nodes inside the same parent if nothing found inside this container
-        if ($items.length === 0) {
-            $items = $el.nextAll().find(itemSelectors.join(", "))
-        }
-        if ($items.length === 0) {
-            $items = $el.parent().find(itemSelectors.join(", "))
-        }
+        const rawList = leafOnly($items.toArray()).map(movie => {
+            const href = $(movie).attr("href") || $(movie).find("a").attr("href") || ""
+            return {
+                refId: href.match(/sn=(\d+)/)?.[1] || null,
+                image: attr($, movie, ".theme-img", "data-src"),
+                title: text($, movie, ".theme-name"),
+                year: text($, movie, ".theme-time")?.replace("年份：", "") || null,
+                episodes: text($, movie, ".theme-number"),
+                views: text($, movie, ".show-view-number p"),
+            }
+        })
+        if (!rawList.length) continue
 
-        const rawList = $items
-            .map((_, movie) => {
-                const href = $(movie).attr("href") || $(movie).find("a").attr("href") || ""
-                const refId = href.match(/sn=(\d+)/)?.[1] || null
-                return {
-                    refId,
-                    image: getAttr($, movie, ".theme-img", "data-src"),
-                    title: getText($, movie, ".theme-name"),
-                    year: getText($, movie, ".theme-time")?.replace("年份：", "") || null,
-                    episodes: getText($, movie, ".theme-number"),
-                    views: getText($, movie, ".show-view-number p"),
-                }
-            })
-            .get()
-
-        if (!rawList.length) {
-            continue
-        }
-
-        try {
-            const matched = await matchAnime(rawList)
-            themes[themeTitle] = Array.isArray(matched) ? matched : []
-        } catch (err) {
-            console.error("Error matching theme list for", themeTitle, err)
-        }
+        const start = allRawItems.length
+        allRawItems.push(...rawList)
+        themeRanges.push({ themeTitle, start, count: rawList.length })
     }
 
-    return themes
+    return { allRawItems, themeRanges }
 }
 
-/* Main handler */
-async function scrapeAllAnime() {
-    const TWO_HOURS = 1000 * 60 * 60 * 2
+const TWO_HOURS = 1000 * 60 * 60 * 2
+
+async function scrapeAllAnime(client) {
     const now = Date.now()
+    if (ANIME_CACHE.data && now - ANIME_CACHE.timestamp < TWO_HOURS) return ANIME_CACHE.data
 
-    if (ANIME_CACHE.data && now - ANIME_CACHE.timestamp < TWO_HOURS) {
-        return ANIME_CACHE.data
-    }
+    const [pageResult] = await Promise.all([cfFetch(GAMER_BASE_URL), fetchAnimeData()])
+    const html = pageResult?.html
+    if (!html) return ANIME_CACHE.data || { byDay: {}, themes: {}, fetchedAt: new Date(now).toISOString() }
 
-    console.log("Fetching new data from anime source...")
-
-    const { html } = await cfFetch(GAMER_BASE_URL)
     const $ = cheerio.load(html)
+    const blockItems = scrapeAnimeBlocks($)
+    const { allRawItems: themeRawItems, themeRanges } = scrapeThemes($)
+    const allRaw = [...blockItems, ...themeRawItems]
 
-    const byDay = await scrapeAnimeBlocksAndMatch($)
-    const themes = await scrapeThemesAndMatch($)
-
-    const result = {
-        byDay,
-        themes,
-        fetchedAt: new Date(now).toISOString(),
+    const empty = { byDay: {}, themes: {}, fetchedAt: new Date(now).toISOString() }
+    if (!allRaw.length) {
+        ANIME_CACHE.timestamp = now
+        ANIME_CACHE.data = empty
+        return empty
     }
 
+    const matchedAll = await matchAnimeWithDb(client, allRaw).catch(err => {
+        console.error("Error matching anime", err)
+        return allRaw
+    })
+
+    const isMatched = item => item?.inDb || item?.matchedVideo
+
+    const blockCount = blockItems.length
+    const byDay = {}
+    for (let i = 0; i < blockCount; i++) {
+        const item = matchedAll[i]
+        if (!isMatched(item)) continue
+        const { dayCode, ...rest } = item
+        if (!dayCode) continue
+        ;(byDay[dayCode] ??= []).push(rest)
+    }
+
+    const themes = {}
+    for (const { themeTitle, start, count } of themeRanges) {
+        themes[themeTitle] = matchedAll.slice(blockCount + start, blockCount + start + count).filter(isMatched)
+    }
+
+    const result = { byDay, themes, fetchedAt: new Date(now).toISOString() }
     ANIME_CACHE.timestamp = now
     ANIME_CACHE.data = result
     return result
@@ -161,9 +154,9 @@ async function scrapeAllAnime() {
 
 export default defineEventHandler(async (event) => {
     const user = await authUser(event)
-
+    const client = await serverSupabaseClient(event)
     try {
-        return await scrapeAllAnime()
+        return await scrapeAllAnime(client)
     } catch (error) {
         console.error("API error:", error)
         throw createError({ statusCode: 500, statusMessage: "Internal Server Error" })
