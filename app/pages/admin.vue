@@ -644,7 +644,7 @@ onMounted(() => {
                                         v-model="editableRecord[field.name]"
                                         :readonly="field.readOnly"
                                         rows="4"
-                                        class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/70 dark:focus:ring-white/70 disabled:opacity-60 resize-y"
+                                        class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60 resize-y"
                                     />
 
                                     <!-- Text fields (default) -->
@@ -653,7 +653,7 @@ onMounted(() => {
                                         v-model="editableRecord[field.name]"
                                         :readonly="field.readOnly"
                                         type="text"
-                                        class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/70 dark:focus:ring-white/70 disabled:opacity-60"
+                                        class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60"
                                     />
                                 </div>
                             </div>

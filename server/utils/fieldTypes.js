@@ -52,16 +52,16 @@ export async function getFieldTypesFromData(client, tableName, fields) {
             
             // String detection - check for date/datetime patterns
             if (typeof value === 'string') {
-                // Check if it's a date or datetime string (ISO format or common patterns)
-                const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/
-                const dateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
-                if (field.includes('date') || field.includes('time')) {
-                    if (dateTimePattern.test(value)) {
-                        detectedType = 'datetime'
+                const looksLikeDateField = field.includes('date') || field.includes('time') || field.endsWith('_at')
+                if (looksLikeDateField) {
+                    const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/
+                    if (dateOnlyPattern.test(value) && !value.includes('T') && !value.includes(' ')) {
+                        detectedType = 'date'
                         break
                     }
-                    if (dateOnlyPattern.test(value)) {
-                        detectedType = 'date'
+                    const parsed = new Date(value)
+                    if (!isNaN(parsed.getTime())) {
+                        detectedType = 'datetime'
                         break
                     }
                 }

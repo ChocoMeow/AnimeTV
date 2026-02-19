@@ -81,7 +81,7 @@ const additionalDetails = computed(() => {
     
     if (anime.value.productionCompany) {
         details.push({
-            label: "代理廠商",
+            label: "製作公司",
             value: anime.value.productionCompany,
             icon: "business",
             iconBg: "bg-gray-100 dark:bg-gray-800",
