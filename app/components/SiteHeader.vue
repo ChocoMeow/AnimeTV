@@ -291,7 +291,7 @@ watch(
                                             </span>
                                             <span v-if="result.views" class="flex items-center gap-1">
                                                 <span class="material-icons text-xs">visibility</span>
-                                                {{ result.views }}
+                                                {{ formatViews(result.views) }}
                                             </span>
                                         </div>
                                     </div>
