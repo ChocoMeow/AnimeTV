@@ -31,6 +31,12 @@ export async function getFieldTypesFromData(client, tableName, fields) {
                 detectedType = 'array'
                 break
             }
+
+            // JSONB / object detection (plain object, not Array/Date)
+            if (typeof value === 'object' && value !== null && !(value instanceof Date)) {
+                detectedType = 'jsonb'
+                break
+            }
             
             // Number detection
             if (typeof value === 'number') {
@@ -165,6 +171,19 @@ export function convertValue(value, fieldType) {
                 return lower === 'true' || lower === '1' || lower === 'yes'
             }
             return Boolean(value)
+        case 'jsonb':
+            if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+                return value
+            }
+            if (typeof value === 'string') {
+                try {
+                    const parsed = JSON.parse(value)
+                    return typeof parsed === 'object' && parsed !== null ? parsed : null
+                } catch {
+                    return null
+                }
+            }
+            return null
         case 'textbox':
         case 'text':
         default:

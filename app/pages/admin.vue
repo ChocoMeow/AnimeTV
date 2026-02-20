@@ -91,6 +91,24 @@ function formatValueForInput(value, type) {
             return ''
         case 'number':
             return value !== null && value !== undefined ? String(value) : ''
+        case 'jsonb':
+            if (value === null || value === undefined) return ''
+            if (typeof value === 'object') {
+                try {
+                    return JSON.stringify(value, null, 2)
+                } catch {
+                    return ''
+                }
+            }
+            if (typeof value === 'string') {
+                try {
+                    const parsed = JSON.parse(value)
+                    return JSON.stringify(parsed, null, 2)
+                } catch {
+                    return value
+                }
+            }
+            return ''
         default:
             return String(value)
     }
@@ -165,6 +183,8 @@ function handleCreateNew() {
         if (field.readOnly) continue
         if (field.type === 'array') {
             base[field.name] = []
+        } else if (field.type === 'jsonb') {
+            base[field.name] = {}
         } else if (field.type === 'number' || field.type === 'double') {
             base[field.name] = null
         } else {
@@ -184,6 +204,24 @@ async function handleSave() {
 
     try {
         const payload = { ...editableRecord.value }
+
+        // Parse jsonb fields from textarea string back to object for API
+        const fieldMap = new Map(fields.value.map((f) => [f.name, f]))
+        for (const [key, value] of Object.entries(payload)) {
+            if (fieldMap.get(key)?.type === 'jsonb' && typeof value === 'string') {
+                if (!value.trim()) {
+                    payload[key] = null
+                } else {
+                    try {
+                        payload[key] = JSON.parse(value)
+                    } catch {
+                        errorMessage.value = `欄位「${fieldMap.get(key)?.label || key}」的 JSON 格式不正確，請檢查後再儲存。`
+                        saving.value = false
+                        return
+                    }
+                }
+            }
+        }
 
         let result
 
@@ -645,6 +683,16 @@ onMounted(() => {
                                         :readonly="field.readOnly"
                                         rows="4"
                                         class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60 resize-y"
+                                    />
+
+                                    <!-- JSONB fields (editable JSON textarea, saved as object) -->
+                                    <textarea
+                                        v-else-if="field.type === 'jsonb'"
+                                        v-model="editableRecord[field.name]"
+                                        :readonly="field.readOnly"
+                                        rows="8"
+                                        placeholder="{}"
+                                        class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 font-mono focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60 resize-y"
                                     />
 
                                     <!-- Text fields (default) -->
