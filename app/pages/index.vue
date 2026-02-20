@@ -128,7 +128,7 @@ onUnmounted(() => {
                         </div>
 
                         <div class="p-2">
-                            <div class="font-semibold text-xs sm:text-sm text-gray-900 dark:text-white line-clamp-2 mb-1 leading-tight">
+                            <div class="font-semibold text-xs sm:text-sm text-gray-900 dark:text-white line-clamp-1 mb-1 leading-tight">
                                 {{ item.title }}
                             </div>
                             <div class="flex items-center text-xs text-gray-500 dark:text-gray-400 font-medium">

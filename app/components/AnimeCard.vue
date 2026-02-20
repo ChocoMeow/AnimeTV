@@ -81,7 +81,7 @@ function handleMouseLeave() {
         <div class="p-3 space-y-2">
             <h3
                 :class="[
-                    'font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug transition-colors',
+                    'font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-1 leading-snug transition-colors',
                     showHoverTitleColor && 'group-hover:text-gray-600 dark:group-hover:text-gray-300',
                 ]"
             >
