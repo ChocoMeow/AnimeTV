@@ -139,7 +139,6 @@ async function getSuggestions(client, userId) {
     if (!history?.length) return []
 
     const watchedSet = new Set(history.map(r => r.anime_ref_id))
-    console.log(watchedSet)
     // Count tag frequency across watched anime
     const tagCounts = new Map()
     for (const { anime_meta } of history)
@@ -149,7 +148,6 @@ async function getSuggestions(client, userId) {
         }
 
     const topTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([tag]) => tag)
-    console.log(topTags)
     if (!topTags.length) return []
 
     // Only fetch anime that share at least one top tag, excluding watched, pre-sorted by views
