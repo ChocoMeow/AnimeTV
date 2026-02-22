@@ -18,17 +18,6 @@ const props = defineProps({
     },
 });
 
-function formatViews(views) {
-    if (!views) return '0';
-    if (views >= 1000000) {
-        return (views / 1000000).toFixed(1) + 'M';
-    }
-    if (views >= 1000) {
-        return (views / 1000).toFixed(1) + 'K';
-    }
-    return views.toString();
-}
-
 function handleMouseEnter(event) {
     if (props.onMouseEnter) {
         props.onMouseEnter(props.anime, event)
@@ -89,11 +78,11 @@ function handleMouseLeave() {
             </h3>
 
             <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <div class="flex items-center gap-1">
+                <div v-if="anime.episodes" class="flex items-center gap-1">
                     <span class="material-icons text-sm">movie</span>
                     <span>{{ anime.episodes }}</span>
                 </div>
-                <div class="flex items-center gap-1">
+                <div class="flex items-center gap-1 ml-auto">
                     <span class="material-icons text-sm">visibility</span>
                     <span>{{ formatViews(anime.views) }}</span>
                 </div>

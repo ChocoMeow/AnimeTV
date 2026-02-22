@@ -59,7 +59,10 @@ const { isMobile } = useMobile()
                                     <span class="material-icons text-sm">visibility</span>
                                     <span>{{ formatViews(animeDetails.views) }}</span>
                                 </div>
-                                <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
+                                <div
+                                    v-if="animeDetails.episodeCount ?? Object.keys(animeDetails.episodes || {}).length"
+                                    class="flex items-center gap-2 text-gray-600 dark:text-gray-300"
+                                >
                                     <span class="material-icons text-sm">movie</span>
                                     <span>{{ animeDetails.episodeCount ?? Object.keys(animeDetails.episodes || {}).length }}</span>
                                 </div>

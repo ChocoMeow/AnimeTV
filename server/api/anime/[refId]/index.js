@@ -5,19 +5,6 @@ import { serverSupabaseClient, serverSupabaseServiceRole } from "#supabase/serve
 // Utility Functions
 // ============================================================================
 
-const parseViews = (viewsText) => {
-    if (!viewsText) return 0
-    const text = String(viewsText).trim()
-    
-    if (text.includes("萬")) {
-        const numeric = Number(text.replace("萬", "").replace(/[^\d.]/g, ""))
-        return Number.isNaN(numeric) ? 0 : Math.round(numeric * 10000)
-    }
-    
-    const numeric = Number(text.replace(/[^\d]/g, ""))
-    return Number.isNaN(numeric) ? 0 : numeric
-}
-
 const normalizeUserRating = (userRating) => {
     if (!userRating) return { score: '0.0', votes: 0 }
     
