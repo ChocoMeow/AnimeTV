@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
                     title: getText(movie, ".theme-name"),
                     year: getText(movie, ".theme-time")?.replace("年份：", ""),
                     episodes: getText(movie, ".theme-number"),
-                    views: getText(movie, ".show-view-number p"),
+                    views: parseViews(getText(movie, ".show-view-number p")),
                 }
             })
             .get()
