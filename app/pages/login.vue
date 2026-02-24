@@ -401,9 +401,9 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                     <div class="pt-6 border-t border-gray-200 dark:border-white/10">
                         <p class="text-xs text-center text-gray-500 dark:text-gray-400">
                             登入即表示您同意我們的
-                            <a href="#" class="text-gray-700 dark:text-white/80 hover:text-gray-950 dark:hover:text-white hover:underline transition-colors">服務條款</a>
+                            <NuxtLink to="/terms" class="text-gray-700 dark:text-white/80 hover:text-gray-950 dark:hover:text-white hover:underline transition-colors">服務條款</NuxtLink>
                             和
-                            <a href="#" class="text-gray-700 dark:text-white/80 hover:text-gray-950 dark:hover:text-white hover:underline transition-colors">隱私政策</a>
+                            <NuxtLink to="/privacy" class="text-gray-700 dark:text-white/80 hover:text-gray-950 dark:hover:text-white hover:underline transition-colors">隱私政策</NuxtLink>
                         </p>
                     </div>
                 </div>
