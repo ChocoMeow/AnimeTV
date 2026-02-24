@@ -15,6 +15,13 @@ export default defineNuxtConfig({
     app: {
         head: {
             title: "AnimeTV",
+            script: [
+                {
+                    innerHTML: "document.documentElement.classList.toggle('dark', localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches));",
+                    type: "text/javascript",
+                    tagPosition: "head",
+                },
+            ],
             meta: [
                 { name: "description", content: "Stream your favorite anime series and movies anytime, anywhere." },
                 { charset: "utf-8" },

@@ -1,6 +1,7 @@
 <script setup>
 const { showToast } = useToast()
 const { searchHistory, userSettings, updateSetting, getDefaultShortcuts, getShortcuts, resetShortcuts, formatShortcutKey } = useUserSettings()
+const { theme, setTheme } = useTheme()
 const appConfig = useAppConfig()
 const client = useSupabaseClient()
 
@@ -358,6 +359,35 @@ useHead({
                             </div>
                         </div>
                         <p v-else class="text-sm text-gray-500 dark:text-gray-400 py-4">此區間尚無類型資料（需有觀看紀錄且動漫已有關聯標籤）</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Appearance (Theme) -->
+            <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-3 mb-1">
+                            <span class="material-icons text-gray-600 dark:text-gray-400">palette</span>
+                            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">外觀</h3>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">選擇淺色、深色或跟隨系統主題</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2 sm:justify-end">
+                        <button
+                            v-for="opt in [{ value: 'light', label: '淺色', icon: 'light_mode' }, { value: 'dark', label: '深色', icon: 'dark_mode' }, { value: 'system', label: '跟隨系統', icon: 'settings_brightness' }]"
+                            :key="opt.value"
+                            @click="setTheme(opt.value)"
+                            :class="[
+                                'px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2',
+                                theme === opt.value
+                                    ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
+                            ]"
+                        >
+                            <span class="material-icons text-lg">{{ opt.icon }}</span>
+                            {{ opt.label }}
+                        </button>
                     </div>
                 </div>
             </div>
