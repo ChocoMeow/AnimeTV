@@ -281,14 +281,15 @@ onUnmounted(() => {
         <!-- Results Header -->
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">全部作品</h1>
+                <h1 v-if="!loading" class="text-2xl font-bold text-gray-900 dark:text-white">全部作品</h1>
+                <div v-else class="h-8 w-40 rounded-lg bg-gray-200 dark:bg-gray-700 animate-pulse" />
                 <span v-if="!loading" class="text-sm text-gray-500 dark:text-gray-400"> 共 {{ animeList.length }} 部作品 </span>
             </div>
         </div>
 
-        <!-- Loading State -->
-        <div v-if="loading" class="flex items-center justify-center min-h-[400px]">
-            <AnimeLoader :show="loading" message="正在載入動畫資料..." centered />
+        <!-- Skeleton grid while loading -->
+        <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <SkeletonAnimeCard v-for="n in 12" :key="n" />
         </div>
 
         <!-- Empty State -->

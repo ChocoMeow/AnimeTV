@@ -16,7 +16,9 @@ const props = defineProps({
         type: Function,
         default: null,
     },
-});
+})
+
+const imageLoaded = ref(false)
 
 function handleMouseEnter(event) {
     if (props.onMouseEnter) {
@@ -32,18 +34,25 @@ function handleMouseLeave() {
 </script>
 
 <template>
-    <NuxtLink 
-        :to="`/anime/${anime.refId}`" 
-        class="anime-card-item group"
-        @mouseenter="handleMouseEnter"
-        @mouseleave="handleMouseLeave"
-    >
+    <NuxtLink :to="`/anime/${anime.refId}`" class="anime-card-item group" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
         <!-- Image Container -->
         <div class="relative overflow-hidden rounded-t-xl aspect-[2/3] bg-gray-200 dark:bg-gray-700">
+            <!-- Skeleton shown while image is loading (Tailwind, matches SkeletonAnimeCard) -->
+            <div v-if="!imageLoaded" class="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
+
             <img
                 :src="anime.image"
                 :alt="anime.title"
-                class="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110"
+                :class="[
+                    'w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110',
+                    imageLoaded ? 'opacity-100' : 'opacity-0',
+                ]"
+                style="
+                    transition:
+                        opacity 0.4s ease,
+                        transform 0.5s ease;
+                "
+                @load="imageLoaded = true"
             />
 
             <!-- Gradient Overlay -->
@@ -100,6 +109,7 @@ function handleMouseLeave() {
            border border-gray-100 dark:border-gray-700
            hover:border-black/10 dark:hover:border-white/10;
 }
+
 /* Year Badge */
 .badge-year {
     @apply bg-black/70 dark:bg-white/80 text-white dark:text-black 
