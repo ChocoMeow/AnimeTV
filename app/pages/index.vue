@@ -28,7 +28,19 @@ const weekdayLabel = {
 }
 
 // Use shared tooltip composable
-const { hoveredAnime, animeDetails, tooltipLoading, tooltipError, tooltipPosition, handleMouseEnter, handleMouseLeave, cleanup } = useAnimeTooltip()
+const {
+    hoveredAnime,
+    animeDetails,
+    tooltipLoading,
+    tooltipError,
+    tooltipPosition,
+    handleMouseEnter,
+    handleMouseLeave,
+    handleTooltipEnter,
+    handleTooltipLeave,
+    setFavoriteStatus,
+    cleanup,
+} = useAnimeTooltip()
 
 async function fetchHomeAnime() {
     loading.value = true
@@ -184,6 +196,9 @@ onUnmounted(() => {
         :tooltip-loading="tooltipLoading"
         :tooltip-error="tooltipError"
         :tooltip-position="tooltipPosition"
+        :on-tooltip-enter="handleTooltipEnter"
+        :on-tooltip-leave="handleTooltipLeave"
+        :on-favorite-toggled="({ refId, isFavorite }) => setFavoriteStatus(refId, isFavorite)"
     />
 </template>
 

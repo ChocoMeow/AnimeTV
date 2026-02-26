@@ -26,6 +26,9 @@ const {
     tooltipPosition,
     handleMouseEnter,
     handleMouseLeave,
+    handleTooltipEnter,
+    handleTooltipLeave,
+    setFavoriteStatus,
     cleanup,
 } = useAnimeTooltip()
 
@@ -327,6 +330,9 @@ onUnmounted(() => {
         :tooltip-loading="tooltipLoading"
         :tooltip-error="tooltipError"
         :tooltip-position="tooltipPosition"
+        :on-tooltip-enter="handleTooltipEnter"
+        :on-tooltip-leave="handleTooltipLeave"
+        :on-favorite-toggled="({ refId, isFavorite }) => setFavoriteStatus(refId, isFavorite)"
     />
 </template>
 

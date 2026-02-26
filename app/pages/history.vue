@@ -13,13 +13,16 @@ const {
     tooltipPosition,
     handleMouseEnter: onTooltipMouseEnter,
     handleMouseLeave: onTooltipMouseLeave,
+    handleTooltipEnter,
+    handleTooltipLeave,
+    setFavoriteStatus,
     cleanup: cleanupTooltip,
 } = useAnimeTooltip()
 
 const historyItems = ref([])
 const loading = ref(true)
-const selectedFilter = ref("all")
-const searchQuery = ref("")
+const selectedFilter = ref('all')
+const searchQuery = ref('')
 const selectedItems = ref(new Set())
 const showDeleteConfirm = ref(false)
 const showDeleteAllConfirm = ref(false)
@@ -30,10 +33,10 @@ const loadingMore = ref(false)
 
 // Filter options
 const filterOptions = [
-    { value: "all", label: "全部" },
-    { value: "today", label: "今天" },
-    { value: "week", label: "本週" },
-    { value: "month", label: "本月" },
+    { value: 'all', label: '全部' },
+    { value: 'today', label: '今天' },
+    { value: 'week', label: '本週' },
+    { value: 'month', label: '本月' },
 ]
 
 // Computed filtered history
@@ -56,9 +59,9 @@ const groupedHistory = computed(() => {
 
         let dateKey
         if (isSameDay(date, today)) {
-            dateKey = "今天"
+            dateKey = '今天'
         } else if (isSameDay(date, yesterday)) {
-            dateKey = "昨天"
+            dateKey = '昨天'
         } else {
             dateKey = formatDate(date)
         }
@@ -72,7 +75,7 @@ const groupedHistory = computed(() => {
     return groups
 })
 
-function handleTooltipEnter(item, event) {
+function handleCardEnter(item, event) {
     onTooltipMouseEnter({ refId: item.anime_ref_id }, event)
 }
 
@@ -106,20 +109,20 @@ function selectAll() {
 }
 
 function applyTimeFilter(query) {
-    if (selectedFilter.value === "all") return query
+    if (selectedFilter.value === 'all') return query
 
     const now = new Date()
     let filterDate
 
-    if (selectedFilter.value === "today") {
+    if (selectedFilter.value === 'today') {
         filterDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    } else if (selectedFilter.value === "week") {
+    } else if (selectedFilter.value === 'week') {
         filterDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    } else if (selectedFilter.value === "month") {
+    } else if (selectedFilter.value === 'month') {
         filterDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
     }
 
-    return query.gte("updated_at", filterDate.toISOString())
+    return query.gte('updated_at', filterDate.toISOString())
 }
 
 async function loadMore() {
@@ -131,15 +134,12 @@ async function loadMore() {
         const from = nextPage * pageSize
         const to = from + pageSize - 1
 
-        let query = client
-            .from("watch_history_latest_updates")
-            .select("*")
-            .eq("user_id", userSettings.value.id)
+        let query = client.from('watch_history_latest_updates').select('*').eq('user_id', userSettings.value.id)
 
         // Apply time filter
         query = applyTimeFilter(query)
 
-        const { data, error } = await query.order("updated_at", { ascending: false }).range(from, to)
+        const { data, error } = await query.order('updated_at', { ascending: false }).range(from, to)
 
         if (error) throw error
 
@@ -155,7 +155,7 @@ async function loadMore() {
             hasMore.value = false
         }
     } catch (err) {
-        console.error("Failed to load more history:", err)
+        console.error('Failed to load more history:', err)
     } finally {
         loadingMore.value = false
     }
@@ -182,11 +182,7 @@ async function confirmDelete() {
         const animeRefIdsToDelete = Array.from(selectedItems.value)
 
         // Delete all watch history records for the selected anime (not just the latest episode)
-        const { error } = await client
-            .from("watch_history")
-            .delete()
-            .in("anime_ref_id", animeRefIdsToDelete)
-            .eq("user_id", userSettings.value.id)
+        const { error } = await client.from('watch_history').delete().in('anime_ref_id', animeRefIdsToDelete).eq('user_id', userSettings.value.id)
 
         if (error) throw error
 
@@ -194,42 +190,39 @@ async function confirmDelete() {
         historyItems.value = historyItems.value.filter((item) => !animeRefIdsToDelete.includes(item.anime_ref_id))
         selectedItems.value.clear()
         showDeleteConfirm.value = false
-        showToast("已刪除所選動漫的觀看紀錄", "success")
+        showToast('已刪除所選動漫的觀看紀錄', 'success')
     } catch (err) {
-        console.error("Failed to delete history:", err)
-        showToast("刪除失敗，請稍後再試", "error")
+        console.error('Failed to delete history:', err)
+        showToast('刪除失敗，請稍後再試', 'error')
     }
 }
 
 async function confirmDeleteAll() {
     try {
         if (!userSettings.value.id) return
-        const { error } = await client.from("watch_history").delete().eq("user_id", userSettings.value.id)
+        const { error } = await client.from('watch_history').delete().eq('user_id', userSettings.value.id)
 
         if (error) throw error
 
         historyItems.value = []
         selectedItems.value.clear()
         showDeleteAllConfirm.value = false
-        showToast("已清除所有觀看紀錄", "success")
+        showToast('已清除所有觀看紀錄', 'success')
     } catch (err) {
-        console.error("Failed to clear history:", err)
-        showToast("清除失敗，請稍後再試", "error")
+        console.error('Failed to clear history:', err)
+        showToast('清除失敗，請稍後再試', 'error')
     }
 }
 
 async function fetchHistory() {
     loading.value = true
     try {
-        let query = client
-            .from("watch_history_latest_updates")
-            .select("*")
-            .eq("user_id", userSettings.value.id)
+        let query = client.from('watch_history_latest_updates').select('*').eq('user_id', userSettings.value.id)
 
         // Apply time filter
         query = applyTimeFilter(query)
 
-        const { data, error } = await query.order("updated_at", { ascending: false }).range(0, pageSize - 1)
+        const { data, error } = await query.order('updated_at', { ascending: false }).range(0, pageSize - 1)
 
         if (error) throw error
 
@@ -239,7 +232,7 @@ async function fetchHistory() {
         // Check if there might be more records
         hasMore.value = data && data.length === pageSize
     } catch (err) {
-        console.error("Failed to fetch history:", err)
+        console.error('Failed to fetch history:', err)
         historyItems.value = []
     } finally {
         loading.value = false
@@ -256,11 +249,11 @@ onActivated(() => {
 
 onMounted(() => {
     fetchHistory()
-    window.addEventListener("scroll", handleScroll)
+    window.addEventListener('scroll', handleScroll)
 })
 
 onBeforeUnmount(() => {
-    window.removeEventListener("scroll", handleScroll)
+    window.removeEventListener('scroll', handleScroll)
     cleanupTooltip()
 })
 
@@ -275,13 +268,13 @@ watch([selectedFilter, searchQuery], () => {
 watch(
     () => route.path,
     (newPath) => {
-        if (newPath === "/history" || newPath.includes("/history")) {
+        if (newPath === '/history' || newPath.includes('/history')) {
             historyItems.value = []
             currentPage.value = 0
             hasMore.value = true
             fetchHistory()
         }
-    }
+    },
 )
 
 useHead({
@@ -299,7 +292,12 @@ useHead({
 
                 <!-- Search -->
                 <div class="relative w-full sm:max-w-xs">
-                    <input v-model="searchQuery" type="text" placeholder="搜尋動漫..." class="w-full bg-white dark:bg-white/10 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm " />
+                    <input
+                        v-model="searchQuery"
+                        type="text"
+                        placeholder="搜尋動漫..."
+                        class="w-full bg-white dark:bg-white/10 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm"
+                    />
                     <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
                 </div>
             </div>
@@ -316,7 +314,7 @@ useHead({
                             'px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md',
                             selectedFilter === filter.value
                                 ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
-                                : 'bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300'
+                                : 'bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300',
                         ]"
                     >
                         {{ filter.label }}
@@ -325,19 +323,31 @@ useHead({
 
                 <!-- Action Buttons -->
                 <div v-if="historyItems.length > 0" class="flex items-center gap-3 flex-wrap">
-                    <button @click="selectAll" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2">
+                    <button
+                        @click="selectAll"
+                        class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+                    >
                         <span class="material-icons text-lg">
-                            {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? "check_box" : "check_box_outline_blank" }}
+                            {{
+                                selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? 'check_box' : 'check_box_outline_blank'
+                            }}
                         </span>
-                        {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? "取消全選" : "全選" }}
+                        {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? '取消全選' : '全選' }}
                     </button>
 
-                    <button v-if="selectedItems.size > 0" @click="deleteSelected" class="text-sm px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2">
+                    <button
+                        v-if="selectedItems.size > 0"
+                        @click="deleteSelected"
+                        class="text-sm px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2"
+                    >
                         <span class="material-icons text-lg">delete</span>
                         刪除已選 ({{ selectedItems.size }})
                     </button>
 
-                    <button @click="showDeleteAllConfirm = true" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
+                    <button
+                        @click="showDeleteAllConfirm = true"
+                        class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+                    >
                         <span class="material-icons text-lg">delete_sweep</span>
                         清除全部
                     </button>
@@ -355,7 +365,11 @@ useHead({
             <span class="material-icons text-gray-400 text-6xl mb-4">history</span>
             <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">還沒有觀看紀錄</h3>
             <p class="text-gray-500 dark:text-gray-400 mb-6">開始觀看動漫，這裡會記錄你的觀看歷史</p>
-            <NuxtLink to="/" class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors">探索動漫</NuxtLink>
+            <NuxtLink
+                to="/"
+                class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors"
+                >探索動漫</NuxtLink
+            >
         </div>
 
         <!-- No Search Results -->
@@ -380,12 +394,18 @@ useHead({
                         v-for="item in items"
                         :key="item.id"
                         class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow hover:shadow-lg transition-all overflow-hidden group relative"
-                        @mouseenter="handleTooltipEnter(item, $event)"
+                        @mouseenter="handleCardEnter(item, $event)"
                         @mouseleave="onTooltipMouseLeave"
                     >
                         <!-- Checkbox - Now always visible when selected -->
-                        <button @click="toggleSelectItem(item.anime_ref_id, $event)" class="absolute top-3 left-3 z-10 w-6 h-6 rounded bg-white dark:bg-gray-700 shadow-md flex items-center justify-center transition-opacity" :class="selectedItems.has(item.anime_ref_id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'">
-                            <span v-if="selectedItems.has(item.anime_ref_id)" class="material-icons text-gray-900 dark:text-gray-100 text-lg">check_box</span>
+                        <button
+                            @click="toggleSelectItem(item.anime_ref_id, $event)"
+                            class="absolute top-3 left-3 z-10 w-6 h-6 rounded bg-white dark:bg-gray-700 shadow-md flex items-center justify-center transition-opacity"
+                            :class="selectedItems.has(item.anime_ref_id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+                        >
+                            <span v-if="selectedItems.has(item.anime_ref_id)" class="material-icons text-gray-900 dark:text-gray-100 text-lg"
+                                >check_box</span
+                            >
                             <span v-else class="material-icons text-gray-400 text-lg">check_box_outline_blank</span>
                         </button>
 
@@ -441,6 +461,9 @@ useHead({
         :tooltip-loading="tooltipLoading"
         :tooltip-error="tooltipError"
         :tooltip-position="tooltipPosition"
+        :on-tooltip-enter="handleTooltipEnter"
+        :on-tooltip-leave="handleTooltipLeave"
+        :on-favorite-toggled="({ refId, isFavorite }) => setFavoriteStatus(refId, isFavorite)"
     />
 
     <!-- Delete Confirmation Modal -->
@@ -448,7 +471,12 @@ useHead({
         <p class="text-gray-600 dark:text-gray-400">確定要刪除 {{ selectedItems.size }} 部動漫的所有觀看紀錄嗎？此操作無法復原。</p>
 
         <template #actions>
-            <button @click="showDeleteConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+            <button
+                @click="showDeleteConfirm = false"
+                class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+                取消
+            </button>
             <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認刪除</button>
         </template>
     </BaseModal>
@@ -458,7 +486,12 @@ useHead({
         <p class="text-gray-600 dark:text-gray-400 mb-2">確定要清除所有觀看紀錄嗎？此操作無法復原。</p>
 
         <template #actions>
-            <button @click="showDeleteAllConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+            <button
+                @click="showDeleteAllConfirm = false"
+                class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+                取消
+            </button>
             <button @click="confirmDeleteAll" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認清除</button>
         </template>
     </BaseModal>

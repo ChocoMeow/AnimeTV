@@ -20,9 +20,52 @@ const props = defineProps({
         type: Object,
         default: () => ({ x: 0, y: 0, placement: "top" }),
     },
+    onTooltipEnter: {
+        type: Function,
+        default: null,
+    },
+    onTooltipLeave: {
+        type: Function,
+        default: null,
+    },
+    onFavoriteToggled: {
+        type: Function,
+        default: null,
+    },
 })
 
 const { isMobile } = useMobile()
+const client = useSupabaseClient()
+const { userSettings } = useUserSettings()
+const favoriteLoading = ref(false)
+
+async function toggleFavorite(event) {
+    event.preventDefault()
+    event.stopPropagation()
+    if (!props.animeDetails?.refId || !userSettings.value?.id || favoriteLoading.value) return
+    favoriteLoading.value = true
+    const newValue = !props.animeDetails.isFavorite
+    try {
+        if (newValue) {
+            await client.from("favorites").insert({
+                user_id: userSettings.value.id,
+                anime_ref_id: props.animeDetails.refId,
+                anime_title: props.animeDetails.title,
+                anime_image: props.animeDetails.image,
+            })
+        } else {
+            await client.from("favorites").delete().match({
+                user_id: userSettings.value.id,
+                anime_ref_id: props.animeDetails.refId,
+            })
+        }
+        props.onFavoriteToggled?.({ refId: props.animeDetails.refId, isFavorite: newValue })
+    } catch (err) {
+        console.error("Failed to toggle favorite:", err)
+    } finally {
+        favoriteLoading.value = false
+    }
+}
 </script>
 
 <template>
@@ -36,8 +79,25 @@ const { isMobile } = useMobile()
                     left: tooltipPosition.x + 'px',
                     top: tooltipPosition.y + 'px',
                 }"
+                @mouseenter="onTooltipEnter?.()"
+                @mouseleave="onTooltipLeave?.()"
             >
                 <div class="tooltip-content">
+                    <!-- Favourite button top right -->
+                    <button
+                        type="button"
+                        class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 dark:focus:ring-gray-500 disabled:opacity-50"
+                        :class="{ 'text-red-500': animeDetails.isFavorite }"
+                        :disabled="favoriteLoading || !userSettings?.id"
+                        :title="animeDetails.isFavorite ? '已收藏' : '收藏'"
+                        aria-label="Toggle favorite"
+                        @click="toggleFavorite"
+                    >
+                        <span class="material-icons text-xl" v-if="!favoriteLoading">
+                            {{ animeDetails.isFavorite ? 'favorite' : 'favorite_border' }}
+                        </span>
+                        <span v-else class="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                    </button>
                     <!-- Header with Image -->
                     <div class="flex gap-3 mb-3">
                         <img 
@@ -93,15 +153,16 @@ const { isMobile } = useMobile()
                         </div>
                     </div>
 
-                    <!-- Tags -->
-                    <div v-if="animeDetails.tags && animeDetails.tags.length" class="mt-3 flex flex-wrap gap-1.5">
-                        <span
+                    <div v-if="animeDetails.tags?.length" class="mt-3 flex flex-wrap gap-1.5">
+                        <NuxtLink
                             v-for="tag in animeDetails.tags.slice(0, 5)"
                             :key="tag"
-                            class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium"
+                            :to="{ path: '/show-all-anime', query: { tags: tag } }"
+                            class="tag-link"
+                            @click.stop
                         >
                             {{ tag }}
-                        </span>
+                        </NuxtLink>
                     </div>
 
                     <!-- Tooltip Arrow -->
@@ -196,6 +257,12 @@ const { isMobile } = useMobile()
 .tooltip-content {
     @apply bg-white dark:bg-gray-950 rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 p-3 sm:p-4;
     position: relative;
+}
+
+.tag-link {
+    @apply px-2 py-0.5 rounded-full text-xs font-medium transition-colors cursor-pointer;
+    @apply bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300;
+    @apply hover:bg-gray-200 dark:hover:bg-gray-700;
 }
 
 .tooltip-arrow {
