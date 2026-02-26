@@ -87,11 +87,6 @@ export default defineNuxtConfig({
             ],
         }
     },
-    nitro: {
-        prerender: {
-            routes: [],
-        },
-    },
     supabase: {
         redirect: true,
         redirectOptions: {
