@@ -355,7 +355,7 @@ watch(
                                 </NuxtLink>
 
                                 <NuxtLink to="/favorites" class="w-full px-4 py-2.5 text-left hover:bg-black/10 dark:hover:bg-white/20 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300">
-                                    <span class="material-icons text-gray-500 dark:text-gray-400">favorite</span>
+                                    <span class="material-icons text-gray-500 dark:text-gray-400">bookmark</span>
                                     <span class="text-sm font-medium">我的收藏</span>
                                 </NuxtLink>
 
@@ -506,7 +506,7 @@ watch(
                     <span>觀看紀錄</span>
                 </NuxtLink>
                 <NuxtLink to="/favorites" class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3">
-                    <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">favorite</span>
+                    <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">bookmark_added</span>
                     <span>我的收藏</span>
                 </NuxtLink>
                 <NuxtLink to="/friends" class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3">

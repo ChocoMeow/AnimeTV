@@ -179,7 +179,7 @@ function formatDate(dateString) {
                                 <span>{{ stats.totalWatched }} 個活動</span>
                             </div>
                             <div class="flex items-center gap-1">
-                                <span class="material-icons text-base">favorite</span>
+                                <span class="material-icons text-base">bookmark_added</span>
                                 <span>{{ stats.totalFavorites }} 個收藏</span>
                             </div>
                         </div>
@@ -244,7 +244,7 @@ function formatDate(dateString) {
                                     <div class="absolute top-2 right-2">
                                         <div
                                             class="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center shadow-lg">
-                                            <span class="material-icons text-white text-sm">favorite</span>
+                                            <span class="material-icons text-white text-sm">bookmark_added</span>
                                         </div>
                                     </div>
                                     <div
@@ -347,7 +347,7 @@ function formatDate(dateString) {
                             <div class="absolute top-2 right-2">
                                 <div
                                     class="w-5 h-5 bg-pink-500 rounded-full flex items-center justify-center shadow-lg">
-                                    <span class="material-icons text-white text-xs">favorite</span>
+                                    <span class="material-icons text-white text-xs">bookmark_added</span>
                                 </div>
                             </div>
                         </div>

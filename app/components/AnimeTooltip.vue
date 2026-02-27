@@ -35,8 +35,8 @@ const props = defineProps({
 })
 
 const { isMobile } = useMobile()
-const client = useSupabaseClient()
 const { userSettings } = useUserSettings()
+const client = useSupabaseClient()
 const favoriteLoading = ref(false)
 
 async function toggleFavorite(event) {
@@ -93,8 +93,8 @@ async function toggleFavorite(event) {
                         aria-label="Toggle favorite"
                         @click="toggleFavorite"
                     >
-                        <span class="material-icons text-xl" v-if="!favoriteLoading">
-                            {{ animeDetails.isFavorite ? 'favorite' : 'favorite_border' }}
+                        <span class="material-icons text-xl text-center" v-if="!favoriteLoading">
+                            {{ animeDetails.isFavorite ? 'bookmark_added' : 'bookmark_add' }}
                         </span>
                         <span v-else class="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                     </button>

@@ -665,7 +665,7 @@ onUnmounted(() => {
                                     aria-label="Toggle favorite"
                                     :title="isFavorite ? '已收藏' : '收藏'"
                                 >
-                                    <span class="material-icons text-xl" :class="isFavorite ? 'text-red-500' : 'text-gray-900 dark:text-white'">{{ isFavorite ? "favorite" : "favorite_border" }}</span>
+                                    <span class="material-icons text-xl" :class="isFavorite ? 'text-red-500' : 'text-gray-900 dark:text-white'">{{ isFavorite ? "bookmark_added" : "bookmark_add" }}</span>
                                 </button>
                             </div>
                         </div>

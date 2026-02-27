@@ -369,7 +369,7 @@ useHead({
 
         <!-- Empty State -->
         <div v-else-if="favoriteItems.length === 0" class="text-center py-20">
-            <span class="material-icons text-gray-400 text-6xl mb-4">favorite_border</span>
+            <span class="material-icons text-gray-400 text-6xl mb-4">bookmark_add</span>
             <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">還沒有收藏動漫</h3>
             <p class="text-gray-500 dark:text-gray-400 mb-6">找到喜歡的動漫就收藏起來吧</p>
             <NuxtLink to="/" class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors inline-flex items-center gap-2">
@@ -415,7 +415,7 @@ useHead({
 
                             <!-- Favorite Badge -->
                             <div class="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-red-500 shadow-md flex items-center justify-center">
-                                <span class="material-icons text-white text-sm">favorite</span>
+                                <span class="material-icons text-white text-sm">bookmark_added</span>
                             </div>
 
                             <!-- Clickable Link -->
@@ -464,7 +464,7 @@ useHead({
 
                     <!-- Favorite Badge -->
                     <div class="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-red-500 shadow-md flex items-center justify-center">
-                        <span class="material-icons text-white text-sm">favorite</span>
+                        <span class="material-icons text-white text-sm">bookmark_added</span>
                     </div>
 
                     <!-- Clickable Link -->
