@@ -86,7 +86,7 @@ async function toggleFavorite(event) {
                     <!-- Favourite button top right -->
                     <button
                         type="button"
-                        class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 dark:focus:ring-gray-500 disabled:opacity-50"
+                        class="absolute top-3.5 right-3.5 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 dark:focus:ring-gray-500 disabled:opacity-50"
                         :class="{ 'text-red-500': animeDetails.isFavorite }"
                         :disabled="favoriteLoading || !userSettings?.id"
                         :title="animeDetails.isFavorite ? '已收藏' : '收藏'"
