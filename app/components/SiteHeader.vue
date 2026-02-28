@@ -23,6 +23,24 @@ let hideDropdownTimeout = null
 let hideUserMenuTimeout = null
 let searchDebounceTimeout = null
 
+// User dropdown menu items (shared by desktop dropdown and mobile nav)
+const menuItems = [
+    { to: "/profile", icon: "person", label: "個人設定" },
+    { to: "/history", icon: "history", label: "觀看紀錄" },
+    { to: "/favorites", icon: "bookmark_added", label: "我的收藏" },
+    { to: "/friends", icon: "group", label: "我的好友" },
+    { to: "/admin", icon: "admin_panel_settings", label: "管理後台", adminOnly: true },
+    { icon: "logout", label: "登出", action: signOut, variant: "danger", dividerBefore: true },
+]
+const mobileNavItems = computed(() => [
+    { to: "/show-all-anime", icon: "movie", label: "全部作品" },
+    ...menuItems.filter((i) => !i.adminOnly || isAdmin.value),
+])
+const desktopDropdownItems = computed(() => menuItems.filter((i) => !i.adminOnly || isAdmin.value))
+
+function closeUserMenu() {
+    showUserMenu.value = false
+}
 
 // Watch for mobile changes to close mobile menus when switching to desktop
 watch(isMobile, (newValue) => {
@@ -344,37 +362,28 @@ watch(
 
                             <!-- Menu Items -->
                             <div class="py-2">
-                                <NuxtLink to="/profile" class="w-full px-4 py-2.5 text-left hover:bg-black/10 dark:hover:bg-white/20 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300" @click.native="showUserMenu = false">
-                                    <span class="material-icons text-gray-500 dark:text-gray-400">person</span>
-                                    <span class="text-sm font-medium">個人設定</span>
-                                </NuxtLink>
-
-                                <NuxtLink to="/history" class="w-full px-4 py-2.5 text-left hover:bg-black/10 dark:hover:bg-white/20 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300" @click.native="showUserMenu = false">
-                                    <span class="material-icons text-gray-500 dark:text-gray-400">history</span>
-                                    <span class="text-sm font-medium">觀看紀錄</span>
-                                </NuxtLink>
-
-                                <NuxtLink to="/favorites" class="w-full px-4 py-2.5 text-left hover:bg-black/10 dark:hover:bg-white/20 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300">
-                                    <span class="material-icons text-gray-500 dark:text-gray-400">bookmark</span>
-                                    <span class="text-sm font-medium">我的收藏</span>
-                                </NuxtLink>
-
-                                <NuxtLink to="/friends" class="w-full px-4 py-2.5 text-left hover:bg-black/10 dark:hover:bg-white/20 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300">
-                                    <span class="material-icons text-gray-500 dark:text-gray-400">group</span>
-                                    <span class="text-sm font-medium">我的好友</span>
-                                </NuxtLink>
-
-                                <NuxtLink v-if="isAdmin" to="/admin" class="w-full px-4 py-2.5 text-left hover:bg-black/10 dark:hover:bg-white/20 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300" @click.native="showUserMenu = false">
-                                    <span class="material-icons text-gray-500 dark:text-gray-400">admin_panel_settings</span>
-                                    <span class="text-sm font-medium">管理後台</span>
-                                </NuxtLink>
-
-                                <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
-
-                                <button @click="signOut" class="w-full px-4 py-2.5 text-left hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-3 text-red-600 dark:text-red-400">
-                                    <span class="material-icons">logout</span>
-                                    <span class="text-sm font-medium">登出</span>
-                                </button>
+                                <template v-for="item in desktopDropdownItems" :key="item.to || item.label">
+                                    <div v-if="item.dividerBefore" class="border-t border-gray-200 dark:border-gray-700 my-2" />
+                                    <NuxtLink
+                                        v-if="item.to"
+                                        :to="item.to"
+                                        class="w-full px-4 py-2.5 text-left hover:bg-black/10 dark:hover:bg-white/20 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300"
+                                        @click.native="closeUserMenu"
+                                    >
+                                        <span class="material-icons text-gray-500 dark:text-gray-400">{{ item.icon }}</span>
+                                        <span class="text-sm font-medium">{{ item.label }}</span>
+                                    </NuxtLink>
+                                    <button
+                                        v-else-if="item.action"
+                                        type="button"
+                                        class="w-full px-4 py-2.5 text-left transition-colors flex items-center gap-3"
+                                        :class="item.variant === 'danger' ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400' : 'hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300'"
+                                        @click="item.action()"
+                                    >
+                                        <span class="material-icons">{{ item.icon }}</span>
+                                        <span class="text-sm font-medium">{{ item.label }}</span>
+                                    </button>
+                                </template>
                             </div>
                         </div>
                     </transition>
@@ -493,37 +502,27 @@ watch(
             </div>
 
             <nav class="flex flex-col gap-2">
-                <NuxtLink to="/show-all-anime" class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3">
-                    <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">movie</span>
-                    <span>全部作品</span>
-                </NuxtLink>
-                <NuxtLink to="/profile" class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3">
-                    <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">person</span>
-                    <span>個人設定</span>
-                </NuxtLink>
-                <NuxtLink to="/history" class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3">
-                    <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">history</span>
-                    <span>觀看紀錄</span>
-                </NuxtLink>
-                <NuxtLink to="/favorites" class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3">
-                    <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">bookmark_added</span>
-                    <span>我的收藏</span>
-                </NuxtLink>
-                <NuxtLink to="/friends" class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3">
-                    <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">group</span>
-                    <span>我的好友</span>
-                </NuxtLink>
-                <NuxtLink v-if="isAdmin" to="/admin" class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3">
-                    <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">admin_panel_settings</span>
-                    <span>管理後台</span>
-                </NuxtLink>
-
-                <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
-
-                <button @click="signOut" class="text-sm px-3 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 text-red-600 dark:text-red-400 text-left">
-                    <span class="material-icons text-xl">logout</span>
-                    <span>登出</span>
-                </button>
+                <template v-for="item in mobileNavItems" :key="item.to || item.label">
+                    <div v-if="item.dividerBefore" class="border-t border-gray-200 dark:border-gray-700 my-2" />
+                    <NuxtLink
+                        v-if="item.to"
+                        :to="item.to"
+                        class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3"
+                    >
+                        <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">{{ item.icon }}</span>
+                        <span>{{ item.label }}</span>
+                    </NuxtLink>
+                    <button
+                        v-else-if="item.action"
+                        type="button"
+                        class="text-sm px-3 py-2 rounded flex items-center gap-3 text-left"
+                        :class="item.variant === 'danger' ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400' : 'hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300'"
+                        @click="item.action()"
+                    >
+                        <span class="material-icons text-xl">{{ item.icon }}</span>
+                        <span>{{ item.label }}</span>
+                    </button>
+                </template>
             </nav>
         </div>
     </header>
