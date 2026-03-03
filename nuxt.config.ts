@@ -88,6 +88,9 @@ export default defineNuxtConfig({
         }
     },
     supabase: {
+        url: process.env.SUPABASE_URL,
+        key: process.env.SUPABASE_KEY,
+        secretKey: process.env.SUPABASE_SECRET_KEY,
         redirect: true,
         redirectOptions: {
             login: "/login",
