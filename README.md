@@ -17,9 +17,10 @@ Welcome to **AnimeTV**, a project designed for anime enthusiasts in Taiwan and H
 
 ## Screenshot
 
-<img width="1920" alt="Screenshot" src="https://github.com/ChocoMeow/AnimeTV/blob/main/public/screenshot.png" />
+<img width="1920" alt="Screenshot" src="https://github.com/user-attachments/assets/3a281466-6de7-4788-bf31-5d2355058f59" />
 
 ## Getting Started
+
 
 To get started with AnimeTV, follow these steps:
 
@@ -62,20 +63,21 @@ Make sure you have the following installed:
         supabase link
         ```
 
-    - Import the schema from your Supabase project:
+    - Import the provided schema into your Supabase database:
 
         ```bash
-        supabase db dump --file schema.sql
+        psql "postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres" -f schema.sql
         ```
+        > You can find your database URL in your Supabase project under **Settings → Database → Connection string**.
 
     - Update your `.env` file with the necessary Supabase credentials:
 
         ```plaintext
         SUPABASE_URL=your_supabase_url
         SUPABASE_KEY=your_supabase_key
+        SUPABASE_SECRET_KEY=your_supabase_secret_key
         ```
-
-    Replace `your_supabase_url` and `your_supabase_key` with your actual Supabase credentials.
+        > Replace the values with your actual credentials from **Supabase → Settings → API**.
 
 4. **Run the development server**:
 
