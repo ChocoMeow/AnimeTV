@@ -4,6 +4,13 @@ export default defineNuxtConfig({
     modules: ["@nuxtjs/tailwindcss", "@nuxtjs/supabase", "@vite-pwa/nuxt"],
     compatibilityDate: "2025-07-15",
     devtools: { enabled: true },
+    runtimeConfig: {
+        supabaseSecretKey: process.env.SUPABASE_SECRET_KEY,
+        public: {
+            supabaseUrl: process.env.SUPABASE_URL,
+            supabaseKey: process.env.SUPABASE_KEY,
+        },
+    },
     devServer: {
         port: 3000,
         host: "0.0.0.0",
@@ -88,9 +95,6 @@ export default defineNuxtConfig({
         }
     },
     supabase: {
-        url: process.env.SUPABASE_URL,
-        key: process.env.SUPABASE_KEY,
-        secretKey: process.env.SUPABASE_SECRET_KEY,
         redirect: true,
         redirectOptions: {
             login: "/login",

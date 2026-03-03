@@ -73,9 +73,9 @@ Make sure you have the following installed:
     - Update your `.env` file with the necessary Supabase credentials:
 
         ```plaintext
-        SUPABASE_URL=your_supabase_url
-        SUPABASE_KEY=your_supabase_key
-        SUPABASE_SECRET_KEY=your_supabase_secret_key
+        NUXT_PUBLIC_SUPABASE_URL=your_supabase_url
+        NUXT_PUBLIC_SUPABASE_KEY=your_supabase_key
+        NUXT_SUPABASE_SECRET_KEY=your_supabase_secret_key
         ```
         > Replace the values with your actual credentials from **Supabase → Settings → API**.
 
