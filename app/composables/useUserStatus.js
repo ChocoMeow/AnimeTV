@@ -4,6 +4,12 @@
  * Ensures singleton WebSocket connection across all component instances
  */
 
+// Status values that imply an active connection (restored after tab visible)
+const ACTIVE_STATUSES = ['online', 'idle', 'watching']
+
+// Events used for idle detection (passive for performance)
+const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'touchstart', 'scroll']
+
 // Singleton state - shared across all composable instances
 const sharedState = {
     ws: null,
@@ -15,14 +21,24 @@ const sharedState = {
     isConnected: ref(false),
     watchingData: ref(null),
     instanceCount: 0,
+    /** True when we disconnected because tab was hidden — do not auto-reconnect until tab is visible */
+    disconnectedDueToHiddenTab: false,
+    /** Status to restore when tab becomes visible again (set when tab hidden) */
+    lastStatusBeforeHidden: null,
+    lastWatchingDataBeforeHidden: null,
+    /** Timer for delayed disconnect when tab hidden (cancel if user returns quickly) */
+    hiddenTabDisconnectTimer: null,
 }
 
-// Constants
 const CONFIG = {
-    HEARTBEAT_INTERVAL: 30 * 1000,  // 30 seconds
-    IDLE_TIMEOUT: 5 * 60 * 1000,    // 5 minutes
-    RECONNECT_DELAY: 5 * 1000,      // 5 seconds
+    HEARTBEAT_INTERVAL: 30 * 1000,  // 30s
+    IDLE_TIMEOUT: 3 * 60 * 1000,    // 3 min
+    RECONNECT_DELAY: 5 * 1000,      // 5s
+    HIDDEN_TAB_DISCONNECT_DELAY: 30000, // 30s delay before disconnect when tab hidden
 }
+
+const isClient = () => typeof window !== 'undefined'
+const isPageVisible = () => isClient() && !document.hidden
 
 export const useUserStatus = () => {
     const { userSettings } = useUserSettings()
@@ -39,7 +55,7 @@ export const useUserStatus = () => {
      * The access token stays on the server — only an opaque ticket ID goes in the URL.
      */
     const getWsUrl = async () => {
-        if (typeof window === 'undefined') return null
+        if (!isClient()) return null
 
         let ticket
         try {
@@ -139,6 +155,17 @@ export const useUserStatus = () => {
                     userId: userSettings.value.id,
                 })
 
+                // Restore status after reconnect (e.g. tab became visible again)
+                const status = sharedState.currentStatus.value
+                if (status && ACTIVE_STATUSES.includes(status)) {
+                    sendMessage({
+                        type: 'status_update',
+                        userId: userSettings.value.id,
+                        status,
+                        animeData: status === 'watching' ? sharedState.watchingData.value : null,
+                    })
+                }
+
                 // Start heartbeat
                 startHeartbeat()
             }
@@ -151,8 +178,7 @@ export const useUserStatus = () => {
                 sharedState.currentStatus.value = 'offline'
                 stopHeartbeat()
 
-                // Attempt to reconnect if still tracking
-                if (sharedState.isTracking.value) {
+                if (sharedState.isTracking.value && !sharedState.disconnectedDueToHiddenTab) {
                     sharedState.reconnectTimer = setTimeout(() => {
                         console.log('[Status] Reconnecting...')
                         connectWebSocket()
@@ -200,8 +226,7 @@ export const useUserStatus = () => {
         if (sharedState.heartbeatTimer) return
 
         sharedState.heartbeatTimer = setInterval(() => {
-            // Skip heartbeat if page is hidden
-            if (typeof document !== 'undefined' && document.hidden) return
+            if (!isPageVisible()) return
 
             sendMessage({
                 type: 'heartbeat',
@@ -297,17 +322,12 @@ export const useUserStatus = () => {
             return
         }
 
-        // Don't set idle timer if page is hidden
-        if (typeof document !== 'undefined' && document.hidden) {
-            return
-        }
+        if (!isPageVisible()) return
 
         sharedState.idleTimer = setTimeout(() => {
             // Double-check status hasn't changed and page is visible
             const isWatchingOrOffline = ['watching', 'offline'].includes(sharedState.currentStatus.value)
-            const isPageVisible = typeof document === 'undefined' || !document.hidden
-
-            if (!isWatchingOrOffline && isPageVisible) {
+            if (!isWatchingOrOffline && isPageVisible()) {
                 setIdle()
             }
         }, CONFIG.IDLE_TIMEOUT)
@@ -323,7 +343,7 @@ export const useUserStatus = () => {
     const handleActivity = () => {
         // Don't change status if watching or page is hidden
         if (sharedState.currentStatus.value === 'watching') return
-        if (typeof document !== 'undefined' && document.hidden) return
+        if (!isPageVisible()) return
 
         if (sharedState.currentStatus.value === 'idle') {
             setOnline()
@@ -333,26 +353,57 @@ export const useUserStatus = () => {
     }
 
     /**
-     * Handle page visibility change
+     * Handle page visibility change.
+     * When tab is hidden: after a short delay, disconnect WebSocket (avoids disconnect on quick tab switches).
+     * When tab is visible: cancel any pending disconnect, reconnect if needed, restore status.
      */
     const handleVisibilityChange = () => {
-        if (typeof document === 'undefined') return
+        if (!isClient()) return
 
         if (document.hidden) {
-            // Page hidden - clear idle timer
+            // Tab hidden — schedule disconnect after delay (cancel if user returns quickly)
             clearIdleTimer()
+            stopHeartbeat()
+            clearTimeout(sharedState.reconnectTimer)
+            sharedState.reconnectTimer = null
+            clearTimeout(sharedState.hiddenTabDisconnectTimer)
+            sharedState.hiddenTabDisconnectTimer = setTimeout(() => {
+                sharedState.hiddenTabDisconnectTimer = null
+                sharedState.lastStatusBeforeHidden = sharedState.currentStatus.value
+                sharedState.lastWatchingDataBeforeHidden = sharedState.watchingData.value
+                sharedState.disconnectedDueToHiddenTab = true
+                disconnectWebSocket()
+                sharedState.currentStatus.value = 'offline'
+            }, CONFIG.HIDDEN_TAB_DISCONNECT_DELAY)
         } else {
-            // Page visible - restore appropriate status
-            const status = sharedState.currentStatus.value
+            // Tab visible again — cancel pending disconnect, restore if we had disconnected
+            clearTimeout(sharedState.hiddenTabDisconnectTimer)
+            sharedState.hiddenTabDisconnectTimer = null
 
-            if (status === 'watching' && sharedState.watchingData.value) {
-                // Refresh watching status
-                updateStatus('watching', sharedState.watchingData.value)
-            } else if (status === 'idle') {
-                // Return from idle to online
-                setOnline()
-            } else if (status === 'online') {
-                // Restart idle timer
+            if (sharedState.disconnectedDueToHiddenTab) {
+                sharedState.disconnectedDueToHiddenTab = false
+                const restored = sharedState.lastStatusBeforeHidden
+                const restoredWatching = sharedState.lastWatchingDataBeforeHidden
+                sharedState.lastStatusBeforeHidden = null
+                sharedState.lastWatchingDataBeforeHidden = null
+
+                if (restored && restored !== 'offline') {
+                    sharedState.currentStatus.value = restored
+                    if (restored === 'watching' && restoredWatching) {
+                        sharedState.watchingData.value = restoredWatching
+                    }
+                }
+
+                if (sharedState.isTracking.value && userSettings.value?.id) {
+                    connectWebSocket()
+                }
+
+                if (restored === 'online' || restored === 'idle') {
+                    resetIdleTimer()
+                }
+            } else {
+                // User returned before disconnect delay — still connected, restart heartbeat and idle
+                startHeartbeat()
                 resetIdleTimer()
             }
         }
@@ -385,9 +436,8 @@ export const useUserStatus = () => {
         resetIdleTimer()
 
         // Register event listeners (only once)
-        if (typeof window !== 'undefined') {
-            const events = ['mousemove', 'keydown', 'touchstart', 'scroll']
-            events.forEach(event => window.addEventListener(event, handleActivity, { passive: true }))
+        if (isClient()) {
+            ACTIVITY_EVENTS.forEach(event => window.addEventListener(event, handleActivity, { passive: true }))
 
             document.addEventListener('visibilitychange', handleVisibilityChange)
             window.addEventListener('beforeunload', handleBeforeUnload)
@@ -406,11 +456,12 @@ export const useUserStatus = () => {
 
         stopHeartbeat()
         clearIdleTimer()
+        clearTimeout(sharedState.hiddenTabDisconnectTimer)
+        sharedState.hiddenTabDisconnectTimer = null
 
         // Remove event listeners
-        if (typeof window !== 'undefined') {
-            const events = ['mousemove', 'keydown', 'touchstart', 'scroll']
-            events.forEach(event => window.removeEventListener(event, handleActivity))
+        if (isClient()) {
+            ACTIVITY_EVENTS.forEach(event => window.removeEventListener(event, handleActivity))
 
             document.removeEventListener('visibilitychange', handleVisibilityChange)
             window.removeEventListener('beforeunload', handleBeforeUnload)
