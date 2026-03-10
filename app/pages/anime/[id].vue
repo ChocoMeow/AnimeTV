@@ -12,6 +12,21 @@ const userShortcuts = computed(() => getShortcuts())
 // User status tracking
 const { setWatching, setOnline } = useUserStatus()
 
+// Anime tooltip composable (for related anime hover)
+const {
+    hoveredAnime,
+    animeDetails,
+    tooltipLoading,
+    tooltipError,
+    tooltipPosition,
+    handleMouseEnter: handleTooltipMouseEnter,
+    handleMouseLeave: handleTooltipMouseLeave,
+    handleTooltipEnter,
+    handleTooltipLeave,
+    setFavoriteStatus,
+    cleanup: cleanupAnimeTooltip,
+} = useAnimeTooltip()
+
 // Component State
 const anime = ref(null)
 const selectedEpisode = ref(null)
@@ -482,6 +497,7 @@ onUnmounted(() => {
     setOnline()
     window.removeEventListener("beforeunload", saveWatchHistory)
     window.removeEventListener("keydown", handleShortcutsKeydown)
+    cleanupAnimeTooltip()
 })
 </script>
 
@@ -743,6 +759,8 @@ onUnmounted(() => {
                                 :key="item.refId || item.video_url"
                                 :to="`/anime/${item.refId}`"
                                 class="flex gap-3 p-2 rounded-lg hover:bg-gray-950/5 dark:hover:bg-white/10 transition-colors group focus:outline-none"
+                                @mouseenter="handleTooltipMouseEnter(item, $event)"
+                                @mouseleave="handleTooltipMouseLeave"
                                 role="listitem"
                                 :aria-label="`View ${item.title}`"
                             >
@@ -856,6 +874,8 @@ onUnmounted(() => {
                                 :key="item.refId || item.video_url"
                                 :to="`/anime/${item.refId}`"
                                 class="flex gap-3 p-2 rounded-lg hover:bg-gray-950/5 dark:hover:bg-white/10 transition-colors group focus:outline-none"
+                                @mouseenter="handleTooltipMouseEnter(item, $event)"
+                                @mouseleave="handleTooltipMouseLeave"
                                 role="listitem"
                                 :aria-label="`View ${item.title}`"
                             >
@@ -894,6 +914,18 @@ onUnmounted(() => {
             </div>
         </div>
     </div>
+
+    <!-- Anime Tooltip Component -->
+    <AnimeTooltip
+        :hovered-anime="hoveredAnime"
+        :anime-details="animeDetails"
+        :tooltip-loading="tooltipLoading"
+        :tooltip-error="tooltipError"
+        :tooltip-position="tooltipPosition"
+        :on-tooltip-enter="handleTooltipEnter"
+        :on-tooltip-leave="handleTooltipLeave"
+        :on-favorite-toggled="({ refId, isFavorite }) => setFavoriteStatus(refId, isFavorite)"
+    />
 
     <!-- Share Dialog Component -->
     <LazyShareDialog v-model="showShareDialog" :share-url="shareUrl" :anime-title="anime?.title" :has-episode="!!selectedEpisode" />
@@ -948,7 +980,7 @@ onUnmounted(() => {
             </div>
 
             <!-- Additional Info -->
-            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div class="pt-4">
                 <p class="text-xs text-gray-500 dark:text-gray-400 text-center">
                     提示：在輸入框中輸入時，快捷鍵將不會生效
                 </p>

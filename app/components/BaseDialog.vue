@@ -24,6 +24,14 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    padding: {
+        type: Boolean,
+        default: true,
+    },
+    showHeader: {
+        type: Boolean,
+        default: true,
+    },
 })
 
 const emit = defineEmits(["update:modelValue"])
@@ -76,9 +84,9 @@ onBeforeUnmount(() => {
     <Teleport to="body">
         <Transition name="dialog">
             <div v-if="modelValue" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" :class="{ 'overflow-y-auto': scrollable }" @click.self="handleBackdropClick">
-                <div class="bg-white dark:bg-gray-950 rounded-2xl shadow-2xl w-full p-6 transform transition-all border-1 border-gray-950/5 dark:border-white/10" :class="[maxWidth, scrollable ? 'my-8' : '']" @click.stop>
+                <div class="bg-white dark:bg-gray-950 rounded-2xl shadow-2xl w-full transform transition-all border-1 border-gray-950/5 dark:border-white/10 overflow-hidden" :class="[maxWidth, scrollable ? 'my-8' : '', padding ? 'p-6' : 'p-0']" @click.stop>
                     <!-- Header -->
-                    <div v-if="title || showClose || $slots.header" class="flex items-center justify-between mb-2">
+                    <div v-if="showHeader && (title || showClose || $slots.header)" class="flex items-center justify-between mb-2 flex-shrink-0">
                         <slot name="header">
                             <h3 class="text-2xl font-bold text-gray-900 dark:text-white">
                                 {{ title }}
@@ -91,7 +99,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <!-- Content -->
-                    <div :class="scrollable ? 'max-h-[70vh] overflow-y-auto pr-2' : ''">
+                    <div :class="['base-dialog-content', scrollable ? 'max-h-[70vh] overflow-y-auto min-h-0' : '']">
                         <slot />
                     </div>
 
@@ -106,6 +114,27 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.base-dialog-content {
+    scrollbar-gutter: stable;
+}
+
+.base-dialog-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.base-dialog-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.base-dialog-content::-webkit-scrollbar-thumb {
+    background: rgb(156 163 175 / 0.5);
+    border-radius: 3px;
+}
+
+.base-dialog-content::-webkit-scrollbar-thumb:hover {
+    background: rgb(156 163 175 / 0.7);
+}
+
 .dialog-enter-active,
 .dialog-leave-active {
     transition: all 0.3s ease-out;
