@@ -20,6 +20,9 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
 
+            - name: Lowercase image name
+              run: echo "IMAGE_NAME=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
             - name: Set up QEMU
               uses: docker/setup-qemu-action@v3
 
