@@ -51,6 +51,18 @@ const videoPlayer = ref(null)
 const hasSetInitialTime = ref(false)
 const previousEpisode = ref(null)
 
+// Video thumbnails (per selected episode)
+const currentEpisodeData = computed(() => {
+    if (!anime.value?.episodes || selectedEpisode.value === null || selectedEpisode.value === undefined) return null
+    const epKey = String(selectedEpisode.value)
+    return anime.value.episodes[epKey] ?? null
+})
+
+const currentVideoId = computed(() => {
+    const ep = currentEpisodeData.value
+    return typeof ep === "string" ? null : ep?.video_id ?? null
+})
+
 // Constants
 const SAVE_INTERVAL = 120000 // Save every 2 minutes
 let saveIntervalTimer = null
@@ -444,7 +456,8 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
 
     previousEpisode.value = epNum
 
-    const token = anime.value.episodes[String(epNum)]
+    const episodeData = anime.value.episodes[String(epNum)]
+    const token = episodeData?.token
     if (!token) {
         videoUrl.value = null
         videoIsHls.value = false
@@ -569,6 +582,7 @@ onUnmounted(() => {
                             ref="videoPlayer" 
                             :src="videoUrl" 
                             :is-hls="videoIsHls"
+                            :video-id="currentVideoId"
                             preload="metadata" 
                             :has-next-episode="hasNextEpisode" 
                             :shortcuts="userShortcuts" 

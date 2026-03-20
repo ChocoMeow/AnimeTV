@@ -10,6 +10,11 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    // Used to load hover thumbnails (thumbnails.vtt + thumbnails.jpg)
+    videoId: {
+        type: [String, Number],
+        default: null,
+    },
     autoplay: {
         type: Boolean,
         default: false,
@@ -58,6 +63,46 @@ const hoverPreviewPosition = ref(0)
 const isSpaceHeld = ref(false)
 const originalPlaybackRate = ref(1)
 const playbackRate = ref(1)
+
+// Hover Thumbnails (thumbnails.vtt + thumbnails.jpg)
+const THUMB_PREVIEW_W = 280
+const thumbnailsSegments = ref([]) // [{ start, end, xywh: { x, y, w, h } }]
+const activeThumbnail = ref(null) // currently hovered segment with xywh
+let thumbnailsAbortController = null
+
+const normalizedVideoId = computed(() => {
+    if (props.videoId === null || props.videoId === undefined) return null
+    const id = String(props.videoId).trim()
+    return id || null
+})
+
+const thumbnailJpgUrl = computed(() =>
+    normalizedVideoId.value ? `https://pt2.anime1.me/${normalizedVideoId.value}/thumbnails.jpg` : null
+)
+
+const thumbnailCrop = computed(() => activeThumbnail.value?.xywh ?? null)
+
+const thumbnailPreviewHeight = computed(() => {
+    const crop = thumbnailCrop.value
+    if (!crop?.w || !crop?.h) return Math.round(THUMB_PREVIEW_W * 9 / 16)
+    const scale = THUMB_PREVIEW_W / crop.w
+    return Math.max(1, Math.round(crop.h * scale))
+})
+
+const thumbnailImageStyle = computed(() => {
+    const crop = thumbnailCrop.value
+    if (!crop?.w || !crop?.h) return {}
+
+    const scale = THUMB_PREVIEW_W / crop.w
+
+    // We render the full jpg inside an overflow-hidden wrapper.
+    // Scale the full sprite sheet, then translate to the target frame.
+    return {
+        transformOrigin: "top left",
+        transform: `translate(${-crop.x * scale}px, ${-crop.y * scale}px) scale(${scale})`,
+        maxWidth: "none",
+    }
+})
 
 // Playback speed options
 const playbackSpeeds = [0.5, 0.75, 1, 1.25, 1.5, 2, 3]
@@ -176,6 +221,7 @@ function handleProgressMouseDown(e) {
     e.preventDefault()
     isDraggingProgress.value = true
     isHoveringProgress.value = false
+    activeThumbnail.value = null
 
     const newTime = calculateTimeFromPosition(e)
     if (newTime !== null) {
@@ -195,8 +241,15 @@ function handleProgressHover(e) {
     const rect = progressRef.value.getBoundingClientRect()
     const pos = Math.max(0, Math.min((e.clientX - rect.left) / rect.width, 1))
     hoverPreviewTime.value = pos * duration.value
-    hoverPreviewPosition.value = pos * 100
     isHoveringProgress.value = true
+
+    updateActiveThumbnailForTime(hoverPreviewTime.value)
+
+    // Clamp tooltip inside progress bar so it doesn't get cut at start/end.
+    const halfThumb = THUMB_PREVIEW_W / 2
+    const centerPx = pos * rect.width
+    const clampedCenterPx = Math.max(halfThumb, Math.min(centerPx, rect.width - halfThumb))
+    hoverPreviewPosition.value = rect.width > 0 ? (clampedCenterPx / rect.width) * 100 : pos * 100
 }
 
 function handleProgressMouseEnter() {
@@ -205,6 +258,7 @@ function handleProgressMouseEnter() {
 
 function handleProgressMouseLeaveBar() {
     isHoveringProgress.value = false
+    activeThumbnail.value = null
 }
 
 function handleProgressMouseMove(e) {
@@ -217,6 +271,134 @@ function handleProgressMouseMove(e) {
         dragPreviewTime.value = newTime
     }
 }
+
+function parseVttTimeToSeconds(timeStr) {
+    // Supports `HH:MM:SS.mmm` and `MM:SS.mmm`
+    const clean = String(timeStr).trim()
+    const parts = clean.split(":")
+    if (parts.length === 3) {
+        const [hh, mm, ssms] = parts
+        const [ss, ms] = ssms.split(".")
+        return Number(hh) * 3600 + Number(mm) * 60 + Number(ss) + Number(ms || 0) / 1000
+    }
+    if (parts.length === 2) {
+        const [mm, ssms] = parts
+        const [ss, ms] = ssms.split(".")
+        return Number(mm) * 60 + Number(ss) + Number(ms || 0) / 1000
+    }
+    return 0
+}
+
+function parseThumbnailsVtt(vttText) {
+    const text = String(vttText || "").replace(/\r/g, "")
+    const blocks = text.split(/\n\s*\n/)
+    const segments = []
+
+    for (const block of blocks) {
+        // Support both HH:MM:SS.mmm and MM:SS.mmm, with optional cue settings after end time.
+        const timeMatch = block.match(/((?:\d{2}:)?\d{2}:\d{2}\.\d{3})\s*-->\s*((?:\d{2}:)?\d{2}:\d{2}\.\d{3})/)
+        const xywhMatch = block.match(/#xywh=(\d+),(\d+),(\d+),(\d+)/)
+        if (!timeMatch || !xywhMatch) continue
+
+        const [, startRaw, endRaw] = timeMatch
+        const [, x, y, w, h] = xywhMatch
+
+        segments.push({
+            start: parseVttTimeToSeconds(startRaw),
+            end: parseVttTimeToSeconds(endRaw),
+            xywh: { x: Number(x), y: Number(y), w: Number(w), h: Number(h) },
+        })
+    }
+
+    return segments
+        .filter((s) => Number.isFinite(s.start) && Number.isFinite(s.end) && s.end >= s.start)
+        .sort((a, b) => a.start - b.start)
+}
+
+function findThumbnailSegmentAtTime(t) {
+    const segments = thumbnailsSegments.value
+    if (!segments?.length) return null
+
+    // Binary search: find last segment with start <= t, then validate by end.
+    let lo = 0
+    let hi = segments.length - 1
+    let ans = -1
+
+    while (lo <= hi) {
+        const mid = (lo + hi) >> 1
+        if (segments[mid].start <= t) {
+            ans = mid
+            lo = mid + 1
+        } else {
+            hi = mid - 1
+        }
+    }
+
+    if (ans === -1) return null
+    const seg = segments[ans]
+    return t >= seg.start && t <= seg.end ? seg : null
+}
+
+function updateActiveThumbnailForTime(t) {
+    if (!normalizedVideoId.value || !thumbnailsSegments.value?.length) {
+        activeThumbnail.value = null
+        return
+    }
+    activeThumbnail.value = findThumbnailSegmentAtTime(t)
+}
+
+// Simple in-memory cache per videoId to avoid re-fetching VTT.
+const thumbnailsVttCache = new Map()
+
+async function loadThumbnailsForVideoId(videoId) {
+    activeThumbnail.value = null
+    thumbnailsSegments.value = []
+
+    if (!videoId) return
+    if (typeof window === "undefined") return
+
+    const cached = thumbnailsVttCache.get(videoId)
+    if (cached?.length) {
+        thumbnailsSegments.value = cached
+        return
+    }
+
+    try {
+        if (thumbnailsAbortController) thumbnailsAbortController.abort()
+        thumbnailsAbortController = new AbortController()
+
+        const vttUrl = `https://pt2.anime1.me/${videoId}/thumbnails.vtt`
+        const res = await fetch(vttUrl, { signal: thumbnailsAbortController.signal })
+        if (!res.ok) throw new Error(`Failed to fetch thumbnails.vtt (${res.status})`)
+
+        const vttText = await res.text()
+        const segments = parseThumbnailsVtt(vttText)
+
+        thumbnailsSegments.value = segments
+        thumbnailsVttCache.set(videoId, segments)
+
+        // Preload the jpg so hover feels instant.
+        if (segments.length) {
+            const img = new Image()
+            img.crossOrigin = "anonymous"
+            img.src = `https://pt2.anime1.me/${videoId}/thumbnails.jpg`
+        }
+    } catch (err) {
+        thumbnailsSegments.value = []
+        activeThumbnail.value = null
+    }
+}
+
+watch(
+    () => normalizedVideoId.value,
+    async (newVideoId) => {
+        await loadThumbnailsForVideoId(newVideoId)
+        if (isHoveringProgress.value && !isDraggingProgress.value) {
+            updateActiveThumbnailForTime(hoverPreviewTime.value)
+        }
+    },
+    { immediate: true }
+)
 
 function handleProgressMouseUp(e) {
     if (!isDraggingProgress.value) return
@@ -714,33 +896,54 @@ watch(
                 <!-- Progress Bar -->
                 <div class="px-3 sm:px-6 pt-4 sm:pt-8 pb-2 sm:pb-3">
                     <div ref="progressRef"
-                        class="relative h-1 sm:h-1.5 bg-white/20 rounded-full cursor-pointer transition-all duration-200 hover:h-1.5 sm:hover:h-2 group"
-                        :class="{ 'h-1.5 sm:h-2': isDraggingProgress }" @click="handleProgressClick"
+                        class="relative h-6 sm:h-7 cursor-pointer group flex items-center"
+                        @click="handleProgressClick"
                         @mousedown="handleProgressMouseDown" @mousemove="handleProgressHover"
                         @mouseenter="handleProgressMouseEnter" @mouseleave="handleProgressMouseLeaveBar">
-                        <!-- Buffered Progress -->
-                        <div class="absolute h-full bg-white/30 rounded-full transition-all duration-300 pointer-events-none"
-                            :style="{ width: `${buffered}%` }" />
+                        <div
+                            class="relative w-full h-1 sm:h-1.5 bg-white/20 rounded-full transition-all duration-200 hover:h-1.5 sm:hover:h-2"
+                            :class="{ 'h-1.5 sm:h-2': isDraggingProgress }">
+                            <!-- Buffered Progress -->
+                            <div class="absolute h-full bg-white/30 rounded-full transition-all duration-300 pointer-events-none"
+                                :style="{ width: `${buffered}%` }" />
 
-                        <!-- Played Progress -->
-                        <div class="absolute h-full bg-white rounded-full pointer-events-none"
-                            :class="isDraggingProgress ? 'transition-none' : 'transition-all duration-100'"
-                            :style="{ width: `${progress}%` }">
-                            <div class="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white rounded-full shadow-lg transition-opacity duration-200"
-                                :class="isDraggingProgress || isHoveringProgress ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'" />
-                        </div>
-
-                        <!-- Hover Time Preview Tooltip -->
-                        <transition name="fade">
-                            <div v-if="isHoveringProgress && !isDraggingProgress && duration > 0"
-                                class="absolute bottom-full mb-2 -translate-x-1/2 pointer-events-none"
-                                :style="{ left: `${hoverPreviewPosition}%` }">
-                                <div
-                                    class="bg-black/90 backdrop-blur-md text-white px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg">
-                                    {{ formatTime(hoverPreviewTime) }}
-                                </div>
+                            <!-- Played Progress -->
+                            <div class="absolute h-full bg-white rounded-full pointer-events-none"
+                                :class="isDraggingProgress ? 'transition-none' : 'transition-all duration-100'"
+                                :style="{ width: `${progress}%` }">
+                                <div class="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white rounded-full shadow-lg transition-opacity duration-200"
+                                    :class="isDraggingProgress || isHoveringProgress ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'" />
                             </div>
-                        </transition>
+
+                            <!-- Hover Thumbnail / Fallback Time Tooltip -->
+                            <transition name="fade">
+                                <div v-if="isHoveringProgress && !isDraggingProgress && duration > 0"
+                                    class="absolute bottom-full mb-2 -translate-x-1/2 pointer-events-none"
+                                    :style="{ left: `${hoverPreviewPosition}%` }">
+                                    <div
+                                        v-if="activeThumbnail && thumbnailJpgUrl"
+                                    class="flex flex-col items-center"
+                                    :style="{ width: `${THUMB_PREVIEW_W}px` }">
+                                        <div class="relative overflow-hidden rounded-xl border border-gray-900/20 dark:border-white/20"
+                                            :style="{ width: `${THUMB_PREVIEW_W}px`, height: `${thumbnailPreviewHeight}px` }">
+                                            <img :src="thumbnailJpgUrl"
+                                                class="absolute top-0 left-0 block w-auto h-auto"
+                                                :style="thumbnailImageStyle"
+                                                alt="Thumbnail preview" />
+                                        </div>
+                                        <div
+                                            class="mt-1.5 bg-black/90 backdrop-blur-md text-white px-3 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg text-center">
+                                            {{ formatTime(hoverPreviewTime) }}
+                                        </div>
+                                    </div>
+                                    <div
+                                        v-else
+                                        class="bg-black/90 backdrop-blur-md text-white px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg">
+                                        {{ formatTime(hoverPreviewTime) }}
+                                    </div>
+                                </div>
+                            </transition>
+                        </div>
                     </div>
                 </div>
 

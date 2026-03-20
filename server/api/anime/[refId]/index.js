@@ -71,7 +71,9 @@ const buildAnimeMetaPayload = (scraped) => {
 
 const processEpisodeArticle = ($, element, episodes) => {
     const fullTitle = $(element).find("h2.entry-title a").text().trim()
-    const token = $(element).find(".video-js").attr("data-apireq")
+    const $video = $(element).find(".video-js")
+    const token = $video.attr("data-apireq")
+    const videoId = $video.attr("data-vid") || null
     
     if (!fullTitle || !token) return
     
@@ -80,7 +82,10 @@ const processEpisodeArticle = ($, element, episodes) => {
     
     identifier.split("+").forEach(episodeId => {
         const episodeKey = normalizeEpisodeId(episodeId.trim())
-        episodes[episodeKey] = token
+        episodes[episodeKey] = {
+            video_id: videoId,
+            token,
+        }
     })
 }
 
