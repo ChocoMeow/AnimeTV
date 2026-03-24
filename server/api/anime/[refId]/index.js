@@ -1,6 +1,8 @@
 import * as cheerio from "cheerio"
 import { serverSupabaseClient, serverSupabaseServiceRole } from "#supabase/server"
 
+const ONE_MONTH_MS = 1000 * 60 * 60 * 24 * 30
+
 // ============================================================================
 // Utility Functions
 // ============================================================================
@@ -153,11 +155,12 @@ async function scrapeAnimeDetailByRefId(refId) {
             })
             .get()
         
-        const [relatedAnime, matchedVideo] = await Promise.all([
+        const [relatedAnime, mainMatchRow] = await Promise.all([
             matchAnime(rawRelatedAnime),
-            matchAnime([{ refId, title, year: premiereDate }]).then(results => results[0].matchedVideo)
+            matchAnime([{ refId, title, year: premiereDate }]).then(results => results[0] ?? null),
         ])
-        
+        const matchedVideo = mainMatchRow?.matchedVideo ?? null
+
         return {
             refId,
             detailId,
@@ -175,8 +178,8 @@ async function scrapeAnimeDetailByRefId(refId) {
                 count: get(".score-overall-people")?.replace("人評價", "") || null,
             },
             relatedAnime,
-            videoId: matchedVideo.id,
-            season: matchedVideo.season,
+            videoId: matchedVideo?.id ?? null,
+            season: matchedVideo?.season ?? null,
         }
     } catch (err) {
         console.error("Error scraping anime detail:", err.message)
@@ -215,6 +218,29 @@ const upsertAnimeMeta = async (serviceClient, payload) => {
         throw error
     }
     
+    return data
+}
+
+const updateAnimeMetaBySourceId = async (serviceClient, sourceId, payload) => {
+    const {
+        source_id,
+        source_details_id,
+        video_id,
+        ...updatablePayload
+    } = payload || {}
+
+    const { data, error } = await serviceClient
+        .from("anime_meta")
+        .update(updatablePayload)
+        .eq("source_id", sourceId)
+        .select("*")
+        .single()
+
+    if (error) {
+        console.error("Error updating anime_meta:", error)
+        throw error
+    }
+
     return data
 }
 
@@ -293,6 +319,13 @@ const buildAnimeResponse = (meta, episodes, relatedAnime, isFavorite) => ({
     isFavorite,
 })
 
+const isAnimeMetaStale = (meta) => {
+    if (!meta?.updated_at) return false
+    const updatedAtMs = new Date(meta.updated_at).getTime()
+    if (Number.isNaN(updatedAtMs)) return false
+    return Date.now() - updatedAtMs > ONE_MONTH_MS
+}
+
 // ============================================================================
 // Main Handler - Optimized Flow
 // ============================================================================
@@ -319,6 +352,22 @@ export default defineEventHandler(async (event) => {
             
             const payload = buildAnimeMetaPayload(scraped)
             meta = await upsertAnimeMeta(serviceClient, payload)
+        }
+        // Refresh stale metadata monthly only for source_id < 1000000.
+        // If refresh fails, keep old data.
+        else if (isAnimeMetaStale(meta) && Number(meta.source_id) < 1000000) {
+            try {
+                const scraped = await scrapeAnimeDetailByRefId(refId)
+                console.log(`Scraped anime meta for refId ${refId}:`, scraped)
+                if (scraped) {
+                    const payload = buildAnimeMetaPayload(scraped)
+                    meta = await updateAnimeMetaBySourceId(serviceClient, refId, payload)
+                } else {
+                    console.error(`Weekly refresh returned empty scrape for refId ${refId}; using cached metadata`)
+                }
+            } catch (refreshError) {
+                console.error(`Weekly refresh failed for refId ${refId}; using cached metadata`, refreshError)
+            }
         }
         
         // Parallel execution: conditionally fetch episodes, related anime, and favorite status

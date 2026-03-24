@@ -6,7 +6,7 @@ function toResult(row) {
         refId: row.source_id,
         title: row.title,
         image: row.thumbnail,
-        year: row.premiere_date ?? null,
+        year: toYearMonthSlash(row.premiere_date),
         episodes: null,
         views: row.views ?? null,
     }
@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
                     refId,
                     image: getAttr(movie, ".theme-img", "data-src"),
                     title: getText(movie, ".theme-name"),
-                    year: getText(movie, ".theme-time")?.replace("年份：", "") ?? null,
+                    year: toYearMonthSlash(getText(movie, ".theme-time")?.replace("年份：", "") ?? null),
                     episodes: getText(movie, ".theme-number"),
                     views: parseViews(getText(movie, ".show-view-number p")),
                 }

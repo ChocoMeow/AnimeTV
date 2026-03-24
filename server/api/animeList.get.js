@@ -39,10 +39,9 @@ export default defineEventHandler(async (event) => {
             })
             .get()
 
-        const results = await matchAnime(animeList)
         const totalPage = $(".page_number a:last-child").text().trim() || "1"
 
-        return { results, totalPage }
+        return { results: animeList, totalPage }
     } catch (err) {
         console.error("Error scraping anime list:", err.message)
         return { results: [], totalPage: "0" }

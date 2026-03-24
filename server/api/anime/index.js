@@ -213,25 +213,19 @@ async function scrapeAllAnime(client, userId) {
         return mergeUserThemes(empty)
     }
 
-    const matchedAll = await matchAnimeWithDb(client, allRaw).catch(err => {
-        console.error("Error matching anime", err)
-        return allRaw
-    })
-
-    const isMatched = item => item?.inDb || item?.matchedVideo
     const blockCount = blockItems.length
 
     const byDay = {}
     for (let i = 0; i < blockCount; i++) {
-        const item = matchedAll[i]
-        if (!isMatched(item) || !item.dayCode) continue
+        const item = allRaw[i]
+        if (!item?.dayCode) continue
         const { dayCode, ...rest } = item
             ; (byDay[dayCode] ??= []).push(rest)
     }
 
     const themes = {}
     for (const { themeTitle, start, count } of themeRanges)
-        themes[themeTitle] = matchedAll.slice(blockCount + start, blockCount + start + count).filter(isMatched)
+        themes[themeTitle] = allRaw.slice(blockCount + start, blockCount + start + count)
 
     ANIME_CACHE.timestamp = now
     ANIME_CACHE.data = { byDay, themes, fetchedAt }
