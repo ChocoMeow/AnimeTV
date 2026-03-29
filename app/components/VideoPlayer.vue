@@ -844,11 +844,6 @@ watch(
         if (videoRef.value) {
             videoRef.value.playbackRate = 1
         }
-        if (notificationTimeout) {
-            clearTimeout(notificationTimeout)
-            notificationTimeout = null
-        }
-        notification.value.show = false
         // Clear any pending space press timeout
         if (spacePressTimeout) {
             clearTimeout(spacePressTimeout)
