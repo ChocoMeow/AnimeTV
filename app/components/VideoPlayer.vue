@@ -141,7 +141,7 @@ function showNotification(message, icon) {
 
     notificationTimeout = setTimeout(() => {
         notification.value.show = false
-    }, 500)
+    }, 800)
 }
 
 // Auto-hide controls
@@ -1039,10 +1039,10 @@ watch(
 
         <!-- Keyboard Shortcut Notification -->
         <transition name="fade-scale">
-            <div v-if="notification.show" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[20] pointer-events-none">
-                <div class="bg-black/90 backdrop-blur-md text-white px-4 py-3 sm:px-6 sm:py-4 rounded-2xl shadow-2xl border border-white/20 flex items-center justify-center gap-3 sm:gap-4 min-w-[160px] sm:min-w-[200px]">
-                    <span class="material-icons text-2xl sm:text-3xl text-gray-300">{{ notification.icon }}</span>
-                    <span class="text-lg sm:text-xl font-semibold">{{ notification.message }}</span>
+            <div v-if="notification.show" class="absolute top-14 left-1/2 -translate-x-1/2 z-[20] pointer-events-none sm:top-16">
+                <div class="bg-black/45 backdrop-blur-md text-white px-3 py-1 sm:px-4 sm:py-1.5 rounded-full shadow-lg border border-white/15 flex items-center justify-center gap-2 min-w-0 max-w-[min(90vw,20rem)]">
+                    <span class="material-icons shrink-0 text-lg sm:text-xl text-gray-300">{{ notification.icon }}</span>
+                    <span class="text-xs sm:text-sm font-semibold truncate">{{ notification.message }}</span>
                 </div>
             </div>
         </transition>
@@ -1095,6 +1095,6 @@ watch(
 .fade-scale-enter-from,
 .fade-scale-leave-to {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.8);
+    transform: translateX(-50%) translateY(-0.35rem) scale(0.92);
 }
 </style>
