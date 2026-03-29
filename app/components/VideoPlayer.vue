@@ -129,19 +129,23 @@ const displayTime = computed(() => {
     return isDraggingProgress.value ? dragPreviewTime.value : currentTime.value
 })
 
-// Show notification helper
-function showNotification(message, icon) {
+// Show notification helper (persistent = no auto-hide, e.g. while at 2x speed)
+function showNotification(message, icon, persistent = false) {
     notification.value.message = message
     notification.value.icon = icon
     notification.value.show = true
 
     if (notificationTimeout) {
         clearTimeout(notificationTimeout)
+        notificationTimeout = null
     }
 
-    notificationTimeout = setTimeout(() => {
-        notification.value.show = false
-    }, 800)
+    if (!persistent) {
+        notificationTimeout = setTimeout(() => {
+            notification.value.show = false
+            notificationTimeout = null
+        }, 800)
+    }
 }
 
 // Auto-hide controls
@@ -605,7 +609,7 @@ function handleKeydown(e) {
             spacePressTimeout = setTimeout(() => {
                 if (isSpaceHeld.value && videoRef.value) {
                     videoRef.value.playbackRate = 2
-                    showNotification("2x 速度", "fast_forward")
+                    showNotification("2x 速度", "fast_forward", true)
                 }
             }, 300)
         }
@@ -652,10 +656,7 @@ function handleKeydown(e) {
         const labels = shortcuts.mute.label.split("/")
         showNotification(wasMuted ? labels[1] : labels[0], wasMuted ? "volume_up" : "volume_off")
     } else if (action === 'fullscreen') {
-        const wasFullscreen = isFullscreen.value
         toggleFullscreen()
-        const labels = shortcuts.fullscreen.label.split("/")
-        showNotification(wasFullscreen ? labels[1] : labels[0], wasFullscreen ? "fullscreen_exit" : "fullscreen")
     } else if (action === 'seekBackward10') {
         skip(-10)
         showNotification(shortcuts.seekBackward10.label, "fast_rewind")
@@ -843,6 +844,11 @@ watch(
         if (videoRef.value) {
             videoRef.value.playbackRate = 1
         }
+        if (notificationTimeout) {
+            clearTimeout(notificationTimeout)
+            notificationTimeout = null
+        }
+        notification.value.show = false
         // Clear any pending space press timeout
         if (spacePressTimeout) {
             clearTimeout(spacePressTimeout)
