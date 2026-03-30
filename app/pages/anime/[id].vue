@@ -555,7 +555,7 @@ onUnmounted(() => {
                                     alt="Anime thumbnail background"
                                     loading="eager"
                                     class="w-full h-full object-cover"
-                                    style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; filter: blur(1px);"
+                                    style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; filter: blur(2px);"
                                 />
                             </div>
                             
