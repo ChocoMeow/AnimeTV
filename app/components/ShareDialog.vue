@@ -73,14 +73,14 @@ async function shareNative() {
 </script>
 
 <template>
-    <BaseDialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)" title="分享動漫" max-width="max-w-md">
+    <LazyBaseDialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)" title="分享動漫" max-width="max-w-md">
         <div class="space-y-6">
             <!-- QR Code Section -->
             <div class="flex justify-center p-6 bg-black/10 dark:bg-white/10 rounded-xl">
                 <div class="bg-white p-4 rounded-lg shadow-md">
                     <div class="relative w-48 h-48">
                         <div v-if="!qrCodeLoaded" class="absolute inset-0 bg-gray-200 rounded-lg animate-pulse"></div>
-                        <img :src="`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(finalUrl)}`" alt="QR Code" class="w-48 h-48 transition-opacity duration-300" :class="qrCodeLoaded ? 'opacity-100' : 'opacity-0'" @load="qrCodeLoaded = true" />
+                        <NuxtImg :src="`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(finalUrl)}`" alt="QR Code" class="w-48 h-48 transition-opacity duration-300" :class="qrCodeLoaded ? 'opacity-100' : 'opacity-0'" loading="eager" @load="qrCodeLoaded = true" />
                     </div>
                 </div>
             </div>
@@ -122,7 +122,7 @@ async function shareNative() {
                 </button>
             </div>
         </div>
-    </BaseDialog>
+    </LazyBaseDialog>
 </template>
 
 <style scoped>

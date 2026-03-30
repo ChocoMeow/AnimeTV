@@ -250,11 +250,12 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                                 class="anime-scroll-item"
                             >
                                 <div class="relative w-full h-full rounded-2xl overflow-hidden shadow-lg group">
-                                    <img
+                                    <NuxtImg
                                     v-if="imageUrl"
                                     :src="imageUrl"
                                     alt="Anime"
                                         :class="['w-full h-full object-cover transition-all duration-500 group-hover:scale-110 rounded-2xl border-2 border-gray-300 dark:border-white/10', animeLoaded ? 'fade-in-image' : 'opacity-0']"
+                                        loading="lazy"
                                     />
                                     <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl"></div>
                                 </div>
@@ -312,7 +313,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                     <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
                         <div class="flex items-center justify-center gap-3">
                             <div class="w-10 h-10 rounded-full bg-gray-600 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
-                                <img v-if="userAvatarUrl" :src="userAvatarUrl" alt="" class="w-full h-full object-cover" />
+                                <NuxtImg v-if="userAvatarUrl" :src="userAvatarUrl" alt="" class="w-full h-full object-cover" loading="lazy" />
                             </div>
                             <div class="text-left">
                                 <p class="text-xs text-gray-500 dark:text-gray-400">已登入為</p>
@@ -353,7 +354,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                 <!-- Login Form (Default) -->
                 <div v-else class="space-y-8">
                     <div class="flex justify-center lg:justify-start">
-                        <img class="w-16 h-16" src="/icons/icon_1024x1024.png" alt="" />
+                        <NuxtImg class="w-16 h-16" src="/icons/icon_512x512.webp" alt="" loading="lazy" />
                     </div>
                     
                     <div class="text-center lg:text-left space-y-3">
@@ -413,7 +414,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
         <!-- Mobile Background -->
         <div class="lg:hidden absolute inset-0 z-0">
             <div v-if="randomMobileAnime" class="absolute inset-0">
-                <img :src="randomMobileAnime" alt="Anime" class="w-full h-full object-cover" />
+                <NuxtImg :src="randomMobileAnime" alt="Anime" class="w-full h-full object-cover" loading="lazy" />
             </div>
             <div class="absolute inset-0 bg-gradient-to-b from-white via-white/90 to-white dark:from-gray-950 dark:via-gray-950/90 dark:to-gray-950"></div>
         </div>

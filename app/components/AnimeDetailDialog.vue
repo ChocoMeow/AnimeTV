@@ -41,7 +41,7 @@ watch(
 </script>
 
 <template>
-    <BaseDialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)" title="動漫詳情" max-width="max-w-4xl" scrollable>
+    <LazyBaseDialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)" title="動漫詳情" max-width="max-w-4xl" scrollable>
         <!-- Loading State -->
         <div v-if="loading" class="flex flex-col items-center justify-center py-12">
             <div class="inline-block w-12 h-12 border-4 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin mb-4"></div>
@@ -64,7 +64,7 @@ watch(
                 </h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div v-for="staff in animeDetails.staff" :key="staff.id" class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                        <img v-if="staff.image" :src="staff.image" :alt="staff.name" class="w-12 h-12 rounded-full object-cover" />
+                        <NuxtImg v-if="staff.image" :src="staff.image" :alt="staff.name" class="w-12 h-12 rounded-full object-cover" loading="lazy" />
                         <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center" v-else>
                             <span class="material-icons text-gray-600 dark:text-gray-400">person</span>
                         </div>
@@ -84,7 +84,7 @@ watch(
                 </h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div v-for="cast in animeDetails.cast" :key="cast.id" class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                        <img v-if="cast.image" :src="cast.image" :alt="cast.name" class="w-12 h-12 rounded-full object-cover" />
+                        <NuxtImg v-if="cast.image" :src="cast.image" :alt="cast.name" class="w-12 h-12 rounded-full object-cover" loading="lazy" />
                         <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center" v-else>
                             <span class="material-icons text-gray-600 dark:text-gray-400">person</span>
                         </div>
@@ -130,7 +130,7 @@ watch(
                 </div>
             </div>
         </div>
-    </BaseDialog>
+    </LazyBaseDialog>
 </template>
 
 <style scoped>

@@ -144,8 +144,8 @@ onBeforeUnmount(() => {
                                 <div class="flex items-start gap-3 mb-3 cursor-pointer"
                                     @click="openFriendProfile(friend)">
                                     <div class="relative flex-shrink-0">
-                                        <img :src="friend.avatar" :alt="friend.name"
-                                            class="w-11 h-11 rounded-full border-2 border-white dark:border-gray-200 object-cover shadow-lg" />
+                                        <NuxtImg :src="friend.avatar" :alt="friend.name"
+                                            class="w-11 h-11 rounded-full border-2 border-white dark:border-gray-200 object-cover shadow-lg" loading="lazy" />
                                         <span
                                             class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"
                                             :title="friend.status"></span>
@@ -172,8 +172,8 @@ onBeforeUnmount(() => {
                             :class="['flex items-center gap-3 p-3 rounded-xl transition-colors border border-gray-200 dark:border-white/10 cursor-pointer', section.isOffline ? 'bg-gray-950/5 dark:bg-white/10 opacity-70 hover:opacity-90' : 'bg-gray-950/5 dark:bg-white/10 hover:bg-gray-950/10 dark:hover:bg-white/20']"
                             @click="openFriendProfile(friend)">
                             <div class="relative flex-shrink-0">
-                                <img :src="friend.avatar" :alt="friend.name"
-                                    :class="['w-10 h-10 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover', section.isOffline && 'grayscale']" />
+                                <NuxtImg :src="friend.avatar" :alt="friend.name"
+                                    :class="['w-10 h-10 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover', section.isOffline && 'grayscale']" loading="lazy" />
                                 <span
                                     :class="['absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-gray-900 rounded-full', section.dotColorClass]"
                                     :title="friend.status"></span>
@@ -214,8 +214,8 @@ onBeforeUnmount(() => {
                                 <div class="flex items-start gap-3 mb-3 cursor-pointer"
                                     @click="openFriendProfile(friend)">
                                     <div class="relative flex-shrink-0">
-                                        <img :src="friend.avatar" :alt="friend.name"
-                                            class="w-14 h-14 rounded-full border-2 border-white dark:border-gray-200 object-cover shadow-lg" />
+                                        <NuxtImg :src="friend.avatar" :alt="friend.name"
+                                            class="w-14 h-14 rounded-full border-2 border-white dark:border-gray-200 object-cover shadow-lg" loading="lazy" />
                                         <span
                                             class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-3 border-white dark:border-gray-900 rounded-full"></span>
                                     </div>
@@ -240,8 +240,8 @@ onBeforeUnmount(() => {
                             :class="['flex items-center gap-3 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 cursor-pointer', section.isOffline ? 'bg-gray-50 dark:bg-white/10 opacity-70' : 'bg-gray-50 dark:bg-white/10']"
                             @click="openFriendProfile(friend)">
                             <div class="relative flex-shrink-0">
-                                <img :src="friend.avatar" :alt="friend.name"
-                                    :class="['w-12 h-12 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover', section.isOffline && 'grayscale']" />
+                                <NuxtImg :src="friend.avatar" :alt="friend.name"
+                                    :class="['w-12 h-12 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover', section.isOffline && 'grayscale']" loading="lazy" />
                                 <span
                                     :class="['absolute -bottom-0.5 -right-0.5 w-4 h-4 border-2 border-white dark:border-gray-900 rounded-full', section.dotColorClass]"></span>
                             </div>

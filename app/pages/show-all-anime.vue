@@ -307,7 +307,7 @@ onUnmounted(() => {
 
         <!-- Anime Grid -->
         <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            <AnimeCard 
+            <LazyAnimeCard 
                 v-for="anime in animeList" 
                 :key="anime.refId" 
                 :anime="anime"
@@ -324,7 +324,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Anime Tooltip Component -->
-    <AnimeTooltip
+    <LazyAnimeTooltip
         :hovered-anime="hoveredAnime"
         :anime-details="animeDetails"
         :tooltip-loading="tooltipLoading"

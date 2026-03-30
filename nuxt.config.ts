@@ -1,7 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
     css: ['~/assets/css/tailwind.css'],
-    modules: ['@nuxtjs/tailwindcss', '@nuxtjs/supabase', '@vite-pwa/nuxt'],
+    modules: ['@nuxtjs/tailwindcss', '@nuxtjs/supabase', '@vite-pwa/nuxt', '@nuxt/image'],
     compatibilityDate: '2025-07-15',
     devtools: { enabled: true },
     runtimeConfig: {
@@ -49,7 +49,7 @@ export default defineNuxtConfig({
             meta: [
                 { name: 'description', content: 'Stream your favorite anime series and movies anytime, anywhere.' },
                 { charset: 'utf-8' },
-                { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' },
+                { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=5' },
                 // iOS specific meta tags
                 { name: 'apple-mobile-web-app-capable', content: 'yes' },
                 { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },

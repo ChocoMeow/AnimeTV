@@ -166,7 +166,7 @@ function formatDate(dateString) {
 
 <template>
     <!-- ===================== DESKTOP DIALOG ===================== -->
-    <BaseDialog
+    <LazyBaseDialog
         v-if="!isMobile"
         :model-value="modelValue"
         @update:model-value="emit('update:modelValue', $event)"
@@ -210,7 +210,7 @@ function formatDate(dateString) {
                 <div class="absolute -bottom-12 left-6">
                     <div class="relative">
                         <div v-if="friendAvatar" class="w-24 h-24 rounded-2xl border-4 border-[#101318] bg-gray-900 overflow-hidden shadow-2xl shadow-black/60">
-                            <img :src="friendAvatar" :alt="friendName" class="w-full h-full object-cover" />
+                            <NuxtImg :src="friendAvatar" :alt="friendName" class="w-full h-full object-cover" loading="lazy" />
                         </div>
                         <div v-else class="w-24 h-24 rounded-2xl border-4 border-[#101318] bg-gradient-to-br from-slate-600 via-slate-800 to-slate-950 flex items-center justify-center text-white text-3xl font-bold shadow-2xl shadow-black/60">
                             {{ initials }}
@@ -255,10 +255,11 @@ function formatDate(dateString) {
                             @click="close"
                         >
                             <div class="w-24 sm:w-32 flex-shrink-0 aspect-[2/3] overflow-hidden rounded-lg">
-                                <img
+                                <NuxtImg
                                     :src="watchingNow.anime_image"
                                     :alt="watchingNow.anime_title"
                                     class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                    loading="lazy"
                                 />
                             </div>
                             <div class="flex-1 min-w-0 py-2 flex flex-col justify-center">
@@ -288,7 +289,7 @@ function formatDate(dateString) {
                                 @click="close"
                             >
                                 <div class="relative aspect-[2/3] overflow-hidden">
-                                    <img :src="anime.anime_image" :alt="anime.anime_title" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                    <NuxtImg :src="anime.anime_image" :alt="anime.anime_title" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
                                     <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-80" />
                                     <div class="absolute bottom-0 left-0 right-0 p-2 space-y-1">
                                         <p class="text-[11px] font-medium text-gray-100 truncate">{{ anime.anime_title }}</p>
@@ -322,7 +323,7 @@ function formatDate(dateString) {
                                 @click="close"
                             >
                                 <div class="relative aspect-[2/3] overflow-hidden">
-                                    <img :src="anime.anime_image" :alt="anime.anime_title" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                    <NuxtImg :src="anime.anime_image" :alt="anime.anime_title" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
                                     <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
                                     <div class="absolute top-2 right-2 w-6 h-6 rounded-full bg-pink-500 flex items-center justify-center shadow-lg shadow-pink-500/60">
                                         <span class="material-icons text-xs text-white">bookmark</span>
@@ -363,7 +364,7 @@ function formatDate(dateString) {
                                     @click="close"
                                 >
                                     <div class="aspect-[2/3] relative overflow-hidden">
-                                        <img :src="item.anime_image" :alt="item.anime_title" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                        <NuxtImg :src="item.anime_image" :alt="item.anime_title" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
                                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
                                         <div class="absolute bottom-1 left-1 right-1 text-[10px] text-gray-100 truncate">{{ item.anime_title }}</div>
                                     </div>
@@ -374,7 +375,7 @@ function formatDate(dateString) {
                 </div>
             </div>
         </div>
-    </BaseDialog>
+    </LazyBaseDialog>
 
     <!-- ===================== MOBILE DRAWER ===================== -->
     <BaseBottomDrawer
@@ -386,7 +387,7 @@ function formatDate(dateString) {
         <template #header>
             <div class="flex items-center gap-3">
                 <div v-if="friendAvatar" class="w-12 h-12 rounded-2xl bg-gray-800 overflow-hidden flex-shrink-0">
-                    <img :src="friendAvatar" :alt="friendName" class="w-full h-full object-cover" />
+                    <NuxtImg :src="friendAvatar" :alt="friendName" class="w-full h-full object-cover" loading="lazy" />
                 </div>
                 <div v-else class="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-600 via-slate-800 to-slate-950 flex items-center justify-center text-white text-lg font-semibold flex-shrink-0">
                     {{ initials }}
@@ -434,7 +435,7 @@ function formatDate(dateString) {
                     @click="close"
                 >
                     <div class="w-20 flex-shrink-0 aspect-[2/3] overflow-hidden rounded-lg">
-                        <img :src="watchingNow.anime_image" :alt="watchingNow.anime_title" class="w-full h-full object-cover" />
+                        <NuxtImg :src="watchingNow.anime_image" :alt="watchingNow.anime_title" class="w-full h-full object-cover" loading="lazy" />
                     </div>
                     <div class="flex-1 min-w-0 py-2 flex flex-col justify-center">
                         <p class="text-sm font-semibold text-gray-100 truncate">{{ watchingNow.anime_title }}</p>
@@ -463,7 +464,7 @@ function formatDate(dateString) {
                         @click="close"
                     >
                         <div class="relative aspect-[2/3] overflow-hidden">
-                            <img :src="anime.anime_image" :alt="anime.anime_title" class="w-full h-full object-cover" />
+                            <NuxtImg :src="anime.anime_image" :alt="anime.anime_title" class="w-full h-full object-cover" loading="lazy" />
                             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-80" />
                             <div class="absolute bottom-0 left-0 right-0 p-1.5 space-y-1">
                                 <p class="text-[10px] font-medium text-gray-100 truncate">{{ anime.anime_title }}</p>
@@ -497,7 +498,7 @@ function formatDate(dateString) {
                         @click="close"
                     >
                         <div class="relative aspect-[2/3] overflow-hidden">
-                            <img :src="anime.anime_image" :alt="anime.anime_title" class="w-full h-full object-cover" />
+                            <NuxtImg :src="anime.anime_image" :alt="anime.anime_title" class="w-full h-full object-cover" loading="lazy" />
                             <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
                             <div class="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-pink-500 flex items-center justify-center shadow-lg shadow-pink-500/60">
                                 <span class="material-icons text-[10px] text-white">bookmark</span>
@@ -533,7 +534,7 @@ function formatDate(dateString) {
                             @click="close"
                         >
                             <div class="aspect-[2/3] relative overflow-hidden">
-                                <img :src="item.anime_image" :alt="item.anime_title" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                <NuxtImg :src="item.anime_image" :alt="item.anime_title" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
                                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
                                 <div class="absolute bottom-1 left-1 right-1 text-[10px] text-gray-100 truncate">{{ item.anime_title }}</div>
                             </div>

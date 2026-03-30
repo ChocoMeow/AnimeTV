@@ -343,7 +343,7 @@ onUnmounted(() => {
                 <!-- In Friends Tab, replace the friend card section: -->
                 <div v-for="friend in friends" :key="friend.id" class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
                     <div class="flex items-center gap-4">
-                        <img v-if="friend.avatar" :src="friend.avatar" :alt="friend.name" class="w-16 h-16 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700" />
+                        <NuxtImg v-if="friend.avatar" :src="friend.avatar" :alt="friend.name" class="w-16 h-16 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700" loading="lazy" />
                             <div v-else class="w-16 h-16 rounded-full bg-gray-900 dark:bg-gray-100 flex items-center justify-center text-white dark:text-gray-900 font-bold text-xl">
                             {{ friend.name?.[0]?.toUpperCase() || "?" }}
                         </div>
@@ -412,7 +412,7 @@ onUnmounted(() => {
                 <div v-else class="space-y-3">
                     <div v-for="request in incomingRequests" :key="request.id" class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow-sm p-4">
                         <div class="flex items-center gap-4">
-                            <img v-if="request.sender_avatar" :src="request.sender_avatar" :alt="request.sender_name" class="w-14 h-14 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700" />
+                            <NuxtImg v-if="request.sender_avatar" :src="request.sender_avatar" :alt="request.sender_name" class="w-14 h-14 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700" loading="lazy" />
                             <div v-else class="w-14 h-14 rounded-full bg-gray-900 dark:bg-gray-100 flex items-center justify-center text-white dark:text-gray-900 font-bold text-lg">
                                 {{ request.sender_name?.[0]?.toUpperCase() || '?' }}
                             </div>
@@ -442,7 +442,7 @@ onUnmounted(() => {
                 <div v-else class="space-y-3">
                     <div v-for="request in outgoingRequests" :key="request.id" class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow-sm p-4">
                         <div class="flex items-center gap-4">
-                            <img v-if="request.receiver_avatar" :src="request.receiver_avatar" :alt="request.receiver_name" class="w-14 h-14 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700" />
+                            <NuxtImg v-if="request.receiver_avatar" :src="request.receiver_avatar" :alt="request.receiver_name" class="w-14 h-14 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700" loading="lazy" />
                             <div v-else class="w-14 h-14 rounded-full bg-gray-900 dark:bg-gray-100 flex items-center justify-center text-white dark:text-gray-900 font-bold text-lg">
                                 {{ request.receiver_name?.[0]?.toUpperCase() || '?' }}
                             </div>
@@ -481,7 +481,7 @@ onUnmounted(() => {
             <div v-else-if="searchResults.length > 0" class="space-y-3">
                 <div v-for="result in searchResults" :key="result.id" class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
                     <div class="flex items-center gap-4">
-                        <img v-if="result.avatar" :src="result.avatar" :alt="result.name" class="w-14 h-14 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700" />
+                        <NuxtImg v-if="result.avatar" :src="result.avatar" :alt="result.name" class="w-14 h-14 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700" loading="lazy" />
                         <div v-else class="w-14 h-14 rounded-full bg-gray-900 dark:bg-gray-100 flex items-center justify-center text-white dark:text-gray-900 font-bold text-lg">
                             {{ result.name[0].toUpperCase() }}
                         </div>
@@ -536,7 +536,7 @@ onUnmounted(() => {
 
                 <div v-for="blockedUser in blockedUsers" :key="blockedUser.id" class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow-sm p-4">
                     <div class="flex items-center gap-4">
-                        <img v-if="blockedUser.avatar" :src="blockedUser.avatar" :alt="blockedUser.name" class="w-14 h-14 rounded-full object-cover border-2 border-gray-950/5 dark:border-white/10 grayscale" />
+                        <NuxtImg v-if="blockedUser.avatar" :src="blockedUser.avatar" :alt="blockedUser.name" class="w-14 h-14 rounded-full object-cover border-2 border-gray-950/5 dark:border-white/10 grayscale" loading="lazy" />
                         <div v-else class="w-14 h-14 rounded-full bg-gray-500 flex items-center justify-center text-white font-bold text-lg grayscale">
                             {{ blockedUser.name[0].toUpperCase() }}
                         </div>

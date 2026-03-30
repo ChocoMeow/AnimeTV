@@ -40,7 +40,7 @@ function handleMouseLeave() {
             <!-- Skeleton shown while image is loading (Tailwind, matches SkeletonAnimeCard) -->
             <div v-if="!imageLoaded" class="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
 
-            <img
+            <NuxtImg
                 :src="anime.image"
                 :alt="anime.title"
                 :class="[
@@ -53,6 +53,7 @@ function handleMouseLeave() {
                         transform 0.5s ease;
                 "
                 @load="imageLoaded = true"
+                loading="lazy"
             />
 
             <!-- Gradient Overlay -->

@@ -422,10 +422,11 @@ useHead({
                             <NuxtLink :to="`/anime/${item.anime_ref_id}`" class="block">
                                 <!-- Poster -->
                                 <div class="aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
-                                    <img
+                                    <NuxtImg
                                         v-if="item.anime_image"
                                         :src="item.anime_image"
                                         :alt="item.anime_title"
+                                        loading="lazy"
                                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                     />
                                     <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
@@ -471,10 +472,11 @@ useHead({
                     <NuxtLink :to="`/anime/${item.anime_ref_id}`" class="block">
                         <!-- Poster -->
                         <div class="aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
-                            <img
+                            <NuxtImg
                                 v-if="item.anime_image"
                                 :src="item.anime_image"
                                 :alt="item.anime_title"
+                                loading="lazy"
                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
                             <div v-else class="w-full h-full flex items-center justify-center text-gray-400">

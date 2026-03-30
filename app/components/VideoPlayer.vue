@@ -927,10 +927,11 @@ watch(
                                     :style="{ width: `${THUMB_PREVIEW_W}px` }">
                                         <div class="relative overflow-hidden rounded-xl border border-gray-900/20 dark:border-white/20"
                                             :style="{ width: `${THUMB_PREVIEW_W}px`, height: `${thumbnailPreviewHeight}px` }">
-                                            <img :src="thumbnailJpgUrl"
+                                            <NuxtImg :src="thumbnailJpgUrl"
                                                 class="absolute top-0 left-0 block w-auto h-auto"
                                                 :style="thumbnailImageStyle"
-                                                alt="Thumbnail preview" />
+                                                alt="Thumbnail preview"
+                                                loading="eager" />
                                         </div>
                                         <div
                                             class="mt-1.5 bg-black/90 backdrop-blur-md text-white px-3 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg text-center">

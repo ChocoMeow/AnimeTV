@@ -550,9 +550,10 @@ onUnmounted(() => {
                             class="aspect-video relative rounded-lg overflow-hidden bg-gray-900 dark:bg-gray-950">
                             <!-- Thumbnail as background with subtle blur to reduce pixelation -->
                             <div class="absolute inset-0 w-full h-full">
-                                <img 
+                                <NuxtImg
                                     :src="anime.image" 
                                     alt="Anime thumbnail background"
+                                    loading="eager"
                                     class="w-full h-full object-cover"
                                     style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; filter: blur(1px);"
                                 />
@@ -779,7 +780,7 @@ onUnmounted(() => {
                                 :aria-label="`View ${item.title}`"
                             >
                                 <div class="flex-shrink-0 w-32 aspect-video rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
-                                    <img
+                                    <NuxtImg
                                         :src="item.image"
                                         :alt="`${item.title} thumbnail`"
                                         loading="lazy"
@@ -894,7 +895,7 @@ onUnmounted(() => {
                                 :aria-label="`View ${item.title}`"
                             >
                                 <div class="flex-shrink-0 w-32 aspect-video rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
-                                    <img
+                                    <NuxtImg
                                         :src="item.image"
                                         :alt="`${item.title} thumbnail`"
                                         loading="lazy"
@@ -930,7 +931,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Anime Tooltip Component -->
-    <AnimeTooltip
+    <LazyAnimeTooltip
         :hovered-anime="hoveredAnime"
         :anime-details="animeDetails"
         :tooltip-loading="tooltipLoading"
@@ -948,7 +949,7 @@ onUnmounted(() => {
     <LazyAnimeDetailDialog v-if="anime" v-model="showDetailDialog" :anime-id="anime.detailId" />
 
     <!-- Keyboard Shortcuts Dialog -->
-    <BaseDialog v-model="showShortcutsModal" max-width="max-w-2xl">
+    <LazyBaseDialog v-model="showShortcutsModal" max-width="max-w-2xl">
         <template #header>
             <div class="flex items-center gap-3">
                 <span class="material-icons text-3xl text-gray-600 dark:text-gray-400">keyboard</span>
@@ -1000,7 +1001,7 @@ onUnmounted(() => {
                 </p>
             </div>
         </div>
-    </BaseDialog>
+    </LazyBaseDialog>
 </template>
 
 <style scoped>

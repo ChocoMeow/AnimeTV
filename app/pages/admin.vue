@@ -458,7 +458,7 @@ onMounted(() => {
                             >
                                 <!-- Thumbnail -->
                                 <div class="flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200/70 dark:border-white/10">
-                                    <img
+                                    <NuxtImg
                                         v-if="record.thumbnail"
                                         :src="record.thumbnail"
                                         :alt="record.title || record.source_id || 'anime thumbnail'"
@@ -565,11 +565,12 @@ onMounted(() => {
                     >
                         <div class="flex items-start gap-4">
                             <div class="w-32 h-44 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200/70 dark:border-white/10 flex-shrink-0">
-                                <img
+                                <NuxtImg
                                     v-if="editableRecord.thumbnail"
                                     :src="editableRecord.thumbnail"
                                     :alt="editableRecord.title || editableRecord.source_id || 'thumbnail preview'"
                                     class="w-full h-full object-cover"
+                                    loading="lazy"
                                 />
                                 <div
                                     v-else

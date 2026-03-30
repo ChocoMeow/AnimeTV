@@ -118,9 +118,10 @@ onUnmounted(() => {
                         @mouseleave="handleMouseLeave"
                     >
                         <div class="relative overflow-hidden rounded-t-lg aspect-video bg-gray-200 dark:bg-gray-700">
-                            <img
+                            <NuxtImg
                                 :src="item.thumbnail"
                                 alt=""
+                                loading="lazy"
                                 class="w-full h-full object-cover transform transition-transform duration-300 group-hover:scale-110"
                             />
                             <div
@@ -175,7 +176,7 @@ onUnmounted(() => {
                             </h2>
                         </div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                            <AnimeCard
+                            <LazyAnimeCard
                                 v-for="item in items"
                                 :key="item.refId || item.video_url"
                                 :anime="item"
@@ -190,7 +191,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Anime Tooltip Component -->
-    <AnimeTooltip
+    <LazyAnimeTooltip
         :hovered-anime="hoveredAnime"
         :anime-details="animeDetails"
         :tooltip-loading="tooltipLoading"

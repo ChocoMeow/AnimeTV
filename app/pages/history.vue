@@ -414,7 +414,7 @@ useHead({
                             <div class="flex gap-4 p-4">
                                 <!-- Thumbnail -->
                                 <div class="w-24 h-32 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700 relative">
-                                    <img v-if="item.anime_image" :src="item.anime_image" :alt="item.anime_title" class="w-full h-full object-cover" />
+                                    <NuxtImg v-if="item.anime_image" :src="item.anime_image" :alt="item.anime_title" class="w-full h-full object-cover" loading="lazy" />
                                     <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
                                         <span class="material-icons text-4xl">movie</span>
                                     </div>
@@ -455,7 +455,7 @@ useHead({
     </div>
 
     <!-- Anime Tooltip -->
-    <AnimeTooltip
+    <LazyAnimeTooltip
         :hovered-anime="hoveredAnime"
         :anime-details="animeDetails"
         :tooltip-loading="tooltipLoading"

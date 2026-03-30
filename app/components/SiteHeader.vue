@@ -254,7 +254,7 @@ watch(
             <!-- Left: Logo -->
             <div class="flex items-center gap-2">
                 <NuxtLink to="/" class="flex items-center group pr-2 gap-1">
-                    <img class="w-8 h-8 flex items-center justify-center" src="/icons/icon_819x819.png" alt="" />
+                    <NuxtImg class="w-8 h-8 flex items-center justify-center" src="/icons/icon_512x512.webp" alt="" loading="lazy" />
                     <span class="text-black dark:text-white font-semibold text-xl"> {{ appConfig.siteName }}</span>
                 </NuxtLink>
             </div>
@@ -291,7 +291,7 @@ watch(
                                 <div class="flex items-center gap-3">
                                     <!-- Image -->
                                     <div class="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
-                                        <img v-if="result.image" :src="result.image" :alt="result.title" class="w-full h-full object-cover" />
+                                        <NuxtImg v-if="result.image" :src="result.image" :alt="result.title" class="w-full h-full object-cover" loading="lazy" />
                                         <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
                                             <span class="material-icons">image</span>
                                         </div>
@@ -333,7 +333,7 @@ watch(
                 <!-- User Profile Dropdown -->
                 <div class="relative">
                     <button @click="showUserMenu = !showUserMenu" @mouseenter="cancelHideUserMenu" @mouseleave="hideUserMenuDelayed" class="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
-                        <img v-if="user?.user_metadata?.avatar_url" :src="user.user_metadata.avatar_url" :alt="user.user_metadata.name" class="w-8 h-8 rounded-full object-cover border-2 border-gray-200 dark:border-white/10" />
+                        <NuxtImg v-if="user?.user_metadata?.avatar_url" :src="user.user_metadata.avatar_url" :alt="user.user_metadata.name" class="w-8 h-8 rounded-full object-cover border-2 border-gray-200 dark:border-white/10" loading="lazy" />
                         <div v-else class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold">
                             {{ user?.user_metadata?.name?.[0]?.toUpperCase() || "U" }}
                         </div>
@@ -345,7 +345,7 @@ watch(
                             <!-- User Info Header -->
                             <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-750">
                                 <div class="flex items-center gap-3">
-                                    <img v-if="user?.user_metadata?.avatar_url" :src="user.user_metadata.avatar_url" :alt="user.user_metadata.name" class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-600" />
+                                    <NuxtImg v-if="user?.user_metadata?.avatar_url" :src="user.user_metadata.avatar_url" :alt="user.user_metadata.name" class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-600" loading="lazy" />
                                     <div v-else class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
                                         {{ user?.user_metadata?.name?.[0]?.toUpperCase() || "U" }}
                                     </div>
@@ -445,7 +445,7 @@ watch(
                                 <div class="flex items-center gap-3">
                                     <!-- Image -->
                                     <div class="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
-                                        <img v-if="result.image" :src="result.image" :alt="result.title" class="w-full h-full object-cover" />
+                                        <NuxtImg v-if="result.image" :src="result.image" :alt="result.title" class="w-full h-full object-cover" loading="lazy" />
                                         <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
                                             <span class="material-icons">image</span>
                                         </div>
@@ -487,7 +487,7 @@ watch(
         <div v-if="mobileMenuOpen" class="md:hidden px-4 pb-3 space-y-3">
             <!-- User Profile Section (Mobile) -->
             <div class="flex items-center gap-3 px-3 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-750 rounded-lg">
-                <img v-if="user?.user_metadata?.avatar_url" :src="user.user_metadata.avatar_url" :alt="user.user_metadata.name" class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-600" />
+                <NuxtImg v-if="user?.user_metadata?.avatar_url" :src="user.user_metadata.avatar_url" :alt="user.user_metadata.name" class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-600" loading="lazy" />
                 <div v-else class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
                     {{ user?.user_metadata?.name?.[0]?.toUpperCase() || "U" }}
                 </div>
