@@ -5,6 +5,7 @@ const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
 const client = useSupabaseClient()
+const { isAdmin } = useAdmin()
 
 // Get user shortcuts
 const userShortcuts = computed(() => getShortcuts())
@@ -27,6 +28,10 @@ const {
     cleanup: cleanupAnimeTooltip,
 } = useAnimeTooltip()
 
+// Constants
+const SAVE_INTERVAL = 120000 // Save every 2 minutes
+let saveIntervalTimer = null
+
 // Component State
 const anime = ref(null)
 const selectedEpisode = ref(null)
@@ -40,6 +45,31 @@ const showShareDialog = ref(false)
 const showDetailDialog = ref(false)
 const shareUrl = ref("")
 const showShortcutsModal = ref(false)
+const showToolbarOverflowMenu = ref(false)
+const toolbarOverflowRoot = ref(null)
+let toolbarOverflowClickHandler = null
+
+// Offline downloads (IndexedDB)
+const {
+    loadAnimeSnapshot,
+    deleteAnimeSnapshot,
+    listDownloadedEpisodeKeys,
+    removeEpisode: removeOfflineEpisode,
+    getOfflinePlayback,
+    getOfflineThumbnailAssets,
+} = useOfflineAnimeDownloads()
+const { showToast } = useToast()
+const { runOfflineDownloadBatch } = useOfflineDownloadQueue()
+const showOfflineDownloadDialog = ref(false)
+const offlineDownloadedKeys = ref([])
+const isOfflineDownloading = ref(false)
+const offlineDownloadProgress = ref(0)
+const offlineDownloadLabel = ref("")
+const offlinePlaybackRevoke = ref(null)
+const offlineThumbRevoke = ref(null)
+const offlineThumbnailJpgUrl = ref(null)
+const offlineThumbnailVttText = ref(null)
+const offlineModeBanner = ref(false)
 
 // Continue Watching State
 const lastWatchedData = ref(null)
@@ -63,9 +93,99 @@ const currentVideoId = computed(() => {
     return typeof ep === "string" ? null : ep?.video_id ?? null
 })
 
-// Constants
-const SAVE_INTERVAL = 120000 // Save every 2 minutes
-let saveIntervalTimer = null
+const sortedEpisodeKeys = computed(() => {
+    if (!anime.value?.episodes) return []
+    return Object.keys(anime.value.episodes).sort((a, b) => {
+        const na = parseInt(a, 10)
+        const nb = parseInt(b, 10)
+        if (!isNaN(na) && !isNaN(nb)) return na - nb
+        return a.localeCompare(b)
+    })
+})
+
+function revokeOfflinePlayback() {
+    if (offlinePlaybackRevoke.value) {
+        offlinePlaybackRevoke.value()
+        offlinePlaybackRevoke.value = null
+    }
+}
+
+function revokeOfflineThumbnails() {
+    if (offlineThumbRevoke.value) {
+        offlineThumbRevoke.value()
+        offlineThumbRevoke.value = null
+    }
+    offlineThumbnailJpgUrl.value = null
+    offlineThumbnailVttText.value = null
+}
+
+async function refreshOfflineEpisodeList() {
+    if (!anime.value?.refId) {
+        offlineDownloadedKeys.value = []
+        return
+    }
+    offlineDownloadedKeys.value = await listDownloadedEpisodeKeys(anime.value.refId)
+}
+
+async function handleOfflineDownload(keys) {
+    if (!anime.value || !keys?.length) return
+    isOfflineDownloading.value = true
+    offlineDownloadProgress.value = 0
+    offlineDownloadLabel.value = ""
+    try {
+        await runOfflineDownloadBatch({
+            refId: anime.value.refId,
+            animeTitle: anime.value.title,
+            animeSnapshot: anime.value,
+            keys,
+            episodes: anime.value.episodes || {},
+            setOverallProgress: (v) => {
+                offlineDownloadProgress.value = v
+            },
+            setOverallLabel: (v) => {
+                offlineDownloadLabel.value = v
+            },
+            toast: (msg, type, duration) => showToast(msg, type, duration),
+        })
+        await refreshOfflineEpisodeList()
+    } catch (err) {
+        console.error(err)
+        showToast(err?.message || "下載失敗", "error")
+    } finally {
+        offlineDownloadProgress.value = 100
+        offlineDownloadLabel.value = ""
+        isOfflineDownloading.value = false
+    }
+}
+
+async function handleOfflineRemoveEpisode(ep) {
+    if (!anime.value?.refId) return
+    try {
+        await removeOfflineEpisode(anime.value.refId, ep)
+        showToast("已刪除離線檔案", "success")
+        await refreshOfflineEpisodeList()
+    } catch (err) {
+        console.error(err)
+        showToast("刪除失敗", "error")
+    }
+}
+
+async function handleOfflineRemoveAll() {
+    if (!anime.value?.refId) return
+    if (!confirm("確定清除此作品所有離線下載？")) return
+    try {
+        const keys = await listDownloadedEpisodeKeys(anime.value.refId)
+        for (const k of keys) {
+            await removeOfflineEpisode(anime.value.refId, k)
+        }
+        await deleteAnimeSnapshot(anime.value.refId)
+        showToast("已清除離線資料", "success")
+        await refreshOfflineEpisodeList()
+    } catch (err) {
+        console.error(err)
+        showToast("清除失敗", "error")
+    }
+}
 
 // UI Actions
 function openShareDialog() {
@@ -85,6 +205,119 @@ function openShareDialog() {
     }
     showShareDialog.value = true
 }
+
+const animeToolbarActions = computed(() => {
+    if (!anime.value) return []
+    const actions = []
+
+    if (anime.value.detailId) {
+        actions.push({
+            key: 'detail',
+            label: '詳情',
+            icon: 'info',
+            iconClass: 'text-gray-900 dark:text-white',
+            run: () => {
+                showDetailDialog.value = true
+            },
+        })
+    }
+
+    actions.push(
+        {
+            key: 'share',
+            label: '分享',
+            icon: 'share',
+            iconClass: 'text-gray-900 dark:text-white',
+            run: () => openShareDialog(),
+        },
+        {
+            key: 'favorite',
+            label: isFavorite.value ? '已收藏' : '收藏',
+            icon: isFavorite.value ? 'bookmark_added' : 'bookmark_add',
+            iconClass: isFavorite.value ? 'text-red-500' : 'text-gray-900 dark:text-white',
+            run: () => toggleFavorite(),
+        },
+    )
+
+    if (anime.value.episodes && Object.keys(anime.value.episodes).length) {
+        actions.push({
+            key: 'offline',
+            label: '離線下載',
+            icon: 'download',
+            iconClass: 'text-gray-900 dark:text-white',
+            run: () => {
+                showOfflineDownloadDialog.value = true
+            },
+        })
+    }
+
+    if (isAdmin.value === true) {
+        const sourceId = anime.value.refId ?? route.params.id
+        const hasVideoId = anime.value.videoId !== null && anime.value.videoId !== undefined && String(anime.value.videoId).length > 0
+        if (sourceId || hasVideoId) {
+            actions.push({
+                key: 'admin',
+                label: '後台管理',
+                icon: 'admin_panel_settings',
+                iconClass: 'text-gray-900 dark:text-white',
+                run: () => {
+                    const field = hasVideoId ? 'video_id' : 'source_id'
+                    const search = hasVideoId ? String(anime.value.videoId) : String(sourceId)
+                    router.push({
+                        path: '/admin',
+                        query: {
+                            field,
+                            search,
+                            operator: 'eq',
+                        },
+                    })
+                },
+            })
+        }
+    }
+
+    return actions
+})
+
+const toolbarPrimaryActions = computed(() => animeToolbarActions.value.slice(0, 3))
+const toolbarOverflowActions = computed(() => animeToolbarActions.value.slice(3))
+
+watch(showToolbarOverflowMenu, (open) => {
+    if (!import.meta.client) return
+
+    if (toolbarOverflowClickHandler) {
+        document.removeEventListener('click', toolbarOverflowClickHandler, true)
+        toolbarOverflowClickHandler = null
+    }
+
+    if (!open) return
+
+    toolbarOverflowClickHandler = (e) => {
+        if (toolbarOverflowRoot.value && !toolbarOverflowRoot.value.contains(e.target)) {
+            showToolbarOverflowMenu.value = false
+        }
+    }
+    nextTick(() => {
+        setTimeout(() => {
+            if (showToolbarOverflowMenu.value && toolbarOverflowClickHandler) {
+                document.addEventListener('click', toolbarOverflowClickHandler, true)
+            }
+        }, 0)
+    })
+})
+
+watch(
+    () => route.fullPath,
+    () => {
+        showToolbarOverflowMenu.value = false
+    },
+)
+
+onUnmounted(() => {
+    if (toolbarOverflowClickHandler) {
+        document.removeEventListener('click', toolbarOverflowClickHandler, true)
+    }
+})
 
 function formatRating(score) {
     return score ? parseFloat(score).toFixed(1) : "N/A"
@@ -390,6 +623,19 @@ async function saveWatchHistory(episodeNumber = null) {
     }
 }
 
+function applyEpisodeQueryFromRoute() {
+    if (!anime.value?.episodes || !route.query.e) return
+    const episodeKey = route.query.e
+    if (anime.value.episodes[episodeKey]) {
+        selectedEpisode.value = episodeKey
+    } else {
+        const numEpisode = parseInt(route.query.e)
+        if (!isNaN(numEpisode) && anime.value.episodes[String(numEpisode)]) {
+            selectedEpisode.value = String(numEpisode)
+        }
+    }
+}
+
 // Data Fetching
 async function fetchDetail() {
     loading.value = true
@@ -397,6 +643,9 @@ async function fetchDetail() {
     videoUrl.value = null
     videoIsHls.value = false
     selectedEpisode.value = null
+    revokeOfflinePlayback()
+    revokeOfflineThumbnails()
+    offlineModeBanner.value = false
 
     try {
         const res = await $fetch(`/api/anime/${route.params.id}?withEpisodes=true`)
@@ -409,20 +658,27 @@ async function fetchDetail() {
         isFavorite.value = res.isFavorite
         useHead({ title: `${res.title} | ${appConfig.siteName}` })
         await fetchLastWatched()
+        await refreshOfflineEpisodeList()
 
-        // Handle episode from query parameter (can be number or text)
-        if (route.query.e) {
-            const episodeKey = route.query.e
-            if (anime.value.episodes[episodeKey]) {
-                selectedEpisode.value = episodeKey
-            } else {
-                const numEpisode = parseInt(route.query.e)
-                if (!isNaN(numEpisode) && anime.value.episodes[String(numEpisode)]) {
-                    selectedEpisode.value = String(numEpisode)
+        applyEpisodeQueryFromRoute()
+    } catch (err) {
+        // Fallback to local snapshot whenever API fetch fails
+        // (offline, auth redirect issue, API timeout, etc.)
+        if (import.meta.client) {
+            try {
+                const snap = await loadAnimeSnapshot(route.params.id)
+                if (snap?.episodes && Object.keys(snap.episodes).length) {
+                    anime.value = snap
+                    useHead({ title: `${snap.title} | ${appConfig.siteName}` })
+                    offlineModeBanner.value = true
+                    await refreshOfflineEpisodeList()
+                    applyEpisodeQueryFromRoute()
+                    return
                 }
+            } catch (offlineErr) {
+                console.error("Offline snapshot load failed:", offlineErr)
             }
         }
-    } catch (err) {
         useHead({ title: `載入動漫詳情失敗 | ${appConfig.siteName}` })
         console.error("Failed to fetch anime detail:", err)
         error.value = "載入動漫詳情失敗，請稍後再試"
@@ -456,7 +712,34 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
 
     previousEpisode.value = epNum
 
+    revokeOfflinePlayback()
+    revokeOfflineThumbnails()
+
     const episodeData = anime.value.episodes[String(epNum)]
+    const refId = anime.value.refId
+
+    // If this episode is downloaded, use local thumbnail assets first.
+    if (import.meta.client && refId) {
+        const thumb = await getOfflineThumbnailAssets(refId, epNum)
+        if (thumb) {
+            offlineThumbnailJpgUrl.value = thumb.jpgUrl || null
+            offlineThumbnailVttText.value = thumb.vttText || null
+            offlineThumbRevoke.value = thumb.revoke
+        }
+    }
+
+    // Always prefer downloaded episode first (even when online).
+    if (import.meta.client && refId) {
+        const playback = await getOfflinePlayback(refId, epNum)
+        if (playback) {
+            offlinePlaybackRevoke.value = playback.revoke
+            videoUrl.value = playback.url
+            videoIsHls.value = playback.isHls
+            videoLoading.value = false
+            return
+        }
+    }
+
     const token = episodeData?.token
     if (!token) {
         videoUrl.value = null
@@ -480,6 +763,16 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
         }
     } catch (err) {
         console.error("Episode fetch failed:", err)
+        if (import.meta.client && refId) {
+            const playback = await getOfflinePlayback(refId, epNum)
+            if (playback) {
+                offlinePlaybackRevoke.value = playback.revoke
+                videoUrl.value = playback.url
+                videoIsHls.value = playback.isHls
+                showToast("使用離線影片播放", "info", 2500)
+                return
+            }
+        }
         videoUrl.value = null
         videoIsHls.value = false
     } finally {
@@ -508,6 +801,8 @@ onUnmounted(() => {
     saveWatchHistory()
     stopAutoSave()
     setOnline()
+    revokeOfflinePlayback()
+    revokeOfflineThumbnails()
     window.removeEventListener("beforeunload", saveWatchHistory)
     window.removeEventListener("keydown", handleShortcutsKeydown)
     cleanupAnimeTooltip()
@@ -584,6 +879,8 @@ onUnmounted(() => {
                             :src="videoUrl" 
                             :is-hls="videoIsHls"
                             :video-id="currentVideoId"
+                            :thumbnail-jpg-url="offlineThumbnailJpgUrl"
+                            :thumbnail-vtt-text="offlineThumbnailVttText"
                             preload="metadata" 
                             :has-next-episode="hasNextEpisode" 
                             :shortcuts="userShortcuts" 
@@ -597,6 +894,16 @@ onUnmounted(() => {
                             autoplay
                         />
                     </section>
+                    <div
+                        v-if="offlineModeBanner"
+                        class="flex items-center gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 text-amber-900 dark:text-amber-100 text-sm"
+                        role="status"
+                    >
+                        <span class="material-icons flex-shrink-0 text-xl">wifi_off</span>
+                        <p>
+                            離線模式：已從本機載入先前快取的動漫資料。請選擇已下載的集數觀看；重新整理前請勿關閉此分頁。
+                        </p>
+                    </div>
 
                     <!-- Mobile: Continue Prompt and Episode Picker -->
                     <div class="lg:hidden space-y-4">
@@ -673,31 +980,50 @@ onUnmounted(() => {
                         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">{{ anime.title }}</h1>
                             <div class="flex items-center gap-2 flex-shrink-0">
-                                <button 
-                                    v-if="anime.detailId" 
-                                    @click="showDetailDialog = true" 
-                                    class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none" 
-                                    title="Details"
-                                    aria-label="View anime details"
-                                >
-                                    <span class="material-icons text-xl text-gray-900 dark:text-white">info</span>
-                                </button>
-                                <button 
-                                    @click="openShareDialog" 
-                                    class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none" 
-                                    title="Share"
-                                    aria-label="Share anime"
-                                >
-                                    <span class="material-icons text-xl text-gray-900 dark:text-white">share</span>
-                                </button>
-                                <button 
-                                    @click="toggleFavorite" 
+                                <button
+                                    v-for="action in toolbarPrimaryActions"
+                                    :key="action.key"
+                                    type="button"
                                     class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
-                                    aria-label="Toggle favorite"
-                                    :title="isFavorite ? '已收藏' : '收藏'"
+                                    :title="action.label"
+                                    :aria-label="action.label"
+                                    @click="action.run()"
                                 >
-                                    <span class="material-icons text-xl" :class="isFavorite ? 'text-red-500' : 'text-gray-900 dark:text-white'">{{ isFavorite ? "bookmark_added" : "bookmark_add" }}</span>
+                                    <span class="material-icons text-xl" :class="action.iconClass">{{ action.icon }}</span>
                                 </button>
+                                <div v-if="toolbarOverflowActions.length" ref="toolbarOverflowRoot" class="relative">
+                                    <button
+                                        type="button"
+                                        class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
+                                        title="更多"
+                                        aria-label="更多操作"
+                                        :aria-expanded="showToolbarOverflowMenu"
+                                        @click.stop="showToolbarOverflowMenu = !showToolbarOverflowMenu"
+                                    >
+                                        <span class="material-icons text-xl text-gray-900 dark:text-white">more_vert</span>
+                                    </button>
+                                    <div
+                                        v-show="showToolbarOverflowMenu"
+                                        class="absolute right-0 top-full mt-2 min-w-[11rem] py-1 rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-gray-950 shadow-lg z-10"
+                                        role="menu"
+                                        @click.stop
+                                    >
+                                        <button
+                                            v-for="action in toolbarOverflowActions"
+                                            :key="action.key"
+                                            type="button"
+                                            class="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
+                                            role="menuitem"
+                                            @click="
+                                                action.run();
+                                                showToolbarOverflowMenu = false
+                                            "
+                                        >
+                                            <span class="material-icons text-lg flex-shrink-0" :class="action.iconClass">{{ action.icon }}</span>
+                                            <span>{{ action.label }}</span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -947,6 +1273,21 @@ onUnmounted(() => {
 
     <!-- Detail Dialog Component -->
     <LazyAnimeDetailDialog v-if="anime" v-model="showDetailDialog" :anime-id="anime.detailId" />
+
+    <LazyOfflineDownloadDialog
+        v-model="showOfflineDownloadDialog"
+        :episode-keys="sortedEpisodeKeys"
+        :episodes="anime?.episodes || {}"
+        :downloaded-keys="offlineDownloadedKeys"
+        :is-downloading="isOfflineDownloading"
+        :download-progress="offlineDownloadProgress"
+        :download-label="offlineDownloadLabel"
+        @download="handleOfflineDownload"
+        @download-all="handleOfflineDownload"
+        @remove="handleOfflineRemoveEpisode"
+        @remove-all="handleOfflineRemoveAll"
+        @refresh="refreshOfflineEpisodeList"
+    />
 
     <!-- Keyboard Shortcuts Dialog -->
     <LazyBaseDialog v-model="showShortcutsModal" max-width="max-w-2xl">

@@ -15,6 +15,14 @@ const props = defineProps({
         type: [String, Number],
         default: null,
     },
+    thumbnailJpgUrl: {
+        type: String,
+        default: null,
+    },
+    thumbnailVttText: {
+        type: String,
+        default: null,
+    },
     autoplay: {
         type: Boolean,
         default: false,
@@ -77,7 +85,7 @@ const normalizedVideoId = computed(() => {
 })
 
 const thumbnailJpgUrl = computed(() =>
-    normalizedVideoId.value ? `https://pt2.anime1.me/${normalizedVideoId.value}/thumbnails.jpg` : null
+    props.thumbnailJpgUrl || (normalizedVideoId.value ? `https://pt2.anime1.me/${normalizedVideoId.value}/thumbnails.jpg` : null)
 )
 
 const thumbnailCrop = computed(() => activeThumbnail.value?.xywh ?? null)
@@ -361,6 +369,12 @@ async function loadThumbnailsForVideoId(videoId) {
     if (!videoId) return
     if (typeof window === "undefined") return
 
+    if (props.thumbnailVttText) {
+        const segments = parseThumbnailsVtt(props.thumbnailVttText)
+        thumbnailsSegments.value = segments
+        return
+    }
+
     const cached = thumbnailsVttCache.get(videoId)
     if (cached?.length) {
         thumbnailsSegments.value = cached
@@ -394,8 +408,8 @@ async function loadThumbnailsForVideoId(videoId) {
 }
 
 watch(
-    () => normalizedVideoId.value,
-    async (newVideoId) => {
+    [() => normalizedVideoId.value, () => props.thumbnailVttText],
+    async ([newVideoId]) => {
         await loadThumbnailsForVideoId(newVideoId)
         if (isHoveringProgress.value && !isDraggingProgress.value) {
             updateActiveThumbnailForTime(hoverPreviewTime.value)

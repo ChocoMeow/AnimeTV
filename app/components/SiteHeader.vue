@@ -29,6 +29,7 @@ const menuItems = [
     { to: "/history", icon: "history", label: "觀看紀錄" },
     { to: "/favorites", icon: "bookmark_added", label: "我的收藏" },
     { to: "/friends", icon: "group", label: "我的好友" },
+    { to: "/offline-downloads", icon: "download_for_offline", label: "下載管理", badge: "Beta" },
     { to: "/admin", icon: "admin_panel_settings", label: "管理後台", adminOnly: true },
     { icon: "logout", label: "登出", action: signOut, variant: "danger", dividerBefore: true },
 ]
@@ -244,6 +245,7 @@ watch(
     () => route.path,
     (newPath, oldPath) => {
         mobileMenuOpen.value = false
+        showUserMenu.value = false
     }
 )
 </script>
@@ -371,10 +373,11 @@ watch(
                                         @click.native="closeUserMenu"
                                     >
                                         <span class="material-icons text-gray-500 dark:text-gray-400">{{ item.icon }}</span>
-                                        <span class="text-sm font-medium">{{ item.label }}</span>
-                                    </NuxtLink>
-                                    <button
-                                        v-else-if="item.action"
+<span class="text-sm font-medium">{{ item.label }}</span>
+              <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{ item.badge }}</span>
+          </NuxtLink>
+          <button
+            v-else-if="item.action"
                                         type="button"
                                         class="w-full px-4 py-2.5 text-left transition-colors flex items-center gap-3"
                                         :class="item.variant === 'danger' ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400' : 'hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300'"
@@ -509,19 +512,21 @@ watch(
                         :to="item.to"
                         class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3"
                     >
-                        <span class="material-icons text-gray-500 dark:text-gray-400 text-xl">{{ item.icon }}</span>
-                        <span>{{ item.label }}</span>
-                    </NuxtLink>
-                    <button
-                        v-else-if="item.action"
+<span class="material-icons text-gray-500 dark:text-gray-400 text-xl">{{ item.icon }}</span>
+            <span>{{ item.label }}</span>
+            <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{ item.badge }}</span>
+          </NuxtLink>
+          <button
+            v-else-if="item.action"
                         type="button"
                         class="text-sm px-3 py-2 rounded flex items-center gap-3 text-left"
                         :class="item.variant === 'danger' ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400' : 'hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300'"
                         @click="item.action()"
                     >
-                        <span class="material-icons text-xl">{{ item.icon }}</span>
-                        <span>{{ item.label }}</span>
-                    </button>
+<span class="material-icons text-xl">{{ item.icon }}</span>
+            <span>{{ item.label }}</span>
+            <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{ item.badge }}</span>
+          </button>
                 </template>
             </nav>
         </div>

@@ -30,6 +30,9 @@ export default defineNuxtConfig({
                 drop: ['console'],
             },
         },
+        prerender: {
+            routes: ['/'],
+        },
     },
     experimental: {
         emitRouteChunkError: 'automatic-immediate',
@@ -65,6 +68,69 @@ export default defineNuxtConfig({
     },
     pwa: {
         registerType: 'autoUpdate',
+        workbox: {
+            // SSR: without this, uncached paths get the precached "/" HTML shell (navigateFallback) and Nuxt resets to home.
+            // Denylist = these navigations bypass the offline shell and go to the server (see vite-pwa/docs#58).
+            navigateFallbackDenylist: [/^\/(.+)/],
+            globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
+            cleanupOutdatedCaches: true,
+            runtimeCaching: [
+                {
+                    urlPattern: ({ request }) => request.mode === 'navigate',
+                    handler: 'NetworkFirst',
+                    options: {
+                        cacheName: 'app-pages',
+                        networkTimeoutSeconds: 4,
+                        expiration: {
+                            maxEntries: 80,
+                            maxAgeSeconds: 60 * 60 * 24 * 7,
+                        },
+                    },
+                },
+                {
+                    urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+                    handler: 'StaleWhileRevalidate',
+                    options: {
+                        cacheName: 'google-fonts-stylesheets',
+                        expiration: {
+                            maxEntries: 10,
+                            maxAgeSeconds: 60 * 60 * 24 * 30,
+                        },
+                    },
+                },
+                {
+                    urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+                    handler: 'CacheFirst',
+                    options: {
+                        cacheName: 'google-fonts-webfonts',
+                        expiration: {
+                            maxEntries: 30,
+                            maxAgeSeconds: 60 * 60 * 24 * 365,
+                        },
+                    },
+                },
+                {
+                    urlPattern: /^\/api\/(anime|search|public-animeList).*/i,
+                    handler: 'NetworkFirst',
+                    options: {
+                        cacheName: 'anime-api',
+                        networkTimeoutSeconds: 2,
+                        expiration: {
+                            maxEntries: 100,
+                            maxAgeSeconds: 60 * 60 * 24 * 7,
+                        },
+                    },
+                },
+                {
+                    urlPattern: /^\/api\/proxy-video.*/i,
+                    handler: 'NetworkOnly',
+                },
+                {
+                    urlPattern: /^\/api\/download-proxy.*/i,
+                    handler: 'NetworkOnly',
+                },
+            ],
+        },
         manifest: {
             name: 'AnimeTV',
             short_name: 'AnimeTV',
@@ -112,7 +178,7 @@ export default defineNuxtConfig({
         },
     },
     supabase: {
-        redirect: true,
+        redirect: false,
         redirectOptions: {
             login: '/login',
             callback: '/login',

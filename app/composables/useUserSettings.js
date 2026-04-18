@@ -3,234 +3,233 @@ const userSettings = ref({
     watch_history_enabled: true,
     search_history_enabled: true,
     custom_shortcuts: null,
-});
+})
 
-const searchHistory = ref([]);
-const settingsLoaded = ref(false);
-const settingsLoading = ref(false);
+const searchHistory = ref([])
+const settingsLoaded = ref(false)
+const settingsLoading = ref(false)
 
-let userSubscription = null; // Subscription variable
+let userSubscription = null // Subscription variable
 
 export const useUserSettings = () => {
-    const client = useSupabaseClient();
-    const user = useSupabaseUser();
-    const { showToast } = useToast();
+    const client = useSupabaseClient()
+    const user = useSupabaseUser()
+    const { showToast } = useToast()
 
     // Fetch user settings from database
     const fetchSettings = async () => {
-        if (!user?.value?.sub) {
-            console.warn('No user logged in');
-            return;
+        let userId = user?.value?.sub || null
+        if (!userId) {
+            const { data } = await client.auth.getSession()
+            userId = data?.session?.user?.id || null
         }
+        if (!userId) return
 
         if (settingsLoaded.value) {
-            return userSettings.value;
+            return userSettings.value
         }
 
         if (userSubscription) {
             unsubscribe()
         }
 
-        settingsLoading.value = true;
+        settingsLoading.value = true
         try {
-            const { data, error } = await client
-                .from("user_settings")
-                .select("*")
-                .single();
+            const { data, error } = await client.from('user_settings').select('*').eq('id', userId).single()
 
-            if (error && error.code !== "PGRST116") {
-                throw error;
+            if (error && error.code !== 'PGRST116') {
+                throw error
             }
 
             if (data) {
-                userSettings.value = { 
+                userSettings.value = {
                     ...data,
-                    custom_shortcuts: data.custom_shortcuts || null
-                };
+                    custom_shortcuts: data.custom_shortcuts || null,
+                }
             }
 
             subscribeToSettings()
-            settingsLoaded.value = true;
-            return userSettings.value;
+            settingsLoaded.value = true
+            return userSettings.value
         } catch (err) {
-            console.error("Failed to fetch settings:", err);
-            return userSettings.value;
+            console.error('Failed to fetch settings:', err)
+            return userSettings.value
         } finally {
-            settingsLoading.value = false;
+            settingsLoading.value = false
         }
-    };
+    }
 
     // Save settings to database
     const saveSettings = async (newSettings = null) => {
         if (!user?.value?.sub) {
-            showToast?.("請先登入", "error");
-            return false;
+            showToast?.('請先登入', 'error')
+            return false
         }
 
         try {
             const { error } = await client
-                .from("user_settings")
+                .from('user_settings')
                 .update({ ...newSettings })
-                .eq("id", user.value.sub);
+                .eq('id', user.value.sub)
 
-            if (error) throw error;
+            if (error) throw error
 
             if (newSettings) {
-                userSettings.value = { ...userSettings.value, ...newSettings };
+                userSettings.value = { ...userSettings.value, ...newSettings }
             }
 
-            return true;
+            return true
         } catch (err) {
-            console.error("Failed to save settings:", err);
-            return false;
+            console.error('Failed to save settings:', err)
+            return false
         }
-    };
+    }
 
     // Update a single setting
     const updateSetting = async (key, value) => {
-        const success = await saveSettings({ [key]: value });
+        const success = await saveSettings({ [key]: value })
 
         if (success && showToast) {
-            showToast("設定已儲存", "success");
+            showToast('設定已儲存', 'success')
         } else if (!success && showToast) {
-            showToast("儲存失敗，請稍後再試", "error");
+            showToast('儲存失敗，請稍後再試', 'error')
         }
 
-        return success;
-    };
+        return success
+    }
 
     // Update multiple settings at once
     const updateSettings = async (updates) => {
-        const success = await saveSettings(updates);
+        const success = await saveSettings(updates)
 
         if (success && showToast) {
-            showToast("設定已儲存", "success");
+            showToast('設定已儲存', 'success')
         } else if (!success && showToast) {
-            showToast("儲存失敗，請稍後再試", "error");
+            showToast('儲存失敗，請稍後再試', 'error')
         }
 
-        return success;
-    };
+        return success
+    }
 
     // Subscribe to real-time updates
     const subscribeToSettings = () => {
         if (user?.value?.sub) {
             userSubscription = client
                 .channel(`table_db_changes`)
-                .on('postgres_changes', { event: "update", schema: "public", table: "user_settings" }, payload => {
+                .on('postgres_changes', { event: 'update', schema: 'public', table: 'user_settings' }, (payload) => {
                     if (payload.new) {
-                        userSettings.value = { ...payload.new };
+                        userSettings.value = { ...payload.new }
                     }
                 })
-                .subscribe();
+                .subscribe()
         }
-    };
+    }
 
     // Unsubscribe from real-time updates
     const unsubscribe = () => {
         if (userSubscription) {
-            userSubscription.unsubscribe();
-            userSubscription = null;
+            userSubscription.unsubscribe()
+            userSubscription = null
         }
-    };
+    }
 
     // Get default keyboard shortcuts with labels
     const getDefaultShortcuts = () => ({
         playPause: {
-            key: " ",
-            label: "播放/暫停"
+            key: ' ',
+            label: '播放/暫停',
         },
         skipOP: {
-            key: "\\",
-            label: "跳過片頭"
+            key: '\\',
+            label: '跳過片頭',
         },
         previousEpisode: {
-            key: "[",
-            label: "上一集"
+            key: '[',
+            label: '上一集',
         },
         nextEpisode: {
-            key: "]",
-            label: "下一集"
+            key: ']',
+            label: '下一集',
         },
         volumeUp: {
-            key: "ArrowUp",
-            label: "增加音量"
+            key: 'ArrowUp',
+            label: '增加音量',
         },
         volumeDown: {
-            key: "ArrowDown",
-            label: "減少音量"
+            key: 'ArrowDown',
+            label: '減少音量',
         },
         mute: {
-            key: "m",
-            label: "靜音/取消靜音"
+            key: 'm',
+            label: '靜音/取消靜音',
         },
         fullscreen: {
-            key: "f",
-            label: "全螢幕/退出全螢幕"
+            key: 'f',
+            label: '全螢幕/退出全螢幕',
         },
         seekForward5: {
-            key: "ArrowRight",
-            label: "前進 5 秒"
+            key: 'ArrowRight',
+            label: '前進 5 秒',
         },
         seekBackward5: {
-            key: "ArrowLeft",
-            label: "後退 5 秒"
+            key: 'ArrowLeft',
+            label: '後退 5 秒',
         },
         seekForward10: {
-            key: "l",
-            label: "前進 10 秒"
+            key: 'l',
+            label: '前進 10 秒',
         },
         seekBackward10: {
-            key: "j",
-            label: "後退 10 秒"
+            key: 'j',
+            label: '後退 10 秒',
         },
-    });
+    })
 
     // Get merged shortcuts (custom + defaults)
     const getShortcuts = () => {
-        const defaults = getDefaultShortcuts();
-        const custom = userSettings.value?.custom_shortcuts;
-        
+        const defaults = getDefaultShortcuts()
+        const custom = userSettings.value?.custom_shortcuts
+
         if (!custom || typeof custom !== 'object') {
-            return defaults;
+            return defaults
         }
-        
+
         // Merge custom shortcuts with defaults
         // Custom shortcuts only contain keys, so we merge them with default structure
-        const merged = { ...defaults };
+        const merged = { ...defaults }
         for (const [action, customKey] of Object.entries(custom)) {
             if (merged[action]) {
                 merged[action] = {
                     ...merged[action],
-                    key: customKey
-                };
+                    key: customKey,
+                }
             }
         }
-        
-        return merged;
-    };
+
+        return merged
+    }
 
     // Reset shortcuts to defaults
     const resetShortcuts = async () => {
-        return await updateSetting('custom_shortcuts', null);
-    };
+        return await updateSetting('custom_shortcuts', null)
+    }
 
     // Format key for display in shortcuts
     const formatShortcutKey = (key) => {
-        if (!key) return ""
+        if (!key) return ''
         // Handle both string keys and shortcut objects
-        const keyValue = typeof key === 'string' ? key : key.key || ""
-        if (!keyValue) return ""
-        if (keyValue === " ") return "Space"
-        if (keyValue.startsWith("Arrow")) {
-            const direction = keyValue.replace("Arrow", "")
-            const arrows = { Up: "↑", Down: "↓", Left: "←", Right: "→" }
+        const keyValue = typeof key === 'string' ? key : key.key || ''
+        if (!keyValue) return ''
+        if (keyValue === ' ') return 'Space'
+        if (keyValue.startsWith('Arrow')) {
+            const direction = keyValue.replace('Arrow', '')
+            const arrows = { Up: '↑', Down: '↓', Left: '←', Right: '→' }
             return arrows[direction] || keyValue
         }
-        if (keyValue === "\\") return "\\"
+        if (keyValue === '\\') return '\\'
         if (keyValue.length === 1) return keyValue.toUpperCase()
         return keyValue
-    };
+    }
 
     return {
         userSettings: readonly(userSettings),
@@ -247,5 +246,5 @@ export const useUserSettings = () => {
         getShortcuts,
         resetShortcuts,
         formatShortcutKey,
-    };
-};
+    }
+}
