@@ -31,7 +31,8 @@ export default defineNuxtConfig({
             },
         },
         prerender: {
-            routes: ['/'],
+            // Do not prerender auth-protected pages like "/" in CI/docker builds.
+            routes: ['/login'],
         },
     },
     experimental: {
@@ -69,9 +70,11 @@ export default defineNuxtConfig({
     pwa: {
         registerType: 'autoUpdate',
         workbox: {
-            // SSR: without this, uncached paths get the precached "/" HTML shell (navigateFallback) and Nuxt resets to home.
-            // Denylist = these navigations bypass the offline shell and go to the server (see vite-pwa/docs#58).
-            navigateFallbackDenylist: [/^\/(.+)/],
+            // Keep login as fallback for explicit navigation fallback handling.
+            navigateFallback: '/login',
+            // Do not apply navigation fallback to app routes (including "/"),
+            // otherwise "/" can be replaced by the fallback document.
+            navigateFallbackDenylist: [/^\/$/, /^\/(.+)/],
             globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
             cleanupOutdatedCaches: true,
             runtimeCaching: [
