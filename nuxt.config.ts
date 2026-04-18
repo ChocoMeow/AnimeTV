@@ -31,8 +31,11 @@ export default defineNuxtConfig({
             },
         },
         prerender: {
-            // Do not prerender auth-protected pages like "/" in CI/docker builds.
-            routes: ['/login'],
+            // Precache needs a document for navigateFallback "/" (see @vite-pwa/nuxt).
+            // Prerender home so Workbox can include url "/" and avoid non-precached-url.
+            crawlLinks: false,
+            routes: ['/'],
+            failOnError: false,
         },
     },
     experimental: {
@@ -70,11 +73,10 @@ export default defineNuxtConfig({
     pwa: {
         registerType: 'autoUpdate',
         workbox: {
-            // Keep login as fallback for explicit navigation fallback handling.
-            navigateFallback: '/login',
-            // Do not apply navigation fallback to app routes (including "/"),
-            // otherwise "/" can be replaced by the fallback document.
-            navigateFallbackDenylist: [/^\/$/, /^\/(.+)/],
+            // Let @vite-pwa/nuxt set navigateFallback to "/" (maps to precached index.html).
+            // Do not set navigateFallback to "/login" unless that HTML is precached.
+            // Denylist: uncached paths should not receive the "/" HTML shell (SPA/SSR issue).
+            navigateFallbackDenylist: [/^\/(.+)/],
             globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
             cleanupOutdatedCaches: true,
             runtimeCaching: [
