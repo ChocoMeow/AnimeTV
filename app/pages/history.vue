@@ -139,6 +139,11 @@ async function loadMore() {
         // Apply time filter
         query = applyTimeFilter(query)
 
+        // Apply search filter (server-side)
+        if (searchQuery.value?.trim()) {
+            query = query.ilike('anime_title', `%${searchQuery.value.trim()}%`)
+        }
+
         const { data, error } = await query.order('updated_at', { ascending: false }).range(from, to)
 
         if (error) throw error
@@ -221,6 +226,11 @@ async function fetchHistory() {
 
         // Apply time filter
         query = applyTimeFilter(query)
+
+        // Apply search filter (server-side)
+        if (searchQuery.value?.trim()) {
+            query = query.ilike('anime_title', `%${searchQuery.value.trim()}%`)
+        }
 
         const { data, error } = await query.order('updated_at', { ascending: false }).range(0, pageSize - 1)
 
@@ -454,7 +464,12 @@ useHead({
         </div>
     </div>
 
-    <!-- Anime Tooltip -->
+    <!-- Loading More Spinner -->
+    <div v-if="loadingMore" class="flex justify-center py-6">
+        <div class="animate-spin rounded-full h-8 w-8 border-4 border-gray-600 border-t-transparent"></div>
+    </div>
+
+      <!-- Anime Tooltip -->
     <LazyAnimeTooltip
         :hovered-anime="hoveredAnime"
         :anime-details="animeDetails"

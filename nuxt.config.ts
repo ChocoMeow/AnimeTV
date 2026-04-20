@@ -73,14 +73,14 @@ export default defineNuxtConfig({
     pwa: {
         registerType: 'autoUpdate',
         workbox: {
-            // Let @vite-pwa/nuxt set navigateFallback to "/" (maps to precached index.html).
-            // Do not set navigateFallback to "/login" unless that HTML is precached.
-            // Denylist: uncached paths should not receive the "/" HTML shell (SPA/SSR issue).
-            navigateFallbackDenylist: [/^\/(.+)/],
+            // SSR mode: no static index.html at root.
+            // Setting to undefined prevents the default "/" fallback which causes precache errors.
+            navigateFallback: undefined,
             globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
             cleanupOutdatedCaches: true,
             runtimeCaching: [
                 {
+                    // Cache all navigation requests (pages) for offline use
                     urlPattern: ({ request }) => request.mode === 'navigate',
                     handler: 'NetworkFirst',
                     options: {

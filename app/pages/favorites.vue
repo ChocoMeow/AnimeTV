@@ -18,20 +18,14 @@ const loadingMore = ref(false)
 const sortBy = ref("recent") // recent, title, season
 
 // ---------- Season helpers ----------
-function enrichWithSeason(favorites, metaRows) {
-    const metaBySourceId = (metaRows || []).reduce((acc, m) => {
-        acc[m.source_id] = m
-        return acc
-    }, {})
-
+function enrichWithSeason(favorites) {
     const seasonNames = ["冬季", "春季", "夏季", "秋季"]
 
     return (favorites || []).map((item) => {
-        const m = metaBySourceId[item.anime_ref_id]
+        const premiere = item.anime_meta?.premiere_date
         let year = 0
         let month = 0
 
-        const premiere = m?.premiere_date
         if (premiere) {
             const [y, mo] = String(premiere).split("-")
             year = Number(y) || 0
@@ -135,33 +129,32 @@ async function loadMore() {
         const from = nextPage * pageSize
         const to = from + pageSize - 1
 
-        const orderColumn = sortBy.value === "title" ? "anime_title" : "created_at"
-        const ascending = sortBy.value === "title"
-
-        // Fetch favorites page
-        const { data, error } = await client
+        let query = client
             .from("favorites")
-            .select("*")
+            .select("*, anime_meta!anime_ref_id(premiere_date)")
             .eq("user_id", userSettings.value.id)
-            .order(orderColumn, { ascending })
             .range(from, to)
+        
+        // Apply search filter (server-side)
+        if (searchQuery.value?.trim()) {
+            query = query.ilike('anime_title', `%${searchQuery.value.trim()}%`)
+        }
 
+        if (sortBy.value === "title") {
+            query = query.order("anime_title", { ascending: true })
+        } else if (sortBy.value === "season") {
+            query = query.order("anime_meta(premiere_date)", { ascending: false, nullsFirst: false })
+        } else {
+            query = query.order("created_at", { ascending: false })
+        }
+
+        const { data, error } = await query
         if (error) throw error
 
         if (data && data.length > 0) {
-            const ids = [...new Set(data.map((i) => i.anime_ref_id).filter(Boolean))]
-            const { data: metaRows, error: metaError } = ids.length
-                ? await client.from("anime_meta").select("source_id, premiere_date").in("source_id", ids)
-                : { data: [], error: null }
-            if (metaError) console.error("Failed to fetch anime_meta for favorites (loadMore):", metaError)
-
-            favoriteItems.value = [...favoriteItems.value, ...enrichWithSeason(data, metaRows)]
+            favoriteItems.value = [...favoriteItems.value, ...enrichWithSeason(data)]
             currentPage.value = nextPage
-
-            // Check if we got fewer records than requested
-            if (data.length < pageSize) {
-                hasMore.value = false
-            }
+            if (data.length < pageSize) hasMore.value = false
         } else {
             hasMore.value = false
         }
@@ -230,29 +223,30 @@ async function fetchFavorites() {
             return
         }
 
-        const orderColumn = sortBy.value === "title" ? "anime_title" : "created_at"
-        const ascending = sortBy.value === "title"
-
-        // Fetch first page only (0-19)
-        const { data, error } = await client
+        let query = client
             .from("favorites")
-            .select("*")
+            .select("*, anime_meta!anime_ref_id(premiere_date)")
             .eq("user_id", userSettings.value.id)
-            .order(orderColumn, { ascending })
             .range(0, pageSize - 1)
+        
+        // Apply search filter (server-side)
+        if (searchQuery.value?.trim()) {
+            query = query.ilike('anime_title', `%${searchQuery.value.trim()}%`)
+        }
 
+        if (sortBy.value === "title") {
+            query = query.order("anime_title", { ascending: true })
+        } else if (sortBy.value === "season") {
+            query = query.order("anime_meta(premiere_date)", { ascending: false, nullsFirst: false })
+        } else {
+            query = query.order("created_at", { ascending: false })
+        }
+
+        const { data, error } = await query
         if (error) throw error
 
-        const ids = [...new Set((data || []).map((i) => i.anime_ref_id).filter(Boolean))]
-        const { data: metaRows, error: metaError } = ids.length
-            ? await client.from("anime_meta").select("source_id, premiere_date, season").in("source_id", ids)
-            : { data: [], error: null }
-        if (metaError) console.error("Failed to fetch anime_meta for favorites (initial):", metaError)
-
-        favoriteItems.value = enrichWithSeason(data, metaRows)
+        favoriteItems.value = enrichWithSeason(data || [])
         currentPage.value = 0
-
-        // Check if there might be more records
         hasMore.value = data && data.length === pageSize
     } catch (err) {
         console.error("Failed to fetch favorites:", err)
@@ -261,14 +255,6 @@ async function fetchFavorites() {
         loading.value = false
     }
 }
-
-onActivated(() => {
-    // Reset and fetch fresh data
-    favoriteItems.value = []
-    currentPage.value = 0
-    hasMore.value = true
-    fetchFavorites()
-})
 
 onMounted(() => {
     fetchFavorites()
@@ -286,18 +272,6 @@ watch([sortBy, searchQuery], () => {
     hasMore.value = true
     fetchFavorites()
 })
-
-watch(
-    () => route.path,
-    (newPath) => {
-        if (newPath === "/favorites" || newPath.includes("/favorites")) {
-            favoriteItems.value = []
-            currentPage.value = 0
-            hasMore.value = true
-            fetchFavorites()
-        }
-    }
-)
 
 useHead({
     title: `我的收藏 | ${appConfig.siteName}`,
@@ -494,6 +468,11 @@ useHead({
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Loading More Spinner -->
+    <div v-if="loadingMore" class="flex justify-center py-6">
+        <div class="animate-spin rounded-full h-8 w-8 border-4 border-gray-600 border-t-transparent"></div>
     </div>
 
     <!-- Delete Confirmation Modal -->
