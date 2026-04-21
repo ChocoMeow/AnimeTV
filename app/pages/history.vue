@@ -244,6 +244,7 @@ async function fetchHistory() {
     } catch (err) {
         console.error('Failed to fetch history:', err)
         historyItems.value = []
+        hasMore.value = false
     } finally {
         loading.value = false
     }
@@ -338,9 +339,7 @@ useHead({
                         class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
                     >
                         <span class="material-icons text-lg">
-                            {{
-                                selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? 'check_box' : 'check_box_outline_blank'
-                            }}
+                            {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? 'check_box' : 'check_box_outline_blank' }}
                         </span>
                         {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? '取消全選' : '全選' }}
                     </button>
@@ -370,6 +369,13 @@ useHead({
             <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-600 border-t-transparent"></div>
         </div>
 
+        <!-- No Search Results -->
+        <div v-else-if="filteredHistory.length === 0" class="text-center py-20">
+            <span class="material-icons text-gray-400 text-6xl mb-4">search_off</span>
+            <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">找不到相關紀錄</h3>
+            <p class="text-gray-500 dark:text-gray-400">試試其他搜尋關鍵字或篩選條件</p>
+        </div>
+
         <!-- Empty State -->
         <div v-else-if="historyItems.length === 0" class="text-center py-20">
             <span class="material-icons text-gray-400 text-6xl mb-4">history</span>
@@ -380,13 +386,6 @@ useHead({
                 class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors"
                 >探索動漫</NuxtLink
             >
-        </div>
-
-        <!-- No Search Results -->
-        <div v-else-if="filteredHistory.length === 0" class="text-center py-20">
-            <span class="material-icons text-gray-400 text-6xl mb-4">search_off</span>
-            <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">找不到相關紀錄</h3>
-            <p class="text-gray-500 dark:text-gray-400">試試其他搜尋關鍵字或篩選條件</p>
         </div>
 
         <!-- History List -->
@@ -413,9 +412,7 @@ useHead({
                             class="absolute top-3 left-3 z-10 w-6 h-6 rounded bg-white dark:bg-gray-700 shadow-md flex items-center justify-center transition-opacity"
                             :class="selectedItems.has(item.anime_ref_id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
                         >
-                            <span v-if="selectedItems.has(item.anime_ref_id)" class="material-icons text-gray-900 dark:text-gray-100 text-lg"
-                                >check_box</span
-                            >
+                            <span v-if="selectedItems.has(item.anime_ref_id)" class="material-icons text-gray-900 dark:text-gray-100 text-lg">check_box</span>
                             <span v-else class="material-icons text-gray-400 text-lg">check_box_outline_blank</span>
                         </button>
 
@@ -424,7 +421,13 @@ useHead({
                             <div class="flex gap-4 p-4">
                                 <!-- Thumbnail -->
                                 <div class="w-24 h-32 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700 relative">
-                                    <NuxtImg v-if="item.anime_image" :src="item.anime_image" :alt="item.anime_title" class="w-full h-full object-cover" loading="lazy" />
+                                    <NuxtImg
+                                        v-if="item.anime_image"
+                                        :src="item.anime_image"
+                                        :alt="item.anime_title"
+                                        class="w-full h-full object-cover"
+                                        loading="lazy"
+                                    />
                                     <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
                                         <span class="material-icons text-4xl">movie</span>
                                     </div>
@@ -469,7 +472,7 @@ useHead({
         <div class="animate-spin rounded-full h-8 w-8 border-4 border-gray-600 border-t-transparent"></div>
     </div>
 
-      <!-- Anime Tooltip -->
+    <!-- Anime Tooltip -->
     <LazyAnimeTooltip
         :hovered-anime="hoveredAnime"
         :anime-details="animeDetails"

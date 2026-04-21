@@ -10,301 +10,166 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-// Store connections by peer ID: peerId -> { peer, userId, status, watchingData, lastSeen, supabase }
+// peerId -> { peer, userId, status, watchingData, lastSeen, supabase }
 const connections = new Map()
-
-// Track all peers for each user: userId -> Set<peerId>
+// userId -> Set<peerId>
 const userPeers = new Map()
+// userId -> { status, animeRefId, episodeNumber }  (skip DB write if unchanged)
+const lastWrittenStatus = new Map()
 
-// Configuration
-const CONFIG = {
-    CLEANUP_INTERVAL: 5 * 60 * 1000,   // 5 minutes
-    CONNECTION_TIMEOUT: 2 * 60 * 1000, // 2 minutes
-    VALID_STATUSES: new Set(['online', 'idle', 'watching', 'offline']),
-}
-
-/** Status priority for aggregation: first match wins */
+const VALID_STATUSES = new Set(['online', 'idle', 'watching', 'offline'])
 const STATUS_PRIORITY = ['watching', 'online', 'idle']
+const CLEANUP_INTERVAL = 5 * 60 * 1000 // 5 min
+const CONNECTION_TIMEOUT = 2 * 60 * 1000 // 2 min
 
 let cleanupTimer = null
 
-// ============================================================================
-// Utility Functions
-// ============================================================================
+// ── Supabase ──────────────────────────────────────────────────────────────────
 
-/**
- * Create authenticated Supabase client
- */
 function getSupabaseClient(authToken) {
-    const config = useRuntimeConfig()
+    const {
+        public: { supabaseUrl, supabaseKey },
+    } = useRuntimeConfig()
+    if (!supabaseUrl) throw new Error('SUPABASE_URL not configured')
+    if (!supabaseKey) throw new Error('SUPABASE_KEY not configured')
 
-    if (!config.public.supabaseUrl) {
-        throw new Error('SUPABASE_URL not configured')
-    }
-    if (!config.public.supabaseKey) {
-        throw new Error('SUPABASE_KEY not configured')
-    }
-
-    return createClient(config.public.supabaseUrl, config.public.supabaseKey, {
-        auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-        },
-        global: {
-            headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
-        },
+    return createClient(supabaseUrl, supabaseKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: { headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} },
     })
 }
 
-/**
- * Safely send JSON message to peer
- */
-function safeSend(peer, payload) {
-    try {
-        peer.send(JSON.stringify(payload))
-    } catch (err) {
-        // Connection might be closed, ignore
-    }
-}
+// ── Connection helpers ────────────────────────────────────────────────────────
 
-/**
- * Get connection by peer ID
- */
-function getConnection(peerId) {
-    return connections.get(peerId) || null
-}
-
-/**
- * Get all peer IDs for a user
- */
-function getUserPeerIds(userId) {
-    return userPeers.get(userId) || new Set()
-}
-
-/**
- * Get number of active connections for a user
- */
-function getPeerCount(userId) {
-    return getUserPeerIds(userId).size
-}
-
-/**
- * Add peer to user's peer list
- */
-function addUserPeer(userId, peerId) {
-    if (!userPeers.has(userId)) {
-        userPeers.set(userId, new Set())
-    }
+function addPeer(userId, peerId) {
+    if (!userPeers.has(userId)) userPeers.set(userId, new Set())
     userPeers.get(userId).add(peerId)
 }
 
-/**
- * Remove peer from user's peer list.
- * Clears lastWrittenStatus when user has no peers left (avoids stale cache, saves memory).
- */
-function removeUserPeer(userId, peerId) {
+function removePeer(userId, peerId) {
     const peers = userPeers.get(userId)
-    if (peers) {
-        peers.delete(peerId)
-        if (peers.size === 0) {
-            userPeers.delete(userId)
-            lastWrittenStatus.delete(userId)
-        }
+    if (!peers) return
+    peers.delete(peerId)
+    if (peers.size === 0) {
+        userPeers.delete(userId)
+        lastWrittenStatus.delete(userId)
     }
 }
 
-/**
- * Get aggregate status for a user across all connections.
- * Priority: watching > online > idle > offline.
- */
-function getAggregateUserStatus(userId) {
-    const peerIds = getUserPeerIds(userId)
-    if (peerIds.size === 0) return 'offline'
-
-    const seen = new Set()
-    for (const peerId of peerIds) {
-        const conn = connections.get(peerId)
-        if (conn?.status) seen.add(conn.status)
-    }
-    for (const s of STATUS_PRIORITY) {
-        if (seen.has(s)) return s
-    }
-    return 'offline'
+function peerCount(userId) {
+    return userPeers.get(userId)?.size ?? 0
 }
 
-/**
- * Get watching data from any connection that's currently watching
- */
-function getWatchingData(userId) {
-    const peerIds = getUserPeerIds(userId)
+function aggregateStatus(userId) {
+    const peers = userPeers.get(userId)
+    if (!peers?.size) return 'offline'
 
-    for (const peerId of peerIds) {
-        const conn = connections.get(peerId)
-        if (conn?.status === 'watching' && conn.watchingData) {
-            return conn.watchingData
-        }
+    const statuses = new Set([...peers].map((id) => connections.get(id)?.status).filter(Boolean))
+    return STATUS_PRIORITY.find((s) => statuses.has(s)) ?? 'offline'
+}
+
+function activeWatchingData(userId) {
+    const peers = userPeers.get(userId)
+    if (!peers) return null
+    for (const id of peers) {
+        const conn = connections.get(id)
+        if (conn?.status === 'watching' && conn.watchingData) return conn.watchingData
     }
-
     return null
 }
 
-// ============================================================================
-// Database Operations
-// ============================================================================
-
-// Track last written status per user so we only hit the DB when status or watching anime actually changes
-const lastWrittenStatus = new Map() // userId -> { status, animeRefId, episodeNumber }
-
-/**
- * True when aggregate status and watching anime match last DB write — skip upsert
- */
-function isSameAsLastWritten(userId, aggregateStatus, watchingData) {
-    const last = lastWrittenStatus.get(userId)
-    if (!last || last.status !== aggregateStatus) return false
-    if (aggregateStatus !== 'watching') return true
-    const refId = watchingData?.refId ?? null
-    const episode = watchingData?.episode ?? null
-    return last.animeRefId === refId && last.episodeNumber === episode
-}
-
-/**
- * Build DB payload and last-written snapshot from aggregate state
- */
-function buildStatusPayload(aggregateStatus, watchingData, nowIso) {
-    const base = {
-        status: aggregateStatus,
-        animeRefId: null,
-        animeTitle: null,
-        animeImage: null,
-        episodeNumber: null,
-    }
-    if (aggregateStatus === 'watching' && watchingData) {
-        base.animeRefId = watchingData.refId ?? null
-        base.animeTitle = watchingData.title ?? null
-        base.animeImage = watchingData.image ?? null
-        base.episodeNumber = watchingData.episode ?? null
-    }
-    return {
-        db: {
-            user_id: null, // caller sets
-            status: base.status,
-            last_seen: nowIso,
-            updated_at: nowIso,
-            anime_ref_id: base.animeRefId,
-            anime_title: base.animeTitle,
-            anime_image: base.animeImage,
-            episode_number: base.episodeNumber,
-        },
-        lastWritten: { status: base.status, animeRefId: base.animeRefId, episodeNumber: base.episodeNumber },
-    }
-}
-
-/**
- * Update user status in database.
- * Skips the write when status and watching anime are unchanged.
- */
-async function updateUserStatus(supabase, userId) {
+function safeSend(peer, payload) {
     try {
-        const aggregateStatus = getAggregateUserStatus(userId)
-        const watchingData = getWatchingData(userId)
+        peer.send(JSON.stringify(payload))
+    } catch {}
+}
 
-        if (isSameAsLastWritten(userId, aggregateStatus, watchingData)) {
-            return true
+// ── Database ──────────────────────────────────────────────────────────────────
+
+async function flushStatus(supabase, userId, { force = false } = {}) {
+    try {
+        const status = aggregateStatus(userId)
+        const watching = status === 'watching' ? activeWatchingData(userId) : null
+
+        // Skip write if nothing changed (unless forced, e.g. on disconnect)
+        if (!force) {
+            const last = lastWrittenStatus.get(userId)
+            if (last?.status === status && last?.animeRefId === (watching?.refId ?? null) && last?.episodeNumber === (watching?.episode ?? null)) return
         }
 
-        const nowIso = new Date().toISOString()
-        const { db: statusData, lastWritten } = buildStatusPayload(aggregateStatus, watchingData, nowIso)
-        statusData.user_id = userId
+        const now = new Date().toISOString()
+        const row = {
+            user_id: userId,
+            status,
+            last_seen: now,
+            updated_at: now,
+            anime_ref_id: watching?.refId ?? null,
+            anime_title: watching?.title ?? null,
+            anime_image: watching?.image ?? null,
+            episode_number: watching?.episode ?? null,
+        }
 
-        const { error } = await supabase.from('user_status').upsert(statusData, { onConflict: 'user_id' })
-
+        const { error } = await supabase.from('user_status').upsert(row, { onConflict: 'user_id' })
         if (error) {
-            console.error('[DB] Error updating user status:', error)
-            return false
+            console.error('[DB] upsert error:', error)
+            return
         }
 
-        lastWrittenStatus.set(userId, lastWritten)
-        console.log(`[DB] Updated user ${userId} status to: ${aggregateStatus}`)
-        return true
+        lastWrittenStatus.set(userId, {
+            status,
+            animeRefId: row.anime_ref_id,
+            episodeNumber: row.episode_number,
+        })
+        console.log(`[DB] ${userId} → ${status}`)
     } catch (err) {
-        console.error('[DB] Failed to update user status:', err)
-        return false
+        console.error('[DB] flushStatus error:', err)
     }
 }
 
-// ============================================================================
-// Cleanup Management
-// ============================================================================
+// ── Cleanup ───────────────────────────────────────────────────────────────────
 
-/**
- * Start periodic cleanup of stale connections
- */
-function startCleanupTimer() {
+function startCleanup() {
     if (cleanupTimer) return
-
-    console.log('[WS] Starting cleanup timer')
     cleanupTimer = setInterval(async () => {
         const now = Date.now()
-        const staleConnections = []
-
-        // Find stale connections
-        for (const [peerId, conn] of connections.entries()) {
-            if (now - conn.lastSeen > CONFIG.CONNECTION_TIMEOUT) {
-                staleConnections.push({ peerId, conn })
-            }
-        }
-
-        // Clean up stale connections
-        for (const { peerId, conn } of staleConnections) {
-            console.log(`[WS] Timeout for peer ${peerId} (user ${conn.userId})`)
-
-            // Remove connection
+        for (const [peerId, conn] of connections) {
+            if (now - conn.lastSeen < CONNECTION_TIMEOUT) continue
+            console.log(`[WS] Timeout peer ${peerId} (user ${conn.userId})`)
             connections.delete(peerId)
-            removeUserPeer(conn.userId, peerId)
-
-            // Update aggregate status for user
-            await updateUserStatus(conn.supabase, conn.userId)
-
-            // Close WebSocket if still open
+            removePeer(conn.userId, peerId)
+            // Force-write so offline/stale watching is cleared immediately
+            await flushStatus(conn.supabase, conn.userId, { force: true })
             try {
                 conn.peer.websocket.close(1000, 'Connection timeout')
             } catch {}
         }
-
-        if (staleConnections.length > 0) {
-            console.log(`[WS] Cleaned up ${staleConnections.length} stale connections`)
-        }
-    }, CONFIG.CLEANUP_INTERVAL)
+    }, CLEANUP_INTERVAL)
 }
 
-/**
- * Stop cleanup timer
- */
-function stopCleanupTimer() {
-    if (cleanupTimer) {
-        clearInterval(cleanupTimer)
-        cleanupTimer = null
-        console.log('[WS] Stopped cleanup timer')
-    }
+function stopCleanup() {
+    if (!cleanupTimer) return
+    clearInterval(cleanupTimer)
+    cleanupTimer = null
 }
 
-// ============================================================================
-// WebSocket Handlers
-// ============================================================================
+// ── Disconnect helper (shared by close / error / explicit disconnect) ─────────
+
+async function handleDisconnect(peerId) {
+    const conn = connections.get(peerId)
+    if (!conn) return
+    connections.delete(peerId)
+    removePeer(conn.userId, peerId)
+    // Force-write: clears stale watching/online even if cache says nothing changed
+    await flushStatus(conn.supabase, conn.userId, { force: true })
+    if (connections.size === 0) stopCleanup()
+}
+
+// ── WebSocket handler ─────────────────────────────────────────────────────────
 
 export default defineWebSocketHandler({
-    /**
-     * Handle new WebSocket connection
-     */
     async open(peer) {
-        const peerId = peer.id
-        const url = new URL(peer.websocket.url)
-        const ticketId = url.searchParams.get('ticket')
-
-        // Consume the one-time ticket — this also deletes it from the store
-        const ticketData = consumeWsTicket(ticketId)
+        const ticketData = consumeWsTicket(new URL(peer.websocket.url).searchParams.get('ticket'))
         if (!ticketData) {
-            console.error('[WS] Invalid or expired ticket for peer:', peerId)
             try {
                 peer.websocket.close(1008, 'Unauthorized')
             } catch {}
@@ -312,212 +177,103 @@ export default defineWebSocketHandler({
         }
 
         const { userId, accessToken } = ticketData
-
-        // Create Supabase client using the access token retrieved from server-side store
         const supabase = getSupabaseClient(accessToken)
 
-        // Store connection
-        connections.set(peerId, {
-            peer,
-            userId,
-            status: 'online',
-            watchingData: null,
-            lastSeen: Date.now(),
-            supabase,
-        })
+        connections.set(peer.id, { peer, userId, status: 'online', watchingData: null, lastSeen: Date.now(), supabase })
+        addPeer(userId, peer.id)
+        startCleanup()
 
-        // Track peer for user
-        addUserPeer(userId, peerId)
-
-        // Start cleanup timer if not already running
-        startCleanupTimer()
-
-        // Update database with aggregate status
-        await updateUserStatus(supabase, userId)
-
-        // Send connection confirmation
-        safeSend(peer, {
-            type: 'connected',
-            peerId,
-            userId,
-            status: 'online',
-            activeConnections: getPeerCount(userId),
-        })
-
-        console.log(`[WS] ✓ Connection opened - Peer: ${peerId}, User: ${userId} (${getPeerCount(userId)} total)`)
+        await flushStatus(supabase, userId)
+        safeSend(peer, { type: 'connected', peerId: peer.id, userId, status: 'online', activeConnections: peerCount(userId) })
+        console.log(`[WS] open  peer=${peer.id} user=${userId} (${peerCount(userId)} total)`)
     },
 
-    /**
-     * Handle incoming messages
-     */
     async message(peer, message) {
-        const peerId = peer.id
-        const conn = getConnection(peerId)
-
+        const conn = connections.get(peer.id)
         if (!conn) {
             safeSend(peer, { type: 'error', message: 'Unknown connection' })
             return
         }
 
-        // Parse message
         let payload
         try {
             const raw = typeof message === 'string' ? message : typeof message?.text === 'function' ? await message.text() : String(message)
-
             payload = JSON.parse(raw)
         } catch {
             safeSend(peer, { type: 'error', message: 'Invalid JSON' })
             return
         }
 
-        // Update last seen
         conn.lastSeen = Date.now()
 
-        // Handle message types
         switch (payload?.type) {
-            case 'connect': {
-                // Optional client handshake
-                safeSend(peer, {
-                    type: 'connected',
-                    peerId,
-                    userId: conn.userId,
-                    status: conn.status,
-                    activeConnections: getPeerCount(conn.userId),
-                })
+            case 'connect':
+                safeSend(peer, { type: 'connected', peerId: peer.id, userId: conn.userId, status: conn.status, activeConnections: peerCount(conn.userId) })
                 break
-            }
 
-            case 'heartbeat': {
-                // Update status if provided in heartbeat
-                const status = payload?.status
-                const animeData = payload?.animeData || null
+            case 'heartbeat':
+            case 'status_update': {
+                const { status, animeData = null } = payload
 
-                if (status && CONFIG.VALID_STATUSES.has(status)) {
+                if (status) {
+                    if (!VALID_STATUSES.has(status)) {
+                        safeSend(peer, { type: 'error', message: `Invalid status. Valid: ${[...VALID_STATUSES].join(', ')}` })
+                        return
+                    }
                     conn.status = status
-                    conn.watchingData = status === 'watching' ? animeData : null
+                    // Always clear watchingData when not watching — fixes stale anime after tab switch
+                    conn.watchingData = status === 'watching' ? (animeData ?? null) : null
                 }
 
-                // Update DB only when aggregate status or watching anime actually changed (see updateUserStatus)
-                await updateUserStatus(conn.supabase, conn.userId)
+                await flushStatus(conn.supabase, conn.userId)
 
+                const ackType = payload.type === 'heartbeat' ? 'heartbeat_ack' : 'status_updated'
                 safeSend(peer, {
-                    type: 'heartbeat_ack',
-                    peerId,
+                    type: ackType,
+                    peerId: peer.id,
+                    ...(payload.type === 'status_update' && {
+                        userId: conn.userId,
+                        status: conn.status,
+                        aggregateStatus: aggregateStatus(conn.userId),
+                    }),
                     timestamp: Date.now(),
                 })
                 break
             }
 
-            case 'status_update': {
-                const status = payload?.status
-                const animeData = payload?.animeData || null
-
-                // Validate status
-                if (!status || !CONFIG.VALID_STATUSES.has(status)) {
-                    safeSend(peer, {
-                        type: 'error',
-                        message: `Invalid status. Must be one of: ${[...CONFIG.VALID_STATUSES].join(', ')}`,
-                    })
-                    return
-                }
-
-                // Update connection status
-                conn.status = status
-                conn.watchingData = status === 'watching' ? animeData : null
-
-                // Update database with aggregate status
-                await updateUserStatus(conn.supabase, conn.userId)
-
-                safeSend(peer, {
-                    type: 'status_updated',
-                    peerId,
-                    userId: conn.userId,
-                    status,
-                    aggregateStatus: getAggregateUserStatus(conn.userId),
-                })
-                break
-            }
-
-            case 'disconnect': {
-                // Client-initiated disconnect
-                connections.delete(peerId)
-                removeUserPeer(conn.userId, peerId)
-
-                // Update aggregate status
-                await updateUserStatus(conn.supabase, conn.userId)
-
-                safeSend(peer, { type: 'disconnected', peerId })
-
-                try {
-                    peer.websocket.close(1000, 'Client disconnect')
-                } catch {}
-
-                console.log(`[WS] Client disconnect - Peer: ${peerId}, User: ${conn.userId}`)
-                break
-            }
-
-            case 'get_status': {
-                // Get current aggregate status for user
+            case 'get_status':
                 safeSend(peer, {
                     type: 'status_info',
                     userId: conn.userId,
                     peerStatus: conn.status,
-                    aggregateStatus: getAggregateUserStatus(conn.userId),
-                    activeConnections: getPeerCount(conn.userId),
-                    watchingData: getWatchingData(conn.userId),
+                    aggregateStatus: aggregateStatus(conn.userId),
+                    activeConnections: peerCount(conn.userId),
+                    watchingData: activeWatchingData(conn.userId),
                 })
                 break
-            }
 
-            default: {
-                safeSend(peer, {
-                    type: 'error',
-                    message: `Unknown message type: ${payload?.type}`,
-                })
-            }
+            case 'disconnect':
+                safeSend(peer, { type: 'disconnected', peerId: peer.id })
+                await handleDisconnect(peer.id)
+                try {
+                    peer.websocket.close(1000, 'Client disconnect')
+                } catch {}
+                console.log(`[WS] client disconnect peer=${peer.id} user=${conn.userId}`)
+                break
+
+            default:
+                safeSend(peer, { type: 'error', message: `Unknown type: ${payload?.type}` })
         }
     },
 
-    /**
-     * Handle connection close
-     */
     async close(peer) {
-        const peerId = peer.id
-        const conn = getConnection(peerId)
-
-        if (!conn) return
-
-        // Remove connection
-        connections.delete(peerId)
-        removeUserPeer(conn.userId, peerId)
-
-        // Update aggregate status
-        await updateUserStatus(conn.supabase, conn.userId)
-
-        console.log(`[WS] Connection closed - Peer: ${peerId}, User: ${conn.userId} (${getPeerCount(conn.userId)} remaining)`)
-
-        // Stop cleanup timer if no connections left
-        if (connections.size === 0) {
-            stopCleanupTimer()
-        }
+        const userId = connections.get(peer.id)?.userId
+        await handleDisconnect(peer.id)
+        console.log(`[WS] close peer=${peer.id} user=${userId} (${peerCount(userId)} remaining)`)
     },
 
-    /**
-     * Handle WebSocket errors
-     */
     async error(peer, err) {
-        console.error('[WS] WebSocket error:', err)
-
-        const peerId = peer.id
-        const conn = getConnection(peerId)
-
-        if (!conn) return
-
-        // Clean up connection
-        connections.delete(peerId)
-        removeUserPeer(conn.userId, peerId)
-
-        // Update aggregate status
-        await updateUserStatus(conn.supabase, conn.userId)
+        console.error('[WS] error:', err)
+        await handleDisconnect(peer.id)
     },
 })

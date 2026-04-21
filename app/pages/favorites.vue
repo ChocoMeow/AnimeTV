@@ -7,7 +7,7 @@ const client = useSupabaseClient()
 
 const favoriteItems = ref([]) // each item will have seasonYear/seasonIndex/seasonLabel precomputed
 const loading = ref(true)
-const searchQuery = ref("")
+const searchQuery = ref('')
 const selectedItems = ref(new Set())
 const showDeleteConfirm = ref(false)
 const showDeleteAllConfirm = ref(false)
@@ -15,11 +15,11 @@ const pageSize = 20
 const currentPage = ref(0)
 const hasMore = ref(true)
 const loadingMore = ref(false)
-const sortBy = ref("recent") // recent, title, season
+const sortBy = ref('recent') // recent, title, season
 
 // ---------- Season helpers ----------
 function enrichWithSeason(favorites) {
-    const seasonNames = ["冬季", "春季", "夏季", "秋季"]
+    const seasonNames = ['冬季', '春季', '夏季', '秋季']
 
     return (favorites || []).map((item) => {
         const premiere = item.anime_meta?.premiere_date
@@ -27,7 +27,7 @@ function enrichWithSeason(favorites) {
         let month = 0
 
         if (premiere) {
-            const [y, mo] = String(premiere).split("-")
+            const [y, mo] = String(premiere).split('-')
             year = Number(y) || 0
             month = Number(mo) || 0
         }
@@ -38,8 +38,7 @@ function enrichWithSeason(favorites) {
         else if (month >= 7 && month <= 9) seasonIndex = 2
         else if (month >= 10 && month <= 12) seasonIndex = 3
 
-        const label =
-            year && seasonIndex >= 0 ? `${year} 年${seasonNames[seasonIndex]}` : "未分類季節"
+        const label = year && seasonIndex >= 0 ? `${year} 年${seasonNames[seasonIndex]}` : '未分類季節'
 
         return { ...item, seasonYear: year, seasonIndex, seasonLabel: label }
     })
@@ -56,15 +55,15 @@ const filteredFavorites = computed(() => {
     }
 
     // Sort
-    if (sortBy.value === "title") {
+    if (sortBy.value === 'title') {
         filtered.sort((a, b) => a.anime_title.localeCompare(b.anime_title))
-    } else if (sortBy.value === "season") {
+    } else if (sortBy.value === 'season') {
         // Sort by season (newest season first), fallback to recent if no season info
         filtered.sort((a, b) => {
             const yearA = a.seasonYear || 0
             const yearB = b.seasonYear || 0
-            const idxA = typeof a.seasonIndex === "number" ? a.seasonIndex : -1
-            const idxB = typeof b.seasonIndex === "number" ? b.seasonIndex : -1
+            const idxA = typeof a.seasonIndex === 'number' ? a.seasonIndex : -1
+            const idxB = typeof b.seasonIndex === 'number' ? b.seasonIndex : -1
 
             // If both have valid season info, sort by year desc, then seasonIndex desc
             if (yearA && yearB) {
@@ -93,10 +92,10 @@ const filteredFavorites = computed(() => {
 
 // Group favorites by season label for season view
 const groupedFavoritesBySeason = computed(() => {
-    if (sortBy.value !== "season") return {}
+    if (sortBy.value !== 'season') return {}
 
     return filteredFavorites.value.reduce((acc, item) => {
-        const label = item.seasonLabel || "未分類季節"
+        const label = item.seasonLabel || '未分類季節'
         ;(acc[label] ||= []).push(item)
         return acc
     }, {})
@@ -129,23 +128,19 @@ async function loadMore() {
         const from = nextPage * pageSize
         const to = from + pageSize - 1
 
-        let query = client
-            .from("favorites")
-            .select("*, anime_meta!anime_ref_id(premiere_date)")
-            .eq("user_id", userSettings.value.id)
-            .range(from, to)
-        
+        let query = client.from('favorites').select('*, anime_meta!anime_ref_id(premiere_date)').eq('user_id', userSettings.value.id).range(from, to)
+
         // Apply search filter (server-side)
         if (searchQuery.value?.trim()) {
             query = query.ilike('anime_title', `%${searchQuery.value.trim()}%`)
         }
 
-        if (sortBy.value === "title") {
-            query = query.order("anime_title", { ascending: true })
-        } else if (sortBy.value === "season") {
-            query = query.order("anime_meta(premiere_date)", { ascending: false, nullsFirst: false })
+        if (sortBy.value === 'title') {
+            query = query.order('anime_title', { ascending: true })
+        } else if (sortBy.value === 'season') {
+            query = query.order('anime_meta(premiere_date)', { ascending: false, nullsFirst: false })
         } else {
-            query = query.order("created_at", { ascending: false })
+            query = query.order('created_at', { ascending: false })
         }
 
         const { data, error } = await query
@@ -159,7 +154,7 @@ async function loadMore() {
             hasMore.value = false
         }
     } catch (err) {
-        console.error("Failed to load more favorites:", err)
+        console.error('Failed to load more favorites:', err)
     } finally {
         loadingMore.value = false
     }
@@ -185,7 +180,7 @@ async function confirmDelete() {
     try {
         const idsToDelete = Array.from(selectedItems.value)
 
-        const { error } = await client.from("favorites").delete().in("id", idsToDelete)
+        const { error } = await client.from('favorites').delete().in('id', idsToDelete)
 
         if (error) throw error
 
@@ -194,15 +189,15 @@ async function confirmDelete() {
         selectedItems.value.clear()
         showDeleteConfirm.value = false
     } catch (err) {
-        console.error("Failed to delete favorites:", err)
-        showToast("刪除失敗，請稍後再試", "error")
+        console.error('Failed to delete favorites:', err)
+        showToast('刪除失敗，請稍後再試', 'error')
     }
 }
 
 async function confirmDeleteAll() {
     try {
         if (!userSettings.value.id) return
-        const { error } = await client.from("favorites").delete().eq("user_id", userSettings.value.id)
+        const { error } = await client.from('favorites').delete().eq('user_id', userSettings.value.id)
 
         if (error) throw error
 
@@ -210,8 +205,8 @@ async function confirmDeleteAll() {
         selectedItems.value.clear()
         showDeleteAllConfirm.value = false
     } catch (err) {
-        console.error("Failed to clear favorites:", err)
-        showToast("清除失敗，請稍後再試", "error")
+        console.error('Failed to clear favorites:', err)
+        showToast('清除失敗，請稍後再試', 'error')
     }
 }
 
@@ -224,22 +219,22 @@ async function fetchFavorites() {
         }
 
         let query = client
-            .from("favorites")
-            .select("*, anime_meta!anime_ref_id(premiere_date)")
-            .eq("user_id", userSettings.value.id)
+            .from('favorites')
+            .select('*, anime_meta!anime_ref_id(premiere_date)')
+            .eq('user_id', userSettings.value.id)
             .range(0, pageSize - 1)
-        
+
         // Apply search filter (server-side)
         if (searchQuery.value?.trim()) {
             query = query.ilike('anime_title', `%${searchQuery.value.trim()}%`)
         }
 
-        if (sortBy.value === "title") {
-            query = query.order("anime_title", { ascending: true })
-        } else if (sortBy.value === "season") {
-            query = query.order("anime_meta(premiere_date)", { ascending: false, nullsFirst: false })
+        if (sortBy.value === 'title') {
+            query = query.order('anime_title', { ascending: true })
+        } else if (sortBy.value === 'season') {
+            query = query.order('anime_meta(premiere_date)', { ascending: false, nullsFirst: false })
         } else {
-            query = query.order("created_at", { ascending: false })
+            query = query.order('created_at', { ascending: false })
         }
 
         const { data, error } = await query
@@ -249,8 +244,9 @@ async function fetchFavorites() {
         currentPage.value = 0
         hasMore.value = data && data.length === pageSize
     } catch (err) {
-        console.error("Failed to fetch favorites:", err)
+        console.error('Failed to fetch favorites:', err)
         favoriteItems.value = []
+        hasMore.value = false
     } finally {
         loading.value = false
     }
@@ -258,11 +254,11 @@ async function fetchFavorites() {
 
 onMounted(() => {
     fetchFavorites()
-    window.addEventListener("scroll", handleScroll)
+    window.addEventListener('scroll', handleScroll)
 })
 
 onBeforeUnmount(() => {
-    window.removeEventListener("scroll", handleScroll)
+    window.removeEventListener('scroll', handleScroll)
 })
 
 // Reset when sort or search changes
@@ -288,7 +284,12 @@ useHead({
 
                 <!-- Search -->
                 <div class="relative w-full sm:max-w-xs">
-                    <input v-model="searchQuery" type="text" placeholder="搜尋收藏..." class="w-full bg-white dark:bg-white/10 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 outline-none" />
+                    <input
+                        v-model="searchQuery"
+                        type="text"
+                        placeholder="搜尋收藏..."
+                        class="w-full bg-white dark:bg-white/10 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 outline-none"
+                    />
                     <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
                 </div>
             </div>
@@ -297,15 +298,39 @@ useHead({
             <div class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
                 <!-- Sort Options -->
                 <div class="flex gap-2 flex-wrap">
-                    <button @click="sortBy = 'recent'" :class="sortBy === 'recent' ? 'text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900' : 'bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md flex items-center gap-2">
+                    <button
+                        @click="sortBy = 'recent'"
+                        :class="
+                            sortBy === 'recent'
+                                ? 'text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900'
+                                : 'bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300'
+                        "
+                        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md flex items-center gap-2"
+                    >
                         <span class="material-icons text-lg">schedule</span>
                         最近收藏
                     </button>
-                    <button @click="sortBy = 'title'" :class="sortBy === 'title' ? 'text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900' : 'bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md flex items-center gap-2">
+                    <button
+                        @click="sortBy = 'title'"
+                        :class="
+                            sortBy === 'title'
+                                ? 'text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900'
+                                : 'bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300'
+                        "
+                        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md flex items-center gap-2"
+                    >
                         <span class="material-icons text-lg">sort_by_alpha</span>
                         名稱排序
                     </button>
-                    <button @click="sortBy = 'season'" :class="sortBy === 'season' ? 'text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900' : 'bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md flex items-center gap-2">
+                    <button
+                        @click="sortBy = 'season'"
+                        :class="
+                            sortBy === 'season'
+                                ? 'text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900'
+                                : 'bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300'
+                        "
+                        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md flex items-center gap-2"
+                    >
                         <span class="material-icons text-lg">event</span>
                         季節排序
                     </button>
@@ -313,19 +338,29 @@ useHead({
 
                 <!-- Action Buttons -->
                 <div v-if="favoriteItems.length > 0" class="flex items-center gap-3 flex-wrap">
-                    <button @click="selectAll" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2">
+                    <button
+                        @click="selectAll"
+                        class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+                    >
                         <span class="material-icons text-lg">
-                            {{ selectedItems.size === filteredFavorites.length && filteredFavorites.length > 0 ? "check_box" : "check_box_outline_blank" }}
+                            {{ selectedItems.size === filteredFavorites.length && filteredFavorites.length > 0 ? 'check_box' : 'check_box_outline_blank' }}
                         </span>
-                        {{ selectedItems.size === filteredFavorites.length && filteredFavorites.length > 0 ? "取消全選" : "全選" }}
+                        {{ selectedItems.size === filteredFavorites.length && filteredFavorites.length > 0 ? '取消全選' : '全選' }}
                     </button>
 
-                    <button v-if="selectedItems.size > 0" @click="deleteSelected" class="text-sm px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2">
+                    <button
+                        v-if="selectedItems.size > 0"
+                        @click="deleteSelected"
+                        class="text-sm px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2"
+                    >
                         <span class="material-icons text-lg">delete</span>
                         刪除已選 ({{ selectedItems.size }})
                     </button>
 
-                    <button @click="showDeleteAllConfirm = true" class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
+                    <button
+                        @click="showDeleteAllConfirm = true"
+                        class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+                    >
                         <span class="material-icons text-lg">delete_sweep</span>
                         清除全部
                     </button>
@@ -333,7 +368,9 @@ useHead({
             </div>
 
             <!-- Stats -->
-            <div v-if="!loading && favoriteItems.length > 0" class="mt-4 text-sm text-gray-600 dark:text-gray-400">共 {{ favoriteItems.length }} 部收藏動漫</div>
+            <div v-if="!loading && favoriteItems.length > 0" class="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                共 {{ favoriteItems.length }} 部收藏動漫
+            </div>
         </div>
 
         <!-- Loading State -->
@@ -341,22 +378,25 @@ useHead({
             <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-600 border-t-transparent"></div>
         </div>
 
-        <!-- Empty State -->
-        <div v-else-if="favoriteItems.length === 0" class="text-center py-20">
-            <span class="material-icons text-gray-400 text-6xl mb-4">bookmark_add</span>
-            <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">還沒有收藏動漫</h3>
-            <p class="text-gray-500 dark:text-gray-400 mb-6">找到喜歡的動漫就收藏起來吧</p>
-            <NuxtLink to="/" class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors inline-flex items-center gap-2">
-                <span class="material-icons">explore</span>
-                探索動漫
-            </NuxtLink>
-        </div>
-
         <!-- No Search Results -->
         <div v-else-if="filteredFavorites.length === 0" class="text-center py-20">
             <span class="material-icons text-gray-400 text-6xl mb-4">search_off</span>
             <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">找不到相關收藏</h3>
             <p class="text-gray-500 dark:text-gray-400">試試其他搜尋關鍵字</p>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="favoriteItems.length === 0" class="text-center py-20">
+            <span class="material-icons text-gray-400 text-6xl mb-4">bookmark_add</span>
+            <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">還沒有收藏動漫</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-6">找到喜歡的動漫就收藏起來吧</p>
+            <NuxtLink
+                to="/"
+                class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors inline-flex items-center gap-2"
+            >
+                <span class="material-icons">explore</span>
+                探索動漫
+            </NuxtLink>
         </div>
 
         <!-- Favorites Grid -->
@@ -480,7 +520,12 @@ useHead({
         <p class="text-gray-600 dark:text-gray-400 mb-6">確定要刪除 {{ selectedItems.size }} 個收藏嗎？此操作無法復原。</p>
 
         <template #actions>
-            <button @click="showDeleteConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+            <button
+                @click="showDeleteConfirm = false"
+                class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+                取消
+            </button>
             <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認刪除</button>
         </template>
     </BaseModal>
@@ -490,7 +535,12 @@ useHead({
         <p class="text-gray-600 dark:text-gray-400 mb-2">確定要清除所有收藏紀錄嗎？此操作無法復原。</p>
 
         <template #actions>
-            <button @click="showDeleteAllConfirm = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+            <button
+                @click="showDeleteAllConfirm = false"
+                class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+                取消
+            </button>
             <button @click="confirmDeleteAll" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認清除</button>
         </template>
     </BaseModal>
