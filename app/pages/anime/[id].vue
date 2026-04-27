@@ -7,39 +7,29 @@ const router = useRouter()
 const client = useSupabaseClient()
 const { isAdmin } = useAdmin()
 
-// Get user shortcuts
 const userShortcuts = computed(() => getShortcuts())
 
-// User status tracking
 const { setWatching, setOnline } = useUserStatus()
 
-// Anime tooltip composable (for related anime hover)
 const {
-    hoveredAnime,
-    animeDetails,
-    tooltipLoading,
-    tooltipError,
-    tooltipPosition,
+    hoveredAnime, animeDetails, tooltipLoading, tooltipError, tooltipPosition,
     handleMouseEnter: handleTooltipMouseEnter,
     handleMouseLeave: handleTooltipMouseLeave,
-    handleTooltipEnter,
-    handleTooltipLeave,
-    setFavoriteStatus,
-    cleanup: cleanupAnimeTooltip,
+    handleTooltipEnter, handleTooltipLeave,
+    setFavoriteStatus, cleanup: cleanupAnimeTooltip,
 } = useAnimeTooltip()
 
-// Constants
-const SAVE_INTERVAL = 120000 // Save every 2 minutes
+const SAVE_INTERVAL = 120000
 let saveIntervalTimer = null
 
-// Component State
+// ─── State ────────────────────────────────────────────────────────────────────
+
 const anime = ref(null)
 const selectedEpisode = ref(null)
 const videoUrl = ref(null)
 const videoIsHls = ref(false)
 const error = ref(null)
 const loading = ref(true)
-const videoLoading = ref(false)
 const isFavorite = ref(false)
 const showShareDialog = ref(false)
 const showDetailDialog = ref(false)
@@ -49,14 +39,10 @@ const showToolbarOverflowMenu = ref(false)
 const toolbarOverflowRoot = ref(null)
 let toolbarOverflowClickHandler = null
 
-// Offline downloads (IndexedDB)
+// Offline
 const {
-    loadAnimeSnapshot,
-    deleteAnimeSnapshot,
-    listDownloadedEpisodeKeys,
-    removeEpisode: removeOfflineEpisode,
-    getOfflinePlayback,
-    getOfflineThumbnailAssets,
+    loadAnimeSnapshot, deleteAnimeSnapshot, listDownloadedEpisodeKeys,
+    removeEpisode: removeOfflineEpisode, getOfflinePlayback, getOfflineThumbnailAssets,
 } = useOfflineAnimeDownloads()
 const { showToast } = useToast()
 const { runOfflineDownloadBatch } = useOfflineDownloadQueue()
@@ -71,21 +57,39 @@ const offlineThumbnailJpgUrl = ref(null)
 const offlineThumbnailVttText = ref(null)
 const offlineModeBanner = ref(false)
 
-// Continue Watching State
+// Watch history / continue watching
 const lastWatchedData = ref(null)
 const showContinuePrompt = ref(false)
 const allWatchProgress = ref({})
 
-// Video Tracking
+// Player
 const videoPlayer = ref(null)
 const hasSetInitialTime = ref(false)
-const previousEpisode = ref(null)
 
-// Video thumbnails (per selected episode)
+// ─── Computed ─────────────────────────────────────────────────────────────────
+
+const sortedEpisodeKeys = computed(() => {
+    if (!anime.value?.episodes) return []
+    return Object.keys(anime.value.episodes).sort((a, b) => {
+        const na = parseInt(a, 10), nb = parseInt(b, 10)
+        return !isNaN(na) && !isNaN(nb) ? na - nb : a.localeCompare(b)
+    })
+})
+
+const episodeInfo = computed(() => {
+    const keys = sortedEpisodeKeys.value
+    const currentIndex = keys.indexOf(String(selectedEpisode.value))
+    return { keys, currentIndex }
+})
+
+const hasNextEpisode = computed(() => {
+    const { keys, currentIndex } = episodeInfo.value
+    return currentIndex !== -1 && currentIndex < keys.length - 1
+})
+
 const currentEpisodeData = computed(() => {
-    if (!anime.value?.episodes || selectedEpisode.value === null || selectedEpisode.value === undefined) return null
-    const epKey = String(selectedEpisode.value)
-    return anime.value.episodes[epKey] ?? null
+    if (!anime.value?.episodes || selectedEpisode.value == null) return null
+    return anime.value.episodes[String(selectedEpisode.value)] ?? null
 })
 
 const currentVideoId = computed(() => {
@@ -93,38 +97,81 @@ const currentVideoId = computed(() => {
     return typeof ep === "string" ? null : ep?.video_id ?? null
 })
 
-const sortedEpisodeKeys = computed(() => {
-    if (!anime.value?.episodes) return []
-    return Object.keys(anime.value.episodes).sort((a, b) => {
-        const na = parseInt(a, 10)
-        const nb = parseInt(b, 10)
-        if (!isNaN(na) && !isNaN(nb)) return na - nb
-        return a.localeCompare(b)
-    })
+const videoPlayerMeta = computed(() => ({
+    title: anime.value?.title ?? null,
+    episode: selectedEpisode.value ?? null,
+    videoId: currentVideoId.value,
+    thumbnailJpgUrl: offlineThumbnailJpgUrl.value,
+    thumbnailVttText: offlineThumbnailVttText.value,
+}))
+
+const isMac = computed(() =>
+    typeof window !== "undefined" && /Mac|iPhone|iPod|iPad/i.test(navigator.platform)
+)
+
+const additionalDetails = computed(() => {
+    if (!anime.value) return []
+    const map = [
+        { key: "premiereDate",      label: "首播日期", icon: "event",          iconBg: "bg-pink-100 dark:bg-pink-900/30",  iconColor: "text-pink-600 dark:text-pink-400" },
+        { key: "productionCompany", label: "製作公司", icon: "business",       iconBg: "bg-gray-100 dark:bg-gray-800",     iconColor: "text-gray-600 dark:text-gray-400" },
+        { key: "director",          label: "導演監督", icon: "person",         iconBg: "bg-gray-100 dark:bg-gray-800",     iconColor: "text-gray-600 dark:text-gray-400" },
+        { key: "distributor",       label: "發行商",   icon: "local_shipping", iconBg: "bg-blue-100 dark:bg-blue-900/30",  iconColor: "text-blue-600 dark:text-blue-400" },
+    ]
+    return map.filter(d => anime.value[d.key]).map(d => ({ ...d, value: anime.value[d.key] }))
 })
 
-function revokeOfflinePlayback() {
-    if (offlinePlaybackRevoke.value) {
-        offlinePlaybackRevoke.value()
-        offlinePlaybackRevoke.value = null
+const animeToolbarActions = computed(() => {
+    if (!anime.value) return []
+    const actions = []
+
+    if (anime.value.detailId) {
+        actions.push({ key: 'detail', label: '詳情', icon: 'info', iconClass: 'text-gray-900 dark:text-white', run: () => { showDetailDialog.value = true } })
     }
+
+    actions.push(
+        { key: 'share',    label: '分享',                          icon: 'share',          iconClass: 'text-gray-900 dark:text-white',  run: () => openShareDialog() },
+        { key: 'favorite', label: isFavorite.value ? '已收藏' : '收藏', icon: isFavorite.value ? 'bookmark_added' : 'bookmark_add', iconClass: isFavorite.value ? 'text-red-500' : 'text-gray-900 dark:text-white', run: () => toggleFavorite() },
+    )
+
+    if (anime.value.episodes && Object.keys(anime.value.episodes).length) {
+        actions.push({ key: 'offline', label: '離線下載', icon: 'download', iconClass: 'text-gray-900 dark:text-white', run: () => { showOfflineDownloadDialog.value = true } })
+    }
+
+    if (isAdmin.value === true) {
+        const sourceId = anime.value.refId ?? route.params.id
+        const hasVideoId = anime.value.videoId != null && String(anime.value.videoId).length > 0
+        if (sourceId || hasVideoId) {
+            actions.push({
+                key: 'admin', label: '後台管理', icon: 'admin_panel_settings', iconClass: 'text-gray-900 dark:text-white',
+                run: () => router.push({ path: '/admin', query: { field: hasVideoId ? 'video_id' : 'source_id', search: hasVideoId ? String(anime.value.videoId) : String(sourceId), operator: 'eq' } }),
+            })
+        }
+    }
+
+    return actions
+})
+
+const toolbarPrimaryActions = computed(() => animeToolbarActions.value.slice(0, 3))
+const toolbarOverflowActions = computed(() => animeToolbarActions.value.slice(3))
+
+// ─── Offline helpers ──────────────────────────────────────────────────────────
+
+function revokeOfflinePlayback() {
+    offlinePlaybackRevoke.value?.()
+    offlinePlaybackRevoke.value = null
 }
 
 function revokeOfflineThumbnails() {
-    if (offlineThumbRevoke.value) {
-        offlineThumbRevoke.value()
-        offlineThumbRevoke.value = null
-    }
+    offlineThumbRevoke.value?.()
+    offlineThumbRevoke.value = null
     offlineThumbnailJpgUrl.value = null
     offlineThumbnailVttText.value = null
 }
 
 async function refreshOfflineEpisodeList() {
-    if (!anime.value?.refId) {
-        offlineDownloadedKeys.value = []
-        return
-    }
-    offlineDownloadedKeys.value = await listDownloadedEpisodeKeys(anime.value.refId)
+    offlineDownloadedKeys.value = anime.value?.refId
+        ? await listDownloadedEpisodeKeys(anime.value.refId)
+        : []
 }
 
 async function handleOfflineDownload(keys) {
@@ -139,17 +186,12 @@ async function handleOfflineDownload(keys) {
             animeSnapshot: anime.value,
             keys,
             episodes: anime.value.episodes || {},
-            setOverallProgress: (v) => {
-                offlineDownloadProgress.value = v
-            },
-            setOverallLabel: (v) => {
-                offlineDownloadLabel.value = v
-            },
+            setOverallProgress: (v) => { offlineDownloadProgress.value = v },
+            setOverallLabel:    (v) => { offlineDownloadLabel.value = v },
             toast: (msg, type, duration) => showToast(msg, type, duration),
         })
         await refreshOfflineEpisodeList()
     } catch (err) {
-        console.error(err)
         showToast(err?.message || "下載失敗", "error")
     } finally {
         offlineDownloadProgress.value = 100
@@ -164,561 +206,219 @@ async function handleOfflineRemoveEpisode(ep) {
         await removeOfflineEpisode(anime.value.refId, ep)
         showToast("已刪除離線檔案", "success")
         await refreshOfflineEpisodeList()
-    } catch (err) {
-        console.error(err)
-        showToast("刪除失敗", "error")
-    }
+    } catch { showToast("刪除失敗", "error") }
 }
 
 async function handleOfflineRemoveAll() {
-    if (!anime.value?.refId) return
-    if (!confirm("確定清除此作品所有離線下載？")) return
+    if (!anime.value?.refId || !confirm("確定清除此作品所有離線下載？")) return
     try {
         const keys = await listDownloadedEpisodeKeys(anime.value.refId)
-        for (const k of keys) {
-            await removeOfflineEpisode(anime.value.refId, k)
-        }
+        for (const k of keys) await removeOfflineEpisode(anime.value.refId, k)
         await deleteAnimeSnapshot(anime.value.refId)
         showToast("已清除離線資料", "success")
         await refreshOfflineEpisodeList()
-    } catch (err) {
-        console.error(err)
-        showToast("清除失敗", "error")
-    }
+    } catch { showToast("清除失敗", "error") }
 }
 
-// UI Actions
+// ─── UI actions ───────────────────────────────────────────────────────────────
+
 function openShareDialog() {
     if (typeof window !== "undefined") {
-        const baseUrl = window.location.origin + route.path
         const params = new URLSearchParams()
-
         if (selectedEpisode.value && videoPlayer.value) {
             params.set("e", selectedEpisode.value)
-            const currentTime = videoPlayer.value.currentTime
-            if (currentTime > 0) {
-                params.set("t", Math.floor(currentTime).toString())
-            }
+            const t = videoPlayer.value.currentTime
+            if (t > 0) params.set("t", Math.floor(t).toString())
         }
-
-        shareUrl.value = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl
+        const base = window.location.origin + route.path
+        shareUrl.value = params.toString() ? `${base}?${params}` : base
     }
     showShareDialog.value = true
 }
-
-const animeToolbarActions = computed(() => {
-    if (!anime.value) return []
-    const actions = []
-
-    if (anime.value.detailId) {
-        actions.push({
-            key: 'detail',
-            label: '詳情',
-            icon: 'info',
-            iconClass: 'text-gray-900 dark:text-white',
-            run: () => {
-                showDetailDialog.value = true
-            },
-        })
-    }
-
-    actions.push(
-        {
-            key: 'share',
-            label: '分享',
-            icon: 'share',
-            iconClass: 'text-gray-900 dark:text-white',
-            run: () => openShareDialog(),
-        },
-        {
-            key: 'favorite',
-            label: isFavorite.value ? '已收藏' : '收藏',
-            icon: isFavorite.value ? 'bookmark_added' : 'bookmark_add',
-            iconClass: isFavorite.value ? 'text-red-500' : 'text-gray-900 dark:text-white',
-            run: () => toggleFavorite(),
-        },
-    )
-
-    if (anime.value.episodes && Object.keys(anime.value.episodes).length) {
-        actions.push({
-            key: 'offline',
-            label: '離線下載',
-            icon: 'download',
-            iconClass: 'text-gray-900 dark:text-white',
-            run: () => {
-                showOfflineDownloadDialog.value = true
-            },
-        })
-    }
-
-    if (isAdmin.value === true) {
-        const sourceId = anime.value.refId ?? route.params.id
-        const hasVideoId = anime.value.videoId !== null && anime.value.videoId !== undefined && String(anime.value.videoId).length > 0
-        if (sourceId || hasVideoId) {
-            actions.push({
-                key: 'admin',
-                label: '後台管理',
-                icon: 'admin_panel_settings',
-                iconClass: 'text-gray-900 dark:text-white',
-                run: () => {
-                    const field = hasVideoId ? 'video_id' : 'source_id'
-                    const search = hasVideoId ? String(anime.value.videoId) : String(sourceId)
-                    router.push({
-                        path: '/admin',
-                        query: {
-                            field,
-                            search,
-                            operator: 'eq',
-                        },
-                    })
-                },
-            })
-        }
-    }
-
-    return actions
-})
-
-const toolbarPrimaryActions = computed(() => animeToolbarActions.value.slice(0, 3))
-const toolbarOverflowActions = computed(() => animeToolbarActions.value.slice(3))
-
-watch(showToolbarOverflowMenu, (open) => {
-    if (!import.meta.client) return
-
-    if (toolbarOverflowClickHandler) {
-        document.removeEventListener('click', toolbarOverflowClickHandler, true)
-        toolbarOverflowClickHandler = null
-    }
-
-    if (!open) return
-
-    toolbarOverflowClickHandler = (e) => {
-        if (toolbarOverflowRoot.value && !toolbarOverflowRoot.value.contains(e.target)) {
-            showToolbarOverflowMenu.value = false
-        }
-    }
-    nextTick(() => {
-        setTimeout(() => {
-            if (showToolbarOverflowMenu.value && toolbarOverflowClickHandler) {
-                document.addEventListener('click', toolbarOverflowClickHandler, true)
-            }
-        }, 0)
-    })
-})
-
-watch(
-    () => route.fullPath,
-    () => {
-        showToolbarOverflowMenu.value = false
-    },
-)
-
-onUnmounted(() => {
-    if (toolbarOverflowClickHandler) {
-        document.removeEventListener('click', toolbarOverflowClickHandler, true)
-    }
-})
 
 function formatRating(score) {
     return score ? parseFloat(score).toFixed(1) : "N/A"
 }
 
-// Additional Details Configuration
-const additionalDetails = computed(() => {
-    if (!anime.value) return []
-    
-    const details = []
-    
-    if (anime.value.premiereDate) {
-        details.push({
-            label: "首播日期",
-            value: anime.value.premiereDate,
-            icon: "event",
-            iconBg: "bg-pink-100 dark:bg-pink-900/30",
-            iconColor: "text-pink-600 dark:text-pink-400"
-        })
+// ─── Toolbar overflow click-outside ──────────────────────────────────────────
+
+watch(showToolbarOverflowMenu, (open) => {
+    if (!import.meta.client) return
+    if (toolbarOverflowClickHandler) {
+        document.removeEventListener('click', toolbarOverflowClickHandler, true)
+        toolbarOverflowClickHandler = null
     }
-    
-    if (anime.value.productionCompany) {
-        details.push({
-            label: "製作公司",
-            value: anime.value.productionCompany,
-            icon: "business",
-            iconBg: "bg-gray-100 dark:bg-gray-800",
-            iconColor: "text-gray-600 dark:text-gray-400"
-        })
+    if (!open) return
+    toolbarOverflowClickHandler = (e) => {
+        if (toolbarOverflowRoot.value && !toolbarOverflowRoot.value.contains(e.target))
+            showToolbarOverflowMenu.value = false
     }
-    
-    if (anime.value.director) {
-        details.push({
-            label: "導演監督",
-            value: anime.value.director,
-            icon: "person",
-            iconBg: "bg-gray-100 dark:bg-gray-800",
-            iconColor: "text-gray-600 dark:text-gray-400"
-        })
-    }
-    
-    if (anime.value.distributor) {
-        details.push({
-            label: "發行商",
-            value: anime.value.distributor,
-            icon: "local_shipping",
-            iconBg: "bg-blue-100 dark:bg-blue-900/30",
-            iconColor: "text-blue-600 dark:text-blue-400"
-        })
-    }
-    
-    return details
+    nextTick(() => setTimeout(() => {
+        if (showToolbarOverflowMenu.value && toolbarOverflowClickHandler)
+            document.addEventListener('click', toolbarOverflowClickHandler, true)
+    }, 0))
 })
 
-// Continue Watching Functions
+watch(() => route.fullPath, () => { showToolbarOverflowMenu.value = false })
+
+// ─── Continue watching ────────────────────────────────────────────────────────
+
 function continueLast() {
     if (!lastWatchedData.value) return
     selectedEpisode.value = lastWatchedData.value.episode_number
     showContinuePrompt.value = false
-
-    router.replace({
-        path: route.path,
-        query: {
-            e: lastWatchedData.value.episode_number,
-            t: lastWatchedData.value.playback_time,
-        },
-    })
+    router.replace({ path: route.path, query: { e: lastWatchedData.value.episode_number, t: lastWatchedData.value.playback_time } })
 }
 
-function handlePlay() {
-    startAutoSave()
-}
-
-function handlePause() {
-    stopAutoSave()
-}
-
-function handleEnded() {
-    saveWatchHistory()
-    stopAutoSave()
-    setOnline()
-}
-
-// Helper function to get sorted episode numbers and current index
-function getEpisodeInfo() {
-    if (!anime.value || !anime.value.episodes || !selectedEpisode.value) {
-        return { episodeNumbers: [], currentIndex: -1 }
-    }
-
-    // Get all episode numbers and sort them
-    const episodeNumbers = Object.keys(anime.value.episodes).sort((a, b) => {
-        // Try to sort numerically first, fallback to string comparison
-        const numA = parseInt(a)
-        const numB = parseInt(b)
-        if (!isNaN(numA) && !isNaN(numB)) {
-            return numA - numB
-        }
-        return a.localeCompare(b)
-    })
-
-    // Find current episode index
-    const currentIndex = episodeNumbers.indexOf(String(selectedEpisode.value))
-
-    return { episodeNumbers, currentIndex }
-}
-
-// Check if there's a next episode
-const hasNextEpisode = computed(() => {
-    const { episodeNumbers, currentIndex } = getEpisodeInfo()
-    return currentIndex !== -1 && currentIndex < episodeNumbers.length - 1
-})
-
-// Check if running on Mac (for displaying correct modifier key)
-const isMac = computed(() => {
-    if (typeof window === 'undefined') return false
-    return /Mac|iPhone|iPod|iPad/i.test(navigator.platform)
-})
+// ─── Episode navigation ───────────────────────────────────────────────────────
 
 function handleNextEpisode() {
-    const { episodeNumbers, currentIndex } = getEpisodeInfo()
-    
-    // If there's a next episode, select it
-    if (currentIndex !== -1 && currentIndex < episodeNumbers.length - 1) {
-        const nextEpisode = episodeNumbers[currentIndex + 1]
-        selectedEpisode.value = nextEpisode
-    }
+    const { keys, currentIndex } = episodeInfo.value
+    if (currentIndex !== -1 && currentIndex < keys.length - 1)
+        selectedEpisode.value = keys[currentIndex + 1]
 }
 
 function handlePreviousEpisode() {
-    const { episodeNumbers, currentIndex } = getEpisodeInfo()
-    
-    // If there's a previous episode, select it
-    if (currentIndex !== -1 && currentIndex > 0) {
-        const prevEpisode = episodeNumbers[currentIndex - 1]
-        selectedEpisode.value = prevEpisode
-    }
+    const { keys, currentIndex } = episodeInfo.value
+    if (currentIndex > 0) selectedEpisode.value = keys[currentIndex - 1]
 }
+
+// ─── Playback events ──────────────────────────────────────────────────────────
+
+function handlePlay()  { startAutoSave() }
+function handlePause() { stopAutoSave() }
+function handleEnded() { saveWatchHistory(); stopAutoSave(); setOnline() }
+
+// ─── Favorites ────────────────────────────────────────────────────────────────
 
 async function toggleFavorite() {
     if (!anime.value || !userSettings.value.id) return
     isFavorite.value = !isFavorite.value
+    const { error } = isFavorite.value
+        ? await client.from("favorites").insert({ user_id: userSettings.value.id, anime_ref_id: anime.value.refId, anime_title: anime.value.title, anime_image: anime.value.image })
+        : await client.from("favorites").delete().match({ user_id: userSettings.value.id, anime_ref_id: anime.value.refId })
+    if (error) throw new Error(error.message)
+}
 
-    let response
-    if (isFavorite.value) {
-        response = await client.from("favorites").insert({
-            user_id: userSettings.value.id,
-            anime_ref_id: anime.value.refId,
-            anime_title: anime.value.title,
-            anime_image: anime.value.image,
-        })
-    } else {
-        response = await client.from("favorites").delete().match({
-            user_id: userSettings.value.id,
-            anime_ref_id: anime.value.refId,
-        })
+// ─── Watch history ────────────────────────────────────────────────────────────
+
+function startAutoSave() {
+    if (!saveIntervalTimer) saveIntervalTimer = setInterval(saveWatchHistory, SAVE_INTERVAL)
+}
+
+function stopAutoSave() {
+    clearInterval(saveIntervalTimer)
+    saveIntervalTimer = null
+}
+
+async function saveWatchHistory(episodeNumber = null) {
+    if (!userSettings.value.watch_history_enabled || !userSettings.value.id || !anime.value || !videoPlayer.value) return
+    const epNum = (typeof episodeNumber === "number" || typeof episodeNumber === "string" ? episodeNumber : null) || selectedEpisode.value
+    if (!epNum) return
+
+    const duration = videoPlayer.value.duration
+    const currentTime = videoPlayer.value.currentTime
+    if (!duration) return
+
+    const historyData = {
+        user_id: userSettings.value.id,
+        anime_ref_id: anime.value.refId,
+        anime_title: anime.value.title,
+        anime_image: anime.value.image,
+        episode_number: String(epNum),
+        playback_time: Math.floor(currentTime),
+        video_duration: Math.floor(duration),
+        progress_percentage: Math.min(100, Math.floor((currentTime / duration) * 100)),
     }
 
-    if (response.error) {
-        throw new Error(response.error.message)
-    }
+    try {
+        const { error } = await client.from("watch_history").upsert(historyData, { onConflict: "user_id, anime_ref_id, episode_number" })
+        if (error) throw error
+        allWatchProgress.value[historyData.episode_number] = historyData
+        lastWatchedData.value = historyData
+    } catch (err) { console.error("Failed to save watch history:", err) }
 }
 
 async function fetchLastWatched() {
+    if (!userSettings.value.id || !anime.value) return
     try {
-        if (!userSettings.value.id || !anime.value) return
         const { data, error } = await client.from("watch_history")
             .select("*")
             .eq("anime_ref_id", anime.value.refId)
             .eq("user_id", userSettings.value.id)
             .order("updated_at", { ascending: false })
 
-        if (!error && data && data.length > 0) {
+        if (!error && data?.length) {
             allWatchProgress.value = {}
-            data.forEach((item) => {
-                if (!allWatchProgress.value[item.episode_number]) {
+            data.forEach(item => {
+                if (!allWatchProgress.value[item.episode_number])
                     allWatchProgress.value[item.episode_number] = item
-                }
             })
-
             lastWatchedData.value = data[0]
-
-            if (lastWatchedData.value.progress_percentage < 90 && !route.query.e) {
+            if (lastWatchedData.value.progress_percentage < 90 && !route.query.e)
                 showContinuePrompt.value = true
-            }
         }
-    } catch (err) {
-        console.error("Failed to fetch last watched:", err)
-    }
+    } catch (err) { console.error("Failed to fetch last watched:", err) }
 }
 
-async function onVideoReady() {
-    videoLoading.value = false
+// ─── Video ready ──────────────────────────────────────────────────────────────
 
+async function onVideoReady() {
     if (hasSetInitialTime.value) return
 
     let startTime = null
-
-    // Priority 1: Check URL query parameter
     if (route.query.t) {
         startTime = parseFloat(route.query.t)
-    }
-    // Priority 2: Check watch history for this episode
-    else if (selectedEpisode.value && allWatchProgress.value[String(selectedEpisode.value)]) {
-        const watchHistory = allWatchProgress.value[String(selectedEpisode.value)]
-        startTime = watchHistory.playback_time
+    } else if (selectedEpisode.value && allWatchProgress.value[String(selectedEpisode.value)]) {
+        startTime = allWatchProgress.value[String(selectedEpisode.value)].playback_time
     }
 
     if (startTime && videoPlayer.value && !isNaN(startTime) && startTime > 0) {
-        const videoElement = videoPlayer.value.videoElement
-        if (videoElement && videoElement.readyState >= 2) {
-            videoPlayer.value.seek(startTime)
-            hasSetInitialTime.value = true
-        } else if (videoElement) {
-            videoElement.addEventListener(
-                "canplay",
-                () => {
-                    if (!hasSetInitialTime.value && videoPlayer.value) {
-                        videoPlayer.value.seek(startTime)
-                        hasSetInitialTime.value = true
-                    }
-                },
-                { once: true }
-            )
-        }
+        const videoEl = videoPlayer.value.videoElement
+        const doSeek = () => { if (!hasSetInitialTime.value && videoPlayer.value) { videoPlayer.value.seek(startTime); hasSetInitialTime.value = true } }
+        if (videoEl?.readyState >= 2) { videoPlayer.value.seek(startTime); hasSetInitialTime.value = true }
+        else videoEl?.addEventListener("canplay", doSeek, { once: true })
     } else {
         hasSetInitialTime.value = true
     }
 
-    // Scroll to video player
-    const videoElement = videoPlayer.value?.videoElement
-    if (videoElement) {
-        setTimeout(() => {
-            videoElement.scrollIntoView({
-                behavior: "smooth",
-                block: "center",
-            })
-        }, 100)
-    }
+    const videoEl = videoPlayer.value?.videoElement
+    if (videoEl) setTimeout(() => videoEl.scrollIntoView({ behavior: "smooth", block: "center" }), 100)
 
-    
     if (anime.value && selectedEpisode.value) {
-        setWatching({
-            refId: anime.value.refId,
-            title: anime.value.title,
-            image: anime.value.image,
-            episode: selectedEpisode.value
-        })
+        setWatching({ refId: anime.value.refId, title: anime.value.title, image: anime.value.image, episode: selectedEpisode.value })
     }
 }
 
-// Watch History
-function startAutoSave() {
-    if (saveIntervalTimer) return
-    saveIntervalTimer = setInterval(saveWatchHistory, SAVE_INTERVAL)
-}
-
-function stopAutoSave() {
-    if (saveIntervalTimer) {
-        clearInterval(saveIntervalTimer)
-        saveIntervalTimer = null
-    }
-}
-
-async function saveWatchHistory(episodeNumber = null) {
-    if (!userSettings.value.watch_history_enabled || !userSettings.value.id || !anime.value || !videoPlayer.value) return
-
-    // Normalize episodeNumber in case it was called as an event handler (e.g. beforeunload)
-    const normalizedEpisodeNumber =
-        typeof episodeNumber === "number" || typeof episodeNumber === "string"
-            ? episodeNumber
-            : null
-
-    // Use provided episode number or fall back to current selected episode
-    const epNum = normalizedEpisodeNumber || selectedEpisode.value
-    if (!epNum) return
-
-    const duration = videoPlayer.value.duration
-    const currentTime = videoPlayer.value.currentTime
-
-    if (!duration || duration === 0) return
-
-    const progressPercentage = Math.min(100, Math.floor((currentTime / duration) * 100))
-
-    try {
-        const historyData = {
-            user_id: userSettings.value.id,
-            anime_ref_id: anime.value.refId,
-            anime_title: anime.value.title,
-            anime_image: anime.value.image,
-            episode_number: String(epNum),
-            playback_time: Math.floor(currentTime),
-            video_duration: Math.floor(duration),
-            progress_percentage: progressPercentage,
-        }
-
-        const { data, error } = await client.from("watch_history").upsert(historyData, { onConflict: "user_id, anime_ref_id, episode_number" })
-        if (error) throw error
-
-        allWatchProgress.value[historyData.episode_number] = historyData
-        lastWatchedData.value = historyData
-    } catch (err) {
-        console.error("Failed to save watch history:", err)
-    }
-}
+// ─── Episode watcher ──────────────────────────────────────────────────────────
 
 function applyEpisodeQueryFromRoute() {
     if (!anime.value?.episodes || !route.query.e) return
-    const episodeKey = route.query.e
-    if (anime.value.episodes[episodeKey]) {
-        selectedEpisode.value = episodeKey
-    } else {
-        const numEpisode = parseInt(route.query.e)
-        if (!isNaN(numEpisode) && anime.value.episodes[String(numEpisode)]) {
-            selectedEpisode.value = String(numEpisode)
-        }
-    }
-}
-
-// Data Fetching
-async function fetchDetail() {
-    loading.value = true
-    error.value = null
-    videoUrl.value = null
-    videoIsHls.value = false
-    selectedEpisode.value = null
-    revokeOfflinePlayback()
-    revokeOfflineThumbnails()
-    offlineModeBanner.value = false
-
-    try {
-        const res = await $fetch(`/api/anime/${route.params.id}?withEpisodes=true`)
-        if (!res || Object.keys(res).length === 0) {
-            error.value = "找不到此動漫的詳細資訊"
-            return
-        }
-
-        anime.value = res
-        isFavorite.value = res.isFavorite
-        useHead({ title: `${res.title} | ${appConfig.siteName}` })
-        await fetchLastWatched()
-        await refreshOfflineEpisodeList()
-
-        applyEpisodeQueryFromRoute()
-    } catch (err) {
-        // Fallback to local snapshot whenever API fetch fails
-        // (offline, auth redirect issue, API timeout, etc.)
-        if (import.meta.client) {
-            try {
-                const snap = await loadAnimeSnapshot(route.params.id)
-                if (snap?.episodes && Object.keys(snap.episodes).length) {
-                    anime.value = snap
-                    useHead({ title: `${snap.title} | ${appConfig.siteName}` })
-                    offlineModeBanner.value = true
-                    await refreshOfflineEpisodeList()
-                    applyEpisodeQueryFromRoute()
-                    return
-                }
-            } catch (offlineErr) {
-                console.error("Offline snapshot load failed:", offlineErr)
-            }
-        }
-        useHead({ title: `載入動漫詳情失敗 | ${appConfig.siteName}` })
-        console.error("Failed to fetch anime detail:", err)
-        error.value = "載入動漫詳情失敗，請稍後再試"
-    } finally {
-        loading.value = false
-    }
+    const key = route.query.e
+    if (anime.value.episodes[key]) { selectedEpisode.value = key; return }
+    const num = parseInt(key)
+    if (!isNaN(num) && anime.value.episodes[String(num)]) selectedEpisode.value = String(num)
 }
 
 watch(selectedEpisode, async (epNum, oldEpNum) => {
     if (!epNum || !anime.value?.episodes) return
 
-    const isManualChange = previousEpisode.value !== null && previousEpisode.value !== epNum
-
+    const isManualChange = oldEpNum !== null && oldEpNum !== epNum
     if (isManualChange) {
-        // Save watch history for the OLD episode before switching
-        if (oldEpNum && videoPlayer.value) {
-            await saveWatchHistory(oldEpNum)
-        }
-        
+        if (oldEpNum && videoPlayer.value) await saveWatchHistory(oldEpNum)
         hasSetInitialTime.value = false
         if (route.query.t || route.query.e) {
-            const newQuery = { ...route.query }
-            delete newQuery.t
-            delete newQuery.e
-            router.replace({
-                path: route.path,
-                query: newQuery,
-            })
+            const q = { ...route.query }
+            delete q.t; delete q.e
+            router.replace({ path: route.path, query: q })
         }
     }
-
-    previousEpisode.value = epNum
 
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
 
-    const episodeData = anime.value.episodes[String(epNum)]
     const refId = anime.value.refId
 
-    // If this episode is downloaded, use local thumbnail assets first.
     if (import.meta.client && refId) {
         const thumb = await getOfflineThumbnailAssets(refId, epNum)
         if (thumb) {
@@ -728,38 +428,29 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
         }
     }
 
-    // Always prefer downloaded episode first (even when online).
     if (import.meta.client && refId) {
         const playback = await getOfflinePlayback(refId, epNum)
         if (playback) {
             offlinePlaybackRevoke.value = playback.revoke
             videoUrl.value = playback.url
             videoIsHls.value = playback.isHls
-            videoLoading.value = false
             return
         }
     }
 
-    const token = episodeData?.token
-    if (!token) {
-        videoUrl.value = null
-        videoIsHls.value = false
-        return
-    }
+    const token = anime.value.episodes[String(epNum)]?.token
+    if (!token) { videoUrl.value = null; videoIsHls.value = false; return }
 
-    videoLoading.value = true
     showContinuePrompt.value = false
     try {
         const res = await $fetch(`/api/episode/${token}`)
         if (res?.s?.length) {
             const raw = res.s[0].src
             const finalUrl = raw.startsWith("http") ? raw : `https:${raw}`
-            const isM3u8 = /\.m3u8(\?|$)/i.test(finalUrl) || finalUrl.toLowerCase().includes("m3u8")
             videoUrl.value = `/api/proxy-video?url=${encodeURIComponent(finalUrl)}&cookie=${encodeURIComponent(res.videoCookie)}`
-            videoIsHls.value = isM3u8
+            videoIsHls.value = /\.m3u8(\?|$)/i.test(finalUrl) || finalUrl.toLowerCase().includes("m3u8")
         } else {
-            videoUrl.value = null
-            videoIsHls.value = false
+            videoUrl.value = null; videoIsHls.value = false
         }
     } catch (err) {
         console.error("Episode fetch failed:", err)
@@ -773,27 +464,66 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
                 return
             }
         }
-        videoUrl.value = null
-        videoIsHls.value = false
-    } finally {
-        videoLoading.value = false
+        videoUrl.value = null; videoIsHls.value = false
     }
 })
 
-// Keyboard shortcuts handler
+// ─── Data fetching ────────────────────────────────────────────────────────────
+
+async function fetchDetail() {
+    loading.value = true
+    error.value = null
+    videoUrl.value = null
+    videoIsHls.value = false
+    selectedEpisode.value = null
+    revokeOfflinePlayback()
+    revokeOfflineThumbnails()
+    offlineModeBanner.value = false
+
+    try {
+        const res = await $fetch(`/api/anime/${route.params.id}?withEpisodes=true`)
+        if (!res || !Object.keys(res).length) { error.value = "找不到此動漫的詳細資訊"; return }
+        anime.value = res
+        isFavorite.value = res.isFavorite
+        useHead({ title: `${res.title} | ${appConfig.siteName}` })
+        await fetchLastWatched()
+        await refreshOfflineEpisodeList()
+        applyEpisodeQueryFromRoute()
+    } catch (err) {
+        if (import.meta.client) {
+            try {
+                const snap = await loadAnimeSnapshot(route.params.id)
+                if (snap?.episodes && Object.keys(snap.episodes).length) {
+                    anime.value = snap
+                    useHead({ title: `${snap.title} | ${appConfig.siteName}` })
+                    offlineModeBanner.value = true
+                    await refreshOfflineEpisodeList()
+                    applyEpisodeQueryFromRoute()
+                    return
+                }
+            } catch (offlineErr) { console.error("Offline snapshot load failed:", offlineErr) }
+        }
+        useHead({ title: `載入動漫詳情失敗 | ${appConfig.siteName}` })
+        error.value = "載入動漫詳情失敗，請稍後再試"
+    } finally {
+        loading.value = false
+    }
+}
+
+// ─── Keyboard shortcuts ───────────────────────────────────────────────────────
+
 function handleShortcutsKeydown(e) {
-    // Handle Ctrl+/ or Cmd+/ to show shortcuts menu
     if ((e.ctrlKey || e.metaKey) && e.key === "/") {
         e.preventDefault()
         showShortcutsModal.value = !showShortcutsModal.value
     }
 }
 
+// ─── Lifecycle ────────────────────────────────────────────────────────────────
+
 onMounted(() => {
     fetchDetail()
-    window.addEventListener("beforeunload", () => {
-        saveWatchHistory()
-    })
+    window.addEventListener("beforeunload", () => saveWatchHistory())
     window.addEventListener("keydown", handleShortcutsKeydown)
 })
 
@@ -803,6 +533,7 @@ onUnmounted(() => {
     setOnline()
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
+    if (toolbarOverflowClickHandler) document.removeEventListener('click', toolbarOverflowClickHandler, true)
     window.removeEventListener("beforeunload", saveWatchHistory)
     window.removeEventListener("keydown", handleShortcutsKeydown)
     cleanupAnimeTooltip()
@@ -810,22 +541,22 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <!-- Loading State -->
+    <!-- Loading -->
     <div v-if="loading" class="flex items-center justify-center min-h-screen">
         <AnimeLoader :show="loading" message="載入動漫詳情中..." centered />
     </div>
 
-    <!-- Error State -->
+    <!-- Error -->
     <div v-else-if="error" class="flex flex-col justify-center items-center min-h-screen text-center px-4">
         <div class="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-6">
             <span class="material-icons text-5xl text-red-500 dark:text-red-400">error_outline</span>
         </div>
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">載入失敗</h2>
         <p class="text-red-600 dark:text-red-400 mb-6 max-w-md">{{ error }}</p>
-        <button @click="router.back()" class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">返回上一頁</button>
+        <button @click="router.back()" class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg shadow-lg transition-all transform hover:-translate-y-0.5">返回上一頁</button>
     </div>
 
-    <!-- Empty State -->
+    <!-- Empty -->
     <div v-else-if="!anime" class="flex flex-col justify-center items-center min-h-screen">
         <span class="material-icons text-6xl text-gray-400 mb-4">movie_filter</span>
         <p class="text-gray-600 dark:text-gray-400">無可用的動漫資料</p>
@@ -833,192 +564,89 @@ onUnmounted(() => {
 
     <!-- Content -->
     <div v-else class="bg-white dark:bg-gray-950">
-        <!-- Main Content Area - YouTube-style Layout -->
         <div class="space-y-8 max-w-[96rem] mx-auto px-3 sm:px-4 py-4 sm:py-8">
             <div class="flex flex-col lg:flex-row gap-6">
-                <!-- Left Column (70% on wide screens) -->
+
+                <!-- Left Column -->
                 <div class="flex-1 lg:w-[75%] space-y-4">
+
                     <!-- Video Player -->
-                    <section class="w-full" aria-label="Video player">
-                        <!-- Thumbnail Display (when no video) -->
-                        <div v-if="!videoUrl && anime?.image" 
+                    <section aria-label="Video player">
+                        <!-- Thumbnail placeholder (no video selected) -->
+                        <div v-if="!videoUrl && anime?.image"
                             class="aspect-video relative rounded-lg overflow-hidden bg-gray-900 dark:bg-gray-950">
-                            <!-- Thumbnail as background with subtle blur to reduce pixelation -->
-                            <div class="absolute inset-0 w-full h-full">
-                                <NuxtImg
-                                    :src="anime.image" 
-                                    alt="Anime thumbnail background"
-                                    loading="eager"
+                            <div class="absolute inset-0">
+                                <NuxtImg :src="anime.image" alt="Anime thumbnail" loading="eager"
                                     class="w-full h-full object-cover"
-                                    style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; filter: blur(2px);"
-                                />
+                                    style="filter: blur(2px);" />
                             </div>
-                            
-                            <!-- Dark overlay for better contrast -->
-                            <div class="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80"></div>
-                            
-                            <!-- Content overlay with episode selection guidance -->
+                            <div class="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
                             <div class="absolute inset-0 flex flex-col items-center justify-center z-[1] px-4 sm:px-8">
-                                <!-- Play icon -->
                                 <span class="material-icons text-white text-4xl sm:text-5xl pb-4">play_circle_outline</span>
-                                
-                                <!-- Call to action text -->
                                 <div class="text-center space-y-2 sm:space-y-3">
                                     <h3 class="text-xl sm:text-2xl font-bold text-white mb-2">選擇集數開始播放</h3>
-                                    <p class="text-sm sm:text-base text-white/80 max-w-md">
-                                        請從右側（或下方）選擇您想觀看的集數
-                                    </p>
+                                    <p class="text-sm sm:text-base text-white/80 max-w-md">請從右側（或下方）選擇您想觀看的集數</p>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Video Player (when video is available) -->
-                        <VideoPlayer 
+                        <!-- Video Player -->
+                        <VideoPlayer
                             v-if="videoUrl"
-                            ref="videoPlayer" 
-                            :src="videoUrl" 
+                            ref="videoPlayer"
+                            :src="videoUrl"
                             :is-hls="videoIsHls"
-                            :video-id="currentVideoId"
-                            :thumbnail-jpg-url="offlineThumbnailJpgUrl"
-                            :thumbnail-vtt-text="offlineThumbnailVttText"
-                            preload="metadata" 
-                            :has-next-episode="hasNextEpisode" 
-                            :shortcuts="userShortcuts" 
-                            @play="handlePlay" 
-                            @pause="handlePause" 
-                            @ended="handleEnded" 
-                            @next-episode="handleNextEpisode" 
-                            @previous-episode="handlePreviousEpisode" 
-                            @loadstart="videoLoading = true" 
-                            @loadeddata="onVideoReady" 
+                            :anime-meta="videoPlayerMeta"
+                            preload="metadata"
+                            :has-next-episode="hasNextEpisode"
+                            :shortcuts="userShortcuts"
                             autoplay
+                            @play="handlePlay"
+                            @pause="handlePause"
+                            @ended="handleEnded"
+                            @next-episode="handleNextEpisode"
+                            @previous-episode="handlePreviousEpisode"
+                            @loadeddata="onVideoReady"
                         />
                     </section>
-                    <div
-                        v-if="offlineModeBanner"
+
+                    <!-- Offline Banner -->
+                    <div v-if="offlineModeBanner"
                         class="flex items-center gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 text-amber-900 dark:text-amber-100 text-sm"
-                        role="status"
-                    >
+                        role="status">
                         <span class="material-icons flex-shrink-0 text-xl">wifi_off</span>
-                        <p>
-                            離線模式：已從本機載入先前快取的動漫資料。請選擇已下載的集數觀看；重新整理前請勿關閉此分頁。
-                        </p>
+                        <p>離線模式：已從本機載入先前快取的動漫資料。請選擇已下載的集數觀看；重新整理前請勿關閉此分頁。</p>
                     </div>
 
-                    <!-- Mobile: Continue Prompt and Episode Picker -->
-                    <div class="lg:hidden space-y-4">
-                        <!-- Continue Watching Prompt -->
-                        <transition name="slide-down">
-                            <section v-if="showContinuePrompt && lastWatchedData" aria-label="Continue watching">
-                                <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-lg overflow-hidden">
-                                    <div class="p-4 space-y-3">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-10 h-10 bg-black/70 dark:bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                <span class="material-icons text-xl text-white dark:text-white">play_circle</span>
-                                            </div>
-                                            <div class="flex-1 min-w-0">
-                                                <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-0.5">繼續觀看</h3>
-                                                <p class="text-xs text-gray-600 dark:text-white/80 truncate">
-                                                    第 {{ lastWatchedData.episode_number }} 集
-                                                </p>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Progress Bar -->
-                                        <div class="space-y-1.5">
-                                            <div class="flex items-center justify-between text-xs text-gray-600 dark:text-white/70">
-                                                <span>{{ formatTime(lastWatchedData.playback_time) }} / {{ formatTime(lastWatchedData.video_duration) }}</span>
-                                                <span>{{ lastWatchedData.progress_percentage }}%</span>
-                                            </div>
-                                            <div class="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-                                                <div 
-                                                    class="h-full bg-black/70 dark:bg-white rounded-full transition-all"
-                                                    :style="{ width: `${lastWatchedData.progress_percentage}%` }"
-                                                ></div>
-                                            </div>
-                                        </div>
-                                        
-                                        <button 
-                                            @click="continueLast" 
-                                            class="w-full px-4 py-2.5 bg-black/70 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 rounded-lg transition-all font-medium flex items-center justify-center gap-2 text-sm"
-                                        >
-                                            <span class="material-icons text-lg">play_arrow</span>
-                                            繼續播放
-                                        </button>
-                                    </div>
-                                </div>
-                            </section>
-                        </transition>
-
-                        <!-- Episode Picker -->
-                        <section aria-label="Episode selector">
-                            <div class="flex items-center justify-between mb-4">
-                                <h2 class="text-xl font-bold text-gray-900 dark:text-white">選擇集數</h2>
-                                <span v-if="anime?.episodes" class="text-sm text-gray-600 dark:text-gray-400">
-                                    共 <span class="font-semibold text-gray-900 dark:text-white">{{ Object.keys(anime.episodes).length }}</span> 集
-                                </span>
-                            </div>
-                            <EpisodesPicker 
-                                v-if="anime?.episodes" 
-                                :episodes="anime.episodes" 
-                                :watch-progress="allWatchProgress" 
-                                :compact="true"
-                                :anime-image="anime.image"
-                                v-model="selectedEpisode" 
-                                @select="(n) => (selectedEpisode = n)" 
-                            />
-                            <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
-                                <span class="material-icons text-4xl mb-2 opacity-50">video_library</span>
-                                <p>暫無可用集數</p>
-                            </div>
-                        </section>
-                    </div>
-
-                    <!-- Anime Information Block -->
+                    <!-- Anime Information -->
                     <section class="space-y-4" aria-label="Anime information">
-                        <!-- Title and Actions -->
+                        <!-- Title + Actions -->
                         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">{{ anime.title }}</h1>
                             <div class="flex items-center gap-2 flex-shrink-0">
-                                <button
-                                    v-for="action in toolbarPrimaryActions"
-                                    :key="action.key"
+                                <button v-for="action in toolbarPrimaryActions" :key="action.key"
                                     type="button"
                                     class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
-                                    :title="action.label"
-                                    :aria-label="action.label"
-                                    @click="action.run()"
-                                >
+                                    :title="action.label" :aria-label="action.label"
+                                    @click="action.run()">
                                     <span class="material-icons text-xl" :class="action.iconClass">{{ action.icon }}</span>
                                 </button>
                                 <div v-if="toolbarOverflowActions.length" ref="toolbarOverflowRoot" class="relative">
-                                    <button
-                                        type="button"
+                                    <button type="button"
                                         class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
-                                        title="更多"
-                                        aria-label="更多操作"
+                                        title="更多" aria-label="更多操作"
                                         :aria-expanded="showToolbarOverflowMenu"
-                                        @click.stop="showToolbarOverflowMenu = !showToolbarOverflowMenu"
-                                    >
+                                        @click.stop="showToolbarOverflowMenu = !showToolbarOverflowMenu">
                                         <span class="material-icons text-xl text-gray-900 dark:text-white">more_vert</span>
                                     </button>
-                                    <div
-                                        v-show="showToolbarOverflowMenu"
+                                    <div v-show="showToolbarOverflowMenu"
                                         class="absolute right-0 top-full mt-2 min-w-[11rem] py-1 rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-gray-950 shadow-lg z-10"
-                                        role="menu"
-                                        @click.stop
-                                    >
-                                        <button
-                                            v-for="action in toolbarOverflowActions"
-                                            :key="action.key"
+                                        role="menu" @click.stop>
+                                        <button v-for="action in toolbarOverflowActions" :key="action.key"
                                             type="button"
                                             class="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
                                             role="menuitem"
-                                            @click="
-                                                action.run();
-                                                showToolbarOverflowMenu = false
-                                            "
-                                        >
+                                            @click="action.run(); showToolbarOverflowMenu = false">
                                             <span class="material-icons text-lg flex-shrink-0" :class="action.iconClass">{{ action.icon }}</span>
                                             <span>{{ action.label }}</span>
                                         </button>
@@ -1027,7 +655,7 @@ onUnmounted(() => {
                             </div>
                         </div>
 
-                        <!-- Views and Likes -->
+                        <!-- Stats -->
                         <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                             <div class="flex items-center gap-1.5">
                                 <span class="material-icons text-base">visibility</span>
@@ -1046,37 +674,24 @@ onUnmounted(() => {
                         </div>
 
                         <!-- Description -->
-                        <div class="text-gray-700 dark:text-gray-200 leading-relaxed" role="region" aria-label="Anime description">
-                            {{ anime.description || "暫無簡介" }}
-                        </div>
+                        <div class="text-gray-700 dark:text-gray-200 leading-relaxed">{{ anime.description || "暫無簡介" }}</div>
 
-                        <!-- Tags Section -->
-                        <div v-if="anime.tags && anime.tags.length > 0" class="flex flex-wrap items-center gap-2">
-                            <NuxtLink
-                                v-for="tag in anime.tags"
-                                :key="tag"
+                        <!-- Tags -->
+                        <div v-if="anime.tags?.length" class="flex flex-wrap items-center gap-2">
+                            <NuxtLink v-for="tag in anime.tags" :key="tag"
                                 :to="`/show-all-anime?tags=${encodeURIComponent(tag)}`"
-                                class="px-3 py-1.5 bg-gray-950/5 dark:bg-white/10 rounded-full border border-gray-200 dark:border-white/20 
-                                        text-sm font-medium text-gray-900 dark:text-white
-                                        hover:bg-gray-950/10 dark:hover:bg-white/20 hover:border-gray-300 dark:hover:border-white/40
-                                        transition-all duration-200
-                                        flex items-center gap-1.5
-                                        focus:outline-none"
-                            >
+                                class="px-3 py-1.5 bg-gray-950/5 dark:bg-white/10 rounded-full border border-gray-200 dark:border-white/20 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-950/10 dark:hover:bg-white/20 hover:border-gray-300 dark:hover:border-white/40 transition-all flex items-center gap-1.5 focus:outline-none">
                                 <span class="material-icons text-xs">tag</span>
                                 {{ tag }}
                             </NuxtLink>
                         </div>
 
                         <!-- Additional Details -->
-                        <div v-if="additionalDetails.length > 0" class="pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div v-if="additionalDetails.length" class="pt-4 border-t border-gray-200 dark:border-gray-700">
                             <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">詳細資訊</h3>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div 
-                                    v-for="detail in additionalDetails" 
-                                    :key="detail.label"
-                                    class="bg-gray-950/5 dark:bg-white/10 rounded-xl p-4"
-                                >
+                                <div v-for="detail in additionalDetails" :key="detail.label"
+                                    class="bg-gray-950/5 dark:bg-white/10 rounded-xl p-4">
                                     <div class="flex items-start gap-3">
                                         <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="detail.iconBg">
                                             <span class="material-icons text-xl" :class="detail.iconColor">{{ detail.icon }}</span>
@@ -1090,56 +705,11 @@ onUnmounted(() => {
                             </div>
                         </div>
                     </section>
-
-                    <!-- Related Anime - Mobile Only -->
-                    <section v-if="anime.relatedAnime && anime.relatedAnime.length" class="lg:hidden" aria-label="Related anime">
-                        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">相關動漫</h2>
-                        <div class="space-y-3" role="list" aria-label="Related anime list">
-                            <NuxtLink
-                                v-for="item in anime.relatedAnime"
-                                :key="item.refId || item.video_url"
-                                :to="`/anime/${item.refId}`"
-                                class="flex gap-3 p-2 rounded-lg hover:bg-gray-950/5 dark:hover:bg-white/10 transition-colors group focus:outline-none"
-                                @mouseenter="handleTooltipMouseEnter(item, $event)"
-                                @mouseleave="handleTooltipMouseLeave"
-                                role="listitem"
-                                :aria-label="`View ${item.title}`"
-                            >
-                                <div class="flex-shrink-0 w-32 aspect-video rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
-                                    <NuxtImg
-                                        :src="item.image"
-                                        :alt="`${item.title} thumbnail`"
-                                        loading="lazy"
-                                        decoding="async"
-                                        class="w-full h-full object-cover transform transition-transform duration-300 group-hover:scale-110"
-                                    />
-                                </div>
-                                <div class="flex-1 min-w-0 space-y-1">
-                                    <h3 class="font-semibold text-sm text-gray-900 dark:text-white line-clamp-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
-                                        {{ item.title }}
-                                    </h3>
-                                    <div class="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                        <span v-if="item.year" class="flex items-center gap-1" aria-label="Release year">
-                                            <span class="material-icons text-xs" aria-hidden="true">calendar_today</span>
-                                            {{ item.year }}
-                                        </span>
-                                        <span v-if="item.episodes" class="flex items-center gap-1" aria-label="Episode count">
-                                            <span class="material-icons text-xs" aria-hidden="true">movie</span>
-                                            {{ item.episodes }}
-                                        </span>
-                                        <span v-if="item.views" class="flex items-center gap-1" aria-label="Views">
-                                            <span class="material-icons text-xs" aria-hidden="true">visibility</span>
-                                            {{ formatViews(item.views) }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </NuxtLink>
-                        </div>
-                    </section>
                 </div>
 
-                <!-- Right Column (30% on wide screens) - Desktop Only -->
-                <aside class="hidden lg:block lg:w-[25%] lg:sticky lg:top-20 lg:self-start space-y-6" aria-label="Episode list and related content">
+                <!-- Right Column / Sidebar (sticky on desktop, inline on mobile) -->
+                <aside class="lg:w-[25%] lg:sticky lg:top-20 lg:self-start space-y-6" aria-label="Episode list and related content">
+
                     <!-- Continue Watching Prompt -->
                     <transition name="slide-down">
                         <section v-if="showContinuePrompt && lastWatchedData" aria-label="Continue watching">
@@ -1147,34 +717,25 @@ onUnmounted(() => {
                                 <div class="p-4 space-y-3">
                                     <div class="flex items-center gap-3">
                                         <div class="w-10 h-10 bg-black/70 dark:bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                            <span class="material-icons text-xl text-white dark:text-white">play_circle</span>
+                                            <span class="material-icons text-xl text-white">play_circle</span>
                                         </div>
                                         <div class="flex-1 min-w-0">
                                             <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-0.5">繼續觀看</h3>
-                                            <p class="text-xs text-gray-600 dark:text-white/80 truncate">
-                                                第 {{ lastWatchedData.episode_number }} 集
-                                            </p>
+                                            <p class="text-xs text-gray-600 dark:text-white/80 truncate">第 {{ lastWatchedData.episode_number }} 集</p>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Progress Bar -->
                                     <div class="space-y-1.5">
                                         <div class="flex items-center justify-between text-xs text-gray-600 dark:text-white/70">
                                             <span>{{ formatTime(lastWatchedData.playback_time) }} / {{ formatTime(lastWatchedData.video_duration) }}</span>
                                             <span>{{ lastWatchedData.progress_percentage }}%</span>
                                         </div>
                                         <div class="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-                                            <div 
-                                                class="h-full bg-black/70 dark:bg-white rounded-full transition-all"
-                                                :style="{ width: `${lastWatchedData.progress_percentage}%` }"
-                                            ></div>
+                                            <div class="h-full bg-black/70 dark:bg-white rounded-full transition-all"
+                                                :style="{ width: `${lastWatchedData.progress_percentage}%` }" />
                                         </div>
                                     </div>
-                                    
-                                    <button 
-                                        @click="continueLast" 
-                                        class="w-full px-4 py-2.5 bg-black/70 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 rounded-lg transition-all font-medium flex items-center justify-center gap-2 text-sm"
-                                    >
+                                    <button @click="continueLast"
+                                        class="w-full px-4 py-2.5 bg-black/70 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 rounded-lg transition-all font-medium flex items-center justify-center gap-2 text-sm">
                                         <span class="material-icons text-lg">play_arrow</span>
                                         繼續播放
                                     </button>
@@ -1191,15 +752,13 @@ onUnmounted(() => {
                                 共 <span class="font-semibold text-gray-900 dark:text-white">{{ Object.keys(anime.episodes).length }}</span> 集
                             </span>
                         </div>
-                        <EpisodesPicker 
-                            v-if="anime?.episodes" 
-                            :episodes="anime.episodes" 
-                            :watch-progress="allWatchProgress" 
+                        <EpisodesPicker v-if="anime?.episodes"
+                            :episodes="anime.episodes"
+                            :watch-progress="allWatchProgress"
                             :compact="true"
                             :anime-image="anime.image"
-                            v-model="selectedEpisode" 
-                            @select="(n) => (selectedEpisode = n)" 
-                        />
+                            v-model="selectedEpisode"
+                            @select="(n) => (selectedEpisode = n)" />
                         <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
                             <span class="material-icons text-4xl mb-2 opacity-50">video_library</span>
                             <p>暫無可用集數</p>
@@ -1207,44 +766,31 @@ onUnmounted(() => {
                     </section>
 
                     <!-- Related Anime -->
-                    <section v-if="anime.relatedAnime && anime.relatedAnime.length" aria-label="Related anime">
+                    <section v-if="anime.relatedAnime?.length" aria-label="Related anime">
                         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">相關動漫</h2>
-                        <div class="space-y-3" role="list" aria-label="Related anime list">
-                            <NuxtLink
-                                v-for="item in anime.relatedAnime"
-                                :key="item.refId || item.video_url"
+                        <div class="space-y-3" role="list">
+                            <NuxtLink v-for="item in anime.relatedAnime" :key="item.refId || item.video_url"
                                 :to="`/anime/${item.refId}`"
                                 class="flex gap-3 p-2 rounded-lg hover:bg-gray-950/5 dark:hover:bg-white/10 transition-colors group focus:outline-none"
+                                role="listitem" :aria-label="`View ${item.title}`"
                                 @mouseenter="handleTooltipMouseEnter(item, $event)"
-                                @mouseleave="handleTooltipMouseLeave"
-                                role="listitem"
-                                :aria-label="`View ${item.title}`"
-                            >
+                                @mouseleave="handleTooltipMouseLeave">
                                 <div class="flex-shrink-0 w-32 aspect-video rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
-                                    <NuxtImg
-                                        :src="item.image"
-                                        :alt="`${item.title} thumbnail`"
-                                        loading="lazy"
-                                        decoding="async"
-                                        class="w-full h-full object-cover transform transition-transform duration-300 group-hover:scale-110"
-                                    />
+                                    <NuxtImg :src="item.image" :alt="`${item.title} thumbnail`"
+                                        loading="lazy" decoding="async"
+                                        class="w-full h-full object-cover transform transition-transform duration-300 group-hover:scale-110" />
                                 </div>
                                 <div class="flex-1 min-w-0 space-y-1">
-                                    <h3 class="font-semibold text-sm text-gray-900 dark:text-white line-clamp-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
-                                        {{ item.title }}
-                                    </h3>
+                                    <h3 class="font-semibold text-sm text-gray-900 dark:text-white line-clamp-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">{{ item.title }}</h3>
                                     <div class="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                        <span v-if="item.year" class="flex items-center gap-1" aria-label="Release year">
-                                            <span class="material-icons text-xs" aria-hidden="true">calendar_today</span>
-                                            {{ item.year }}
+                                        <span v-if="item.year" class="flex items-center gap-1">
+                                            <span class="material-icons text-xs">calendar_today</span> {{ item.year }}
                                         </span>
-                                        <span v-if="item.episodes" class="flex items-center gap-1" aria-label="Episode count">
-                                            <span class="material-icons text-xs" aria-hidden="true">movie</span>
-                                            {{ item.episodes }}
+                                        <span v-if="item.episodes" class="flex items-center gap-1">
+                                            <span class="material-icons text-xs">movie</span> {{ item.episodes }}
                                         </span>
-                                        <span v-if="item.views" class="flex items-center gap-1" aria-label="Views">
-                                            <span class="material-icons text-xs" aria-hidden="true">visibility</span>
-                                            {{ formatViews(item.views) }}
+                                        <span v-if="item.views" class="flex items-center gap-1">
+                                            <span class="material-icons text-xs">visibility</span> {{ formatViews(item.views) }}
                                         </span>
                                     </div>
                                 </div>
@@ -1252,26 +798,20 @@ onUnmounted(() => {
                         </div>
                     </section>
                 </aside>
+
             </div>
         </div>
     </div>
 
-    <!-- Anime Tooltip Component -->
+    <!-- Dialogs -->
     <LazyAnimeTooltip
-        :hovered-anime="hoveredAnime"
-        :anime-details="animeDetails"
-        :tooltip-loading="tooltipLoading"
-        :tooltip-error="tooltipError"
+        :hovered-anime="hoveredAnime" :anime-details="animeDetails"
+        :tooltip-loading="tooltipLoading" :tooltip-error="tooltipError"
         :tooltip-position="tooltipPosition"
-        :on-tooltip-enter="handleTooltipEnter"
-        :on-tooltip-leave="handleTooltipLeave"
-        :on-favorite-toggled="({ refId, isFavorite }) => setFavoriteStatus(refId, isFavorite)"
-    />
+        :on-tooltip-enter="handleTooltipEnter" :on-tooltip-leave="handleTooltipLeave"
+        :on-favorite-toggled="({ refId, isFavorite }) => setFavoriteStatus(refId, isFavorite)" />
 
-    <!-- Share Dialog Component -->
     <LazyShareDialog v-model="showShareDialog" :share-url="shareUrl" :anime-title="anime?.title" :has-episode="!!selectedEpisode" />
-
-    <!-- Detail Dialog Component -->
     <LazyAnimeDetailDialog v-if="anime" v-model="showDetailDialog" :anime-id="anime.detailId" />
 
     <LazyOfflineDownloadDialog
@@ -1286,10 +826,9 @@ onUnmounted(() => {
         @download-all="handleOfflineDownload"
         @remove="handleOfflineRemoveEpisode"
         @remove-all="handleOfflineRemoveAll"
-        @refresh="refreshOfflineEpisodeList"
-    />
+        @refresh="refreshOfflineEpisodeList" />
 
-    <!-- Keyboard Shortcuts Dialog -->
+    <!-- Shortcuts Modal -->
     <LazyBaseDialog v-model="showShortcutsModal" max-width="max-w-2xl">
         <template #header>
             <div class="flex items-center gap-3">
@@ -1298,7 +837,6 @@ onUnmounted(() => {
             </div>
         </template>
         <div class="space-y-4">
-            <!-- Play/Pause and Long Press (special cases) -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="space-y-2">
                     <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
@@ -1314,80 +852,32 @@ onUnmounted(() => {
                     <div class="flex items-center justify-between py-2">
                         <span class="text-sm text-gray-600 dark:text-gray-400">顯示快捷鍵</span>
                         <div class="flex items-center gap-1">
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">
-                                <span v-if="isMac">⌘</span>
-                                <span v-else>Ctrl</span>
-                            </kbd>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">{{ isMac ? '⌘' : 'Ctrl' }}</kbd>
                             <span class="text-xs text-gray-400">+</span>
                             <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">/</kbd>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- All other shortcuts in two columns -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                 <template v-for="(shortcut, action) in userShortcuts" :key="action">
-                    <div v-if="action !== 'playPause' && shortcut?.label" class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                    <div v-if="action !== 'playPause' && shortcut?.label"
+                        class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
                         <span class="text-sm text-gray-600 dark:text-gray-400">{{ shortcut.label }}</span>
                         <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">{{ formatShortcutKey(shortcut) }}</kbd>
                     </div>
                 </template>
             </div>
-
-            <!-- Additional Info -->
             <div class="pt-4">
-                <p class="text-xs text-gray-500 dark:text-gray-400 text-center">
-                    提示：在輸入框中輸入時，快捷鍵將不會生效
-                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 text-center">提示：在輸入框中輸入時，快捷鍵將不會生效</p>
             </div>
         </div>
     </LazyBaseDialog>
 </template>
 
 <style scoped>
-.content-card {
-    @apply bg-gray-950/5 dark:bg-white/10 rounded-2xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl;
-}
+.slide-down-enter-active, .slide-down-leave-active { transition: all 0.4s ease-out; }
+.slide-down-enter-from, .slide-down-leave-to { opacity: 0; transform: translateY(-20px); }
 
-.info-card {
-    @apply flex items-center gap-3 px-4 py-3 bg-gray-950/5 backdrop-blur-sm rounded-lg border border-white/20;
-}
-
-.anime-card-item {
-    @apply bg-white dark:bg-black/5 !important;
-}
-
-.slide-down-enter-active,
-.slide-down-leave-active {
-    transition: all 0.4s ease-out;
-}
-
-.slide-down-enter-from {
-    opacity: 0;
-    transform: translateY(-20px);
-}
-
-.slide-down-leave-to {
-    opacity: 0;
-    transform: translateY(-20px);
-}
-
-/* Ensure video player maintains 16:9 aspect ratio */
-section[aria-label="Video player"] > div {
-    @apply w-full;
-}
-
-/* Line clamp utility for description */
-.line-clamp-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-/* Focus visible styles for better accessibility */
-*:focus-visible {
-    @apply outline-none ring-2 ring-gray-900 dark:ring-white ring-offset-2;
-}
+*:focus-visible { @apply outline-none ring-2 ring-gray-900 dark:ring-white ring-offset-2; }
 </style>
