@@ -542,9 +542,7 @@ onUnmounted(() => {
 
 <template>
     <!-- Loading -->
-    <div v-if="loading" class="flex items-center justify-center min-h-screen">
-        <AnimeLoader :show="loading" message="載入動漫詳情中..." centered />
-    </div>
+    <SkeletonAnimeDetail v-if="loading" />
 
     <!-- Error -->
     <div v-else-if="error" class="flex flex-col justify-center items-center min-h-screen text-center px-4">
