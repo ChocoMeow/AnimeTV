@@ -855,11 +855,6 @@ onUnmounted(() => {
                                 </transition>
                             </div>
                         </div>
-                        <!-- Next Episode -->
-                        <button v-if="hasNextEpisode" @click="handleNextEpisode" :title="tooltipLabels.nextEpisode"
-                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
-                            <span class="material-icons text-xl sm:text-2xl">skip_next</span>
-                        </button>
                         <!-- Fullscreen -->
                         <button @click="toggleFullscreen" :title="tooltipLabels.fullscreen"
                             class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
