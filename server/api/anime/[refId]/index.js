@@ -1,51 +1,185 @@
-import * as cheerio from "cheerio"
-import { serverSupabaseClient, serverSupabaseServiceRole } from "#supabase/server"
+import * as cheerio from 'cheerio'
+import { serverSupabaseClient, serverSupabaseServiceRole } from '#supabase/server'
 
 const ONE_MONTH_MS = 1000 * 60 * 60 * 24 * 30
 
 // ============================================================================
-// Utility Functions
+// Utilities
 // ============================================================================
 
 const normalizeUserRating = (userRating) => {
     if (!userRating) return { score: '0.0', votes: 0 }
-    
     const raw = Number(userRating.score ?? 0) || 0
-    const score = (Math.round(raw * 10) / 10).toFixed(1)  // one decimal, e.g. 5 → '5.0'
-    const votes = Number(String(userRating.count ?? userRating.votes ?? 0).replace(/[^\d]/g, "")) || 0
-    
-    return { score, votes }
+    return {
+        score: (Math.round(raw * 10) / 10).toFixed(1),
+        votes: Number(String(userRating.count ?? userRating.votes ?? 0).replace(/[^\d]/g, '')) || 0,
+    }
 }
 
-const parsePremiereDate = (premiereDate) => {
-    if (!premiereDate) return null
-    
-    const str = String(premiereDate)
-    const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-    if (isoMatch) return isoMatch[0]
-    
-    const slashMatch = str.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
-    if (slashMatch) {
-        const [, y, m, d] = slashMatch
-        return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`
-    }
-    
+const parsePremiereDate = (value) => {
+    if (!value) return null
+    const str = String(value)
+    const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (iso) return iso[0]
+    const slash = str.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
+    if (slash) return `${slash[1]}-${slash[2].padStart(2, '0')}-${slash[3].padStart(2, '0')}`
     return null
 }
 
 const extractEpisodeIdentifier = (fullTitle) => {
     const matches = fullTitle.match(/\[([^\]]+)\]/g)
-    if (!matches?.length) return null
-    return matches[matches.length - 1].slice(1, -1)
+    return matches?.length ? matches[matches.length - 1].slice(1, -1) : null
 }
 
-const normalizeEpisodeId = (episodeId) => {
-    return /^\d+$/.test(episodeId) ? String(Number(episodeId)) : episodeId
+const normalizeEpisodeId = (id) => (/^\d+$/.test(id) ? String(Number(id)) : id)
+
+const isStale = (meta) => {
+    const ms = new Date(meta?.updated_at).getTime()
+    return !isNaN(ms) && Date.now() - ms > ONE_MONTH_MS
 }
 
 // ============================================================================
-// Data Processing Functions
+// Scrapers
 // ============================================================================
+
+async function scrapeAnimeDetailByRefId(refId) {
+    if (!isValidNumberString(refId)) throw new Error(`Invalid reference ID: "${refId}"`)
+
+    try {
+        const { html } = await cfFetch(`${GAMER_BASE_URL}animeRef.php?sn=${refId}`)
+        const $ = cheerio.load(html)
+        const get = (sel, attr = null) => {
+            const el = $(sel)
+            return attr ? el.attr(attr)?.trim() || null : el.text().trim() || null
+        }
+
+        const title = get('.data-file img', 'alt')
+        if (!title) {
+            console.error('No title found for refId:', refId)
+            return null
+        }
+
+        const premiereDate = get('.type-list li:nth-child(1) .content')
+        const rawRelatedAnime = $('.old_list .anime_slider .theme-list-main')
+            .map((_, el) => {
+                const $el = $(el)
+                const href = $el.attr('href') || ''
+                return {
+                    refId: href.match(/sn=(\d+)/)?.[1] || null,
+                    image: $el.find('.theme-img').attr('data-src')?.trim() || null,
+                    title: $el.find('.theme-name').text().trim() || null,
+                    year: $el.find('.theme-time').text().trim() || null,
+                    episodes: $el.find('.theme-number').text().trim() || null,
+                    views: $el.find('.show-view-number p').text().trim() || null,
+                }
+            })
+            .get()
+
+        const [relatedAnime, mainMatchRow] = await Promise.all([
+            matchAnime(rawRelatedAnime),
+            matchAnime([{ refId, title, year: premiereDate }]).then((r) => r[0] ?? null),
+        ])
+
+        return {
+            refId,
+            detailId: get('.data .data-intro .link-button', 'href')?.match(/s=(\d+)/)?.[1] || null,
+            title,
+            description: get('.data .data-intro p'),
+            views: get('.anime-title .anime_name .newanime-count span'),
+            image: get('.data .data-img', 'data-src'),
+            premiereDate,
+            director: get('.type-list li:nth-child(2) .content'),
+            distributor: get('.type-list li:nth-child(3) .content'),
+            productionCompany: get('.type-list li:nth-child(4) .content'),
+            tags: $('.type-list .tag-list li')
+                .map((_, tag) => $(tag).text().trim())
+                .get(),
+            userRating: {
+                score: get('.score-overall-number'),
+                count: get('.score-overall-people')?.replace('人評價', '') || null,
+            },
+            relatedAnime,
+            videoId: mainMatchRow?.matchedVideo?.id ?? null,
+            season: mainMatchRow?.matchedVideo?.season ?? null,
+        }
+    } catch (err) {
+        console.error('Error scraping anime detail:', err.message)
+        return null
+    }
+}
+
+async function fetchEpisodeTokens(categoryId) {
+    const episodes = {}
+    let seriesTitle = ''
+    let nextPageUrl = `${ANIME1_BASE_URL}?cat=${categoryId}`
+
+    try {
+        while (nextPageUrl) {
+            const { html } = await cfFetch(nextPageUrl)
+            const $ = cheerio.load(html)
+
+            if (!seriesTitle) seriesTitle = $('.page-title').text().trim() || 'Unknown Series'
+
+            $('article').each((_, el) => {
+                const fullTitle = $(el).find('h2.entry-title a').text().trim()
+                const $video = $(el).find('.video-js')
+                const token = $video.attr('data-apireq')
+                const videoId = $video.attr('data-vid') || null
+
+                if (!fullTitle || !token) return
+
+                const identifier = extractEpisodeIdentifier(fullTitle)
+                if (!identifier) return
+
+                identifier.split('+').forEach((id) => {
+                    episodes[normalizeEpisodeId(id.trim())] = { video_id: videoId, token }
+                })
+            })
+
+            nextPageUrl = $('.nav-previous a').attr('href') || null
+        }
+    } catch (err) {
+        console.error(`Error fetching episodes for category ${categoryId}:`, err)
+    }
+
+    return { categoryId, title: seriesTitle, episodes }
+}
+
+// ============================================================================
+// Database
+// ============================================================================
+
+const batchFetchAnimeMeta = async (client, refIds) => {
+    if (!refIds?.length) return new Map()
+    const { data, error } = await client.from('anime_meta').select('*').in('source_id', refIds)
+    if (error) console.error('Error batch fetching anime_meta:', error)
+    return new Map((data || []).map((a) => [a.source_id, a]))
+}
+
+const upsertAnimeMeta = async (serviceClient, payload) => {
+    const { data, error } = await serviceClient.from('anime_meta').upsert(payload, { onConflict: 'source_id', ignoreDuplicates: false }).select('*').single()
+    if (error) {
+        console.error('Error upserting anime_meta:', error)
+        throw error
+    }
+    return data
+}
+
+// Only refreshes volatile stats — never touches manually managed fields like related_anime_source_ids
+const refreshAnimeStats = async (serviceClient, sourceId, scraped) => {
+    const { score, votes } = normalizeUserRating(scraped.userRating)
+    const { data, error } = await serviceClient
+        .from('anime_meta')
+        .update({ views: parseViews(scraped.views), score, votes })
+        .eq('source_id', sourceId)
+        .select('*')
+        .single()
+    if (error) {
+        console.error('Error refreshing anime stats:', error)
+        throw error
+    }
+    return data
+}
 
 const buildAnimeMetaPayload = (scraped) => {
     const { score, votes } = normalizeUserRating(scraped.userRating)
@@ -61,9 +195,7 @@ const buildAnimeMetaPayload = (scraped) => {
         views: parseViews(scraped.views),
         score,
         votes,
-        related_anime_source_ids: (scraped.relatedAnime || [])
-            .map((item) => item.refId)
-            .filter(Boolean),
+        related_anime_source_ids: (scraped.relatedAnime || []).map((a) => a.refId).filter(Boolean),
         source_id: scraped.refId,
         source_details_id: scraped.detailId,
         video_id: scraped.videoId || null,
@@ -71,233 +203,43 @@ const buildAnimeMetaPayload = (scraped) => {
     }
 }
 
-const processEpisodeArticle = ($, element, episodes) => {
-    const fullTitle = $(element).find("h2.entry-title a").text().trim()
-    const $video = $(element).find(".video-js")
-    const token = $video.attr("data-apireq")
-    const videoId = $video.attr("data-vid") || null
-    
-    if (!fullTitle || !token) return
-    
-    const identifier = extractEpisodeIdentifier(fullTitle)
-    if (!identifier) return
-    
-    identifier.split("+").forEach(episodeId => {
-        const episodeKey = normalizeEpisodeId(episodeId.trim())
-        episodes[episodeKey] = {
-            video_id: videoId,
-            token,
-        }
-    })
-}
-
-async function fetchEpisodeTokens(categoryId) {
-    const episodes = {}
-    let seriesTitle = ""
-    let nextPageUrl = `${ANIME1_BASE_URL}?cat=${categoryId}`
-    
-    try {
-        while (nextPageUrl) {
-            const { html } = await cfFetch(nextPageUrl)
-            const $ = cheerio.load(html)
-            
-            if (!seriesTitle) {
-                seriesTitle = $(".page-title").text().trim() || "Unknown Series"
-            }
-            
-            $("article").each((_, element) => processEpisodeArticle($, element, episodes))
-            nextPageUrl = $(".nav-previous a").attr("href") || null
-        }
-        
-        return { categoryId, title: seriesTitle, episodes }
-    } catch (error) {
-        console.error(`Error fetching episodes for category ${categoryId}:`, error)
-        return { categoryId, title: seriesTitle, episodes }
-    }
-}
-
-async function scrapeAnimeDetailByRefId(refId) {
-    if (!isValidNumberString(refId)) {
-        throw new Error(`Invalid reference ID: "${refId}"`)
-    }
-    
-    try {
-        const { html } = await cfFetch(`${GAMER_BASE_URL}animeRef.php?sn=${refId}`)
-        const $ = cheerio.load(html)
-        
-        const get = (selector, attr = null) => {
-            const el = $(selector)
-            return attr ? el.attr(attr)?.trim() || null : el.text().trim() || null
-        }
-        
-        const title = get(".data-file img", "alt")
-        if (!title) {
-            console.error("No title found for refId:", refId)
-            return null
-        }
-        
-        const detailId = get(".data .data-intro .link-button", "href")?.match(/s=(\d+)/)?.[1] || null
-        const premiereDate = get(".type-list li:nth-child(1) .content")
-        
-        const rawRelatedAnime = $(".old_list .anime_slider .theme-list-main")
-            .map((_, movie) => {
-                const $movie = $(movie)
-                const href = $movie.attr("href") || ""
-                
-                return {
-                    refId: href.match(/sn=(\d+)/)?.[1] || null,
-                    image: $movie.find(".theme-img").attr("data-src")?.trim() || null,
-                    title: $movie.find(".theme-name").text().trim() || null,
-                    year: $movie.find(".theme-time").text().trim() || null,
-                    episodes: $movie.find(".theme-number").text().trim() || null,
-                    views: $movie.find(".show-view-number p").text().trim() || null,
-                }
-            })
-            .get()
-        
-        const [relatedAnime, mainMatchRow] = await Promise.all([
-            matchAnime(rawRelatedAnime),
-            matchAnime([{ refId, title, year: premiereDate }]).then(results => results[0] ?? null),
-        ])
-        const matchedVideo = mainMatchRow?.matchedVideo ?? null
-
-        return {
-            refId,
-            detailId,
-            title,
-            description: get(".data .data-intro p"),
-            views: get(".anime-title .anime_name .newanime-count span"),
-            image: get(".data .data-img", "data-src"),
-            premiereDate,
-            director: get(".type-list li:nth-child(2) .content"),
-            distributor: get(".type-list li:nth-child(3) .content"),
-            productionCompany: get(".type-list li:nth-child(4) .content"),
-            tags: $(".type-list .tag-list li").map((_, tag) => $(tag).text().trim()).get(),
-            userRating: {
-                score: get(".score-overall-number"),
-                count: get(".score-overall-people")?.replace("人評價", "") || null,
-            },
-            relatedAnime,
-            videoId: matchedVideo?.id ?? null,
-            season: matchedVideo?.season ?? null,
-        }
-    } catch (err) {
-        console.error("Error scraping anime detail:", err.message)
-        return null
-    }
-}
-
-// ============================================================================
-// Database Operations - Optimized with Batching
-// ============================================================================
-
-const batchFetchAnimeMeta = async (client, refIds) => {
-    if (!refIds?.length) return new Map()
-    
-    const { data, error } = await client
-        .from("anime_meta")
-        .select("*")
-        .in("source_id", refIds)
-    
-    if (error) console.error("Error batch fetching anime_meta:", error)
-    return new Map((data || []).map(anime => [anime.source_id, anime]))
-}
-
-const upsertAnimeMeta = async (serviceClient, payload) => {
-    const { data, error } = await serviceClient
-        .from("anime_meta")
-        .upsert(payload, { 
-            onConflict: "source_id",
-            ignoreDuplicates: false 
-        })
-        .select("*")
-        .single()
-    
-    if (error) {
-        console.error("Error upserting anime_meta:", error)
-        throw error
-    }
-    
-    return data
-}
-
-const updateAnimeMetaBySourceId = async (serviceClient, sourceId, payload) => {
-    const {
-        source_id,
-        source_details_id,
-        video_id,
-        ...updatablePayload
-    } = payload || {}
-
-    const { data, error } = await serviceClient
-        .from("anime_meta")
-        .update(updatablePayload)
-        .eq("source_id", sourceId)
-        .select("*")
-        .single()
-
-    if (error) {
-        console.error("Error updating anime_meta:", error)
-        throw error
-    }
-
-    return data
-}
-
 const scrapeAndUpsertAnime = async (serviceClient, refId) => {
     const scraped = await scrapeAnimeDetailByRefId(refId)
     if (!scraped) return null
-    
-    const payload = buildAnimeMetaPayload(scraped)
-    return await upsertAnimeMeta(serviceClient, payload)
+    return upsertAnimeMeta(serviceClient, buildAnimeMetaPayload(scraped))
 }
 
 const fetchOrScrapeRelatedAnime = async (client, serviceClient, relatedRefIds) => {
     if (!relatedRefIds?.length) return []
-    
-    // Single batch query to fetch all existing related anime
+
     const existingMap = await batchFetchAnimeMeta(client, relatedRefIds)
-    const missingIds = relatedRefIds.filter(id => !existingMap.has(id))
-    
-    // Scrape and insert only missing anime in parallel
+    const missingIds = relatedRefIds.filter((id) => !existingMap.has(id))
+
     if (missingIds.length > 0) {
-        const results = await Promise.allSettled(
+        await Promise.allSettled(
             missingIds.map(async (refId) => {
                 try {
-                    const newAnime = await scrapeAndUpsertAnime(serviceClient, refId)
-                    if (newAnime) existingMap.set(newAnime.source_id, newAnime)
-                    return newAnime
-                } catch (error) {
+                    const anime = await scrapeAndUpsertAnime(serviceClient, refId)
+                    if (anime) existingMap.set(anime.source_id, anime)
+                } catch (err) {
                     // Handle race condition: another request inserted it first
-                    if (error.code === '23505' || error.message?.includes('duplicate')) {
-                        const { data } = await client
-                            .from("anime_meta")
-                            .select("*")
-                            .eq("source_id", refId)
-                            .single()
-                        
+                    if (err.code === '23505' || err.message?.includes('duplicate')) {
+                        const { data } = await client.from('anime_meta').select('*').eq('source_id', refId).single()
                         if (data) existingMap.set(data.source_id, data)
-                        return data
+                    } else {
+                        console.error(`Error scraping related anime ${refId}:`, err)
                     }
-                    console.error(`Error scraping related anime ${refId}:`, error)
-                    return null
                 }
-            })
+            }),
         )
     }
-    
-    // Return in original order, filtering out nulls
-    return relatedRefIds.map(id => existingMap.get(id)).filter(Boolean)
+
+    return relatedRefIds.map((id) => existingMap.get(id)).filter(Boolean)
 }
 
-const formatRelatedAnime = (relatedAnimeMeta) => 
-    relatedAnimeMeta.map(anime => ({
-        refId: anime.source_id,
-        title: anime.title,
-        image: anime.thumbnail,
-        year: anime.premiere_date?.split('-')[0] || null,
-        views: anime.views,
-    }))
+// ============================================================================
+// Response Builder
+// ============================================================================
 
 const buildAnimeResponse = (meta, episodes, relatedAnime, isFavorite) => ({
     refId: meta.source_id,
@@ -313,83 +255,69 @@ const buildAnimeResponse = (meta, episodes, relatedAnime, isFavorite) => ({
     productionCompany: meta.production_company,
     tags: meta.tags || [],
     userRating: normalizeUserRating({ score: meta.score, votes: meta.votes }),
-    relatedAnime,
+    relatedAnime: relatedAnime.map((a) => ({
+        refId: a.source_id,
+        title: a.title,
+        image: a.thumbnail,
+        year: a.premiere_date?.split('-')[0] || null,
+        views: a.views,
+    })),
     videoId: meta.video_id,
     season: meta.season,
     isFavorite,
 })
 
-const isAnimeMetaStale = (meta) => {
-    if (!meta?.updated_at) return false
-    const updatedAtMs = new Date(meta.updated_at).getTime()
-    if (Number.isNaN(updatedAtMs)) return false
-    return Date.now() - updatedAtMs > ONE_MONTH_MS
-}
-
 // ============================================================================
-// Main Handler - Optimized Flow
+// Main Handler
 // ============================================================================
 
 export default defineEventHandler(async (event) => {
     const user = await authUser(event)
     const client = await serverSupabaseClient(event)
     const serviceClient = await serverSupabaseServiceRole(event)
-    const refId = getRouterParam(event, "refId")
-    const query = getQuery(event)
-    const withEpisodes = query.withEpisodes === 'true' || query.withEpisodes === true
-    
+    const refId = getRouterParam(event, 'refId')
+    const { withEpisodes } = getQuery(event)
+
     try {
-        // Fetch main anime metadata
+        // 1. Fetch cached metadata
         const metaMap = await batchFetchAnimeMeta(client, [refId])
         let meta = metaMap.get(refId)
-        
-        // If not cached, scrape and insert
+
         if (!meta) {
+            // 2a. Not cached — scrape and insert
             const scraped = await scrapeAnimeDetailByRefId(refId)
-            if (!scraped) {
-                throw createError({ statusCode: 404, statusMessage: "Anime not found" })
-            }
-            
-            const payload = buildAnimeMetaPayload(scraped)
-            meta = await upsertAnimeMeta(serviceClient, payload)
-        }
-        // Refresh stale metadata monthly only for source_id < 1000000.
-        // If refresh fails, keep old data.
-        else if (isAnimeMetaStale(meta) && Number(meta.source_id) < 1000000) {
+            if (!scraped) throw createError({ statusCode: 404, statusMessage: 'Anime not found' })
+            meta = await upsertAnimeMeta(serviceClient, buildAnimeMetaPayload(scraped))
+        } else if (isStale(meta) && Number(meta.source_id) < 1000000) {
+            // 2b. Stale — only refresh volatile stats, never overwrite manually managed fields
             try {
                 const scraped = await scrapeAnimeDetailByRefId(refId)
-                console.log(`Scraped anime meta for refId ${refId}:`, scraped)
                 if (scraped) {
-                    const payload = buildAnimeMetaPayload(scraped)
-                    meta = await updateAnimeMetaBySourceId(serviceClient, refId, payload)
+                    meta = await refreshAnimeStats(serviceClient, refId, scraped)
                 } else {
-                    console.error(`Weekly refresh returned empty scrape for refId ${refId}; using cached metadata`)
+                    console.error(`Stale refresh returned empty scrape for refId ${refId}; using cached metadata`)
                 }
-            } catch (refreshError) {
-                console.error(`Weekly refresh failed for refId ${refId}; using cached metadata`, refreshError)
+            } catch (err) {
+                console.error(`Stale refresh failed for refId ${refId}; using cached metadata`, err)
             }
         }
-        
-        // Parallel execution: conditionally fetch episodes, related anime, and favorite status
+
+        // 3. Parallel fetch: episodes (conditional), related anime, favorite status
         const [episodesData, relatedAnimeMeta, isFavorite] = await Promise.all([
-            withEpisodes && meta.video_id 
-                ? fetchEpisodeTokens(meta.video_id) 
-                : Promise.resolve({ episodes: {} }),
+            withEpisodes && meta.video_id ? fetchEpisodeTokens(meta.video_id) : Promise.resolve({ episodes: {} }),
             fetchOrScrapeRelatedAnime(client, serviceClient, meta.related_anime_source_ids || []),
             client
-                .from("favorites")
-                .select("id")
-                .eq("anime_ref_id", refId)
-                .eq("user_id", user.sub)
+                .from('favorites')
+                .select('id')
+                .eq('anime_ref_id', refId)
+                .eq('user_id', user.sub)
                 .maybeSingle()
-                .then(({ data }) => !!data)
+                .then(({ data }) => !!data),
         ])
-        
-        const relatedAnime = formatRelatedAnime(relatedAnimeMeta)
-        
-        return buildAnimeResponse(meta, episodesData.episodes, relatedAnime, isFavorite)
-    } catch (error) {
-        console.error("Error in anime/[refId] handler:", error)
-        throw createError({ statusCode: 500, statusMessage: "Internal Server Error" })
+
+        return buildAnimeResponse(meta, episodesData.episodes, relatedAnimeMeta, isFavorite)
+    } catch (err) {
+        console.error('Error in anime/[refId] handler:', err)
+        throw createError({ statusCode: 500, statusMessage: 'Internal Server Error' })
     }
 })
