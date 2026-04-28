@@ -183,6 +183,14 @@ export const useUserSettings = () => {
             key: 'j',
             label: '後退 10 秒',
         },
+        decreasePlaybackSpeed: {
+            key: ',',
+            label: '調慢播放速度',
+        },
+        increasePlaybackSpeed: {
+            key: '.',
+            label: '調快播放速度',
+        },
     })
 
     // Get merged shortcuts (custom + defaults)

@@ -1,5 +1,54 @@
 import * as cheerio from "cheerio"
 
+function sanitizeWikiContentHtml(rawHtml = "") {
+    const $ = cheerio.load(rawHtml, null, false)
+
+    $("script, style, object, embed, form, input, button, textarea, select, link, meta, noscript, svg, math").remove()
+    $("a[href*='recentEdit.php']").closest("table").remove()
+    $("td").filter((_, el) => $(el).text().includes("近期編輯")).closest("table").remove()
+
+    $("*").each((_, el) => {
+        const attribs = el.attribs || {}
+        for (const [name, value] of Object.entries(attribs)) {
+            const attr = name.toLowerCase()
+            const attrValue = String(value || "").trim()
+
+            if (attr.startsWith("on") || attr === "style" || attr === "srcdoc") {
+                $(el).removeAttr(name)
+                continue
+            }
+
+            if (attr === "href" || attr === "src") {
+                const normalized = attrValue.replace(/\s+/g, "").toLowerCase()
+                const isSafeUrl =
+                    normalized.startsWith("http://") ||
+                    normalized.startsWith("https://") ||
+                    normalized.startsWith("//") ||
+                    normalized.startsWith("/") ||
+                    normalized.startsWith("#") ||
+                    normalized.startsWith("mailto:") ||
+                    normalized.startsWith("tel:")
+
+                if (!isSafeUrl) {
+                    $(el).removeAttr(name)
+                }
+            }
+        }
+
+        if (el.tagName?.toLowerCase() === "a") {
+            $(el).attr("rel", "noopener noreferrer nofollow")
+            const href = ($(el).attr("href") || "").trim()
+            if (/^https?:\/\//i.test(href)) {
+                $(el).attr("target", "_blank")
+            } else {
+                $(el).removeAttr("target")
+            }
+        }
+    })
+
+    return $.root().html() || ""
+}
+
 async function scrapeAnimeDetailByRefId(refId) {
     try {
         if (!isValidNumberString(refId)) {
@@ -9,72 +58,10 @@ async function scrapeAnimeDetailByRefId(refId) {
         const { html } = await cfFetch(`${ACG_GAMER_BASE_URL}acgDetail.php?s=${refId}`);
         const $ = cheerio.load(html);
 
-        const categories = {
-            staff: [],
-            cast: [],
-            music: []
-        };
-
-        let currentCategory = '';
-
-        $(".wikiContent div").each((index, divElement) => {
-            const header = $(divElement).text().trim();
-
-            // Identify the current category based on headers
-            if (header === '＜STAFF＞') {
-                currentCategory = 'staff';
-            } else if (header === '＜CAST＞') {
-                currentCategory = 'cast';
-            } else if (header === '＜MUSIC＞') {
-                currentCategory = 'music';
-            } else if (currentCategory) {
-                const listItems = $(divElement).find('ul > li');
-                listItems.each((i, liElement) => {
-                    const text = $(liElement).text().trim();
-
-                    if (currentCategory === 'music') {
-                        // Handle music entries separately
-                        const musicItem = {
-                            name: text.replace('｜', '').split('：')[1]?.trim() || '',
-                            composer: '',
-                            lyricsist: ''
-                        };
-
-                        // Check for nested <ul> for composer and lyricist
-                        const subListItems = $(liElement).next('ul').children('li');
-                        subListItems.each((j, subLiElement) => {
-                            const subText = $(subLiElement).text().trim();
-                            if (subText.startsWith('｜作詞')) {
-                                musicItem.lyricsist = subText.replace('｜作詞：', '').trim();
-                            } else if (subText.startsWith('｜作曲')) {
-                                musicItem.composer = subText.replace('｜作曲、編曲：', '').trim();
-                            }
-                        });
-
-                        categories.music.push(musicItem);
-                    } else if (currentCategory === 'staff') {
-                        // Split staff entries into name and role
-                        const parts = text.split('：');
-                        const staffItem = {
-                            role: parts[0].replace('｜', '').trim(),
-                            name: parts[1]?.trim() || ''
-                        };
-                        categories.staff.push(staffItem);
-                    } else if (currentCategory === 'cast') {
-                        // Split cast entries into name and character
-                        const parts = text.split('：');
-                        const castItem = {
-                            character: parts[0].replace('｜', '').trim(),
-                            name: parts[1]?.trim() || ''
-                        };
-                        categories.cast.push(castItem);
-                    }
-                });
-            }
-        });
-
-
-        return categories; // Return the categorized items
+        const wikiContentHtml = $(".wikiContent").first().html() || ""
+        return {
+            wikiContentHtml: sanitizeWikiContentHtml(wikiContentHtml),
+        }
 
     } catch (err) {
         console.error("Error scraping anime video detail:", err.message, err.stack);

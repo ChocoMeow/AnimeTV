@@ -370,7 +370,12 @@ async function onVideoReady() {
     if (route.query.t) {
         startTime = parseFloat(route.query.t)
     } else if (selectedEpisode.value && allWatchProgress.value[String(selectedEpisode.value)]) {
-        startTime = allWatchProgress.value[String(selectedEpisode.value)].playback_time
+        const savedProgress = allWatchProgress.value[String(selectedEpisode.value)]
+        const progressPct = Number(savedProgress.progress_percentage)
+        const playbackTime = Number(savedProgress.playback_time)
+
+        // If episode was already watched almost fully, restart from beginning.
+        startTime = !Number.isNaN(progressPct) && progressPct >= 90 ? 0 : playbackTime
     }
 
     if (startTime && videoPlayer.value && !isNaN(startTime) && startTime > 0) {

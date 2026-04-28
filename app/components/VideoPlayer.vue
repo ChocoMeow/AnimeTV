@@ -185,6 +185,20 @@ function setPlaybackRate(rate) {
     showNotification(`${rate}x 速度`, "speed")
 }
 
+function adjustPlaybackRate(direction) {
+    if (!videoRef.value) return
+    const currentIndex = playbackSpeeds.indexOf(playbackRate.value)
+    const safeIndex = currentIndex >= 0
+        ? currentIndex
+        : playbackSpeeds.reduce((best, speed, index) =>
+            Math.abs(speed - playbackRate.value) < Math.abs(playbackSpeeds[best] - playbackRate.value) ? index : best
+        , 0)
+
+    const nextIndex = Math.min(playbackSpeeds.length - 1, Math.max(0, safeIndex + direction))
+    if (nextIndex === safeIndex) return
+    setPlaybackRate(playbackSpeeds[nextIndex])
+}
+
 function toggleFullscreen() {
     if (!document.fullscreenElement) {
         containerRef.value?.requestFullscreen()
@@ -500,6 +514,8 @@ function handleKeydown(e) {
       else if (action === 'seekForward5')   { skip(5);   showNotification(shortcuts.seekForward5.label, "fast_forward") }
       else if (action === 'seekBackward10') { skip(-10); showNotification(shortcuts.seekBackward10.label, "fast_rewind") }
       else if (action === 'seekForward10')  { skip(10);  showNotification(shortcuts.seekForward10.label, "fast_forward") }
+      else if (action === 'decreasePlaybackSpeed') { adjustPlaybackRate(-1) }
+      else if (action === 'increasePlaybackSpeed') { adjustPlaybackRate(1) }
       else if (action === 'skipOP')         { skipOP() }
       else if (action === 'previousEpisode') { emit("previous-episode"); showNotification(shortcuts.previousEpisode.label, "skip_previous") }
       else if (action === 'nextEpisode')    { handleNextEpisode() }
@@ -709,14 +725,14 @@ onUnmounted(() => {
                     <!-- Main action -->
                     <button
                         @click="handleNextEpisode"
-                        class="relative z-[1] inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white dark:text-gray-900 cursor-pointer leading-none">
+                        class="relative z-[1] inline-flex h-10 items-center gap-1.5 px-3 text-sm font-semibold text-white dark:text-gray-900 cursor-pointer leading-none">
                         <span class="material-icons text-[1.1rem] leading-none flex-shrink-0">skip_next</span>
                         <span class="whitespace-nowrap leading-none">{{ tooltipLabels.nextEpisode }}</span>
                     </button>
                     <!-- Dismiss -->
                     <button
                         @click="dismissAutoplay"
-                        class="relative z-[1] px-2 py-2 flex items-center justify-center text-white/60 dark:text-gray-500 hover:text-white dark:hover:text-gray-900 transition-colors cursor-pointer">
+                        class="relative z-[1] h-10 px-2 flex items-center justify-center text-white/60 dark:text-gray-500 hover:text-white dark:hover:text-gray-900 transition-colors cursor-pointer">
                         <span class="material-icons text-[1rem]">close</span>
                     </button>
                 </div>
@@ -820,7 +836,7 @@ onUnmounted(() => {
                                 <span class="material-icons text-xl sm:text-2xl">settings</span>
                             </button>
                             <div v-if="showSettings" @click.stop
-                                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/90 backdrop-blur-md rounded-lg shadow-2xl border border-white/20 py-2 z-[10] min-w-[200px]">
+                                class="absolute bottom-full right-[-2.5rem] sm:right-[-3.25rem] mb-2 bg-black/90 backdrop-blur-md rounded-lg shadow-2xl border border-white/20 py-2 z-[10] min-w-[200px] max-w-[min(92vw,18rem)] origin-bottom-right">
                                 <transition name="settings-page" mode="out-in">
                                     <div :key="settingsPage">
                                         <template v-if="settingsPage === 'main'">
@@ -832,9 +848,9 @@ onUnmounted(() => {
                                             <button @click.stop="openSpeedSettings"
                                                 class="w-full px-4 py-2 text-left text-white text-sm hover:bg-white/10 transition-colors flex items-center justify-between">
                                                 <span>播放速度</span>
-                                                <span class="inline-flex min-w-[3.25rem] items-center justify-end gap-0.5 text-xs text-gray-300 leading-none">
+                                                <span class="inline-flex min-w-[3.25rem] items-center justify-end gap-1 text-xs text-gray-300 leading-none">
                                                     {{ playbackRate }}x
-                                                    <span class="material-icons text-base leading-none">chevron_right</span>
+                                                    <span class="material-icons text-sm leading-none translate-y-[0.5px]">chevron_right</span>
                                                 </span>
                                             </button>
                                         </template>
