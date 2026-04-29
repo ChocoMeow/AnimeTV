@@ -167,6 +167,10 @@ export const useUserSettings = () => {
             key: 'f',
             label: '全螢幕/退出全螢幕',
         },
+        theaterMode: {
+            key: 't',
+            label: '劇院模式',
+        },
         seekForward5: {
             key: 'ArrowRight',
             label: '前進 5 秒',

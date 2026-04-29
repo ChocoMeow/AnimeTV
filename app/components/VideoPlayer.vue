@@ -7,12 +7,13 @@ const props = defineProps({
     autoplay: { type: Boolean, default: false },
     preload: { type: String, default: "metadata" },
     hasNextEpisode: { type: Boolean, default: true },
+    theaterMode: { type: Boolean, default: false },
     shortcuts: { type: Object, default: () => null },
     // { title?, episode?, videoId?, thumbnailJpgUrl?, thumbnailVttText? }
     animeMeta: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(["play", "pause", "ended", "volumechange", "loadstart", "loadeddata", "timeupdate", "next-episode", "previous-episode"])
+const emit = defineEmits(["play", "pause", "ended", "volumechange", "loadstart", "loadeddata", "timeupdate", "next-episode", "previous-episode", "toggle-theater-mode"])
 
 // Refs
 const videoRef = ref(null)
@@ -114,6 +115,9 @@ const tooltipLabels = computed(() => {
         mute:        s.mute        ? `${s.mute.label.split("/")[0]} (${formatShortcutKey(s.mute)})` : "靜音",
         nextEpisode: s.nextEpisode ? `${s.nextEpisode.label} (${formatShortcutKey(s.nextEpisode)})` : "下一集",
         fullscreen:  s.fullscreen  ? `${s.fullscreen.label.split("/")[0]} (${formatShortcutKey(s.fullscreen)})` : "全螢幕",
+        theaterMode: s.theaterMode
+            ? `${props.theaterMode ? "關閉劇院模式" : "劇院模式"} (${formatShortcutKey(s.theaterMode)})`
+            : (props.theaterMode ? "關閉劇院模式" : "劇院模式"),
     }
 })
 
@@ -210,6 +214,7 @@ function toggleFullscreen() {
 }
 
 function handleFullscreenChange() { isFullscreen.value = !!document.fullscreenElement }
+function toggleTheaterMode() { emit("toggle-theater-mode") }
 
 // ─── Volume ──────────────────────────────────────────────────────────────────
 
@@ -520,6 +525,7 @@ function handleKeydown(e) {
       else if (action === 'previousEpisode') { emit("previous-episode"); showNotification(shortcuts.previousEpisode.label, "skip_previous") }
       else if (action === 'nextEpisode')    { handleNextEpisode() }
       else if (action === 'fullscreen')     { toggleFullscreen() }
+      else if (action === 'theaterMode')    { toggleTheaterMode() }
       else if (action === 'mute') {
         const wasMuted = isMuted.value
         toggleMute()
@@ -844,6 +850,11 @@ onUnmounted(() => {
                                                 class="w-full px-4 py-2 text-left text-white text-sm hover:bg-white/10 transition-colors flex items-center justify-between">
                                                 <span>自動播放下一集</span>
                                                 <span class="text-xs text-gray-300">{{ autoplayEnabled ? '開啟' : '關閉' }}</span>
+                                            </button>
+                                            <button @click="toggleTheaterMode"
+                                                class="w-full px-4 py-2 text-left text-white text-sm hover:bg-white/10 transition-colors flex items-center justify-between">
+                                                <span>劇院模式</span>
+                                                <span class="text-xs text-gray-300">{{ props.theaterMode ? '開啟' : '關閉' }}</span>
                                             </button>
                                             <button @click.stop="openSpeedSettings"
                                                 class="w-full px-4 py-2 text-left text-white text-sm hover:bg-white/10 transition-colors flex items-center justify-between">
