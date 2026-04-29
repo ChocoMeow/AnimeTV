@@ -19,7 +19,7 @@ const lastWrittenStatus = new Map()
 
 const VALID_STATUSES = new Set(['online', 'idle', 'watching', 'offline'])
 const STATUS_PRIORITY = ['watching', 'online', 'idle']
-const CLEANUP_INTERVAL = 5 * 60 * 1000 // 5 min
+const CLEANUP_INTERVAL = 60 * 1000 // 1 min
 const CONNECTION_TIMEOUT = 2 * 60 * 1000 // 2 min
 
 let cleanupTimer = null
@@ -60,20 +60,32 @@ function peerCount(userId) {
     return userPeers.get(userId)?.size ?? 0
 }
 
+function isConnectionActive(conn, now = Date.now()) {
+    return !!conn && now - conn.lastSeen < CONNECTION_TIMEOUT
+}
+
 function aggregateStatus(userId) {
     const peers = userPeers.get(userId)
     if (!peers?.size) return 'offline'
 
-    const statuses = new Set([...peers].map((id) => connections.get(id)?.status).filter(Boolean))
+    const now = Date.now()
+    const statuses = new Set(
+        [...peers]
+            .map((id) => connections.get(id))
+            .filter((conn) => isConnectionActive(conn, now))
+            .map((conn) => conn.status)
+            .filter(Boolean)
+    )
     return STATUS_PRIORITY.find((s) => statuses.has(s)) ?? 'offline'
 }
 
 function activeWatchingData(userId) {
     const peers = userPeers.get(userId)
     if (!peers) return null
+    const now = Date.now()
     for (const id of peers) {
         const conn = connections.get(id)
-        if (conn?.status === 'watching' && conn.watchingData) return conn.watchingData
+        if (isConnectionActive(conn, now) && conn.status === 'watching' && conn.watchingData) return conn.watchingData
     }
     return null
 }
@@ -133,7 +145,7 @@ function startCleanup() {
     cleanupTimer = setInterval(async () => {
         const now = Date.now()
         for (const [peerId, conn] of connections) {
-            if (now - conn.lastSeen < CONNECTION_TIMEOUT) continue
+            if (isConnectionActive(conn, now)) continue
             console.log(`[WS] Timeout peer ${peerId} (user ${conn.userId})`)
             connections.delete(peerId)
             removePeer(conn.userId, peerId)
