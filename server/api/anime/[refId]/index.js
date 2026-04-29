@@ -91,9 +91,7 @@ async function scrapeAnimeDetailByRefId(refId) {
             director: get('.type-list li:nth-child(2) .content'),
             distributor: get('.type-list li:nth-child(3) .content'),
             productionCompany: get('.type-list li:nth-child(4) .content'),
-            tags: $('.type-list .tag-list li')
-                .map((_, tag) => $(tag).text().trim())
-                .get(),
+            tags: $('.type-list .tag-list li').map((_, tag) => $(tag).text().trim()).get(),
             userRating: {
                 score: get('.score-overall-number'),
                 count: get('.score-overall-people')?.replace('人評價', '') || null,
@@ -149,15 +147,17 @@ async function fetchEpisodeTokens(categoryId) {
 // Database
 // ============================================================================
 
-const batchFetchAnimeMeta = async (client, refIds) => {
-    if (!refIds?.length) return new Map()
-    const { data, error } = await client.from('anime_meta').select('*').in('source_id', refIds)
-    if (error) console.error('Error batch fetching anime_meta:', error)
-    return new Map((data || []).map((a) => [a.source_id, a]))
+const fetchMeta = async (client, sourceId) => {
+    const { data } = await client.from('anime_meta').select('*').eq('source_id', sourceId).single()
+    return data ?? null
 }
 
 const upsertAnimeMeta = async (serviceClient, payload) => {
-    const { data, error } = await serviceClient.from('anime_meta').upsert(payload, { onConflict: 'source_id', ignoreDuplicates: false }).select('*').single()
+    const { data, error } = await serviceClient
+        .from('anime_meta')
+        .upsert(payload, { onConflict: 'source_id', ignoreDuplicates: false })
+        .select('*')
+        .single()
     if (error) {
         console.error('Error upserting anime_meta:', error)
         throw error
@@ -174,10 +174,7 @@ const refreshAnimeStats = async (serviceClient, sourceId, scraped) => {
         .eq('source_id', sourceId)
         .select('*')
         .single()
-    if (error) {
-        console.error('Error refreshing anime stats:', error)
-        throw error
-    }
+    if (error) console.error('Error refreshing anime stats:', error)
     return data
 }
 
@@ -203,38 +200,32 @@ const buildAnimeMetaPayload = (scraped) => {
     }
 }
 
-const scrapeAndUpsertAnime = async (serviceClient, refId) => {
-    const scraped = await scrapeAnimeDetailByRefId(refId)
-    if (!scraped) return null
-    return upsertAnimeMeta(serviceClient, buildAnimeMetaPayload(scraped))
-}
+// Fetch all related anime in a single query. Any missing entries are scraped in the background.
+const fetchRelatedAnime = async (client, serviceClient, ids) => {
+    if (!ids?.length) return []
 
-const fetchOrScrapeRelatedAnime = async (client, serviceClient, relatedRefIds) => {
-    if (!relatedRefIds?.length) return []
+    const { data } = await client.from('anime_meta').select('*').in('source_id', ids)
+    const found = data || []
 
-    const existingMap = await batchFetchAnimeMeta(client, relatedRefIds)
-    const missingIds = relatedRefIds.filter((id) => !existingMap.has(id))
+    const foundIds = new Set(found.map((a) => a.source_id))
+    const missing = ids.filter((id) => !foundIds.has(id))
 
-    if (missingIds.length > 0) {
-        await Promise.allSettled(
-            missingIds.map(async (refId) => {
+    // Fire-and-forget: scrape missing related entries without blocking the response
+    if (missing.length) {
+        Promise.allSettled(
+            missing.map(async (refId) => {
                 try {
-                    const anime = await scrapeAndUpsertAnime(serviceClient, refId)
-                    if (anime) existingMap.set(anime.source_id, anime)
+                    await upsertAnimeMeta(serviceClient, buildAnimeMetaPayload(await scrapeAnimeDetailByRefId(refId)))
                 } catch (err) {
-                    // Handle race condition: another request inserted it first
-                    if (err.code === '23505' || err.message?.includes('duplicate')) {
-                        const { data } = await client.from('anime_meta').select('*').eq('source_id', refId).single()
-                        if (data) existingMap.set(data.source_id, data)
-                    } else {
-                        console.error(`Error scraping related anime ${refId}:`, err)
+                    if (!err.code?.includes('23505') && !err.message?.includes('duplicate')) {
+                        console.error(`Background scrape failed for related anime ${refId}:`, err)
                     }
                 }
             }),
         )
     }
 
-    return relatedRefIds.map((id) => existingMap.get(id)).filter(Boolean)
+    return found
 }
 
 // ============================================================================
@@ -278,46 +269,27 @@ export default defineEventHandler(async (event) => {
     const refId = getRouterParam(event, 'refId')
     const { withEpisodes } = getQuery(event)
 
-    try {
-        // 1. Fetch cached metadata
-        const metaMap = await batchFetchAnimeMeta(client, [refId])
-        let meta = metaMap.get(refId)
+    // 1. Fetch cached meta — only blocks here on a true first-ever miss
+    let meta = await fetchMeta(client, refId)
 
-        if (!meta) {
-            // 2a. Not cached — scrape and insert
-            const scraped = await scrapeAnimeDetailByRefId(refId)
-            if (!scraped) throw createError({ statusCode: 404, statusMessage: 'Anime not found' })
-            meta = await upsertAnimeMeta(serviceClient, buildAnimeMetaPayload(scraped))
-        } else if (isStale(meta) && Number(meta.source_id) < 1000000) {
-            // 2b. Stale — only refresh volatile stats, never overwrite manually managed fields
-            try {
-                const scraped = await scrapeAnimeDetailByRefId(refId)
-                if (scraped) {
-                    meta = await refreshAnimeStats(serviceClient, refId, scraped)
-                } else {
-                    console.error(`Stale refresh returned empty scrape for refId ${refId}; using cached metadata`)
-                }
-            } catch (err) {
-                console.error(`Stale refresh failed for refId ${refId}; using cached metadata`, err)
-            }
-        }
-
-        // 3. Parallel fetch: episodes (conditional), related anime, favorite status
-        const [episodesData, relatedAnimeMeta, isFavorite] = await Promise.all([
-            withEpisodes && meta.video_id ? fetchEpisodeTokens(meta.video_id) : Promise.resolve({ episodes: {} }),
-            fetchOrScrapeRelatedAnime(client, serviceClient, meta.related_anime_source_ids || []),
-            client
-                .from('favorites')
-                .select('id')
-                .eq('anime_ref_id', refId)
-                .eq('user_id', user.sub)
-                .maybeSingle()
-                .then(({ data }) => !!data),
-        ])
-
-        return buildAnimeResponse(meta, episodesData.episodes, relatedAnimeMeta, isFavorite)
-    } catch (err) {
-        console.error('Error in anime/[refId] handler:', err)
-        throw createError({ statusCode: 500, statusMessage: 'Internal Server Error' })
+    if (!meta) {
+        const scraped = await scrapeAnimeDetailByRefId(refId)
+        if (!scraped) throw createError({ statusCode: 404, statusMessage: 'Anime not found' })
+        meta = await upsertAnimeMeta(serviceClient, buildAnimeMetaPayload(scraped))
+    } else if (isStale(meta) && Number(meta.source_id) < 1_000_000) {
+        // Stale-while-revalidate: serve cached data now, refresh stats in background
+        scrapeAnimeDetailByRefId(refId)
+            .then((scraped) => scraped && refreshAnimeStats(serviceClient, refId, scraped))
+            .catch((err) => console.error(`Background refresh failed for ${refId}:`, err))
     }
+
+    // 2. All remaining fetches run in parallel
+    const [relatedAnime, isFavorite, episodesData] = await Promise.all([
+        fetchRelatedAnime(client, serviceClient, meta.related_anime_source_ids),
+        client.from('favorites').select('id').eq('anime_ref_id', refId).eq('user_id', user.sub).maybeSingle().then(({ data }) => !!data),
+        withEpisodes && meta.video_id ? fetchEpisodeTokens(meta.video_id) : Promise.resolve({ episodes: {} }),
+    ])
+
+    setHeader(event, 'Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
+    return buildAnimeResponse(meta, episodesData.episodes, relatedAnime, isFavorite)
 })
