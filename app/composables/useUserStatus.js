@@ -20,7 +20,6 @@ const sharedState = {
     isTracking: ref(false),
     isConnected: ref(false),
     watchingData: ref(null),
-    instanceCount: 0,
     /** True when we disconnected because tab was hidden — do not auto-reconnect until tab is visible */
     disconnectedDueToHiddenTab: false,
     /** Status to restore when tab becomes visible again (set when tab hidden) */
@@ -31,7 +30,7 @@ const sharedState = {
 }
 
 const CONFIG = {
-    HEARTBEAT_INTERVAL: 30 * 1000,  // 30s
+    HEARTBEAT_INTERVAL: 1 * 60 * 1000,  // 1 min
     IDLE_TIMEOUT: 3 * 60 * 1000,    // 3 min
     RECONNECT_DELAY: 5 * 1000,      // 5s
     HIDDEN_TAB_DISCONNECT_DELAY: 30000, // 30s delay before disconnect when tab hidden
@@ -42,9 +41,6 @@ const isPageVisible = () => isClient() && !document.hidden
 
 export const useUserStatus = () => {
     const { userSettings } = useUserSettings()
-
-    // Increment instance count
-    sharedState.instanceCount++
 
     // ============================================================================
     // WebSocket Connection Management
@@ -83,6 +79,17 @@ export const useUserStatus = () => {
         return false
     }
 
+    const buildWatchingPayload = (animeData) => {
+        if (!animeData?.refId || animeData?.episode == null) return null
+        return {
+            refId: animeData.refId,
+            title: animeData.title ?? null,
+            image: animeData.image ?? null,
+            episode: String(animeData.episode),
+            updatedAtMs: Date.now(),
+        }
+    }
+
     /**
      * Handle incoming WebSocket messages
      */
@@ -92,7 +99,6 @@ export const useUserStatus = () => {
 
             switch (data.type) {
                 case 'connected':
-                    sharedState.currentStatus.value = 'online'
                     console.log('[Status] Connected as online')
                     break
 
@@ -155,19 +161,25 @@ export const useUserStatus = () => {
                     userId: userSettings.value.id,
                 })
 
-                // Restore status after reconnect (e.g. tab became visible again)
-                const status = sharedState.currentStatus.value
-                if (status && ACTIVE_STATUSES.includes(status)) {
-                    sendMessage({
-                        type: 'status_update',
-                        userId: userSettings.value.id,
-                        status,
-                        animeData: status === 'watching' ? sharedState.watchingData.value : null,
-                    })
-                }
+                // Always publish a concrete state after connect.
+                // If we still have watching payload, prefer watching to avoid reconnect downgrades to online.
+                const hasWatching = !!sharedState.watchingData.value?.refId && sharedState.watchingData.value?.episode != null
+                const status = hasWatching
+                    ? 'watching'
+                    : (ACTIVE_STATUSES.includes(sharedState.currentStatus.value) ? sharedState.currentStatus.value : 'online')
 
-                // Start heartbeat
-                startHeartbeat()
+                sharedState.currentStatus.value = status
+                sendMessage({
+                    type: 'status_update',
+                    userId: userSettings.value.id,
+                    status,
+                    animeData: status === 'watching' ? sharedState.watchingData.value : null,
+                })
+
+                // Start heartbeat only for active tabs.
+                if (isPageVisible()) {
+                    startHeartbeat()
+                }
             }
 
             sharedState.ws.onmessage = handleMessage
@@ -224,9 +236,13 @@ export const useUserStatus = () => {
      */
     const startHeartbeat = () => {
         if (sharedState.heartbeatTimer) return
+        if (!isPageVisible()) return
 
         sharedState.heartbeatTimer = setInterval(() => {
-            if (!isPageVisible()) return
+            if (!isPageVisible()) {
+                stopHeartbeat()
+                return
+            }
 
             sendMessage({
                 type: 'heartbeat',
@@ -255,14 +271,15 @@ export const useUserStatus = () => {
     const updateStatus = (status, animeData = null) => {
         if (!userSettings.value?.id) return false
 
+        const watchingPayload = status === 'watching' ? buildWatchingPayload(animeData) : null
         sharedState.currentStatus.value = status
-        sharedState.watchingData.value = status === 'watching' ? animeData : null
+        sharedState.watchingData.value = watchingPayload
 
         return sendMessage({
             type: 'status_update',
             userId: userSettings.value.id,
             status,
-            animeData,
+            animeData: watchingPayload,
         })
     }
 
@@ -489,17 +506,8 @@ export const useUserStatus = () => {
      * Cleanup when composable is destroyed
      */
     const cleanup = () => {
-        sharedState.instanceCount--
-
-        // Only fully cleanup if this is the last instance
-        if (sharedState.instanceCount <= 0) {
-            console.log('[Status] Last instance - full cleanup')
-            setOffline()
-            stopTracking()
-            sharedState.instanceCount = 0
-        } else {
-            console.log(`[Status] Instance cleanup (${sharedState.instanceCount} remaining)`)
-        }
+        // Singleton status tracking is managed by middleware/app lifecycle.
+        // Component unmount should not tear down global user presence.
     }
 
     // Auto-cleanup on unmount (only if called from component context)

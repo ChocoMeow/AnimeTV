@@ -668,12 +668,17 @@ onUnmounted(() => {
 
 <template>
     <div ref="containerRef"
-        class="relative w-full aspect-video bg-gray-950/5 dark:bg-white/10 rounded-lg overflow-hidden cursor-default"
+        :class="[
+            'relative w-full rounded-lg overflow-hidden cursor-default',
+            props.theaterMode
+                ? 'aspect-video bg-black lg:max-h-[calc(100vh-8rem)]'
+                : 'aspect-video bg-gray-950/5 dark:bg-white/10'
+        ]"
         @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
 
         <!-- Video Element -->
         <video v-if="src" ref="videoRef" :src="effectiveVideoSrc || undefined" :autoplay="autoplay" :preload="preload"
-            class="w-full h-full block cursor-pointer"
+            :class="['w-full h-full block cursor-pointer', props.theaterMode ? 'object-contain bg-black' : '']"
             @play="onPlay" @pause="onPause" @timeupdate="onTimeUpdate"
             @loadedmetadata="onLoadedMetadata" @loadeddata="onLoadedData" @loadstart="onLoadStart"
             @ended="onEnded" @volumechange="onVolumeChange"

@@ -143,6 +143,10 @@ export const useUserSettings = () => {
             key: '\\',
             label: '跳過片頭',
         },
+        theaterMode: {
+            key: 't',
+            label: '劇院模式',
+        },
         previousEpisode: {
             key: '[',
             label: '上一集',
@@ -166,10 +170,6 @@ export const useUserSettings = () => {
         fullscreen: {
             key: 'f',
             label: '全螢幕/退出全螢幕',
-        },
-        theaterMode: {
-            key: 't',
-            label: '劇院模式',
         },
         seekForward5: {
             key: 'ArrowRight',

@@ -20,7 +20,7 @@ const lastWrittenStatus = new Map()
 const VALID_STATUSES = new Set(['online', 'idle', 'watching', 'offline'])
 const STATUS_PRIORITY = ['watching', 'online', 'idle']
 const CLEANUP_INTERVAL = 60 * 1000 // 1 min
-const CONNECTION_TIMEOUT = 2 * 60 * 1000 // 2 min
+const CONNECTION_TIMEOUT = 3 * 60 * 1000 // 3 min
 
 let cleanupTimer = null
 
@@ -64,6 +64,23 @@ function isConnectionActive(conn, now = Date.now()) {
     return !!conn && now - conn.lastSeen < CONNECTION_TIMEOUT
 }
 
+function sanitizeWatchingData(animeData) {
+    if (!animeData || typeof animeData !== 'object') return null
+    const refId = animeData.refId == null ? null : String(animeData.refId).trim()
+    const episodeRaw = animeData.episode
+    const episodeNumber = Number(episodeRaw)
+    if (!refId || Number.isNaN(episodeNumber)) return null
+
+    const updatedAtMs = Number(animeData.updatedAtMs)
+    return {
+        refId,
+        title: animeData.title == null ? null : String(animeData.title),
+        image: animeData.image == null ? null : String(animeData.image),
+        episode: String(episodeRaw),
+        updatedAtMs: Number.isFinite(updatedAtMs) ? updatedAtMs : Date.now(),
+    }
+}
+
 function aggregateStatus(userId) {
     const peers = userPeers.get(userId)
     if (!peers?.size) return 'offline'
@@ -83,11 +100,15 @@ function activeWatchingData(userId) {
     const peers = userPeers.get(userId)
     if (!peers) return null
     const now = Date.now()
+    let latest = null
     for (const id of peers) {
         const conn = connections.get(id)
-        if (isConnectionActive(conn, now) && conn.status === 'watching' && conn.watchingData) return conn.watchingData
+        if (!isConnectionActive(conn, now) || conn.status !== 'watching' || !conn.watchingData) continue
+        if (!latest || conn.watchingData.updatedAtMs > latest.updatedAtMs) {
+            latest = conn.watchingData
+        }
     }
-    return null
+    return latest
 }
 
 function safeSend(peer, payload) {
@@ -98,13 +119,13 @@ function safeSend(peer, payload) {
 
 // ── Database ──────────────────────────────────────────────────────────────────
 
-async function flushStatus(supabase, userId, { force = false } = {}) {
+async function flushStatus(supabase, userId, { force = false, touch = false } = {}) {
     try {
         const status = aggregateStatus(userId)
         const watching = status === 'watching' ? activeWatchingData(userId) : null
 
         // Skip write if nothing changed (unless forced, e.g. on disconnect)
-        if (!force) {
+        if (!force && !touch) {
             const last = lastWrittenStatus.get(userId)
             if (last?.status === status && last?.animeRefId === (watching?.refId ?? null) && last?.episodeNumber === (watching?.episode ?? null)) return
         }
@@ -168,12 +189,13 @@ function stopCleanup() {
 
 async function handleDisconnect(peerId) {
     const conn = connections.get(peerId)
-    if (!conn) return
+    if (!conn) return null
     connections.delete(peerId)
     removePeer(conn.userId, peerId)
     // Force-write: clears stale watching/online even if cache says nothing changed
     await flushStatus(conn.supabase, conn.userId, { force: true })
     if (connections.size === 0) stopCleanup()
+    return conn.userId
 }
 
 // ── WebSocket handler ─────────────────────────────────────────────────────────
@@ -195,7 +217,6 @@ export default defineWebSocketHandler({
         addPeer(userId, peer.id)
         startCleanup()
 
-        await flushStatus(supabase, userId)
         safeSend(peer, { type: 'connected', peerId: peer.id, userId, status: 'online', activeConnections: peerCount(userId) })
         console.log(`[WS] open  peer=${peer.id} user=${userId} (${peerCount(userId)} total)`)
     },
@@ -233,11 +254,22 @@ export default defineWebSocketHandler({
                         return
                     }
                     conn.status = status
-                    // Always clear watchingData when not watching — fixes stale anime after tab switch
-                    conn.watchingData = status === 'watching' ? (animeData ?? null) : null
+                    // Keep newest watching payload per connection to avoid stale overwrite races.
+                    if (status === 'watching') {
+                        const nextWatching = sanitizeWatchingData(animeData)
+                        if (!nextWatching) {
+                            conn.watchingData = null
+                        } else if (!conn.watchingData || nextWatching.updatedAtMs >= conn.watchingData.updatedAtMs) {
+                            conn.watchingData = nextWatching
+                        }
+                    } else {
+                        // Always clear watchingData when not watching — fixes stale anime after tab switch
+                        conn.watchingData = null
+                    }
                 }
 
-                await flushStatus(conn.supabase, conn.userId)
+                const isHeartbeat = payload.type === 'heartbeat'
+                await flushStatus(conn.supabase, conn.userId, { touch: isHeartbeat })
 
                 const ackType = payload.type === 'heartbeat' ? 'heartbeat_ack' : 'status_updated'
                 safeSend(peer, {
@@ -279,8 +311,9 @@ export default defineWebSocketHandler({
     },
 
     async close(peer) {
-        const userId = connections.get(peer.id)?.userId
-        await handleDisconnect(peer.id)
+        const userId = await handleDisconnect(peer.id)
+        // close can fire after explicit disconnect; skip noisy duplicate logs.
+        if (!userId) return
         console.log(`[WS] close peer=${peer.id} user=${userId} (${peerCount(userId)} remaining)`)
     },
 

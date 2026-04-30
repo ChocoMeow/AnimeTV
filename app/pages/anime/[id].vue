@@ -38,6 +38,9 @@ const showShortcutsModal = ref(false)
 const showToolbarOverflowMenu = ref(false)
 const toolbarOverflowRoot = ref(null)
 let toolbarOverflowClickHandler = null
+const handleBeforeUnloadSave = () => {
+    saveWatchHistory()
+}
 
 // Offline
 const {
@@ -286,7 +289,18 @@ function handlePreviousEpisode() {
 
 // ─── Playback events ──────────────────────────────────────────────────────────
 
-function handlePlay()  { startAutoSave() }
+function handlePlay() {
+    startAutoSave()
+    // Replay/end: episode does not change, so watcher won't call setWatching again.
+    if (anime.value && selectedEpisode.value) {
+        setWatching({
+            refId: anime.value.refId,
+            title: anime.value.title,
+            image: anime.value.image,
+            episode: selectedEpisode.value,
+        })
+    }
+}
 function handlePause() { stopAutoSave() }
 function handleEnded() { saveWatchHistory(); stopAutoSave(); setOnline() }
 
@@ -424,6 +438,12 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
     revokeOfflineThumbnails()
 
     const refId = anime.value.refId
+    setWatching({
+        refId: anime.value.refId,
+        title: anime.value.title,
+        image: anime.value.image,
+        episode: epNum,
+    })
 
     if (import.meta.client && refId) {
         const thumb = await getOfflineThumbnailAssets(refId, epNum)
@@ -529,18 +549,17 @@ function handleShortcutsKeydown(e) {
 
 onMounted(() => {
     fetchDetail()
-    window.addEventListener("beforeunload", () => saveWatchHistory())
+    window.addEventListener("beforeunload", handleBeforeUnloadSave)
     window.addEventListener("keydown", handleShortcutsKeydown)
 })
 
 onUnmounted(() => {
     saveWatchHistory()
     stopAutoSave()
-    setOnline()
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
     if (toolbarOverflowClickHandler) document.removeEventListener('click', toolbarOverflowClickHandler, true)
-    window.removeEventListener("beforeunload", saveWatchHistory)
+    window.removeEventListener("beforeunload", handleBeforeUnloadSave)
     window.removeEventListener("keydown", handleShortcutsKeydown)
     cleanupAnimeTooltip()
 })
