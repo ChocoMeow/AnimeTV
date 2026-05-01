@@ -147,9 +147,17 @@ async function fetchEpisodeTokens(categoryId) {
 // Database
 // ============================================================================
 
-const fetchMeta = async (client, sourceId) => {
-    const { data } = await client.from('anime_meta').select('*').eq('source_id', sourceId).single()
-    return data ?? null
+const fetchMeta = async (client, sourceId, userId) => {
+    const { data } = await client
+        .from('anime_meta')
+        .select('*, favorites!left(id, user_id)')
+        .eq('source_id', sourceId)
+        .eq('favorites.user_id', userId)
+        .single()
+    if (!data) return null
+    const isFavorite = Array.isArray(data.favorites) && data.favorites.length > 0
+    delete data.favorites
+    return { ...data, isFavorite }
 }
 
 const upsertAnimeMeta = async (serviceClient, payload) => {
@@ -165,12 +173,21 @@ const upsertAnimeMeta = async (serviceClient, payload) => {
     return data
 }
 
-// Only refreshes volatile stats — never touches manually managed fields like related_anime_source_ids
-const refreshAnimeStats = async (serviceClient, sourceId, scraped) => {
+// Refreshes volatile stats; related ids = existing row (manual + prior) plus any new ref ids from scrape, never dropping extras
+const refreshAnimeStats = async (serviceClient, sourceId, scraped, existingRelatedIds) => {
     const { score, votes } = normalizeUserRating(scraped.userRating)
+    const fromDb = Array.isArray(existingRelatedIds) ? existingRelatedIds.filter(Boolean) : []
+    const fromScrape = (scraped.relatedAnime || []).map((a) => a.refId).filter(Boolean)
+    const related_anime_source_ids = [...new Set([...fromDb, ...fromScrape])]
     const { data, error } = await serviceClient
         .from('anime_meta')
-        .update({ views: parseViews(scraped.views), score, votes })
+        .update({
+            views: parseViews(scraped.views),
+            score,
+            votes,
+            updated_at: new Date().toISOString(),
+            related_anime_source_ids,
+        })
         .eq('source_id', sourceId)
         .select('*')
         .single()
@@ -267,10 +284,11 @@ export default defineEventHandler(async (event) => {
     const client = await serverSupabaseClient(event)
     const serviceClient = await serverSupabaseServiceRole(event)
     const refId = getRouterParam(event, 'refId')
-    const { withEpisodes } = getQuery(event)
+    const { withEpisodes, withRelated } = getQuery(event)
 
     // 1. Fetch cached meta — only blocks here on a true first-ever miss
-    let meta = await fetchMeta(client, refId)
+    let meta = await fetchMeta(client, refId, user.sub)
+    let isFavorite = meta?.isFavorite ?? false
 
     if (!meta) {
         const scraped = await scrapeAnimeDetailByRefId(refId)
@@ -279,14 +297,13 @@ export default defineEventHandler(async (event) => {
     } else if (isStale(meta) && Number(meta.source_id) < 1_000_000) {
         // Stale-while-revalidate: serve cached data now, refresh stats in background
         scrapeAnimeDetailByRefId(refId)
-            .then((scraped) => scraped && refreshAnimeStats(serviceClient, refId, scraped))
+            .then((scraped) => scraped && refreshAnimeStats(serviceClient, refId, scraped, meta.related_anime_source_ids))
             .catch((err) => console.error(`Background refresh failed for ${refId}:`, err))
     }
 
     // 2. All remaining fetches run in parallel
-    const [relatedAnime, isFavorite, episodesData] = await Promise.all([
-        fetchRelatedAnime(client, serviceClient, meta.related_anime_source_ids),
-        client.from('favorites').select('id').eq('anime_ref_id', refId).eq('user_id', user.sub).maybeSingle().then(({ data }) => !!data),
+    const [relatedAnime, episodesData] = await Promise.all([
+        withRelated ? fetchRelatedAnime(client, serviceClient, meta.related_anime_source_ids) : Promise.resolve([]),
         withEpisodes && meta.video_id ? fetchEpisodeTokens(meta.video_id) : Promise.resolve({ episodes: {} }),
     ])
 

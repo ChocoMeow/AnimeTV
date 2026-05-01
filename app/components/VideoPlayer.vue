@@ -45,8 +45,8 @@ const playbackRate = ref(1)
 const notification = ref({ show: false, message: "", icon: "" })
 
 // Auto-play next episode
-const AUTOPLAY_TRIGGER_SECS = 90
-const AUTOPLAY_COUNTDOWN_SECS = 90
+const AUTOPLAY_TRIGGER_SECS = 100
+const AUTOPLAY_COUNTDOWN_SECS = 100
 const autoplayVisible = ref(false)
 const autoplaySecsLeft = ref(AUTOPLAY_COUNTDOWN_SECS)
 const autoplayDismissed = ref(false)
@@ -68,6 +68,7 @@ const thumbnailsVttCache = new Map()
 let controlsTimeout = null
 let notificationTimeout = null
 let spacePressTimeout = null
+let autoplayNextTimeout = null
 
 // ─── Computed ────────────────────────────────────────────────────────────────
 
@@ -178,6 +179,8 @@ function skipOP() {
 }
 
 function handleNextEpisode() {
+    clearTimeout(autoplayNextTimeout)
+    autoplayNextTimeout = null
     emit("next-episode")
     showNotification(props.shortcuts.nextEpisode.label, "skip_next")
 }
@@ -246,14 +249,24 @@ function startAutoplayCountdown() {
 }
 
 function updateAutoplayCountdown(remainingSecs) {
+    if (remainingSecs > 0.5) {
+        clearTimeout(autoplayNextTimeout)
+        autoplayNextTimeout = null
+    }
     if (!autoplayEnabled.value || autoplayDismissed.value) {
+        clearTimeout(autoplayNextTimeout)
+        autoplayNextTimeout = null
         resetAutoplayCountdown()
         return
     }
 
     if (remainingSecs <= 0) {
+        if (autoplayNextTimeout) return
         resetAutoplayCountdown()
-        handleNextEpisode()
+        autoplayNextTimeout = setTimeout(() => {
+            autoplayNextTimeout = null
+            handleNextEpisode()
+        }, 1000)
         return
     }
 
@@ -272,6 +285,8 @@ function resetAutoplayCountdown() {
 
 function dismissAutoplay() {
     autoplayDismissed.value = true
+    clearTimeout(autoplayNextTimeout)
+    autoplayNextTimeout = null
     resetAutoplayCountdown()
 }
 
@@ -279,7 +294,11 @@ function toggleAutoplay() {
     autoplayEnabled.value = !autoplayEnabled.value
     if (typeof localStorage !== "undefined")
         localStorage.setItem("autoplayEnabled", autoplayEnabled.value)
-    if (!autoplayEnabled.value) resetAutoplayCountdown()
+    if (!autoplayEnabled.value) {
+        clearTimeout(autoplayNextTimeout)
+        autoplayNextTimeout = null
+        resetAutoplayCountdown()
+    }
 }
 
 function closeSettings() {
@@ -605,6 +624,8 @@ watch(() => props.src, () => {
     if (videoRef.value) videoRef.value.playbackRate = 1
     clearTimeout(spacePressTimeout)
     spacePressTimeout = null
+    clearTimeout(autoplayNextTimeout)
+    autoplayNextTimeout = null
     autoplayDismissed.value = false
     resetAutoplayCountdown()
 })
@@ -657,6 +678,7 @@ onUnmounted(() => {
     clearTimeout(controlsTimeout)
     clearTimeout(notificationTimeout)
     clearTimeout(spacePressTimeout)
+    clearTimeout(autoplayNextTimeout)
     document.removeEventListener("fullscreenchange", handleFullscreenChange)
     document.removeEventListener("pointerdown", handleDocumentPointerDown)
     window.removeEventListener("keydown", handleKeydown)

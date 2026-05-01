@@ -276,10 +276,11 @@ function continueLast() {
 
 // ─── Episode navigation ───────────────────────────────────────────────────────
 
-function handleNextEpisode() {
+async function handleNextEpisode() {
     const { keys, currentIndex } = episodeInfo.value
-    if (currentIndex !== -1 && currentIndex < keys.length - 1)
-        selectedEpisode.value = keys[currentIndex + 1]
+    if (currentIndex === -1 || currentIndex >= keys.length - 1) return
+    if (selectedEpisode.value) await saveWatchHistory(selectedEpisode.value)
+    selectedEpisode.value = keys[currentIndex + 1]
 }
 
 function handlePreviousEpisode() {
@@ -507,7 +508,7 @@ async function fetchDetail() {
     offlineModeBanner.value = false
 
     try {
-        const res = await $fetch(`/api/anime/${route.params.id}?withEpisodes=true`)
+        const res = await $fetch(`/api/anime/${route.params.id}?withEpisodes=true&withRelated=true`)
         if (!res || !Object.keys(res).length) { error.value = "找不到此動漫的詳細資訊"; return }
         anime.value = res
         isFavorite.value = res.isFavorite
