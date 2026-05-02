@@ -10,11 +10,8 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
         return
     }
 
-    // Client check reads persisted Supabase session (works after refresh/page-load).
-    const client = useSupabaseClient()
-    const { data } = await client.auth.getSession()
-    const hasSession = !!data?.session
-    if (!hasSession) {
+    const user = useSupabaseUser()
+    if (!user.value) {
         if (isLoginPage) return
         return navigateTo('/login')
     }
