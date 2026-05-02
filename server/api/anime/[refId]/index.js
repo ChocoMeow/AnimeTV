@@ -123,6 +123,7 @@ async function fetchEpisodeTokens(categoryId) {
                 const $video = $(el).find('.video-js')
                 const token = $video.attr('data-apireq')
                 const videoId = $video.attr('data-vid') || null
+                const tserver = $video.attr('data-tserver')?.trim() || null
 
                 if (!fullTitle || !token) return
 
@@ -130,7 +131,15 @@ async function fetchEpisodeTokens(categoryId) {
                 if (!identifier) return
 
                 identifier.split('+').forEach((id) => {
-                    episodes[normalizeEpisodeId(id.trim())] = { video_id: videoId, token }
+                    const vid = videoId != null ? String(videoId).trim() : ''
+                    const host = (tserver && String(tserver).trim()) || 'pt'
+                    const thumbBase = vid ? `https://${host}.anime1.me/${vid}` : null
+                    episodes[normalizeEpisodeId(id.trim())] = {
+                        video_id: videoId,
+                        token,
+                        thumbnails_jpg_url: thumbBase ? `${thumbBase}/thumbnails.jpg` : null,
+                        thumbnails_vtt_url: thumbBase ? `${thumbBase}/thumbnails.vtt` : null,
+                    }
                 })
             })
 

@@ -220,10 +220,10 @@ async function fetchBlobWithProgress(url, onProgress, { signal, waitWhilePaused 
     return new Blob(chunks, { type: 'video/mp4' })
 }
 
-async function fetchEpisodeThumbnailBlob(videoId, signal) {
-    if (!videoId) return null
+async function fetchEpisodeThumbnailBlob(jpgUrl, signal) {
+    if (!jpgUrl) return null
     try {
-        const res = await fetch(`https://pt2.anime1.me/${videoId}/thumbnails.jpg`, { signal })
+        const res = await fetch(jpgUrl, { signal })
         if (!res.ok) return null
         return await res.blob()
     } catch {
@@ -231,10 +231,10 @@ async function fetchEpisodeThumbnailBlob(videoId, signal) {
     }
 }
 
-async function fetchEpisodeThumbnailVtt(videoId, signal) {
-    if (!videoId) return null
+async function fetchEpisodeThumbnailVtt(vttUrl, signal) {
+    if (!vttUrl) return null
     try {
-        const res = await fetch(`https://pt2.anime1.me/${videoId}/thumbnails.vtt`, { signal })
+        const res = await fetch(vttUrl, { signal })
         if (!res.ok) return null
         return await res.text()
     } catch {
@@ -440,14 +440,26 @@ export function useOfflineAnimeDownloads() {
     /**
      * Build proxy URL and download episode (same logic as anime page).
      */
-    async function downloadEpisode({ refId, animeTitle, animeSnapshot, episodeKey, token, videoId, onProgress, signal, waitWhilePaused }) {
+    async function downloadEpisode({
+        refId,
+        animeTitle,
+        animeSnapshot,
+        episodeKey,
+        token,
+        videoId,
+        thumbnailsJpgUrl,
+        thumbnailsVttUrl,
+        onProgress,
+        signal,
+        waitWhilePaused,
+    }) {
         const source = await $fetch(`/api/download-video/${token}`, { signal })
         if (source?.error) throw new Error(source.error)
         await waitWhilePaused?.()
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
         const [thumbnailBlob, thumbnailVtt] = await Promise.all([
-            fetchEpisodeThumbnailBlob(videoId, signal),
-            fetchEpisodeThumbnailVtt(videoId, signal),
+            fetchEpisodeThumbnailBlob(thumbnailsJpgUrl, signal),
+            fetchEpisodeThumbnailVtt(thumbnailsVttUrl, signal),
         ])
 
         if (source.kind === 'hls') {

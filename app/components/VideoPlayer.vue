@@ -9,7 +9,7 @@ const props = defineProps({
     hasNextEpisode: { type: Boolean, default: true },
     theaterMode: { type: Boolean, default: false },
     shortcuts: { type: Object, default: () => null },
-    // { title?, episode?, videoId?, thumbnailJpgUrl?, thumbnailVttText? }
+    // Thumbnail strip: thumbnailJpgUrl + thumbnailsVttUrl from API, or offline thumbnailVttText + thumbnailJpgUrl (blob).
     animeMeta: { type: Object, default: () => ({}) },
 })
 
@@ -77,10 +77,7 @@ const normalizedVideoId = computed(() => {
     return id != null ? String(id).trim() || null : null
 })
 
-const thumbnailJpgUrl = computed(() =>
-    props.animeMeta?.thumbnailJpgUrl ||
-    (normalizedVideoId.value ? `https://pt2.anime1.me/${normalizedVideoId.value}/thumbnails.jpg` : null)
-)
+const thumbnailJpgUrl = computed(() => props.animeMeta?.thumbnailJpgUrl || null)
 
 const thumbnailCrop = computed(() => activeThumbnail.value?.xywh ?? null)
 
@@ -123,6 +120,11 @@ const tooltipLabels = computed(() => {
 })
 
 const playbackSpeeds = [0.5, 0.75, 1, 1.25, 1.5, 2, 3]
+
+/** Hide cursor over the chrome while playback is active and chrome auto-hides */
+const hidePlaybackCursor = computed(
+    () => !!props.src && isPlaying.value && !showControls.value && !autoplayVisible.value
+)
 
 // ─── Controls visibility ─────────────────────────────────────────────────────
 
@@ -444,20 +446,26 @@ async function loadThumbnailsForVideoId(videoId) {
     const vttText = props.animeMeta?.thumbnailVttText
     if (vttText) { thumbnailsSegments.value = parseThumbnailsVtt(vttText); return }
 
-    if (thumbnailsVttCache.has(videoId)) { thumbnailsSegments.value = thumbnailsVttCache.get(videoId); return }
+    const vttFetchUrl = props.animeMeta?.thumbnailsVttUrl
+    if (!vttFetchUrl) return
+
+    if (thumbnailsVttCache.has(vttFetchUrl)) {
+        thumbnailsSegments.value = thumbnailsVttCache.get(vttFetchUrl)
+        return
+    }
 
     try {
         thumbnailsAbortController?.abort()
         thumbnailsAbortController = new AbortController()
-        const res = await fetch(`https://pt2.anime1.me/${videoId}/thumbnails.vtt`, { signal: thumbnailsAbortController.signal })
+        const res = await fetch(vttFetchUrl, { signal: thumbnailsAbortController.signal })
         if (!res.ok) throw new Error(`${res.status}`)
         const segments = parseThumbnailsVtt(await res.text())
         thumbnailsSegments.value = segments
-        thumbnailsVttCache.set(videoId, segments)
-        if (segments.length) {
+        thumbnailsVttCache.set(vttFetchUrl, segments)
+        if (segments.length && thumbnailJpgUrl.value) {
             const img = new Image()
             img.crossOrigin = "anonymous"
-            img.src = `https://pt2.anime1.me/${videoId}/thumbnails.jpg`
+            img.src = thumbnailJpgUrl.value
         }
     } catch {
         thumbnailsSegments.value = []
@@ -466,7 +474,7 @@ async function loadThumbnailsForVideoId(videoId) {
 }
 
 watch(
-    [() => normalizedVideoId.value, () => props.animeMeta?.thumbnailVttText],
+    [() => normalizedVideoId.value, () => props.animeMeta?.thumbnailVttText, () => props.animeMeta?.thumbnailsVttUrl],
     async ([newVideoId]) => {
         await loadThumbnailsForVideoId(newVideoId)
         if (isHoveringProgress.value && !isDraggingProgress.value)
@@ -691,7 +699,8 @@ onUnmounted(() => {
 <template>
     <div ref="containerRef"
         :class="[
-            'relative w-full rounded-lg overflow-hidden cursor-default',
+            'relative w-full rounded-lg overflow-hidden',
+            hidePlaybackCursor ? 'cursor-none' : 'cursor-default',
             props.theaterMode
                 ? 'aspect-video bg-black lg:max-h-[calc(100vh-8rem)]'
                 : 'aspect-video bg-gray-950/5 dark:bg-white/10'
@@ -700,7 +709,11 @@ onUnmounted(() => {
 
         <!-- Video Element -->
         <video v-if="src" ref="videoRef" :src="effectiveVideoSrc || undefined" :autoplay="autoplay" :preload="preload"
-            :class="['w-full h-full block cursor-pointer', props.theaterMode ? 'object-contain bg-black' : '']"
+            :class="[
+                'w-full h-full block',
+                hidePlaybackCursor ? 'cursor-none' : 'cursor-pointer',
+                props.theaterMode ? 'object-contain bg-black' : '',
+            ]"
             @play="onPlay" @pause="onPause" @timeupdate="onTimeUpdate"
             @loadedmetadata="onLoadedMetadata" @loadeddata="onLoadedData" @loadstart="onLoadStart"
             @ended="onEnded" @volumechange="onVolumeChange"
@@ -831,19 +844,19 @@ onUnmounted(() => {
                     <div class="flex items-center gap-1 sm:gap-3 pointer-events-auto">
                         <!-- Play/Pause -->
                         <button @click="togglePlay" :title="tooltipLabels.playPause"
-                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
+                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-md inline-flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
                             <span class="material-icons text-xl sm:text-2xl">{{ isPlaying ? 'pause' : 'play_arrow' }}</span>
                         </button>
                         <!-- Skip OP -->
                         <button @click="skipOP" :title="tooltipLabels.skipOP"
-                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
+                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-md inline-flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
                             <span class="material-icons text-xl sm:text-2xl">fast_forward</span>
                         </button>
                         <!-- Volume -->
                         <div class="relative flex items-center gap-1 sm:gap-2"
                             @mouseenter="handleVolumeAreaEnter" @mouseleave="handleVolumeAreaLeave">
                             <button @click="toggleMute" :title="tooltipLabels.mute"
-                                class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
+                                class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-md inline-flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
                                 <span class="material-icons text-xl sm:text-2xl">
                                     {{ isMuted || volume === 0 ? 'volume_off' : volume < 0.5 ? 'volume_down' : 'volume_up' }}
                                 </span>
@@ -865,8 +878,8 @@ onUnmounted(() => {
                         <!-- Settings -->
                         <div ref="settingsRef" class="relative">
                             <button @click="toggleSettings" title="設定"
-                                class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
-                                <span class="material-icons text-xl sm:text-2xl">settings</span>
+                                class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-md inline-flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
+                                <span class="material-icons text-xl sm:text-2xl">tune</span>
                             </button>
                             <div v-if="showSettings" @click.stop
                                 class="absolute bottom-full right-[-2.5rem] sm:right-[-3.25rem] mb-2 bg-black/90 backdrop-blur-md rounded-lg shadow-2xl border border-white/20 py-2 z-[10] min-w-[200px] max-w-[min(92vw,18rem)] origin-bottom-right">
@@ -911,7 +924,7 @@ onUnmounted(() => {
                         </div>
                         <!-- Fullscreen -->
                         <button @click="toggleFullscreen" :title="tooltipLabels.fullscreen"
-                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 p-1 sm:p-2 rounded-md flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
+                            class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-md inline-flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
                             <span class="material-icons text-xl sm:text-2xl">{{ isFullscreen ? 'fullscreen_exit' : 'fullscreen' }}</span>
                         </button>
                     </div>

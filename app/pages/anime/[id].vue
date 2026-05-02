@@ -101,13 +101,18 @@ const currentVideoId = computed(() => {
     return typeof ep === "string" ? null : ep?.video_id ?? null
 })
 
-const videoPlayerMeta = computed(() => ({
-    title: anime.value?.title ?? null,
-    episode: selectedEpisode.value ?? null,
-    videoId: currentVideoId.value,
-    thumbnailJpgUrl: offlineThumbnailJpgUrl.value,
-    thumbnailVttText: offlineThumbnailVttText.value,
-}))
+const videoPlayerMeta = computed(() => {
+    const ep = currentEpisodeData.value
+    const epObj = typeof ep === 'string' ? null : ep
+    return {
+        title: anime.value?.title ?? null,
+        episode: selectedEpisode.value ?? null,
+        videoId: currentVideoId.value,
+        thumbnailJpgUrl: offlineThumbnailJpgUrl.value || epObj?.thumbnails_jpg_url || null,
+        thumbnailVttText: offlineThumbnailVttText.value,
+        thumbnailsVttUrl: epObj?.thumbnails_vtt_url || null,
+    }
+})
 
 const isMac = computed(() =>
     typeof window !== "undefined" && /Mac|iPhone|iPod|iPad/i.test(navigator.platform)

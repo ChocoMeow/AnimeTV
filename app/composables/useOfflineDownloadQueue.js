@@ -235,6 +235,8 @@ export function useOfflineDownloadQueue() {
                         episodeKey: ep,
                         token,
                         videoId: episodeData.video_id || null,
+                        thumbnailsJpgUrl: episodeData.thumbnails_jpg_url || null,
+                        thumbnailsVttUrl: episodeData.thumbnails_vtt_url || null,
                         signal,
                         waitWhilePaused: () => waitWhilePaused(id),
                         onProgress: (p) => {
