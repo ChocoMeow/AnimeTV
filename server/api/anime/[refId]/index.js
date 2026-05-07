@@ -26,13 +26,6 @@ const parsePremiereDate = (value) => {
     return null
 }
 
-const extractEpisodeIdentifier = (fullTitle) => {
-    const matches = fullTitle.match(/\[([^\]]+)\]/g)
-    return matches?.length ? matches[matches.length - 1].slice(1, -1) : null
-}
-
-const normalizeEpisodeId = (id) => (/^\d+$/.test(id) ? String(Number(id)) : id)
-
 const isStale = (meta) => {
     const ms = new Date(meta?.updated_at).getTime()
     return !isNaN(ms) && Date.now() - ms > ONE_MONTH_MS
@@ -104,52 +97,6 @@ async function scrapeAnimeDetailByRefId(refId) {
         console.error('Error scraping anime detail:', err.message)
         return null
     }
-}
-
-async function fetchEpisodeTokens(categoryId) {
-    const episodes = {}
-    let seriesTitle = ''
-    let nextPageUrl = `${ANIME1_BASE_URL}?cat=${categoryId}`
-
-    try {
-        while (nextPageUrl) {
-            const { html } = await cfFetch(nextPageUrl)
-            const $ = cheerio.load(html)
-
-            if (!seriesTitle) seriesTitle = $('.page-title').text().trim() || 'Unknown Series'
-
-            $('article').each((_, el) => {
-                const fullTitle = $(el).find('h2.entry-title a').text().trim()
-                const $video = $(el).find('.video-js')
-                const token = $video.attr('data-apireq')
-                const videoId = $video.attr('data-vid') || null
-                const tserver = $video.attr('data-tserver')?.trim() || null
-
-                if (!fullTitle || !token) return
-
-                const identifier = extractEpisodeIdentifier(fullTitle)
-                if (!identifier) return
-
-                identifier.split('+').forEach((id) => {
-                    const vid = videoId != null ? String(videoId).trim() : ''
-                    const host = (tserver && String(tserver).trim()) || 'pt'
-                    const thumbBase = vid ? `https://${host}.anime1.me/${vid}` : null
-                    episodes[normalizeEpisodeId(id.trim())] = {
-                        video_id: videoId,
-                        token,
-                        thumbnails_jpg_url: thumbBase ? `${thumbBase}/thumbnails.jpg` : null,
-                        thumbnails_vtt_url: thumbBase ? `${thumbBase}/thumbnails.vtt` : null,
-                    }
-                })
-            })
-
-            nextPageUrl = $('.nav-previous a').attr('href') || null
-        }
-    } catch (err) {
-        console.error(`Error fetching episodes for category ${categoryId}:`, err)
-    }
-
-    return { categoryId, title: seriesTitle, episodes }
 }
 
 // ============================================================================
@@ -258,13 +205,12 @@ const fetchRelatedAnime = async (client, serviceClient, ids) => {
 // Response Builder
 // ============================================================================
 
-const buildAnimeResponse = (meta, episodes, relatedAnime, isFavorite) => ({
+const buildAnimeResponse = (meta, relatedAnime, isFavorite) => ({
     refId: meta.source_id,
     detailId: meta.source_details_id,
     title: meta.title,
     description: meta.description,
     views: meta.views,
-    episodes,
     image: meta.thumbnail,
     premiereDate: meta.premiere_date,
     director: meta.director,
@@ -293,7 +239,8 @@ export default defineEventHandler(async (event) => {
     const client = await serverSupabaseClient(event)
     const serviceClient = await serverSupabaseServiceRole(event)
     const refId = getRouterParam(event, 'refId')
-    const { withEpisodes, withRelated } = getQuery(event)
+    const query = getQuery(event)
+    const withRelated = query.withRelated === 'true'
 
     // 1. Fetch cached meta — only blocks here on a true first-ever miss
     let meta = await fetchMeta(client, refId, user.sub)
@@ -311,11 +258,8 @@ export default defineEventHandler(async (event) => {
     }
 
     // 2. All remaining fetches run in parallel
-    const [relatedAnime, episodesData] = await Promise.all([
-        withRelated ? fetchRelatedAnime(client, serviceClient, meta.related_anime_source_ids) : Promise.resolve([]),
-        withEpisodes && meta.video_id ? fetchEpisodeTokens(meta.video_id) : Promise.resolve({ episodes: {} }),
-    ])
+    const relatedAnime = withRelated ? await fetchRelatedAnime(client, serviceClient, meta.related_anime_source_ids) : []
 
     setHeader(event, 'Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
-    return buildAnimeResponse(meta, episodesData.episodes, relatedAnime, isFavorite)
+    return buildAnimeResponse(meta, relatedAnime, isFavorite)
 })

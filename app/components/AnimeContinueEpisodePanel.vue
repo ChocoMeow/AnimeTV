@@ -3,6 +3,7 @@ const props = defineProps({
     showContinuePrompt: { type: Boolean, default: false },
     lastWatchedData: { type: Object, default: null },
     episodes: { type: Object, default: null },
+    episodesLoading: { type: Boolean, default: false },
     watchProgress: { type: Object, default: () => ({}) },
     animeImage: { type: String, default: "" },
     modelValue: { type: [String, Number], default: null },
@@ -63,11 +64,11 @@ function formatTime(seconds) {
         <section aria-label="Episode selector">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-xl font-bold text-gray-900 dark:text-white">選擇集數</h2>
-                <span v-if="episodes" class="text-sm text-gray-600 dark:text-gray-400">
+                <span v-if="episodes && !episodesLoading" class="text-sm text-gray-600 dark:text-gray-400">
                     共 <span class="font-semibold text-gray-900 dark:text-white">{{ Object.keys(episodes).length }}</span> 集
                 </span>
             </div>
-            <EpisodesPicker v-if="episodes"
+            <EpisodesPicker v-if="episodes && !episodesLoading"
                 :episodes="episodes"
                 :watch-progress="watchProgress"
                 :compact="true"
@@ -75,6 +76,10 @@ function formatTime(seconds) {
                 :model-value="modelValue"
                 @update:model-value="onEpisodeSelect"
                 @select="onEpisodeSelect" />
+            <div v-else-if="episodesLoading" class="flex flex-col items-center justify-center py-10 text-gray-500 dark:text-gray-400">
+                <div class="w-8 h-8 border-2 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-white rounded-full animate-spin mb-3" />
+                <p>載入集數中...</p>
+            </div>
             <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
                 <span class="material-icons text-4xl mb-2 opacity-50">video_library</span>
                 <p>暫無可用集數</p>

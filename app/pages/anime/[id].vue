@@ -1,66 +1,70 @@
 <script setup>
-// Core
+// ─── Composables ──────────────────────────────────────────────────────────────
 const { userSettings, getShortcuts, formatShortcutKey } = useUserSettings()
 const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
 const client = useSupabaseClient()
 const { isAdmin } = useAdmin()
-
-const userShortcuts = computed(() => getShortcuts())
-
 const { setWatching, setOnline } = useUserStatus()
-
+const { showToast } = useToast()
 const {
-    hoveredAnime, animeDetails, tooltipLoading, tooltipError, tooltipPosition,
+    loadAnimeSnapshot,
+    deleteAnimeSnapshot,
+    listDownloadedEpisodeKeys,
+    removeEpisode: removeOfflineEpisode,
+    getOfflinePlayback,
+    getOfflineThumbnailAssets,
+} = useOfflineAnimeDownloads()
+const { runOfflineDownloadBatch } = useOfflineDownloadQueue()
+const {
+    hoveredAnime,
+    animeDetails,
+    tooltipLoading,
+    tooltipError,
+    tooltipPosition,
     handleMouseEnter: handleTooltipMouseEnter,
     handleMouseLeave: handleTooltipMouseLeave,
-    handleTooltipEnter, handleTooltipLeave,
-    setFavoriteStatus, cleanup: cleanupAnimeTooltip,
+    handleTooltipEnter,
+    handleTooltipLeave,
+    setFavoriteStatus,
+    cleanup: cleanupAnimeTooltip,
 } = useAnimeTooltip()
 
-const SAVE_INTERVAL = 120000
-let saveIntervalTimer = null
+const userShortcuts = computed(() => getShortcuts())
+const isMac = computed(() => /Mac|iPhone|iPod|iPad/i.test(navigator.platform ?? ''))
 
 // ─── State ────────────────────────────────────────────────────────────────────
-
 const anime = ref(null)
 const selectedEpisode = ref(null)
 const videoUrl = ref(null)
 const videoIsHls = ref(false)
 const error = ref(null)
 const loading = ref(true)
+const episodesLoading = ref(false)
 const isFavorite = ref(false)
+
+// UI
 const showShareDialog = ref(false)
 const showDetailDialog = ref(false)
-const shareUrl = ref("")
 const showShortcutsModal = ref(false)
+const showOfflineDownloadDialog = ref(false)
 const showToolbarOverflowMenu = ref(false)
 const toolbarOverflowRoot = ref(null)
-let toolbarOverflowClickHandler = null
-const handleBeforeUnloadSave = () => {
-    saveWatchHistory()
-}
+const shareUrl = ref('')
 
 // Offline
-const {
-    loadAnimeSnapshot, deleteAnimeSnapshot, listDownloadedEpisodeKeys,
-    removeEpisode: removeOfflineEpisode, getOfflinePlayback, getOfflineThumbnailAssets,
-} = useOfflineAnimeDownloads()
-const { showToast } = useToast()
-const { runOfflineDownloadBatch } = useOfflineDownloadQueue()
-const showOfflineDownloadDialog = ref(false)
 const offlineDownloadedKeys = ref([])
 const isOfflineDownloading = ref(false)
 const offlineDownloadProgress = ref(0)
-const offlineDownloadLabel = ref("")
+const offlineDownloadLabel = ref('')
 const offlinePlaybackRevoke = ref(null)
 const offlineThumbRevoke = ref(null)
 const offlineThumbnailJpgUrl = ref(null)
 const offlineThumbnailVttText = ref(null)
 const offlineModeBanner = ref(false)
 
-// Watch history / continue watching
+// Watch history
 const lastWatchedData = ref(null)
 const showContinuePrompt = ref(false)
 const allWatchProgress = ref({})
@@ -70,12 +74,15 @@ const videoPlayer = ref(null)
 const hasSetInitialTime = ref(false)
 const isTheaterMode = ref(false)
 
-// ─── Computed ─────────────────────────────────────────────────────────────────
+const SAVE_INTERVAL = 120_000
+let saveTimer = null
 
+// ─── Computed ─────────────────────────────────────────────────────────────────
 const sortedEpisodeKeys = computed(() => {
     if (!anime.value?.episodes) return []
     return Object.keys(anime.value.episodes).sort((a, b) => {
-        const na = parseInt(a, 10), nb = parseInt(b, 10)
+        const na = parseInt(a, 10),
+            nb = parseInt(b, 10)
         return !isNaN(na) && !isNaN(nb) ? na - nb : a.localeCompare(b)
     })
 })
@@ -98,65 +105,88 @@ const currentEpisodeData = computed(() => {
 
 const currentVideoId = computed(() => {
     const ep = currentEpisodeData.value
-    return typeof ep === "string" ? null : ep?.video_id ?? null
+    return typeof ep === 'string' ? null : (ep?.video_id ?? null)
 })
 
 const videoPlayerMeta = computed(() => {
-    const ep = currentEpisodeData.value
-    const epObj = typeof ep === 'string' ? null : ep
+    const ep = typeof currentEpisodeData.value === 'string' ? null : currentEpisodeData.value
     return {
         title: anime.value?.title ?? null,
         episode: selectedEpisode.value ?? null,
         videoId: currentVideoId.value,
-        thumbnailJpgUrl: offlineThumbnailJpgUrl.value || epObj?.thumbnails_jpg_url || null,
+        thumbnailJpgUrl: offlineThumbnailJpgUrl.value || ep?.thumbnails_jpg_url || null,
         thumbnailVttText: offlineThumbnailVttText.value,
-        thumbnailsVttUrl: epObj?.thumbnails_vtt_url || null,
+        thumbnailsVttUrl: ep?.thumbnails_vtt_url || null,
     }
 })
 
-const isMac = computed(() =>
-    typeof window !== "undefined" && /Mac|iPhone|iPod|iPad/i.test(navigator.platform)
-)
-
 const additionalDetails = computed(() => {
     if (!anime.value) return []
-    const map = [
-        { key: "premiereDate",      label: "首播日期", icon: "event",          iconBg: "bg-pink-100 dark:bg-pink-900/30",  iconColor: "text-pink-600 dark:text-pink-400" },
-        { key: "productionCompany", label: "製作公司", icon: "business",       iconBg: "bg-gray-100 dark:bg-gray-800",     iconColor: "text-gray-600 dark:text-gray-400" },
-        { key: "director",          label: "導演監督", icon: "person",         iconBg: "bg-gray-100 dark:bg-gray-800",     iconColor: "text-gray-600 dark:text-gray-400" },
-        { key: "distributor",       label: "發行商",   icon: "local_shipping", iconBg: "bg-blue-100 dark:bg-blue-900/30",  iconColor: "text-blue-600 dark:text-blue-400" },
-    ]
-    return map.filter(d => anime.value[d.key]).map(d => ({ ...d, value: anime.value[d.key] }))
+    return [
+        { key: "premiereDate",      label: "首播日期", icon: "event",          iconBg: "bg-pink-100 dark:bg-pink-900/30", iconColor: "text-pink-600 dark:text-pink-400" },
+        { key: "productionCompany", label: "製作公司", icon: "business",       iconBg: "bg-gray-100 dark:bg-gray-800",    iconColor: "text-gray-600 dark:text-gray-400" },
+        { key: "director",          label: "導演監督", icon: "person",         iconBg: "bg-gray-100 dark:bg-gray-800",    iconColor: "text-gray-600 dark:text-gray-400" },
+        { key: "distributor",       label: "發行商",   icon: "local_shipping", iconBg: "bg-blue-100 dark:bg-blue-900/30", iconColor: "text-blue-600 dark:text-blue-400" },
+    ].filter(d => anime.value[d.key]).map(d => ({ ...d, value: anime.value[d.key] }))
 })
 
 const animeToolbarActions = computed(() => {
     if (!anime.value) return []
     const actions = []
 
-    if (anime.value.detailId) {
-        actions.push({ key: 'detail', label: '詳情', icon: 'info', iconClass: 'text-gray-900 dark:text-white', run: () => { showDetailDialog.value = true } })
-    }
+    if (anime.value.detailId)
+        actions.push({
+            key: 'detail',
+            label: '詳情',
+            icon: 'info',
+            iconClass: 'text-gray-900 dark:text-white',
+            run: () => {
+                showDetailDialog.value = true
+            },
+        })
 
     actions.push(
-        { key: 'share',    label: '分享',                          icon: 'share',          iconClass: 'text-gray-900 dark:text-white',  run: () => openShareDialog() },
-        { key: 'favorite', label: isFavorite.value ? '已收藏' : '收藏', icon: isFavorite.value ? 'bookmark_added' : 'bookmark_add', iconClass: isFavorite.value ? 'text-red-500' : 'text-gray-900 dark:text-white', run: () => toggleFavorite() },
+        { key: 'share', label: '分享', icon: 'share', iconClass: 'text-gray-900 dark:text-white', run: openShareDialog },
+        {
+            key: 'favorite',
+            label: isFavorite.value ? '已收藏' : '收藏',
+            icon: isFavorite.value ? 'bookmark_added' : 'bookmark_add',
+            iconClass: isFavorite.value ? 'text-red-500' : 'text-gray-900 dark:text-white',
+            run: toggleFavorite,
+        },
     )
 
-    if (anime.value.episodes && Object.keys(anime.value.episodes).length) {
-        actions.push({ key: 'offline', label: '離線下載', icon: 'download', iconClass: 'text-gray-900 dark:text-white', run: () => { showOfflineDownloadDialog.value = true } })
-    }
+    if (Object.keys(anime.value.episodes ?? {}).length)
+        actions.push({
+            key: 'offline',
+            label: '離線下載',
+            icon: 'download',
+            iconClass: 'text-gray-900 dark:text-white',
+            run: () => {
+                showOfflineDownloadDialog.value = true
+            },
+        })
 
-    if (isAdmin.value === true) {
+    if (isAdmin.value) {
         const sourceId = anime.value.refId ?? route.params.id
-        const hasVideoId = anime.value.videoId != null && String(anime.value.videoId).length > 0
-        if (sourceId || hasVideoId) {
+        const hasVideoId = String(anime.value.videoId ?? '').length > 0
+        if (sourceId || hasVideoId)
             actions.push({
-                key: 'admin', label: '後台管理', icon: 'admin_panel_settings', iconClass: 'text-gray-900 dark:text-white',
-                run: () => router.push({ path: '/admin', query: { field: hasVideoId ? 'video_id' : 'source_id', search: hasVideoId ? String(anime.value.videoId) : String(sourceId), operator: 'eq' } }),
+                key: 'admin',
+                label: '後台管理',
+                icon: 'admin_panel_settings',
+                iconClass: 'text-gray-900 dark:text-white',
+                run: () =>
+                    router.push({
+                        path: '/admin',
+                        query: {
+                            field: hasVideoId ? 'video_id' : 'source_id',
+                            search: hasVideoId ? String(anime.value.videoId) : String(sourceId),
+                            operator: 'eq',
+                        },
+                    }),
             })
-        }
     }
-
     return actions
 })
 
@@ -164,12 +194,10 @@ const toolbarPrimaryActions = computed(() => animeToolbarActions.value.slice(0, 
 const toolbarOverflowActions = computed(() => animeToolbarActions.value.slice(3))
 
 // ─── Offline helpers ──────────────────────────────────────────────────────────
-
 function revokeOfflinePlayback() {
     offlinePlaybackRevoke.value?.()
     offlinePlaybackRevoke.value = null
 }
-
 function revokeOfflineThumbnails() {
     offlineThumbRevoke.value?.()
     offlineThumbRevoke.value = null
@@ -178,16 +206,14 @@ function revokeOfflineThumbnails() {
 }
 
 async function refreshOfflineEpisodeList() {
-    offlineDownloadedKeys.value = anime.value?.refId
-        ? await listDownloadedEpisodeKeys(anime.value.refId)
-        : []
+    offlineDownloadedKeys.value = anime.value?.refId ? await listDownloadedEpisodeKeys(anime.value.refId) : []
 }
 
 async function handleOfflineDownload(keys) {
     if (!anime.value || !keys?.length) return
     isOfflineDownloading.value = true
     offlineDownloadProgress.value = 0
-    offlineDownloadLabel.value = ""
+    offlineDownloadLabel.value = ''
     try {
         await runOfflineDownloadBatch({
             refId: anime.value.refId,
@@ -195,16 +221,20 @@ async function handleOfflineDownload(keys) {
             animeSnapshot: anime.value,
             keys,
             episodes: anime.value.episodes || {},
-            setOverallProgress: (v) => { offlineDownloadProgress.value = v },
-            setOverallLabel:    (v) => { offlineDownloadLabel.value = v },
+            setOverallProgress: (v) => {
+                offlineDownloadProgress.value = v
+            },
+            setOverallLabel: (v) => {
+                offlineDownloadLabel.value = v
+            },
             toast: (msg, type, duration) => showToast(msg, type, duration),
         })
         await refreshOfflineEpisodeList()
     } catch (err) {
-        showToast(err?.message || "下載失敗", "error")
+        showToast(err?.message || '下載失敗', 'error')
     } finally {
         offlineDownloadProgress.value = 100
-        offlineDownloadLabel.value = ""
+        offlineDownloadLabel.value = ''
         isOfflineDownloading.value = false
     }
 }
@@ -213,43 +243,43 @@ async function handleOfflineRemoveEpisode(ep) {
     if (!anime.value?.refId) return
     try {
         await removeOfflineEpisode(anime.value.refId, ep)
-        showToast("已刪除離線檔案", "success")
+        showToast('已刪除離線檔案', 'success')
         await refreshOfflineEpisodeList()
-    } catch { showToast("刪除失敗", "error") }
+    } catch {
+        showToast('刪除失敗', 'error')
+    }
 }
 
 async function handleOfflineRemoveAll() {
-    if (!anime.value?.refId || !confirm("確定清除此作品所有離線下載？")) return
+    if (!anime.value?.refId || !confirm('確定清除此作品所有離線下載？')) return
     try {
         const keys = await listDownloadedEpisodeKeys(anime.value.refId)
-        for (const k of keys) await removeOfflineEpisode(anime.value.refId, k)
+        await Promise.all(keys.map((k) => removeOfflineEpisode(anime.value.refId, k)))
         await deleteAnimeSnapshot(anime.value.refId)
-        showToast("已清除離線資料", "success")
+        showToast('已清除離線資料', 'success')
         await refreshOfflineEpisodeList()
-    } catch { showToast("清除失敗", "error") }
+    } catch {
+        showToast('清除失敗', 'error')
+    }
 }
 
 // ─── UI actions ───────────────────────────────────────────────────────────────
-
 function openShareDialog() {
-    if (typeof window !== "undefined") {
-        const params = new URLSearchParams()
-        if (selectedEpisode.value && videoPlayer.value) {
-            params.set("e", selectedEpisode.value)
-            const t = videoPlayer.value.currentTime
-            if (t > 0) params.set("t", Math.floor(t).toString())
-        }
-        const base = window.location.origin + route.path
-        shareUrl.value = params.toString() ? `${base}?${params}` : base
+    const params = new URLSearchParams()
+    if (selectedEpisode.value && videoPlayer.value) {
+        params.set('e', selectedEpisode.value)
+        const t = videoPlayer.value.currentTime
+        if (t > 0) params.set('t', Math.floor(t).toString())
     }
+    const base = window.location.origin + route.path
+    shareUrl.value = params.size ? `${base}?${params}` : base
     showShareDialog.value = true
 }
 
-function formatRating(score) {
-    return score ? parseFloat(score).toFixed(1) : "N/A"
-}
+const formatRating = (score) => (score ? parseFloat(score).toFixed(1) : 'N/A')
 
 // ─── Toolbar overflow click-outside ──────────────────────────────────────────
+let toolbarOverflowClickHandler = null
 
 watch(showToolbarOverflowMenu, (open) => {
     if (!import.meta.client) return
@@ -259,27 +289,90 @@ watch(showToolbarOverflowMenu, (open) => {
     }
     if (!open) return
     toolbarOverflowClickHandler = (e) => {
-        if (toolbarOverflowRoot.value && !toolbarOverflowRoot.value.contains(e.target))
-            showToolbarOverflowMenu.value = false
+        if (!toolbarOverflowRoot.value?.contains(e.target)) showToolbarOverflowMenu.value = false
     }
-    nextTick(() => setTimeout(() => {
-        if (showToolbarOverflowMenu.value && toolbarOverflowClickHandler)
-            document.addEventListener('click', toolbarOverflowClickHandler, true)
-    }, 0))
+    nextTick(() =>
+        setTimeout(() => {
+            if (showToolbarOverflowMenu.value) document.addEventListener('click', toolbarOverflowClickHandler, true)
+        }, 0),
+    )
 })
 
-watch(() => route.fullPath, () => { showToolbarOverflowMenu.value = false })
+watch(
+    () => route.fullPath,
+    () => {
+        showToolbarOverflowMenu.value = false
+    },
+)
 
-// ─── Continue watching ────────────────────────────────────────────────────────
+// ─── Watch history ────────────────────────────────────────────────────────────
+const startAutoSave = () => {
+    saveTimer ||= setInterval(saveWatchHistory, SAVE_INTERVAL)
+}
+const stopAutoSave = () => {
+    clearInterval(saveTimer)
+    saveTimer = null
+}
 
+async function saveWatchHistory(episodeNumber = null) {
+    const { watch_history_enabled, id } = userSettings.value
+    if (!watch_history_enabled || !id || !anime.value || !videoPlayer.value) return
+    const epNum = episodeNumber ?? selectedEpisode.value
+    if (!epNum) return
+
+    const { duration, currentTime } = videoPlayer.value
+    if (!duration) return
+
+    const entry = {
+        user_id: id,
+        anime_ref_id: anime.value.refId,
+        anime_title: anime.value.title,
+        anime_image: anime.value.image,
+        episode_number: String(epNum),
+        playback_time: Math.floor(currentTime),
+        video_duration: Math.floor(duration),
+        progress_percentage: Math.min(100, Math.floor((currentTime / duration) * 100)),
+    }
+
+    try {
+        const { error } = await client.from('watch_history').upsert(entry, { onConflict: 'user_id, anime_ref_id, episode_number' })
+        if (error) throw error
+        allWatchProgress.value[entry.episode_number] = entry
+        lastWatchedData.value = entry
+    } catch (err) {
+        console.error('Failed to save watch history:', err)
+    }
+}
+
+async function fetchLastWatched() {
+    if (!userSettings.value.id || !anime.value) return
+    try {
+        const { data, error } = await client
+            .from('watch_history')
+            .select('*')
+            .eq('anime_ref_id', anime.value.refId)
+            .eq('user_id', userSettings.value.id)
+            .order('updated_at', { ascending: false })
+
+        if (!error && data?.length) {
+            allWatchProgress.value = Object.fromEntries(
+                data.filter((item, i, arr) => arr.findIndex((x) => x.episode_number === item.episode_number) === i).map((item) => [item.episode_number, item]),
+            )
+            lastWatchedData.value = data[0]
+            if (data[0].progress_percentage < 90 && !route.query.e) showContinuePrompt.value = true
+        }
+    } catch (err) {
+        console.error('Failed to fetch last watched:', err)
+    }
+}
+
+// ─── Continue watching / episode nav ─────────────────────────────────────────
 function continueLast() {
     if (!lastWatchedData.value) return
     selectedEpisode.value = lastWatchedData.value.episode_number
     showContinuePrompt.value = false
     router.replace({ path: route.path, query: { e: lastWatchedData.value.episode_number, t: lastWatchedData.value.playback_time } })
 }
-
-// ─── Episode navigation ───────────────────────────────────────────────────────
 
 async function handleNextEpisode() {
     const { keys, currentIndex } = episodeInfo.value
@@ -294,148 +387,92 @@ function handlePreviousEpisode() {
 }
 
 // ─── Playback events ──────────────────────────────────────────────────────────
-
 function handlePlay() {
     startAutoSave()
-    // Replay/end: episode does not change, so watcher won't call setWatching again.
-    if (anime.value && selectedEpisode.value) {
-        setWatching({
-            refId: anime.value.refId,
-            title: anime.value.title,
-            image: anime.value.image,
-            episode: selectedEpisode.value,
-        })
-    }
+    if (anime.value && selectedEpisode.value)
+        setWatching({ refId: anime.value.refId, title: anime.value.title, image: anime.value.image, episode: selectedEpisode.value })
 }
-function handlePause() { stopAutoSave() }
-function handleEnded() { saveWatchHistory(); stopAutoSave(); setOnline() }
+function handlePause() {
+    stopAutoSave()
+}
+function handleEnded() {
+    saveWatchHistory()
+    stopAutoSave()
+    setOnline()
+}
 
 // ─── Favorites ────────────────────────────────────────────────────────────────
-
 async function toggleFavorite() {
     if (!anime.value || !userSettings.value.id) return
     isFavorite.value = !isFavorite.value
+    const table = client.from('favorites')
+    const match = { user_id: userSettings.value.id, anime_ref_id: anime.value.refId }
     const { error } = isFavorite.value
-        ? await client.from("favorites").insert({ user_id: userSettings.value.id, anime_ref_id: anime.value.refId, anime_title: anime.value.title, anime_image: anime.value.image })
-        : await client.from("favorites").delete().match({ user_id: userSettings.value.id, anime_ref_id: anime.value.refId })
-    if (error) throw new Error(error.message)
-}
-
-// ─── Watch history ────────────────────────────────────────────────────────────
-
-function startAutoSave() {
-    if (!saveIntervalTimer) saveIntervalTimer = setInterval(saveWatchHistory, SAVE_INTERVAL)
-}
-
-function stopAutoSave() {
-    clearInterval(saveIntervalTimer)
-    saveIntervalTimer = null
-}
-
-async function saveWatchHistory(episodeNumber = null) {
-    if (!userSettings.value.watch_history_enabled || !userSettings.value.id || !anime.value || !videoPlayer.value) return
-    const epNum = (typeof episodeNumber === "number" || typeof episodeNumber === "string" ? episodeNumber : null) || selectedEpisode.value
-    if (!epNum) return
-
-    const duration = videoPlayer.value.duration
-    const currentTime = videoPlayer.value.currentTime
-    if (!duration) return
-
-    const historyData = {
-        user_id: userSettings.value.id,
-        anime_ref_id: anime.value.refId,
-        anime_title: anime.value.title,
-        anime_image: anime.value.image,
-        episode_number: String(epNum),
-        playback_time: Math.floor(currentTime),
-        video_duration: Math.floor(duration),
-        progress_percentage: Math.min(100, Math.floor((currentTime / duration) * 100)),
+        ? await table.insert({ ...match, anime_title: anime.value.title, anime_image: anime.value.image })
+        : await table.delete().match(match)
+    if (error) {
+        isFavorite.value = !isFavorite.value
+        throw new Error(error.message)
     }
-
-    try {
-        const { error } = await client.from("watch_history").upsert(historyData, { onConflict: "user_id, anime_ref_id, episode_number" })
-        if (error) throw error
-        allWatchProgress.value[historyData.episode_number] = historyData
-        lastWatchedData.value = historyData
-    } catch (err) { console.error("Failed to save watch history:", err) }
-}
-
-async function fetchLastWatched() {
-    if (!userSettings.value.id || !anime.value) return
-    try {
-        const { data, error } = await client.from("watch_history")
-            .select("*")
-            .eq("anime_ref_id", anime.value.refId)
-            .eq("user_id", userSettings.value.id)
-            .order("updated_at", { ascending: false })
-
-        if (!error && data?.length) {
-            allWatchProgress.value = {}
-            data.forEach(item => {
-                if (!allWatchProgress.value[item.episode_number])
-                    allWatchProgress.value[item.episode_number] = item
-            })
-            lastWatchedData.value = data[0]
-            if (lastWatchedData.value.progress_percentage < 90 && !route.query.e)
-                showContinuePrompt.value = true
-        }
-    } catch (err) { console.error("Failed to fetch last watched:", err) }
 }
 
 // ─── Video ready ──────────────────────────────────────────────────────────────
-
 async function onVideoReady() {
     if (hasSetInitialTime.value) return
 
-    let startTime = null
-    if (route.query.t) {
-        startTime = parseFloat(route.query.t)
-    } else if (selectedEpisode.value && allWatchProgress.value[String(selectedEpisode.value)]) {
-        const savedProgress = allWatchProgress.value[String(selectedEpisode.value)]
-        const progressPct = Number(savedProgress.progress_percentage)
-        const playbackTime = Number(savedProgress.playback_time)
+    let startTime = route.query.t ? parseFloat(route.query.t) : null
 
-        // If episode was already watched almost fully, restart from beginning.
-        startTime = !Number.isNaN(progressPct) && progressPct >= 90 ? 0 : playbackTime
+    if (startTime == null && selectedEpisode.value) {
+        const saved = allWatchProgress.value[String(selectedEpisode.value)]
+        if (saved) startTime = Number(saved.progress_percentage) >= 90 ? 0 : Number(saved.playback_time)
     }
 
-    if (startTime && videoPlayer.value && !isNaN(startTime) && startTime > 0) {
+    if (startTime && !isNaN(startTime) && startTime > 0 && videoPlayer.value) {
         const videoEl = videoPlayer.value.videoElement
-        const doSeek = () => { if (!hasSetInitialTime.value && videoPlayer.value) { videoPlayer.value.seek(startTime); hasSetInitialTime.value = true } }
-        if (videoEl?.readyState >= 2) { videoPlayer.value.seek(startTime); hasSetInitialTime.value = true }
-        else videoEl?.addEventListener("canplay", doSeek, { once: true })
+        const doSeek = () => {
+            if (!hasSetInitialTime.value) {
+                videoPlayer.value?.seek(startTime)
+                hasSetInitialTime.value = true
+            }
+        }
+        videoEl?.readyState >= 2 ? doSeek() : videoEl?.addEventListener('canplay', doSeek, { once: true })
     } else {
         hasSetInitialTime.value = true
     }
 
-    const videoEl = videoPlayer.value?.videoElement
-    if (videoEl) setTimeout(() => videoEl.scrollIntoView({ behavior: "smooth", block: "center" }), 100)
+    videoPlayer.value?.videoElement && setTimeout(() => videoPlayer.value.videoElement.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100)
 
-    if (anime.value && selectedEpisode.value) {
+    if (anime.value && selectedEpisode.value)
         setWatching({ refId: anime.value.refId, title: anime.value.title, image: anime.value.image, episode: selectedEpisode.value })
-    }
 }
 
 // ─── Episode watcher ──────────────────────────────────────────────────────────
-
 function applyEpisodeQueryFromRoute() {
-    if (!anime.value?.episodes || !route.query.e) return
-    const key = route.query.e
-    if (anime.value.episodes[key]) { selectedEpisode.value = key; return }
-    const num = parseInt(key)
-    if (!isNaN(num) && anime.value.episodes[String(num)]) selectedEpisode.value = String(num)
+    if (!anime.value?.episodes || !route.query.e) return false
+    const key = String(Array.isArray(route.query.e) ? route.query.e[0] : route.query.e)
+    const episodes = anime.value.episodes
+    const match = Object.prototype.hasOwnProperty.call(episodes, key)
+        ? key
+        : Object.prototype.hasOwnProperty.call(episodes, String(parseInt(key, 10)))
+          ? String(parseInt(key, 10))
+          : null
+    if (match) {
+        selectedEpisode.value = match
+        return true
+    }
+    return false
 }
 
 watch(selectedEpisode, async (epNum, oldEpNum) => {
     if (!epNum || !anime.value?.episodes) return
 
-    const isManualChange = oldEpNum !== null && oldEpNum !== epNum
-    if (isManualChange) {
-        if (oldEpNum && videoPlayer.value) await saveWatchHistory(oldEpNum)
+    if (oldEpNum && oldEpNum !== epNum) {
+        if (videoPlayer.value) await saveWatchHistory(oldEpNum)
         hasSetInitialTime.value = false
         if (route.query.t || route.query.e) {
             const q = { ...route.query }
-            delete q.t; delete q.e
+            delete q.t
+            delete q.e
             router.replace({ path: route.path, query: q })
         }
     }
@@ -443,13 +480,8 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
 
-    const refId = anime.value.refId
-    setWatching({
-        refId: anime.value.refId,
-        title: anime.value.title,
-        image: anime.value.image,
-        episode: epNum,
-    })
+    const { refId, title, image } = anime.value
+    setWatching({ refId, title, image, episode: epNum })
 
     if (import.meta.client && refId) {
         const thumb = await getOfflineThumbnailAssets(refId, epNum)
@@ -458,9 +490,7 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
             offlineThumbnailVttText.value = thumb.vttText || null
             offlineThumbRevoke.value = thumb.revoke
         }
-    }
 
-    if (import.meta.client && refId) {
         const playback = await getOfflinePlayback(refId, epNum)
         if (playback) {
             offlinePlaybackRevoke.value = playback.revoke
@@ -471,36 +501,53 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
     }
 
     const token = anime.value.episodes[String(epNum)]?.token
-    if (!token) { videoUrl.value = null; videoIsHls.value = false; return }
+    if (!token) {
+        videoUrl.value = null
+        videoIsHls.value = false
+        return
+    }
 
     showContinuePrompt.value = false
     try {
         const res = await $fetch(`/api/episode/${token}`)
-        if (res?.s?.length) {
-            const raw = res.s[0].src
-            const finalUrl = raw.startsWith("http") ? raw : `https:${raw}`
+        const raw = res?.s?.[0]?.src
+        if (raw) {
+            const finalUrl = raw.startsWith('http') ? raw : `https:${raw}`
             videoUrl.value = `/api/proxy-video?url=${encodeURIComponent(finalUrl)}&cookie=${encodeURIComponent(res.videoCookie)}`
-            videoIsHls.value = /\.m3u8(\?|$)/i.test(finalUrl) || finalUrl.toLowerCase().includes("m3u8")
+            videoIsHls.value = /\.m3u8(\?|$)/i.test(finalUrl) || finalUrl.includes('m3u8')
         } else {
-            videoUrl.value = null; videoIsHls.value = false
+            videoUrl.value = null
+            videoIsHls.value = false
         }
     } catch (err) {
-        console.error("Episode fetch failed:", err)
-        if (import.meta.client && refId) {
-            const playback = await getOfflinePlayback(refId, epNum)
-            if (playback) {
-                offlinePlaybackRevoke.value = playback.revoke
-                videoUrl.value = playback.url
-                videoIsHls.value = playback.isHls
-                showToast("使用離線影片播放", "info", 2500)
-                return
-            }
+        console.error('Episode fetch failed:', err)
+        const playback = import.meta.client && refId ? await getOfflinePlayback(refId, epNum) : null
+        if (playback) {
+            offlinePlaybackRevoke.value = playback.revoke
+            videoUrl.value = playback.url
+            videoIsHls.value = playback.isHls
+            showToast('使用離線影片播放', 'info', 2500)
+        } else {
+            videoUrl.value = null
+            videoIsHls.value = false
         }
-        videoUrl.value = null; videoIsHls.value = false
     }
 })
 
 // ─── Data fetching ────────────────────────────────────────────────────────────
+async function fetchEpisodes(refId) {
+    if (!refId) return { episodes: {}, shouldRetry: false }
+    episodesLoading.value = true
+    try {
+        const res = await $fetch(`/api/anime/${refId}/episodes`)
+        return { episodes: res?.episodes || {}, shouldRetry: false }
+    } catch (err) {
+        const status = Number(err?.statusCode ?? err?.response?.status ?? 0)
+        return { episodes: {}, shouldRetry: status === 404 }
+    } finally {
+        episodesLoading.value = false
+    }
+}
 
 async function fetchDetail() {
     loading.value = true
@@ -508,19 +555,37 @@ async function fetchDetail() {
     videoUrl.value = null
     videoIsHls.value = false
     selectedEpisode.value = null
+    offlineModeBanner.value = false
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
-    offlineModeBanner.value = false
+
+    const sourceRefId = String(route.params.id)
 
     try {
-        const res = await $fetch(`/api/anime/${route.params.id}?withEpisodes=true&withRelated=true`)
-        if (!res || !Object.keys(res).length) { error.value = "找不到此動漫的詳細資訊"; return }
-        anime.value = res
+        const res = await $fetch(`/api/anime/${sourceRefId}?withRelated=true`)
+
+        if (!res || !Object.keys(res).length) {
+            error.value = '找不到此動漫的詳細資訊'
+            return
+        }
+
+        anime.value = { ...res, episodes: {} }
         isFavorite.value = res.isFavorite
         useHead({ title: `${res.title} | ${appConfig.siteName}` })
-        await fetchLastWatched()
-        await refreshOfflineEpisodeList()
-        applyEpisodeQueryFromRoute()
+        fetchLastWatched().catch((err) => console.error('Last watched fetch failed:', err))
+        refreshOfflineEpisodeList().catch((err) => console.error('Offline episode list refresh failed:', err))
+        fetchEpisodes(sourceRefId)
+            .then(async (earlyEpisodes) => {
+                if (String(route.params.id) !== sourceRefId || !anime.value) return
+                const episodesResult = earlyEpisodes.shouldRetry && anime.value?.refId
+                    ? await fetchEpisodes(anime.value.refId)
+                    : earlyEpisodes
+                if (String(route.params.id) !== sourceRefId || !anime.value) return
+                anime.value.episodes = episodesResult?.episodes || {}
+                await nextTick()
+                if (route.query.e && !selectedEpisode.value) applyEpisodeQueryFromRoute()
+            })
+            .catch((err) => console.error('Episodes fetch flow failed:', err))
     } catch (err) {
         if (import.meta.client) {
             try {
@@ -533,30 +598,30 @@ async function fetchDetail() {
                     applyEpisodeQueryFromRoute()
                     return
                 }
-            } catch (offlineErr) { console.error("Offline snapshot load failed:", offlineErr) }
+            } catch (offlineErr) {
+                console.error('Offline snapshot load failed:', offlineErr)
+            }
         }
         useHead({ title: `載入動漫詳情失敗 | ${appConfig.siteName}` })
-        error.value = "載入動漫詳情失敗，請稍後再試"
+        error.value = '載入動漫詳情失敗，請稍後再試'
     } finally {
         loading.value = false
     }
 }
 
 // ─── Keyboard shortcuts ───────────────────────────────────────────────────────
-
 function handleShortcutsKeydown(e) {
-    if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+    if ((e.ctrlKey || e.metaKey) && e.key === '/') {
         e.preventDefault()
         showShortcutsModal.value = !showShortcutsModal.value
     }
 }
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
-
 onMounted(() => {
     fetchDetail()
-    window.addEventListener("beforeunload", handleBeforeUnloadSave)
-    window.addEventListener("keydown", handleShortcutsKeydown)
+    window.addEventListener('beforeunload', saveWatchHistory)
+    window.addEventListener('keydown', handleShortcutsKeydown)
 })
 
 onUnmounted(() => {
@@ -565,8 +630,8 @@ onUnmounted(() => {
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
     if (toolbarOverflowClickHandler) document.removeEventListener('click', toolbarOverflowClickHandler, true)
-    window.removeEventListener("beforeunload", handleBeforeUnloadSave)
-    window.removeEventListener("keydown", handleShortcutsKeydown)
+    window.removeEventListener('beforeunload', saveWatchHistory)
+    window.removeEventListener('keydown', handleShortcutsKeydown)
     cleanupAnimeTooltip()
 })
 </script>
@@ -652,6 +717,7 @@ onUnmounted(() => {
                     <AnimeContinueEpisodePanel class="lg:hidden"
                         :show-continue-prompt="showContinuePrompt"
                         :last-watched-data="lastWatchedData"
+                        :episodes-loading="episodesLoading"
                         :episodes="anime?.episodes"
                         :watch-progress="allWatchProgress"
                         :anime-image="anime?.image || ''"
@@ -754,6 +820,7 @@ onUnmounted(() => {
                     <AnimeContinueEpisodePanel class="hidden lg:block"
                         :show-continue-prompt="showContinuePrompt"
                         :last-watched-data="lastWatchedData"
+                        :episodes-loading="episodesLoading"
                         :episodes="anime?.episodes"
                         :watch-progress="allWatchProgress"
                         :anime-image="anime?.image || ''"
