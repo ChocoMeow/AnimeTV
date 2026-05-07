@@ -233,8 +233,8 @@ const fetchRelatedAnime = async (client, serviceClient, ids) => {
     const { data } = await client.from('anime_meta').select('*').in('source_id', ids)
     const found = data || []
 
-    const foundIds = new Set(found.map((a) => a.source_id))
-    const missing = ids.filter((id) => !foundIds.has(id))
+    const foundIds = new Set(found.map((a) => String(a.source_id)))
+    const missing = ids.filter((id) => !foundIds.has(String(id)))
 
     // Fire-and-forget: scrape missing related entries without blocking the response
     if (missing.length) {
