@@ -536,14 +536,13 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
 
 // ─── Data fetching ────────────────────────────────────────────────────────────
 async function fetchEpisodes(refId) {
-    if (!refId) return { episodes: {}, shouldRetry: false }
+    if (!refId) return { episodes: {} }
     episodesLoading.value = true
     try {
         const res = await $fetch(`/api/anime/${refId}/episodes`)
-        return { episodes: res?.episodes || {}, shouldRetry: false }
+        return { episodes: res?.episodes || {} }
     } catch (err) {
-        const status = Number(err?.statusCode ?? err?.response?.status ?? 0)
-        return { episodes: {}, shouldRetry: status === 404 }
+        return { episodes: {} }
     } finally {
         episodesLoading.value = false
     }
@@ -577,11 +576,7 @@ async function fetchDetail() {
         fetchEpisodes(sourceRefId)
             .then(async (earlyEpisodes) => {
                 if (String(route.params.id) !== sourceRefId || !anime.value) return
-                const episodesResult = earlyEpisodes.shouldRetry && anime.value?.refId
-                    ? await fetchEpisodes(anime.value.refId)
-                    : earlyEpisodes
-                if (String(route.params.id) !== sourceRefId || !anime.value) return
-                anime.value.episodes = episodesResult?.episodes || {}
+                anime.value.episodes = earlyEpisodes?.episodes || {}
                 await nextTick()
                 if (route.query.e && !selectedEpisode.value) applyEpisodeQueryFromRoute()
             })
