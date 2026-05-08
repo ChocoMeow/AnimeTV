@@ -256,7 +256,7 @@ watch(
             <!-- Left: Logo -->
             <div class="flex items-center gap-2">
                 <NuxtLink to="/" class="flex items-center group pr-2 gap-1">
-                    <NuxtImg class="w-8 h-8 flex items-center justify-center" src="/icons/icon_512x512.webp" alt="" loading="lazy" />
+                    <NuxtImg class="w-8 h-8 flex items-center justify-center" src="/icons/icon_64x64.webp" alt="" loading="lazy" />
                     <span class="text-black dark:text-white font-semibold text-xl"> {{ appConfig.siteName }}</span>
                 </NuxtLink>
             </div>
