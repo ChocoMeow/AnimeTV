@@ -317,7 +317,11 @@ const stopAutoSave = () => {
 async function saveWatchHistory(episodeNumber = null) {
     const { watch_history_enabled, id } = userSettings.value
     if (!watch_history_enabled || !id || !anime.value || !videoPlayer.value) return
-    const epNum = episodeNumber ?? selectedEpisode.value
+    const safeEpisodeNumber =
+        typeof episodeNumber === 'string' || typeof episodeNumber === 'number'
+            ? episodeNumber
+            : null
+    const epNum = safeEpisodeNumber ?? selectedEpisode.value
     if (!epNum) return
 
     const { duration, currentTime } = videoPlayer.value
@@ -615,17 +619,16 @@ function handleShortcutsKeydown(e) {
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 onMounted(() => {
     fetchDetail()
-    window.addEventListener('beforeunload', saveWatchHistory)
+    window.addEventListener('beforeunload', handleEnded)
     window.addEventListener('keydown', handleShortcutsKeydown)
 })
 
 onUnmounted(() => {
-    saveWatchHistory()
-    stopAutoSave()
+    handleEnded()
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
     if (toolbarOverflowClickHandler) document.removeEventListener('click', toolbarOverflowClickHandler, true)
-    window.removeEventListener('beforeunload', saveWatchHistory)
+    window.removeEventListener('beforeunload', handleEnded)
     window.removeEventListener('keydown', handleShortcutsKeydown)
     cleanupAnimeTooltip()
 })
