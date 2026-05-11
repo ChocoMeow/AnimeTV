@@ -22,6 +22,7 @@
     },
     "devDependencies": {
         "@nuxtjs/tailwindcss": "^6.14.0",
-        "baseline-browser-mapping": "^2.9.14"
+        "baseline-browser-mapping": "^2.9.14",
+        "supabase": "^2.98.2"
     }
 }
