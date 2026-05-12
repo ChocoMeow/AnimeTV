@@ -29,7 +29,7 @@ const menuItems = [
     { to: "/history", icon: "history", label: "觀看紀錄" },
     { to: "/favorites", icon: "bookmark_added", label: "我的收藏" },
     { to: "/friends", icon: "group", label: "我的好友" },
-    { to: "/offline-downloads", icon: "download_for_offline", label: "下載管理", badge: "Beta" },
+    { to: "/offline-downloads", icon: "download_for_offline", label: "下載管理" },
     { to: "/admin", icon: "admin_panel_settings", label: "管理後台", adminOnly: true },
     { icon: "logout", label: "登出", action: signOut, variant: "danger", dividerBefore: true },
 ]
