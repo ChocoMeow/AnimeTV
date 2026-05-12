@@ -1,7 +1,9 @@
 <script setup>
 const { searchHistory, userSettings } = useUserSettings()
+const { mobileSearchOpen } = useMobileSearchState()
 const { isMobile } = useMobile()
 const { isAdmin, clearAdmin } = useAdmin()
+const headerHiddenMobile = useState("animehub-mobile-header-hidden", () => false)
 const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
@@ -15,7 +17,6 @@ const searchQuery = ref("")
 const searchResults = ref([])
 const loading = ref(false)
 const mobileMenuOpen = ref(false)
-const mobileSearchOpen = ref(false)
 const showDropdown = ref(false)
 const showUserMenu = ref(false)
 
@@ -48,6 +49,7 @@ watch(isMobile, (newValue) => {
     if (!newValue) {
         mobileSearchOpen.value = false
         mobileMenuOpen.value = false
+        headerHiddenMobile.value = false
     }
 })
 
@@ -90,7 +92,6 @@ function closeMobileSearch() {
     mobileSearchOpen.value = false
     searchQuery.value = ""
     searchResults.value = []
-    unlockScroll()
 }
 
 function hideDropdownDelayed() {
@@ -113,12 +114,6 @@ function cancelHideUserMenu() {
 
 function openMobileSearch() {
     mobileSearchOpen.value = true
-    lockScroll()
-    nextTick(() => {
-        if (mobileSearchRef.value) {
-            mobileSearchRef.value.focus()
-        }
-    })
 }
 
 function lockScroll() {
@@ -212,11 +207,26 @@ async function signOut() {
     navigateTo("/login")
 }
 
+let lastScrollY = 0
+
+function onScroll() {
+    if (!isMobile.value || mobileSearchOpen.value || mobileMenuOpen.value) {
+        headerHiddenMobile.value = false
+        lastScrollY = window.scrollY
+        return
+    }
+    const y = window.scrollY
+    headerHiddenMobile.value = y > 12 && y > lastScrollY
+    lastScrollY = y
+}
+
 onMounted(() => {
     fetchSearchHistory()
+    window.addEventListener("scroll", onScroll, { passive: true })
 })
 
 onUnmounted(() => {
+    window.removeEventListener("scroll", onScroll)
     if (searchDebounceTimeout) {
         clearTimeout(searchDebounceTimeout)
     }
@@ -228,8 +238,23 @@ onUnmounted(() => {
     }
 })
 
+watch([mobileSearchOpen, mobileMenuOpen], ([s, m]) => {
+    if (s || m) headerHiddenMobile.value = false
+})
+
 watch(searchQuery, () => {
     debouncedSearch()
+})
+
+watch(mobileSearchOpen, (open) => {
+    if (open) {
+        lockScroll()
+        nextTick(() => {
+            mobileSearchRef.value?.focus()
+        })
+    } else {
+        unlockScroll()
+    }
 })
 
 // Watch user changes to fetch history when user logs in
@@ -246,12 +271,16 @@ watch(
     (newPath, oldPath) => {
         mobileMenuOpen.value = false
         showUserMenu.value = false
+        headerHiddenMobile.value = false
     }
 )
 </script>
 
 <template>
-    <header class="sticky top-0 z-50 w-full bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-white/10 shadow-sm">
+    <header
+        class="sticky top-0 z-50 w-full bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-white/10 shadow-sm max-md:fixed max-md:inset-x-0 max-md:top-0 transition-transform duration-300 max-md:duration-300"
+        :class="headerHiddenMobile && !mobileSearchOpen && !mobileMenuOpen ? 'max-md:-translate-y-full' : ''"
+    >
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
             <!-- Left: Logo -->
             <div class="flex items-center gap-2">

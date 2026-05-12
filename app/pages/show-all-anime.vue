@@ -13,6 +13,7 @@ const selectedTags = ref([])
 const selectedCategory = ref("")
 const selectedSort = ref("1") // 1: 依年份排列, 2: 依月人氣排序
 const showFilters = ref(true)
+const headerHiddenMobile = useState("animehub-mobile-header-hidden", () => false)
 
 // Flag to prevent watcher from triggering when we update URL programmatically
 const isUpdatingURL = ref(false)
@@ -177,6 +178,7 @@ watch(
 useHead({ title: `所有動畫 | ${appConfig.siteName}` })
 
 onMounted(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) showFilters.value = false
     initializeFromRoute()
     fetchAnime(currentPage.value)
 })
@@ -188,7 +190,10 @@ onUnmounted(() => {
 
 <template>
     <!-- Filters Section -->
-    <div class="sticky top-16 z-40 bg-white/95 dark:bg-gray-950/90 backdrop-blur-sm border-b border-gray-200 dark:border-white/10 shadow-sm rounded-2xl">
+    <div
+        class="sticky z-40 bg-white/95 dark:bg-gray-950/90 backdrop-blur-sm border-b border-gray-200 dark:border-white/10 shadow-sm rounded-2xl md:top-16 max-md:transition-[top] max-md:duration-300"
+        :class="headerHiddenMobile ? 'max-md:top-0' : 'max-md:top-14'"
+    >
         <div class="max-w-7xl mx-auto px-4 py-4">
             <!-- Header with Toggle -->
             <div class="flex items-center justify-between">

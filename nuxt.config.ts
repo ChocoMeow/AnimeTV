@@ -68,6 +68,10 @@ export default defineNuxtConfig({
             link: [
                 { rel: 'icon', type: 'image/png', href: '/icons/icon_144x144.png' },
                 { rel: 'stylesheet', href: 'https://fonts.googleapis.com/icon?family=Material+Icons' },
+                {
+                    rel: 'stylesheet',
+                    href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,-50..200&display=swap',
+                },
             ],
         },
     },

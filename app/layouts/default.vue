@@ -1,8 +1,25 @@
+<script setup>
+const headerHiddenMobile = useState("animehub-mobile-header-hidden", () => false)
+const showMobilePwaNav = useState("animehub-show-mobile-pwa-nav", () => false)
+</script>
+
 <template>
-    <div class="min-h-screen flex flex-col">
+    <div
+        class="min-h-screen flex flex-col md:pb-0 transition-[padding-bottom] duration-300 ease-out"
+        :class="
+            showMobilePwaNav
+                ? headerHiddenMobile
+                    ? 'max-md:pb-[calc(4.15rem+env(safe-area-inset-bottom,0px))]'
+                    : 'max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]'
+                : ''
+        "
+    >
         <SiteHeader />
 
-        <main class="flex-1 w-full transition-all duration-300 ease-in-out">
+        <main
+            class="flex-1 w-full transition-all duration-300 ease-in-out max-md:transition-[margin-top,padding] max-md:duration-300"
+            :class="headerHiddenMobile ? 'max-md:-mt-14 max-md:pt-0' : 'max-md:pt-14'"
+        >
             <slot />
             <GlobalToast />
         </main>
@@ -10,6 +27,8 @@
         <FriendList />
 
         <SiteFooter />
+
+        <MobileBottomNav />
     </div>
 </template>
 
