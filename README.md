@@ -28,9 +28,8 @@ To get started with AnimeTV, follow these steps:
 
 Make sure you have the following installed:
 
--   Node.js (version 22 or later)
--   npm
--   Supabase CLI
+-   [Bun](https://bun.sh) (latest stable version)
+-   Supabase CLI (or use `bunx supabase` as shown below)
 
 ### Setup
 
@@ -44,23 +43,17 @@ Make sure you have the following installed:
 2. **Install dependencies**:
 
     ```bash
-    npm install
+    bun install
     ```
 
 3. **Import Supabase**:
 
     To import your Supabase project using the Supabase CLI, follow these steps:
 
-    - Make sure you have the Supabase CLI installed. If not, install it by running:
-
-        ```bash
-        npm install -g supabase
-        ```
-
     - Link your project:
 
         ```bash
-        supabase link
+        bunx supabase link
         ```
 
     - Import the provided schema into your Supabase database:
@@ -82,7 +75,7 @@ Make sure you have the following installed:
 4. **Run the development server**:
 
     ```bash
-    npm run dev
+    bun run dev
     ```
 
     Your application will be running at `http://localhost:3000`.

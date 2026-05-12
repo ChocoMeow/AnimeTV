@@ -230,7 +230,7 @@ onBeforeUnmount(() => {
         <Transition name="drawer">
             <div 
                 v-if="modelValue" 
-                class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" 
+                class="fixed inset-0 z-50 flex items-end justify-center bg-black/60" 
                 @click.self="handleBackdropClick"
             >
                 <!-- Drawer Container -->

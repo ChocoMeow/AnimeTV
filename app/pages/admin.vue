@@ -1,5 +1,6 @@
 <script setup>
 const appConfig = useAppConfig()
+const route = useRoute()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -324,6 +325,12 @@ useHead({
 })
 
 onMounted(() => {
+    const q = route.query
+    if (q.field && q.search !== undefined && String(q.search).length > 0) {
+        searchField.value = String(q.field)
+        searchValue.value = String(q.search)
+        if (q.operator) searchOperator.value = String(q.operator)
+    }
     loadRecords()
 })
 

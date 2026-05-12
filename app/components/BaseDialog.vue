@@ -83,7 +83,7 @@ onBeforeUnmount(() => {
 <template>
     <Teleport to="body">
         <Transition name="dialog">
-            <div v-if="modelValue" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" :class="{ 'overflow-y-auto': scrollable }" @click.self="handleBackdropClick">
+            <div v-if="modelValue" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" :class="{ 'overflow-y-auto': scrollable }" @click.self="handleBackdropClick">
                 <div class="bg-white dark:bg-gray-950 rounded-2xl shadow-2xl w-full transform transition-all border-1 border-gray-950/5 dark:border-white/10 overflow-hidden" :class="[maxWidth, scrollable ? 'my-8' : '', padding ? 'p-6' : 'p-0']" @click.stop>
                     <!-- Header -->
                     <div v-if="showHeader && (title || showClose || $slots.header)" class="flex items-center justify-between mb-2 flex-shrink-0">

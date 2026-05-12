@@ -22,6 +22,7 @@ export default defineNuxtConfig({
         },
     },
     nitro: {
+        preset: 'bun',
         experimental: {
             websocket: true,
         },
@@ -29,6 +30,13 @@ export default defineNuxtConfig({
             options: {
                 drop: ['console'],
             },
+        },
+        prerender: {
+            // Precache needs a document for navigateFallback "/" (see @vite-pwa/nuxt).
+            // Prerender home so Workbox can include url "/" and avoid non-precached-url.
+            crawlLinks: false,
+            routes: ['/'],
+            failOnError: false,
         },
     },
     experimental: {
@@ -65,6 +73,70 @@ export default defineNuxtConfig({
     },
     pwa: {
         registerType: 'autoUpdate',
+        workbox: {
+            // SSR mode: no static index.html at root.
+            // Setting to undefined prevents the default "/" fallback which causes precache errors.
+            navigateFallback: undefined,
+            globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
+            cleanupOutdatedCaches: true,
+            runtimeCaching: [
+                {
+                    // Cache all navigation requests (pages) for offline use
+                    urlPattern: ({ request }) => request.mode === 'navigate',
+                    handler: 'NetworkFirst',
+                    options: {
+                        cacheName: 'app-pages',
+                        networkTimeoutSeconds: 4,
+                        expiration: {
+                            maxEntries: 80,
+                            maxAgeSeconds: 60 * 60 * 24 * 7,
+                        },
+                    },
+                },
+                {
+                    urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+                    handler: 'StaleWhileRevalidate',
+                    options: {
+                        cacheName: 'google-fonts-stylesheets',
+                        expiration: {
+                            maxEntries: 10,
+                            maxAgeSeconds: 60 * 60 * 24 * 30,
+                        },
+                    },
+                },
+                {
+                    urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+                    handler: 'CacheFirst',
+                    options: {
+                        cacheName: 'google-fonts-webfonts',
+                        expiration: {
+                            maxEntries: 30,
+                            maxAgeSeconds: 60 * 60 * 24 * 365,
+                        },
+                    },
+                },
+                {
+                    urlPattern: /^\/api\/(anime|search|public-animeList).*/i,
+                    handler: 'NetworkFirst',
+                    options: {
+                        cacheName: 'anime-api',
+                        networkTimeoutSeconds: 2,
+                        expiration: {
+                            maxEntries: 100,
+                            maxAgeSeconds: 60 * 60 * 24 * 7,
+                        },
+                    },
+                },
+                {
+                    urlPattern: /^\/api\/proxy-video.*/i,
+                    handler: 'NetworkOnly',
+                },
+                {
+                    urlPattern: /^\/api\/download-proxy.*/i,
+                    handler: 'NetworkOnly',
+                },
+            ],
+        },
         manifest: {
             name: 'AnimeTV',
             short_name: 'AnimeTV',
@@ -112,7 +184,7 @@ export default defineNuxtConfig({
         },
     },
     supabase: {
-        redirect: true,
+        redirect: false,
         redirectOptions: {
             login: '/login',
             callback: '/login',

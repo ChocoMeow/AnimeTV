@@ -1,34 +1,31 @@
 /**
- * Global middleware to initialize user session
- * - Fetches user settings when user is logged in
- * - Initializes WebSocket connection for status tracking
+ * Global middleware: session gate, user settings, admin role, status WebSocket.
  */
-export default defineNuxtRouteMiddleware(async (to, from) => {
-    const { fetchSettings, settingsLoaded, userSettings } = useUserSettings()
-    const { initialize: initializeStatus } = useUserStatus()
-    const { fetchAdminRole } = useAdmin()
 
-    // Only run on client side
+export default defineNuxtRouteMiddleware(async (to, _from) => {
+    const path = (to.path || '/').replace(/\/$/, '') || '/'
+    const isLoginPage = path === '/login'
+
     if (import.meta.server) {
         return
     }
 
-    // Check if user is logged in
     const user = useSupabaseUser()
     if (!user.value) {
-        return
+        if (isLoginPage) return
+        return navigateTo('/login')
     }
 
-    // Fetch user settings if not already loaded
-    if (!settingsLoaded.value) {
+    const { fetchSettings, settingsLoaded, userSettings } = useUserSettings()
+    const { initialize: initializeStatus } = useUserStatus()
+    const { fetchAdminRole } = useAdmin()
+
+    if (!settingsLoaded.value && navigator.onLine) {
         await fetchSettings()
         await fetchAdminRole()
     }
 
-    // Initialize WebSocket connection for status tracking
-    // Only start if user settings are loaded and user ID is available
-    if (settingsLoaded.value && userSettings.value?.id) {
-        // Use nextTick to ensure composable is fully ready
+    if (settingsLoaded.value && userSettings.value?.id && navigator.onLine) {
         await nextTick()
         initializeStatus()
     }

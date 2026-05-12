@@ -15,12 +15,11 @@ async function fetchDetails() {
     loading.value = true
     try {
         const res = await $fetch(`/api/anime/${props.animeId}/details`)
-
-        const allEmpty = Object.values(res).every((value) => value === "" || (Array.isArray(value) && value.length === 0))
-        if (allEmpty) {
+        const wikiContentHtml = typeof res?.wikiContentHtml === "string" ? res.wikiContentHtml.trim() : ""
+        if (!wikiContentHtml) {
             animeDetails.value = { error: true }
         } else {
-            animeDetails.value = res
+            animeDetails.value = { wikiContentHtml }
         }
     } catch (err) {
         console.error("Failed to fetch anime details:", err)
@@ -55,87 +54,39 @@ watch(
         </div>
 
         <!-- Details Content -->
-        <div v-else-if="animeDetails" class="space-y-6">
-            <!-- Staff Section -->
-            <div v-if="animeDetails.staff?.length" class="detail-section">
-                <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2 sticky top-0 bg-white dark:bg-gray-800 z-10 p-2">
-                    <span class="material-icons text-gray-600 dark:text-gray-400">badge</span>
-                    製作人員 (STAFF)
-                </h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div v-for="staff in animeDetails.staff" :key="staff.id" class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                        <NuxtImg v-if="staff.image" :src="staff.image" :alt="staff.name" class="w-12 h-12 rounded-full object-cover" loading="lazy" />
-                        <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center" v-else>
-                            <span class="material-icons text-gray-600 dark:text-gray-400">person</span>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="font-medium text-gray-900 dark:text-white truncate">{{ staff.name }}</p>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 truncate">{{ staff.role }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Cast Section -->
-            <div v-if="animeDetails.cast?.length" class="detail-section">
-                <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2 sticky top-0 bg-white dark:bg-gray-800 z-10 p-2">
-                    <span class="material-icons text-gray-600 dark:text-gray-400">mic</span>
-                    聲優陣容 (CAST)
-                </h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div v-for="cast in animeDetails.cast" :key="cast.id" class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                        <NuxtImg v-if="cast.image" :src="cast.image" :alt="cast.name" class="w-12 h-12 rounded-full object-cover" loading="lazy" />
-                        <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center" v-else>
-                            <span class="material-icons text-gray-600 dark:text-gray-400">person</span>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="font-medium text-gray-900 dark:text-white truncate">{{ cast.name }}</p>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 truncate">{{ cast.character }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Music Section -->
-            <div v-if="animeDetails.music?.length" class="detail-section">
-                <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2 sticky top-0 bg-white dark:bg-gray-800 z-10 p-2">
-                    <span class="material-icons text-pink-600 dark:text-pink-400">music_note</span>
-                    音樂 (MUSIC)
-                </h4>
-                <div class="space-y-3">
-                    <div v-for="music in animeDetails.music" :key="music.id" class="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                        <div class="flex items-start gap-3">
-                            <span class="material-icons text-pink-600 dark:text-pink-400">audiotrack</span>
-                            <div class="flex-1">
-                                <p class="font-medium text-gray-900 dark:text-white">{{ music.name }}</p>
-                                <p class="text-sm text-gray-500 dark:text-gray-400">{{ music.type }}</p>
-                                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">{{ music.artist }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Additional Details -->
-            <div v-if="animeDetails.additionalInfo" class="detail-section">
-                <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2 sticky top-0 bg-white dark:bg-gray-800 z-10 p-2">
-                    <span class="material-icons text-blue-600 dark:text-blue-400">info</span>
-                    其他資訊
-                </h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div v-for="(value, key) in animeDetails.additionalInfo" :key="key" class="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">{{ key }}</p>
-                        <p class="font-medium text-gray-900 dark:text-white">{{ value }}</p>
-                    </div>
-                </div>
-            </div>
+        <div v-else-if="animeDetails?.wikiContentHtml" class="wiki-content text-gray-800 dark:text-gray-200" v-html="animeDetails.wikiContentHtml" />
+        <div v-else class="text-center py-12">
+            <span class="material-icons text-5xl text-red-500 dark:text-red-400 mb-4">error_outline</span>
+            <p class="text-gray-600 dark:text-gray-400">無可用的動漫詳情內容</p>
         </div>
     </LazyBaseDialog>
 </template>
 
 <style scoped>
-.detail-section {
-    @apply pb-6 border-b border-gray-200 dark:border-gray-700 last:border-0;
+.wiki-content :deep(a) {
+    @apply text-blue-600 dark:text-blue-400 underline break-words;
+}
+
+.wiki-content :deep(ul),
+.wiki-content :deep(ol) {
+    @apply pl-5 my-3 space-y-1;
+}
+
+.wiki-content :deep(ul) {
+    @apply list-disc;
+}
+
+.wiki-content :deep(ol) {
+    @apply list-decimal;
+}
+
+.wiki-content :deep(li) {
+    @apply leading-relaxed;
+}
+
+.wiki-content :deep(p),
+.wiki-content :deep(div) {
+    @apply leading-relaxed my-2;
 }
 
 .dialog-enter-active,

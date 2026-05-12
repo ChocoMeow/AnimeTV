@@ -197,7 +197,7 @@ async function scrapeAllAnime(client, userId) {
     if (ANIME_CACHE.data && now - ANIME_CACHE.timestamp < TWO_HOURS)
         return mergeUserThemes(ANIME_CACHE.data)
 
-    const [pageResult] = await Promise.all([cfFetch(GAMER_BASE_URL), fetchAnimeData()])
+    const pageResult = await cfFetch(GAMER_BASE_URL)
     if (!pageResult?.html) {
         return mergeUserThemes(ANIME_CACHE.data || empty)
     }
