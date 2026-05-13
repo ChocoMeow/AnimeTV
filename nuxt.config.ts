@@ -67,6 +67,7 @@ export default defineNuxtConfig({
             ],
             link: [
                 { rel: 'icon', type: 'image/png', href: '/icons/icon_144x144.png' },
+                { rel: 'apple-touch-icon', type: 'image/png', href: '/icons/icon_144x144.png' },
                 { rel: 'stylesheet', href: 'https://fonts.googleapis.com/icon?family=Material+Icons' },
                 {
                     rel: 'stylesheet',

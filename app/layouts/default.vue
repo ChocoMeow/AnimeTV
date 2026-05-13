@@ -5,12 +5,12 @@ const showMobilePwaNav = useState("animehub-show-mobile-pwa-nav", () => false)
 
 <template>
     <div
-        class="min-h-screen flex flex-col md:pb-0 transition-[padding-bottom] duration-300 ease-out"
+        class="min-h-screen flex flex-col md:pb-0 transition-[padding-bottom] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]"
         :class="
             showMobilePwaNav
                 ? headerHiddenMobile
-                    ? 'max-md:pb-[calc(4.15rem+env(safe-area-inset-bottom,0px))]'
-                    : 'max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]'
+                    ? 'max-md:pb-[calc(0.5rem+2.55rem+max(0.45rem,8px)+env(safe-area-inset-bottom,0px))]'
+                    : 'max-md:pb-[calc(0.5rem+3.75rem+max(0.5rem,8px)+env(safe-area-inset-bottom,0px))]'
                 : ''
         "
     >
