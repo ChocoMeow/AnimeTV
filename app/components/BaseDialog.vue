@@ -94,7 +94,7 @@ onBeforeUnmount(() => {
                         </slot>
 
                         <button v-if="showClose" @click="close" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                            <span class="material-icons text-gray-500 dark:text-gray-400">close</span>
+                            <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">close</span>
                         </button>
                     </div>
 

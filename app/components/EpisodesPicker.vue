@@ -292,11 +292,11 @@ watch(
            text-green-700 dark:text-green-400;
 }
 
-.episode-button.completed .material-icons {
+.episode-button.completed .material-symbols-rounded {
     @apply text-green-600 dark:text-green-400;
 }
 
-.episode-button.watched:not(.completed) .material-icons {
+.episode-button.watched:not(.completed) .material-symbols-rounded {
     @apply text-gray-600 dark:text-gray-400;
 }
 

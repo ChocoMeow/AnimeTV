@@ -320,11 +320,11 @@ watch(
                             <ul>
                                 <li v-for="item in searchHistory" :key="item.id" class="px-4 py-2 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer transition-colors flex items-center justify-between group" @mousedown.prevent="searchFromHistory(item.query)">
                                     <div class="flex items-center gap-2">
-                                        <span class="material-icons text-gray-400 text-sm">history</span>
+                                        <span class="material-symbols-rounded text-gray-400 text-sm">history</span>
                                         <span class="text-sm text-gray-700 dark:text-gray-300">{{ item.query }}</span>
                                     </div>
                                     <button @mousedown.prevent.stop="removeFromHistory(item.id)" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
-                                        <span class="material-icons text-gray-500 text-sm">close</span>
+                                        <span class="material-symbols-rounded text-gray-500 text-sm">close</span>
                                     </button>
                                 </li>
                             </ul>
@@ -338,7 +338,7 @@ watch(
                                     <div class="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
                                         <NuxtImg v-if="result.image" :src="result.image" :alt="result.title" class="w-full h-full object-cover" loading="lazy" />
                                         <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
-                                            <span class="material-icons">image</span>
+                                            <span class="material-symbols-rounded">image</span>
                                         </div>
                                     </div>
                                     <!-- Info -->
@@ -349,11 +349,11 @@ watch(
                                         <div class="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
                                             <span v-if="result.year">{{ result.year }}</span>
                                             <span v-if="result.episodes" class="flex items-center gap-1">
-                                                <span class="material-icons text-xs">play_circle</span>
+                                                <span class="material-symbols-rounded text-xs">play_circle</span>
                                                 {{ result.episodes }}
                                             </span>
                                             <span v-if="result.views" class="flex items-center gap-1">
-                                                <span class="material-icons text-xs">visibility</span>
+                                                <span class="material-symbols-rounded text-xs">visibility</span>
                                                 {{ formatViews(result.views) }}
                                             </span>
                                         </div>
@@ -364,7 +364,7 @@ watch(
 
                         <!-- Desktop No Results Message -->
                         <div v-if="searchQuery && !loading && !searchResults.length" class="py-8 px-4 text-center">
-                            <span class="material-icons text-gray-400 text-4xl mb-2">search_off</span>
+                            <span class="material-symbols-rounded text-gray-400 text-4xl mb-2">search_off</span>
                             <p class="text-gray-600 dark:text-gray-400 text-sm">找不到「{{ searchQuery }}」的相關結果</p>
                         </div>
                     </div>
@@ -415,7 +415,7 @@ watch(
                                         class="w-full px-4 py-2.5 text-left hover:bg-black/10 dark:hover:bg-white/20 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300"
                                         @click.native="closeUserMenu"
                                     >
-                                        <span class="material-icons text-gray-500 dark:text-gray-400">{{ item.icon }}</span>
+                                        <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">{{ item.icon }}</span>
 <span class="text-sm font-medium">{{ item.label }}</span>
               <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{ item.badge }}</span>
           </NuxtLink>
@@ -426,7 +426,7 @@ watch(
                                         :class="item.variant === 'danger' ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400' : 'hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300'"
                                         @click="item.action()"
                                     >
-                                        <span class="material-icons">{{ item.icon }}</span>
+                                        <span class="material-symbols-rounded">{{ item.icon }}</span>
                                         <span class="text-sm font-medium">{{ item.label }}</span>
                                     </button>
                                 </template>
@@ -440,11 +440,11 @@ watch(
             <div class="md:hidden flex items-center gap-2">
                 <!-- Search icon -->
                 <button @click="openMobileSearch" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center">
-                    <span class="material-icons text-gray-700 dark:text-gray-200">search</span>
+                    <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">search</span>
                 </button>
                 <!-- Menu icon -->
                 <button @click="mobileMenuOpen = !mobileMenuOpen" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center">
-                    <span class="material-icons text-gray-700 dark:text-gray-200">menu</span>
+                    <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">menu</span>
                 </button>
             </div>
         </div>
@@ -461,7 +461,7 @@ watch(
                             <div class="h-4 w-4 rounded-full animate-spin border-2 border-gray-300 border-t-gray-900 dark:border-gray-600 dark:border-t-white"></div>
                         </div>
                         <button @click="closeMobileSearch" class="ml-2 p-2 flex items-center justify-center">
-                            <span class="material-icons text-gray-700 dark:text-gray-200">close</span>
+                            <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">close</span>
                         </button>
                     </div>
                 </div>
@@ -474,11 +474,11 @@ watch(
                         <ul>
                             <li v-for="item in searchHistory" :key="item.id" class="px-4 py-2 hover:bg-black/10 dark:hover:bg-white/20 cursor-pointer transition-colors flex items-center justify-between group" @click="searchFromHistory(item.query)">
                                 <div class="flex items-center gap-2">
-                                    <span class="material-icons text-gray-400 text-sm">history</span>
+                                    <span class="material-symbols-rounded text-gray-400 text-sm">history</span>
                                     <span class="text-sm text-gray-700 dark:text-gray-300">{{ item.query }}</span>
                                 </div>
                                 <button @click.stop="removeFromHistory(item.id)" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
-                                    <span class="material-icons text-gray-500 text-sm">close</span>
+                                    <span class="material-symbols-rounded text-gray-500 text-sm">close</span>
                                 </button>
                             </li>
                         </ul>
@@ -493,7 +493,7 @@ watch(
                                     <div class="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
                                         <NuxtImg v-if="result.image" :src="result.image" :alt="result.title" class="w-full h-full object-cover" loading="lazy" />
                                         <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
-                                            <span class="material-icons">image</span>
+                                            <span class="material-symbols-rounded">image</span>
                                         </div>
                                     </div>
                                     <!-- Info -->
@@ -504,11 +504,11 @@ watch(
                                         <div class="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
                                             <span v-if="result.year">{{ result.year }}</span>
                                             <span v-if="result.episodes" class="flex items-center gap-1">
-                                                <span class="material-icons text-xs">play_circle</span>
+                                                <span class="material-symbols-rounded text-xs">play_circle</span>
                                                 {{ result.episodes }}
                                             </span>
                                             <span v-if="result.views" class="flex items-center gap-1">
-                                                <span class="material-icons text-xs">visibility</span>
+                                                <span class="material-symbols-rounded text-xs">visibility</span>
                                                 {{ formatViews(result.views) }}
                                             </span>
                                         </div>
@@ -521,7 +521,7 @@ watch(
                     <!-- Mobile No Results Message -->
                     <div v-if="searchQuery && !loading && !searchResults.length" class="flex items-center justify-center min-h-[50vh]">
                         <div class="text-center py-8 px-4">
-                            <span class="material-icons text-gray-400 text-5xl mb-3">search_off</span>
+                            <span class="material-symbols-rounded text-gray-400 text-5xl mb-3">search_off</span>
                             <p class="text-gray-600 dark:text-gray-400 text-sm">找不到「{{ searchQuery }}」的相關結果</p>
                         </div>
                     </div>
@@ -555,7 +555,7 @@ watch(
                         :to="item.to"
                         class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3"
                     >
-<span class="material-icons text-gray-500 dark:text-gray-400 text-xl">{{ item.icon }}</span>
+<span class="material-symbols-rounded text-gray-500 dark:text-gray-400 text-xl">{{ item.icon }}</span>
             <span>{{ item.label }}</span>
             <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{ item.badge }}</span>
           </NuxtLink>
@@ -566,7 +566,7 @@ watch(
                         :class="item.variant === 'danger' ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400' : 'hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300'"
                         @click="item.action()"
                     >
-<span class="material-icons text-xl">{{ item.icon }}</span>
+<span class="material-symbols-rounded text-xl">{{ item.icon }}</span>
             <span>{{ item.label }}</span>
             <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{ item.badge }}</span>
           </button>

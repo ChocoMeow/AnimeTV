@@ -283,7 +283,7 @@ useHead({
             <!-- Activity & insights -->
             <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                 <div class="flex items-center gap-3 mb-4">
-                    <span class="material-icons text-gray-600 dark:text-gray-400">insights</span>
+                    <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">insights</span>
                     <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">活動與偏好</h3>
                 </div>
 
@@ -311,7 +311,7 @@ useHead({
                     <!-- Time spent chart -->
                     <div>
                         <h4 class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3 flex items-center gap-2">
-                            <span class="material-icons text-lg">schedule</span>
+                            <span class="material-symbols-rounded text-lg">schedule</span>
                             觀看時間
                         </h4>
                         <div v-if="chartData.timeSpent.values.some(v => v > 0)" class="space-y-2">
@@ -339,7 +339,7 @@ useHead({
                     <!-- Anime types (tags) chart -->
                     <div>
                         <h4 class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3 flex items-center gap-2">
-                            <span class="material-icons text-lg">category</span>
+                            <span class="material-symbols-rounded text-lg">category</span>
                             喜歡的動漫類型
                         </h4>
                         <div v-if="chartData.genreDistribution.length" class="space-y-2">
@@ -368,7 +368,7 @@ useHead({
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <div class="flex items-center gap-3 mb-1">
-                            <span class="material-icons text-gray-600 dark:text-gray-400">palette</span>
+                            <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">palette</span>
                             <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">外觀</h3>
                         </div>
                         <p class="text-sm text-gray-600 dark:text-gray-400">選擇淺色、深色或跟隨系統主題</p>
@@ -385,7 +385,7 @@ useHead({
                                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
                             ]"
                         >
-                            <span class="material-icons text-lg">{{ opt.icon }}</span>
+                            <span class="material-symbols-rounded text-lg">{{ opt.icon }}</span>
                             {{ opt.label }}
                         </button>
                     </div>
@@ -395,7 +395,7 @@ useHead({
             <!-- Privacy Settings -->
             <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                 <div class="flex items-center gap-3 mb-6">
-                    <span class="material-icons text-gray-600 dark:text-gray-400">privacy_tip</span>
+                    <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">privacy_tip</span>
                     <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">隱私設定</h3>
                 </div>
 
@@ -426,11 +426,11 @@ useHead({
             <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                 <div class="flex items-center justify-between mb-6">
                     <div class="flex items-center gap-3">
-                        <span class="material-icons text-gray-600 dark:text-gray-400">keyboard</span>
+                        <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">keyboard</span>
                         <h3 class="text-xl font-semibold text-gray-900 dark:text-white">鍵盤快捷鍵</h3>
                     </div>
                     <button @click="showShortcutsModal = true" class="px-4 py-2 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors font-medium flex items-center gap-2">
-                        <span class="material-icons text-lg">edit</span>
+                        <span class="material-symbols-rounded text-lg">edit</span>
                         自訂快捷鍵
                     </button>
                 </div>
@@ -440,7 +440,7 @@ useHead({
             <!-- Data Management -->
             <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                 <div class="flex items-center gap-3 mb-6">
-                    <span class="material-icons text-gray-600 dark:text-gray-400">storage</span>
+                    <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">storage</span>
                     <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">資料管理</h3>
                 </div>
 
@@ -482,7 +482,7 @@ useHead({
             <!-- Danger Zone -->
             <!-- <div class="bg-red-50 dark:bg-red-900/10 rounded-xl border-2 border-red-200 dark:border-red-900/30 p-6">
                 <div class="flex items-center gap-3 mb-6">
-                    <span class="material-icons text-red-600 dark:text-red-400">warning</span>
+                    <span class="material-symbols-rounded text-red-600 dark:text-red-400">warning</span>
                     <h3 class="text-xl font-semibold text-red-900 dark:text-red-400">危險區域</h3>
                 </div>
 

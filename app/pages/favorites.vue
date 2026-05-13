@@ -290,7 +290,7 @@ useHead({
                         placeholder="搜尋收藏..."
                         class="w-full bg-white dark:bg-white/10 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 outline-none"
                     />
-                    <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
+                    <span class="material-symbols-rounded absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
                 </div>
             </div>
 
@@ -307,7 +307,7 @@ useHead({
                         "
                         class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md flex items-center gap-2"
                     >
-                        <span class="material-icons text-lg">schedule</span>
+                        <span class="material-symbols-rounded text-lg">schedule</span>
                         最近收藏
                     </button>
                     <button
@@ -319,7 +319,7 @@ useHead({
                         "
                         class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md flex items-center gap-2"
                     >
-                        <span class="material-icons text-lg">sort_by_alpha</span>
+                        <span class="material-symbols-rounded text-lg">sort_by_alpha</span>
                         名稱排序
                     </button>
                     <button
@@ -331,7 +331,7 @@ useHead({
                         "
                         class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md flex items-center gap-2"
                     >
-                        <span class="material-icons text-lg">event</span>
+                        <span class="material-symbols-rounded text-lg">event</span>
                         季節排序
                     </button>
                 </div>
@@ -342,7 +342,7 @@ useHead({
                         @click="selectAll"
                         class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
                     >
-                        <span class="material-icons text-lg">
+                        <span class="material-symbols-rounded text-lg">
                             {{ selectedItems.size === filteredFavorites.length && filteredFavorites.length > 0 ? 'check_box' : 'check_box_outline_blank' }}
                         </span>
                         {{ selectedItems.size === filteredFavorites.length && filteredFavorites.length > 0 ? '取消全選' : '全選' }}
@@ -353,7 +353,7 @@ useHead({
                         @click="deleteSelected"
                         class="text-sm px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2"
                     >
-                        <span class="material-icons text-lg">delete</span>
+                        <span class="material-symbols-rounded text-lg">delete</span>
                         刪除已選 ({{ selectedItems.size }})
                     </button>
 
@@ -361,7 +361,7 @@ useHead({
                         @click="showDeleteAllConfirm = true"
                         class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
                     >
-                        <span class="material-icons text-lg">delete_sweep</span>
+                        <span class="material-symbols-rounded text-lg">delete_sweep</span>
                         清除全部
                     </button>
                 </div>
@@ -380,21 +380,21 @@ useHead({
 
         <!-- No Search Results -->
         <div v-else-if="filteredFavorites.length === 0" class="text-center py-20">
-            <span class="material-icons text-gray-400 text-6xl mb-4">search_off</span>
+            <span class="material-symbols-rounded text-gray-400 text-6xl mb-4">search_off</span>
             <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">找不到相關收藏</h3>
             <p class="text-gray-500 dark:text-gray-400">試試其他搜尋關鍵字</p>
         </div>
 
         <!-- Empty State -->
         <div v-else-if="favoriteItems.length === 0" class="text-center py-20">
-            <span class="material-icons text-gray-400 text-6xl mb-4">bookmark_add</span>
+            <span class="material-symbols-rounded text-gray-400 text-6xl mb-4">bookmark_add</span>
             <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">還沒有收藏動漫</h3>
             <p class="text-gray-500 dark:text-gray-400 mb-6">找到喜歡的動漫就收藏起來吧</p>
             <NuxtLink
                 to="/"
                 class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors inline-flex items-center gap-2"
             >
-                <span class="material-icons">explore</span>
+                <span class="material-symbols-rounded">explore</span>
                 探索動漫
             </NuxtLink>
         </div>
@@ -423,13 +423,13 @@ useHead({
                                 class="absolute top-2 left-2 z-10 w-7 h-7 rounded bg-white/90 dark:bg-gray-700/90 shadow-md flex items-center justify-center transition-opacity backdrop-blur-sm"
                                 :class="selectedItems.has(item.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
                             >
-                                <span v-if="selectedItems.has(item.id)" class="material-icons text-gray-900 dark:text-gray-100 text-lg">check_box</span>
-                                <span v-else class="material-icons text-gray-400 text-lg">check_box_outline_blank</span>
+                                <span v-if="selectedItems.has(item.id)" class="material-symbols-rounded text-gray-900 dark:text-gray-100 text-lg">check_box</span>
+                                <span v-else class="material-symbols-rounded text-gray-400 text-lg">check_box_outline_blank</span>
                             </button>
 
                             <!-- Favorite Badge -->
                             <div class="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-red-500 shadow-md flex items-center justify-center">
-                                <span class="material-icons text-white text-sm">bookmark_added</span>
+                                <span class="material-symbols-rounded text-white text-sm">bookmark_added</span>
                             </div>
 
                             <!-- Clickable Link -->
@@ -444,7 +444,7 @@ useHead({
                                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                     />
                                     <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
-                                        <span class="material-icons text-5xl">movie</span>
+                                        <span class="material-symbols-rounded text-5xl">movie</span>
                                     </div>
                                 </div>
 
@@ -473,13 +473,13 @@ useHead({
                         class="absolute top-2 left-2 z-10 w-7 h-7 rounded bg-white/90 dark:bg-gray-700/90 shadow-md flex items-center justify-center transition-opacity backdrop-blur-sm"
                         :class="selectedItems.has(item.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
                     >
-                        <span v-if="selectedItems.has(item.id)" class="material-icons text-gray-900 dark:text-gray-100 text-lg">check_box</span>
-                        <span v-else class="material-icons text-gray-400 text-lg">check_box_outline_blank</span>
+                        <span v-if="selectedItems.has(item.id)" class="material-symbols-rounded text-gray-900 dark:text-gray-100 text-lg">check_box</span>
+                        <span v-else class="material-symbols-rounded text-gray-400 text-lg">check_box_outline_blank</span>
                     </button>
 
                     <!-- Favorite Badge -->
                     <div class="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-red-500 shadow-md flex items-center justify-center">
-                        <span class="material-icons text-white text-sm">bookmark_added</span>
+                        <span class="material-symbols-rounded text-white text-sm">bookmark_added</span>
                     </div>
 
                     <!-- Clickable Link -->
@@ -494,7 +494,7 @@ useHead({
                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
                             <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
-                                <span class="material-icons text-5xl">movie</span>
+                                <span class="material-symbols-rounded text-5xl">movie</span>
                             </div>
                         </div>
 

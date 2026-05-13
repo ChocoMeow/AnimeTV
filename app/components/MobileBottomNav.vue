@@ -100,7 +100,7 @@ function iconClass(active) {
         'material-symbols-rounded leading-none',
         'transition-[font-size,font-variation-settings] duration-[550ms] ease-[cubic-bezier(0.4_0_0.2_1)]',
         iconSizeClass.value,
-        active ? 'sym-fill' : '',
+        active ? '' : 'outlined',
     ]
 }
 
@@ -190,17 +190,11 @@ function itemColorClass(active) {
 
 <style scoped>
 .mobile-nav-safe-area {
+    /* Small visual gap below the nav bar */
+    --mobile-nav-bottom-gap: 8px;
     /* iOS 11.0-11.2 fallback */
-    padding-bottom: calc(constant(safe-area-inset-bottom) / 2);
+    padding-bottom: calc((constant(safe-area-inset-bottom) / 2) + var(--mobile-nav-bottom-gap));
     /* Modern iOS/Android browsers */
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) / 2);
-}
-
-.material-symbols-rounded.sym-fill {
-    font-variation-settings:
-        'FILL' 1,
-        'wght' 500,
-        'GRAD' 0,
-        'opsz' 24;
+    padding-bottom: calc((env(safe-area-inset-bottom, 0px) / 2) + var(--mobile-nav-bottom-gap));
 }
 </style>

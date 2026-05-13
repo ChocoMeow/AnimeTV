@@ -10,7 +10,7 @@
                 }"
                 class="px-6 py-3 rounded-lg shadow-lg text-white flex items-center gap-3"
             >
-                <span class="material-icons">
+                <span class="material-symbols-rounded">
                     {{ toastState.type === "success" ? "check_circle" : toastState.type === "error" ? "error" : toastState.type === "warning" ? "warning" : "info" }}
                 </span>
                 <span>{{ toastState.message }}</span>

@@ -641,7 +641,7 @@ onUnmounted(() => {
     <!-- Error -->
     <div v-else-if="error" class="flex flex-col justify-center items-center min-h-screen text-center px-4">
         <div class="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-6">
-            <span class="material-icons text-5xl text-red-500 dark:text-red-400">error_outline</span>
+            <span class="material-symbols-rounded text-5xl text-red-500 dark:text-red-400">error_outline</span>
         </div>
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">載入失敗</h2>
         <p class="text-red-600 dark:text-red-400 mb-6 max-w-md">{{ error }}</p>
@@ -650,7 +650,7 @@ onUnmounted(() => {
 
     <!-- Empty -->
     <div v-else-if="!anime" class="flex flex-col justify-center items-center min-h-screen">
-        <span class="material-icons text-6xl text-gray-400 mb-4">movie_filter</span>
+        <span class="material-symbols-rounded text-6xl text-gray-400 mb-4">movie_filter</span>
         <p class="text-gray-600 dark:text-gray-400">無可用的動漫資料</p>
     </div>
 
@@ -674,7 +674,7 @@ onUnmounted(() => {
                             </div>
                             <div class="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
                             <div class="absolute inset-0 flex flex-col items-center justify-center z-[1] px-4 sm:px-8">
-                                <span class="material-icons text-white text-4xl sm:text-5xl pb-4">play_circle_outline</span>
+                                <span class="material-symbols-rounded outlined text-white text-4xl sm:text-5xl pb-4">play_circle</span>
                                 <div class="text-center space-y-2 sm:space-y-3">
                                     <h3 class="text-xl sm:text-2xl font-bold text-white mb-2">選擇集數開始播放</h3>
                                     <p class="text-sm sm:text-base text-white/80 max-w-md">請從右側（或下方）選擇您想觀看的集數</p>
@@ -708,7 +708,7 @@ onUnmounted(() => {
                     <div v-if="offlineModeBanner"
                         :class="['flex items-center gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 text-amber-900 dark:text-amber-100 text-sm', isTheaterMode ? 'lg:col-span-2' : '']"
                         role="status">
-                        <span class="material-icons flex-shrink-0 text-xl">wifi_off</span>
+                        <span class="material-symbols-rounded flex-shrink-0 text-xl">wifi_off</span>
                         <p>離線模式：已從本機載入先前快取的動漫資料。請選擇已下載的集數觀看；重新整理前請勿關閉此分頁。</p>
                     </div>
 
@@ -734,7 +734,7 @@ onUnmounted(() => {
                                     class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
                                     :title="action.label" :aria-label="action.label"
                                     @click="action.run()">
-                                    <span class="material-icons text-xl" :class="action.iconClass">{{ action.icon }}</span>
+                                    <span class="material-symbols-rounded text-xl" :class="action.iconClass">{{ action.icon }}</span>
                                 </button>
                                 <div v-if="toolbarOverflowActions.length" ref="toolbarOverflowRoot" class="relative">
                                     <button type="button"
@@ -742,7 +742,7 @@ onUnmounted(() => {
                                         title="更多" aria-label="更多操作"
                                         :aria-expanded="showToolbarOverflowMenu"
                                         @click.stop="showToolbarOverflowMenu = !showToolbarOverflowMenu">
-                                        <span class="material-icons text-xl text-gray-900 dark:text-white">more_vert</span>
+                                        <span class="material-symbols-rounded text-xl text-gray-900 dark:text-white">more_vert</span>
                                     </button>
                                     <div v-show="showToolbarOverflowMenu"
                                         class="absolute right-0 top-full mt-2 min-w-[11rem] py-1 rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-gray-950 shadow-lg z-10"
@@ -752,7 +752,7 @@ onUnmounted(() => {
                                             class="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
                                             role="menuitem"
                                             @click="action.run(); showToolbarOverflowMenu = false">
-                                            <span class="material-icons text-lg flex-shrink-0" :class="action.iconClass">{{ action.icon }}</span>
+                                            <span class="material-symbols-rounded text-lg flex-shrink-0" :class="action.iconClass">{{ action.icon }}</span>
                                             <span>{{ action.label }}</span>
                                         </button>
                                     </div>
@@ -763,17 +763,17 @@ onUnmounted(() => {
                     <!-- Stats -->
                     <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                         <div class="flex items-center gap-1.5">
-                            <span class="material-icons text-base">visibility</span>
+                            <span class="material-symbols-rounded text-base">visibility</span>
                             <span class="text-gray-900 dark:text-white">{{ formatViews(anime.views) }}</span>
                             <span>觀看</span>
                         </div>
                         <div class="flex items-center gap-1.5">
-                            <span class="material-icons text-base">favorite</span>
+                            <span class="material-symbols-rounded text-base">favorite</span>
                             <span class="text-gray-900 dark:text-white">{{ formatViews(anime.userRating.votes) }}</span>
                             <span>喜歡</span>
                         </div>
                         <div v-if="anime.userRating?.score" class="flex items-center gap-1.5">
-                            <span class="material-icons text-base text-yellow-400">star</span>
+                            <span class="material-symbols-rounded text-base text-yellow-400">star</span>
                             <span class="text-gray-900 dark:text-white">{{ formatRating(anime.userRating.score) }}</span>
                         </div>
                     </div>
@@ -786,7 +786,7 @@ onUnmounted(() => {
                         <NuxtLink v-for="tag in anime.tags" :key="tag"
                             :to="`/show-all-anime?tags=${encodeURIComponent(tag)}`"
                             class="px-3 py-1.5 bg-gray-950/5 dark:bg-white/10 rounded-full border border-gray-200 dark:border-white/20 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-950/10 dark:hover:bg-white/20 hover:border-gray-300 dark:hover:border-white/40 transition-all flex items-center gap-1.5 focus:outline-none">
-                            <span class="material-icons text-xs">tag</span>
+                            <span class="material-symbols-rounded text-xs">tag</span>
                             {{ tag }}
                         </NuxtLink>
                     </div>
@@ -799,7 +799,7 @@ onUnmounted(() => {
                                 class="bg-gray-950/5 dark:bg-white/10 rounded-xl p-4">
                                 <div class="flex items-start gap-3">
                                     <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="detail.iconBg">
-                                        <span class="material-icons text-xl" :class="detail.iconColor">{{ detail.icon }}</span>
+                                        <span class="material-symbols-rounded text-xl" :class="detail.iconColor">{{ detail.icon }}</span>
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{{ detail.label }}</p>
@@ -845,13 +845,13 @@ onUnmounted(() => {
                                     <h3 class="font-semibold text-sm text-gray-900 dark:text-white line-clamp-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">{{ item.title }}</h3>
                                     <div class="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
                                         <span v-if="item.year" class="flex items-center gap-1">
-                                            <span class="material-icons text-xs">calendar_today</span> {{ item.year }}
+                                            <span class="material-symbols-rounded text-xs">calendar_today</span> {{ item.year }}
                                         </span>
                                         <span v-if="item.episodes" class="flex items-center gap-1">
-                                            <span class="material-icons text-xs">movie</span> {{ item.episodes }}
+                                            <span class="material-symbols-rounded text-xs">movie</span> {{ item.episodes }}
                                         </span>
                                         <span v-if="item.views" class="flex items-center gap-1">
-                                            <span class="material-icons text-xs">visibility</span> {{ formatViews(item.views) }}
+                                            <span class="material-symbols-rounded text-xs">visibility</span> {{ formatViews(item.views) }}
                                         </span>
                                     </div>
                                 </div>
@@ -893,7 +893,7 @@ onUnmounted(() => {
     <LazyBaseDialog v-model="showShortcutsModal" max-width="max-w-2xl">
         <template #header>
             <div class="flex items-center gap-3">
-                <span class="material-icons text-3xl text-gray-600 dark:text-gray-400">keyboard</span>
+                <span class="material-symbols-rounded text-3xl text-gray-600 dark:text-gray-400">keyboard</span>
                 <h3 class="text-2xl font-bold text-gray-900 dark:text-white">鍵盤快捷鍵</h3>
             </div>
         </template>

@@ -8,7 +8,7 @@ useHead({
 
 <template>
     <div class="min-h-screen flex flex-col items-center justify-center px-6 text-center">
-        <span class="material-icons text-gray-500 text-7xl mb-6">wifi_off</span>
+        <span class="material-symbols-rounded text-gray-500 text-7xl mb-6">wifi_off</span>
         <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3">你目前處於離線模式</h1>
         <p class="text-gray-600 dark:text-gray-400 max-w-md mb-8 leading-relaxed">
             請檢查你的網絡連接。某些功能可能無法使用，但已下載的內容仍可觀看。

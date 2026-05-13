@@ -722,7 +722,7 @@ onUnmounted(() => {
 
         <!-- No Video Message -->
         <div v-else class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-            <span class="material-icons text-4xl sm:text-6xl mb-4 opacity-50">play_circle_outline</span>
+            <span class="material-symbols-rounded outlined text-4xl sm:text-6xl mb-4 opacity-50">play_circle</span>
             <p class="text-base sm:text-lg">無可用影片</p>
         </div>
 
@@ -739,7 +739,7 @@ onUnmounted(() => {
                 class="absolute inset-0 flex items-center justify-center pointer-events-none z-[2]">
                 <button @click="togglePlay"
                     class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/20 backdrop-blur-md border-2 border-white/40 flex items-center justify-center cursor-pointer pointer-events-auto transition-all duration-300 hover:bg-white/30 hover:scale-110 active:scale-95">
-                    <span class="material-icons text-white text-3xl sm:text-[2.5rem]">{{ isPlaying ? 'pause' : 'play_arrow' }}</span>
+                    <span class="material-symbols-rounded text-white text-3xl sm:text-[2.5rem]">{{ isPlaying ? 'pause' : 'play_arrow' }}</span>
                 </button>
             </div>
         </transition>
@@ -772,14 +772,14 @@ onUnmounted(() => {
                     <button
                         @click="handleNextEpisode"
                         class="relative z-[1] inline-flex h-10 items-center gap-1.5 px-3 text-sm font-semibold text-white dark:text-gray-900 cursor-pointer leading-none">
-                        <span class="material-icons text-[1.1rem] leading-none flex-shrink-0">skip_next</span>
+                        <span class="material-symbols-rounded text-[1.1rem] leading-none flex-shrink-0">skip_next</span>
                         <span class="whitespace-nowrap leading-none">{{ tooltipLabels.nextEpisode }}</span>
                     </button>
                     <!-- Dismiss -->
                     <button
                         @click="dismissAutoplay"
                         class="relative z-[1] h-10 px-2 flex items-center justify-center text-white/60 dark:text-gray-500 hover:text-white dark:hover:text-gray-900 transition-colors cursor-pointer">
-                        <span class="material-icons text-[1rem]">close</span>
+                        <span class="material-symbols-rounded text-[1rem]">close</span>
                     </button>
                 </div>
             </div>
@@ -845,19 +845,19 @@ onUnmounted(() => {
                         <!-- Play/Pause -->
                         <button @click="togglePlay" :title="tooltipLabels.playPause"
                             class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-md inline-flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
-                            <span class="material-icons text-xl sm:text-2xl">{{ isPlaying ? 'pause' : 'play_arrow' }}</span>
+                            <span class="material-symbols-rounded text-xl sm:text-2xl">{{ isPlaying ? 'pause' : 'play_arrow' }}</span>
                         </button>
                         <!-- Skip OP -->
                         <button @click="skipOP" :title="tooltipLabels.skipOP"
                             class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-md inline-flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
-                            <span class="material-icons text-xl sm:text-2xl">fast_forward</span>
+                            <span class="material-symbols-rounded text-xl sm:text-2xl">fast_forward</span>
                         </button>
                         <!-- Volume -->
                         <div class="relative flex items-center gap-1 sm:gap-2"
                             @mouseenter="handleVolumeAreaEnter" @mouseleave="handleVolumeAreaLeave">
                             <button @click="toggleMute" :title="tooltipLabels.mute"
                                 class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-md inline-flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
-                                <span class="material-icons text-xl sm:text-2xl">
+                                <span class="material-symbols-rounded text-xl sm:text-2xl">
                                     {{ isMuted || volume === 0 ? 'volume_off' : volume < 0.5 ? 'volume_down' : 'volume_up' }}
                                 </span>
                             </button>
@@ -879,7 +879,7 @@ onUnmounted(() => {
                         <div ref="settingsRef" class="relative">
                             <button @click="toggleSettings" title="設定"
                                 class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-md inline-flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
-                                <span class="material-icons text-xl sm:text-2xl">tune</span>
+                                <span class="material-symbols-rounded text-xl sm:text-2xl">tune</span>
                             </button>
                             <div v-if="showSettings" @click.stop
                                 class="absolute bottom-full right-[-2.5rem] sm:right-[-3.25rem] mb-2 bg-black/90 backdrop-blur-md rounded-lg shadow-2xl border border-white/20 py-2 z-[10] min-w-[200px] max-w-[min(92vw,18rem)] origin-bottom-right">
@@ -901,21 +901,21 @@ onUnmounted(() => {
                                                 <span>播放速度</span>
                                                 <span class="inline-flex min-w-[3.25rem] items-center justify-end gap-1 text-xs text-gray-300 leading-none">
                                                     {{ playbackRate }}x
-                                                    <span class="material-icons text-sm leading-none translate-y-[0.5px]">chevron_right</span>
+                                                    <span class="material-symbols-rounded text-sm leading-none translate-y-[0.5px]">chevron_right</span>
                                                 </span>
                                             </button>
                                         </template>
                                         <template v-else>
                                             <button @click="settingsPage = 'main'"
                                                 class="w-full px-3 py-2 text-left text-white text-sm hover:bg-white/10 transition-colors flex items-center gap-1">
-                                                <span class="material-icons text-base">chevron_left</span>
+                                                <span class="material-symbols-rounded text-base">chevron_left</span>
                                                 <span>播放速度</span>
                                             </button>
                                             <button v-for="speed in playbackSpeeds" :key="speed" @click="setPlaybackRate(speed)"
                                                 class="w-full px-4 py-2 text-left text-white text-sm hover:bg-white/10 transition-colors flex items-center justify-between"
                                                 :class="{ 'bg-gray-500/30 text-gray-300': playbackRate === speed }">
                                                 <span>{{ speed }}x</span>
-                                                <span v-if="playbackRate === speed" class="material-icons text-sm">check</span>
+                                                <span v-if="playbackRate === speed" class="material-symbols-rounded text-sm">check</span>
                                             </button>
                                         </template>
                                     </div>
@@ -925,7 +925,7 @@ onUnmounted(() => {
                         <!-- Fullscreen -->
                         <button @click="toggleFullscreen" :title="tooltipLabels.fullscreen"
                             class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-md inline-flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
-                            <span class="material-icons text-xl sm:text-2xl">{{ isFullscreen ? 'fullscreen_exit' : 'fullscreen' }}</span>
+                            <span class="material-symbols-rounded text-xl sm:text-2xl">{{ isFullscreen ? 'fullscreen_exit' : 'fullscreen' }}</span>
                         </button>
                     </div>
                 </div>
@@ -943,7 +943,7 @@ onUnmounted(() => {
             <div v-if="notification.show"
                 class="absolute top-14 left-1/2 -translate-x-1/2 z-[20] pointer-events-none sm:top-16">
                 <div class="bg-black/45 backdrop-blur-md text-white px-3 py-1 sm:px-4 sm:py-1.5 rounded-full shadow-lg border border-white/15 flex items-center justify-center gap-2 min-w-0 max-w-[min(90vw,20rem)]">
-                    <span class="material-icons shrink-0 text-lg sm:text-xl text-gray-300">{{ notification.icon }}</span>
+                    <span class="material-symbols-rounded shrink-0 text-lg sm:text-xl text-gray-300">{{ notification.icon }}</span>
                     <span class="text-xs sm:text-sm font-semibold truncate">{{ notification.message }}</span>
                 </div>
             </div>

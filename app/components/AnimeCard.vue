@@ -71,7 +71,7 @@ function handleMouseLeave() {
                 class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100"
             >
                 <div class="w-14 h-14 rounded-full bg-white/90 dark:bg-gray-900/90 flex items-center justify-center shadow-xl">
-                    <span class="material-icons text-3xl text-gray-900 dark:text-gray-100">play_arrow</span>
+                    <span class="material-symbols-rounded text-3xl text-gray-900 dark:text-gray-100">play_arrow</span>
                 </div>
             </div>
         </div>
@@ -89,11 +89,11 @@ function handleMouseLeave() {
 
             <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                 <div v-if="anime.episodes" class="flex items-center gap-1">
-                    <span class="material-icons text-sm">movie</span>
+                    <span class="material-symbols-rounded text-sm">movie</span>
                     <span>{{ anime.episodes }}</span>
                 </div>
                 <div class="flex items-center gap-1 ml-auto">
-                    <span class="material-icons text-sm">visibility</span>
+                    <span class="material-symbols-rounded text-sm">visibility</span>
                     <span>{{ formatViews(anime.views) }}</span>
                 </div>
             </div>

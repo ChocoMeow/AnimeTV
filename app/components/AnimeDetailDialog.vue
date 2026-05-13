@@ -49,14 +49,14 @@ watch(
 
         <!-- Error State -->
         <div v-else-if="animeDetails?.error" class="text-center py-12">
-            <span class="material-icons text-5xl text-red-500 dark:text-red-400 mb-4">error_outline</span>
+            <span class="material-symbols-rounded text-5xl text-red-500 dark:text-red-400 mb-4">error_outline</span>
             <p class="text-gray-600 dark:text-gray-400">無法載入動漫詳情</p>
         </div>
 
         <!-- Details Content -->
         <div v-else-if="animeDetails?.wikiContentHtml" class="wiki-content text-gray-800 dark:text-gray-200" v-html="animeDetails.wikiContentHtml" />
         <div v-else class="text-center py-12">
-            <span class="material-icons text-5xl text-red-500 dark:text-red-400 mb-4">error_outline</span>
+            <span class="material-symbols-rounded text-5xl text-red-500 dark:text-red-400 mb-4">error_outline</span>
             <p class="text-gray-600 dark:text-gray-400">無可用的動漫詳情內容</p>
         </div>
     </LazyBaseDialog>

@@ -116,7 +116,7 @@ onUnmounted(() => {
                 class="dropdown-arrow absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-400 transition-transform"
                 :class="{ 'rotate-180': open }"
             >
-                <span class="material-icons text-xl">expand_more</span>
+                <span class="material-symbols-rounded text-xl">expand_more</span>
             </span>
         </button>
 

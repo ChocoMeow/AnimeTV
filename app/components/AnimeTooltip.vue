@@ -93,7 +93,7 @@ async function toggleFavorite(event) {
                         aria-label="Toggle favorite"
                         @click="toggleFavorite"
                     >
-                        <span class="material-icons text-xl text-center" v-if="!favoriteLoading">
+                        <span class="material-symbols-rounded text-xl text-center" v-if="!favoriteLoading">
                             {{ animeDetails.isFavorite ? 'bookmark_added' : 'bookmark_add' }}
                         </span>
                         <span v-else class="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
@@ -112,19 +112,19 @@ async function toggleFavorite(event) {
                             </h3>
                             <div class="space-y-1 text-xs sm:text-sm">
                                 <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                                    <span class="material-icons text-sm text-yellow-400">star</span>
+                                    <span class="material-symbols-rounded text-sm text-yellow-400">star</span>
                                     <span class="font-bold text-sm">{{ animeDetails.userRating?.score }}</span>
                                     <span class="text-sm text-gray-300">({{ formatViews(animeDetails.userRating.votes) }})</span>
                                 </div>
                                 <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                                    <span class="material-icons text-sm">visibility</span>
+                                    <span class="material-symbols-rounded text-sm">visibility</span>
                                     <span>{{ formatViews(animeDetails.views) }}</span>
                                 </div>
                                 <div
                                     v-if="animeDetails.episodeCount ?? Object.keys(animeDetails.episodes || {}).length"
                                     class="flex items-center gap-2 text-gray-600 dark:text-gray-300"
                                 >
-                                    <span class="material-icons text-sm">movie</span>
+                                    <span class="material-symbols-rounded text-sm">movie</span>
                                     <span>{{ animeDetails.episodeCount ?? Object.keys(animeDetails.episodes || {}).length }}</span>
                                 </div>
                             </div>
@@ -200,7 +200,7 @@ async function toggleFavorite(event) {
                 }"
             >
                 <div class="flex items-center gap-2">
-                    <span class="material-icons text-red-500 text-base">error_outline</span>
+                    <span class="material-symbols-rounded text-red-500 text-base">error_outline</span>
                     <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-300">{{ tooltipError }}</span>
                 </div>
             </div>

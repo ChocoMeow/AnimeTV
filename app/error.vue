@@ -64,7 +64,7 @@ useHead({
                 <div v-if="error?.message && !is404 && !is403" class="max-w-2xl mx-auto">
                     <details class="text-left group">
                         <summary class="cursor-pointer text-sm text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors flex items-center justify-center gap-2">
-                            <span class="material-icons text-base group-open:rotate-180 transition-transform">expand_more</span>
+                            <span class="material-symbols-rounded text-base group-open:rotate-180 transition-transform">expand_more</span>
                             技術細節
                         </summary>
                         <div class="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
@@ -78,11 +78,11 @@ useHead({
                 <!-- Action Buttons -->
                 <div class="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6">
                     <button @click="goHome" class="action-btn primary group">
-                        <span class="material-icons text-xl group-hover:scale-110 transition-transform">home</span>
+                        <span class="material-symbols-rounded text-xl group-hover:scale-110 transition-transform">home</span>
                         <span>返回首頁</span>
                     </button>
                     <button @click="goBack" class="action-btn secondary group">
-                        <span class="material-icons text-xl group-hover:-translate-x-1 transition-transform">arrow_back</span>
+                        <span class="material-symbols-rounded text-xl group-hover:-translate-x-1 transition-transform">arrow_back</span>
                         <span>返回上一頁</span>
                     </button>
                 </div>

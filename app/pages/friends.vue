@@ -308,7 +308,7 @@ onUnmounted(() => {
                     ]"
                 >
                     <span class="flex items-center justify-center gap-2">
-                        <span class="material-icons text-xl">{{ tab.icon }}</span>
+                        <span class="material-symbols-rounded text-xl">{{ tab.icon }}</span>
                         <span class="hidden md:inline">{{ tab.label }}</span>
                         <span class="md:hidden">{{ tab.labelShort }}</span>
                         <span
@@ -333,7 +333,7 @@ onUnmounted(() => {
             </div>
 
             <div v-else-if="friends.length === 0" class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow-sm p-12 text-center">
-                <span class="material-icons text-6xl text-gray-400 mb-4">group</span>
+                <span class="material-symbols-rounded text-6xl text-gray-400 mb-4">group</span>
                 <p class="text-gray-600 dark:text-gray-400 text-lg mb-2">還沒有好友</p>
                 <p class="text-gray-500 dark:text-gray-500 text-sm mb-4">開始搜尋並新增您的第一位好友吧！</p>
                 <button @click="activeTab = 'search'" class="px-6 py-2 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors">搜尋用戶</button>
@@ -368,22 +368,22 @@ onUnmounted(() => {
                         <!-- Dropdown menu -->
                         <div class="relative friend-dropdown">
                             <button @click.stop="toggleDropdown(friend.id)" class="p-2 flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded-lg transition-colors" title="更多選項">
-                                <span class="material-icons">more_vert</span>
+                                <span class="material-symbols-rounded">more_vert</span>
                             </button>
 
                             <!-- Dropdown content -->
                             <transition name="dropdown">
                                 <div v-if="openDropdown === friend.id" class="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-950 rounded-lg shadow-lg border-1 border-gray-950/5 dark:border-white/10 py-1 z-10">
                                     <button @click="openConfirmModal(friend, 'friendProfile')" class="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-2">
-                                        <span class="material-icons text-lg">analytics</span>
+                                        <span class="material-symbols-rounded text-lg">analytics</span>
                                         查看好友
                                     </button>
                                     <button @click="openConfirmModal(friend, 'delete')" class="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-2">
-                                        <span class="material-icons text-lg">person_remove</span>
+                                        <span class="material-symbols-rounded text-lg">person_remove</span>
                                         移除好友
                                     </button>
                                     <button @click="openConfirmModal(friend, 'block')" class="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2">
-                                        <span class="material-icons text-lg">block</span>
+                                        <span class="material-symbols-rounded text-lg">block</span>
                                         封鎖用戶
                                     </button>
                                 </div>
@@ -405,7 +405,7 @@ onUnmounted(() => {
                 </div>
 
                 <div v-else-if="incomingRequests.length === 0" class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow-sm p-8 text-center">
-                    <span class="material-icons text-4xl text-gray-400 mb-2">inbox</span>
+                    <span class="material-symbols-rounded text-4xl text-gray-400 mb-2">inbox</span>
                     <p class="text-gray-600 dark:text-gray-400">沒有待處理的好友請求</p>
                 </div>
 
@@ -435,7 +435,7 @@ onUnmounted(() => {
                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">已發送的請求</h2>
 
                 <div v-if="outgoingRequests.length === 0" class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow-sm p-8 text-center">
-                    <span class="material-icons text-4xl text-gray-400 mb-2">send</span>
+                    <span class="material-symbols-rounded text-4xl text-gray-400 mb-2">send</span>
                     <p class="text-gray-600 dark:text-gray-400">沒有已發送的好友請求</p>
                 </div>
 
@@ -464,7 +464,7 @@ onUnmounted(() => {
             <!-- Search Input -->
             <div class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow-sm p-6">
                 <div class="relative">
-                    <span class="material-icons absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+                    <span class="material-symbols-rounded absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">search</span>
                     <input v-model="searchQuery" type="text" placeholder="搜尋用戶名稱..." class="w-full pl-12 pr-4 py-3 bg-white dark:bg-white/10 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 outline-none" />
                     <div v-if="searchLoading" class="absolute right-4 top-1/2 -translate-y-1/2">
                         <div class="animate-spin rounded-full h-5 w-5 border-2 border-gray-600 border-t-transparent"></div>
@@ -474,7 +474,7 @@ onUnmounted(() => {
 
             <!-- Search Results -->
             <div v-if="searchQuery && searchResults.length === 0 && !searchLoading" class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow-sm p-12 text-center">
-                <span class="material-icons text-6xl text-gray-400 mb-4">search_off</span>
+                <span class="material-symbols-rounded text-6xl text-gray-400 mb-4">search_off</span>
                 <p class="text-gray-600 dark:text-gray-400">找不到符合「{{ searchQuery }}」的用戶</p>
             </div>
 
@@ -495,7 +495,7 @@ onUnmounted(() => {
                             disabled 
                             class="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400 text-sm font-medium rounded-lg cursor-not-allowed flex items-center gap-2"
                         >
-                            <span class="material-icons text-sm">schedule</span>
+                            <span class="material-symbols-rounded text-sm">schedule</span>
                             等待回應
                         </button>
                         <button 
@@ -503,7 +503,7 @@ onUnmounted(() => {
                             @click="handleSendRequest(result.id)" 
                             class="px-4 py-2 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
                         >
-                            <span class="material-icons text-sm">person_add</span>
+                            <span class="material-symbols-rounded text-sm">person_add</span>
                             加為好友
                         </button>
                     </div>
@@ -518,7 +518,7 @@ onUnmounted(() => {
             </div>
 
             <div v-else-if="blockedUsers.length === 0" class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow-sm p-12 text-center">
-                <span class="material-icons text-6xl text-gray-400 mb-4">block</span>
+                <span class="material-symbols-rounded text-6xl text-gray-400 mb-4">block</span>
                 <p class="text-gray-600 dark:text-gray-400 text-lg mb-2">沒有封鎖的用戶</p>
                 <p class="text-gray-500 dark:text-gray-500 text-sm">您目前沒有封鎖任何用戶</p>
             </div>
@@ -526,7 +526,7 @@ onUnmounted(() => {
             <div v-else class="space-y-3">
                 <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
                     <div class="flex items-start gap-3">
-                        <span class="material-icons text-yellow-600 dark:text-yellow-400">info</span>
+                        <span class="material-symbols-rounded text-yellow-600 dark:text-yellow-400">info</span>
                         <div class="flex-1">
                             <p class="text-sm text-yellow-800 dark:text-yellow-200 font-medium mb-1">關於封鎖</p>
                             <p class="text-xs text-yellow-700 dark:text-yellow-300">被封鎖的用戶無法向您發送好友請求，也看不到您的在線狀態和活動。</p>
@@ -544,13 +544,13 @@ onUnmounted(() => {
                         <div class="flex-1 min-w-0">
                             <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ blockedUser.name }}</h3>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                <span class="material-icons text-xs align-middle">block</span>
+                                <span class="material-symbols-rounded text-xs align-middle">block</span>
                                 已封鎖
                             </p>
                         </div>
 
                         <button @click="openConfirmModal(blockedUser, 'unblock')" class="px-4 py-2 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
-                            <span class="material-icons text-sm">check_circle</span>
+                            <span class="material-symbols-rounded text-sm">check_circle</span>
                             解除封鎖
                         </button>
                     </div>

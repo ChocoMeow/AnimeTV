@@ -212,11 +212,11 @@ onUnmounted(() => {
                         @click="clearAllFilters"
                         class="text-sm text-black/70 dark:text-white hover:text-black/100 dark:hover:text-white font-medium transition-colors flex items-center gap-1"
                     >
-                        <span class="material-icons text-sm">clear</span>
+                        <span class="material-symbols-rounded text-sm">clear</span>
                         清除全部
                     </button>
                     <button @click="showFilters = !showFilters" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-white/20 flex items-center justify-center">
-                        <span class="material-icons text-gray-600 dark:text-gray-300">
+                        <span class="material-symbols-rounded text-gray-600 dark:text-gray-300">
                             {{ showFilters ? "expand_less" : "expand_more" }}
                         </span>
                     </button>
@@ -303,7 +303,7 @@ onUnmounted(() => {
         <!-- Empty State -->
         <div v-else-if="!animeList.length" class="flex flex-col items-center justify-center min-h-[400px] text-center">
             <div class="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                <span class="material-icons text-5xl text-gray-400 dark:text-gray-600">search_off</span>
+                <span class="material-symbols-rounded text-5xl text-gray-400 dark:text-gray-600">search_off</span>
             </div>
             <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">找不到相關作品</h3>
             <p class="text-gray-500 dark:text-gray-400 mb-4">請嘗試調整篩選條件</p>
