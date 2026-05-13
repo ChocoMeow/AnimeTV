@@ -23,6 +23,11 @@ export default defineNuxtConfig({
     },
     nitro: {
         preset: 'bun',
+        routeRules: {
+            '/apple-touch-icon.png': { redirect: '/icons/icon_144x144.png' },
+            '/apple-touch-icon-precomposed.png': { redirect: '/icons/icon_144x144.png' },
+            '/apple-touch-icon-120x120-precomposed.png': { redirect: '/icons/icon_144x144.png' },
+        },
         experimental: {
             websocket: true,
         },
@@ -57,7 +62,7 @@ export default defineNuxtConfig({
             meta: [
                 { name: 'description', content: 'Stream your favorite anime series and movies anytime, anywhere.' },
                 { charset: 'utf-8' },
-                { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=5' },
+                { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover' },
                 // iOS specific meta tags
                 { name: 'apple-mobile-web-app-capable', content: 'yes' },
                 { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
@@ -66,8 +71,8 @@ export default defineNuxtConfig({
                 { name: 'mobile-web-app-capable', content: 'yes' },
             ],
             link: [
-                { rel: 'icon', type: 'image/png', href: '/icons/icon_144x144.png' },
-                { rel: 'apple-touch-icon', type: 'image/png', href: '/icons/icon_144x144.png' },
+                { rel: 'icon', type: 'image/png', href: '/icons/icon_64x64.png' },
+                { rel: 'apple-touch-icon', href: '/icons/icon_144x144.png', sizes: '144x144', type: 'image/png' },
                 { rel: 'stylesheet', href: 'https://fonts.googleapis.com/icon?family=Material+Icons' },
                 {
                     rel: 'stylesheet',
@@ -152,29 +157,24 @@ export default defineNuxtConfig({
             start_url: '/',
             icons: [
                 {
-                    src: 'icons/icon_64x64.png',
+                    src: 'icons/icon_64x64.webp',
                     sizes: '64x64',
-                    type: 'image/png',
+                    type: 'image/webp',
                 },
                 {
-                    src: 'icons/icon_144x144.png',
-                    sizes: '144x144',
-                    type: 'image/png',
-                },
-                {
-                    src: 'icons/icon_512x512.png',
+                    src: 'icons/icon_512x512.webp',
                     sizes: '512x512',
-                    type: 'image/png',
+                    type: 'image/webp',
                 },
                 {
-                    src: 'icons/icon_819x819.png',
+                    src: 'icons/icon_819x819.webp',
                     sizes: '819x819',
-                    type: 'image/png',
+                    type: 'image/webp',
                 },
                 {
-                    src: 'icons/icon_1024x1024.png',
+                    src: 'icons/icon_1024x1024.webp',
                     sizes: '1024x1024',
-                    type: 'image/png',
+                    type: 'image/webp',
                 },
             ],
             screenshots: [

@@ -117,8 +117,7 @@ function itemColorClass(active) {
     <nav
         v-if="showMobilePwaNav"
         v-show="!mobileSearchOpen"
-        class="md:hidden fixed inset-x-0 bottom-0 z-[45] flex justify-center pointer-events-none px-3 sm:px-4 pt-2 transition-[padding-bottom] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]"
-        :class="collapsed ? 'pb-[calc(env(safe-area-inset-bottom,0px)+max(0.45rem,8px))]' : 'pb-[calc(env(safe-area-inset-bottom,0px)+max(0.5rem,8px))]'"
+        class="mobile-nav-safe-area md:hidden fixed inset-x-0 bottom-0 z-[45] flex justify-center pointer-events-none px-3 sm:px-4 pt-0 transition-[padding-bottom] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]"
         aria-label="主要導覽"
     >
         <div :class="barClass">
@@ -190,6 +189,13 @@ function itemColorClass(active) {
 </template>
 
 <style scoped>
+.mobile-nav-safe-area {
+    /* iOS 11.0-11.2 fallback */
+    padding-bottom: calc(constant(safe-area-inset-bottom) / 2);
+    /* Modern iOS/Android browsers */
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) / 2);
+}
+
 .material-symbols-rounded.sym-fill {
     font-variation-settings:
         'FILL' 1,

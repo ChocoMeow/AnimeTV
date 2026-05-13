@@ -216,7 +216,21 @@ function onScroll() {
         return
     }
     const y = window.scrollY
-    headerHiddenMobile.value = y > 12 && y > lastScrollY
+    const delta = y - lastScrollY
+    const viewportHeight = window.visualViewport?.height || window.innerHeight
+    const docHeight = document.documentElement.scrollHeight
+    const nearBottom = y + viewportHeight >= docHeight - 2
+
+    // Ignore tiny oscillations (especially iOS rubber-band) to prevent jitter.
+    if (Math.abs(delta) < 4) return
+
+    if (y <= 12 || nearBottom) {
+        headerHiddenMobile.value = false
+        lastScrollY = y
+        return
+    }
+
+    headerHiddenMobile.value = delta > 0
     lastScrollY = y
 }
 

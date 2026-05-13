@@ -5,12 +5,10 @@ const showMobilePwaNav = useState("animehub-show-mobile-pwa-nav", () => false)
 
 <template>
     <div
-        class="min-h-screen flex flex-col md:pb-0 transition-[padding-bottom] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]"
+        class="min-h-screen flex flex-col md:pb-0"
         :class="
             showMobilePwaNav
-                ? headerHiddenMobile
-                    ? 'max-md:pb-[calc(0.5rem+2.55rem+max(0.45rem,8px)+env(safe-area-inset-bottom,0px))]'
-                    : 'max-md:pb-[calc(0.5rem+3.75rem+max(0.5rem,8px)+env(safe-area-inset-bottom,0px))]'
+                ? 'max-md:pb-[calc(3.75rem+(env(safe-area-inset-bottom,0px)/2))]'
                 : ''
         "
     >
@@ -18,7 +16,7 @@ const showMobilePwaNav = useState("animehub-show-mobile-pwa-nav", () => false)
 
         <main
             class="flex-1 w-full transition-all duration-300 ease-in-out max-md:transition-[margin-top,padding] max-md:duration-300"
-            :class="headerHiddenMobile ? 'max-md:-mt-14 max-md:pt-0' : 'max-md:pt-14'"
+            :class="'max-md:pt-14'"
         >
             <slot />
             <GlobalToast />
