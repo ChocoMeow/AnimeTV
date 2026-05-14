@@ -26,7 +26,7 @@ const showMobilePwaNav = useState("animehub-show-mobile-pwa-nav", () => false)
 
         <SiteFooter />
 
-        <MobileBottomNav />
+        <LazyMobileBottomNav />
     </div>
 </template>
 

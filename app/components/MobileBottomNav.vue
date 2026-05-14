@@ -44,7 +44,7 @@ const NAV_ITEMS = [
     { id: 'all', to: '/show-all-anime', label: '全部作品', icon: 'movie', match: (p) => p.startsWith('/show-all-anime') },
     { id: 'search', label: '搜尋', icon: 'search', isAction: true },
     { id: 'history', to: '/history', label: '觀看紀錄', icon: 'history', match: (p) => p.startsWith('/history') },
-    { id: 'profile', to: '/profile', label: '個人設定', match: (p) => p.startsWith('/profile') },
+    { id: 'profile', to: '/profile', label: '個人資料', match: (p) => p.startsWith('/profile') },
 ]
 
 // ─── Active state & pill position ────────────────────────────────────────────

@@ -58,7 +58,7 @@ export default defineEventHandler(async (event) => {
     try {
         const { data: historyRows, error: historyError } = await client
             .from('watch_history')
-            .select('playback_time, updated_at, anime_ref_id')
+            .select('playback_time, updated_at, anime_ref_id, anime_title, anime_image')
             .eq('user_id', userId)
             .gte('updated_at', rangeStartIso)
             .lte('updated_at', rangeEndIso)
@@ -125,14 +125,46 @@ export default defineEventHandler(async (event) => {
         const refIds = [...new Set((historyRows || []).map((r) => r.anime_ref_id).filter(Boolean))]
         let genreDistribution = []
 
+        const watchByHour = Array(24).fill(0)
+        const watchByWeekday = Array(7).fill(0)
+        const weekdayLabels = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
+        for (const row of historyRows || []) {
+            const t = new Date(row.updated_at)
+            watchByHour[t.getHours()] += row.playback_time || 0
+            const wd = (t.getDay() + 6) % 7
+            watchByWeekday[wd] += row.playback_time || 0
+        }
+
+        const timeByRef = new Map()
+        for (const row of historyRows || []) {
+            const id = row.anime_ref_id
+            if (!timeByRef.has(id)) {
+                timeByRef.set(id, { seconds: 0, title: row.anime_title, image: row.anime_image })
+            }
+            const e = timeByRef.get(id)
+            e.seconds += row.playback_time || 0
+        }
+        const topAnimeByTime = [...timeByRef.entries()]
+            .map(([anime_ref_id, v]) => ({
+                anime_ref_id,
+                anime_title: v.title,
+                anime_image: v.image,
+                seconds: v.seconds,
+            }))
+            .sort((a, b) => b.seconds - a.seconds)
+            .slice(0, 8)
+
+        let topStudios = []
         if (refIds.length > 0) {
             const { data: metaRows, error: metaError } = await client
                 .from('anime_meta')
-                .select('source_id, tags')
+                .select('source_id, tags, production_company')
                 .in('source_id', refIds)
 
             if (!metaError && metaRows?.length) {
                 const tagCounts = new Map()
+                const studioSeconds = new Map()
+                const companyByRef = new Map()
                 for (const row of metaRows) {
                     const tags = row.tags
                     if (Array.isArray(tags)) {
@@ -141,17 +173,35 @@ export default defineEventHandler(async (event) => {
                             if (t) tagCounts.set(t, (tagCounts.get(t) || 0) + 1)
                         }
                     }
+                    const c = (row.production_company && String(row.production_company).trim()) || ''
+                    companyByRef.set(row.source_id, c || '未標示')
                 }
                 genreDistribution = [...tagCounts.entries()]
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 5)
                     .map(([label, value]) => ({ label, value }))
+
+                for (const row of historyRows || []) {
+                    const company = companyByRef.get(row.anime_ref_id) || '未標示'
+                    studioSeconds.set(company, (studioSeconds.get(company) || 0) + (row.playback_time || 0))
+                }
+                topStudios = [...studioSeconds.entries()]
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 8)
+                    .map(([label, seconds]) => ({ label, seconds }))
             }
         }
 
         return {
             timeSpent: { labels: timeSpentLabels, values: timeSpentValues },
             genreDistribution,
+            watchByHour: {
+                labels: [...Array(24)].map((_, i) => `${String(i).padStart(2, '0')}:00`),
+                values: watchByHour,
+            },
+            watchByWeekday: { labels: weekdayLabels, values: watchByWeekday },
+            topAnimeByTime,
+            topStudios,
             period,
         }
     } catch (err) {

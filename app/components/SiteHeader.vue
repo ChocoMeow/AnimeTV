@@ -26,11 +26,11 @@ let searchDebounceTimeout = null
 
 // User dropdown menu items (shared by desktop dropdown and mobile nav)
 const menuItems = [
-    { to: "/profile", icon: "person", label: "個人設定" },
     { to: "/history", icon: "history", label: "觀看紀錄" },
     { to: "/favorites", icon: "bookmark_added", label: "我的收藏" },
     { to: "/friends", icon: "group", label: "我的好友" },
     { to: "/offline-downloads", icon: "download_for_offline", label: "下載管理" },
+    { to: "/settings", icon: "settings", label: "帳號設定" },
     { to: "/admin", icon: "admin_panel_settings", label: "管理後台", adminOnly: true },
     { icon: "logout", label: "登出", action: signOut, variant: "danger", dividerBefore: true },
 ]
@@ -387,8 +387,12 @@ watch(
                     <!-- User Menu Dropdown -->
                     <transition name="dropdown">
                         <div v-if="showUserMenu" @mouseenter="cancelHideUserMenu" @mouseleave="hideUserMenuDelayed" class="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-950 rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 z-50 overflow-hidden">
-                            <!-- User Info Header -->
-                            <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-750">
+                            <!-- User Info Header → 個人資料 -->
+                            <NuxtLink
+                                to="/profile"
+                                class="block px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-750 hover:from-indigo-100/80 hover:to-purple-100/80 dark:hover:from-gray-600 dark:hover:to-gray-700 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+                                @click="closeUserMenu"
+                            >
                                 <div class="flex items-center gap-3">
                                     <NuxtImg v-if="user?.user_metadata?.avatar_url" :src="user.user_metadata.avatar_url" :alt="user.user_metadata.name" class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-600" loading="lazy" />
                                     <div v-else class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
@@ -402,8 +406,9 @@ watch(
                                             {{ user?.email }}
                                         </p>
                                     </div>
+                                    <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-xl shrink-0" aria-hidden="true">chevron_right</span>
                                 </div>
-                            </div>
+                            </NuxtLink>
 
                             <!-- Menu Items -->
                             <div class="py-2">
@@ -531,8 +536,12 @@ watch(
 
         <!-- Mobile nav -->
         <div v-if="mobileMenuOpen" class="md:hidden px-4 pb-3 space-y-3">
-            <!-- User Profile Section (Mobile) -->
-            <div class="flex items-center gap-3 px-3 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-750 rounded-lg">
+            <!-- User Profile Section (Mobile) → 個人資料 -->
+            <NuxtLink
+                to="/profile"
+                class="flex items-center gap-3 px-3 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-750 rounded-lg hover:from-indigo-100/80 hover:to-purple-100/80 dark:hover:from-gray-600 dark:hover:to-gray-700 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                @click="mobileMenuOpen = false"
+            >
                 <NuxtImg v-if="user?.user_metadata?.avatar_url" :src="user.user_metadata.avatar_url" :alt="user.user_metadata.name" class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-600" loading="lazy" />
                 <div v-else class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
                     {{ user?.user_metadata?.name?.[0]?.toUpperCase() || "U" }}
@@ -545,7 +554,8 @@ watch(
                         {{ user?.email }}
                     </p>
                 </div>
-            </div>
+                <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-xl shrink-0" aria-hidden="true">chevron_right</span>
+            </NuxtLink>
 
             <nav class="flex flex-col gap-2">
                 <template v-for="item in mobileNavItems" :key="item.to || item.label">

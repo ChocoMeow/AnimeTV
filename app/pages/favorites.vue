@@ -120,7 +120,7 @@ function selectAll() {
 }
 
 async function loadMore() {
-    if (loadingMore.value || !hasMore.value) return
+    if (loading.value || loadingMore.value || !hasMore.value) return
 
     loadingMore.value = true
     try {
