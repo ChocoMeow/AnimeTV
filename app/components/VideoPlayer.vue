@@ -879,7 +879,7 @@ onUnmounted(() => {
                         <div ref="settingsRef" class="relative">
                             <button @click="toggleSettings" title="設定"
                                 class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-md inline-flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
-                                <span class="material-symbols-rounded text-xl sm:text-2xl">tune</span>
+                                <span class="material-symbols-rounded text-xl sm:text-2xl">settings</span>
                             </button>
                             <div v-if="showSettings" @click.stop
                                 class="absolute bottom-full right-[-2.5rem] sm:right-[-3.25rem] mb-2 bg-black/90 backdrop-blur-md rounded-lg shadow-2xl border border-white/20 py-2 z-[10] min-w-[200px] max-w-[min(92vw,18rem)] origin-bottom-right">
