@@ -74,7 +74,8 @@ function heatmapTitle(index) {
 }
 
 async function fetchAnalytics() {
-    const data = await $fetch('/api/profile/analytics')
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const data = await $fetch('/api/profile/analytics', { query: { tz } })
     analytics.value = data
 }
 

@@ -9,11 +9,7 @@ const showMobilePwaNav = useState('animehub-show-mobile-pwa-nav', () => false)
 
 function isStandaloneDisplay() {
     if (typeof window === 'undefined') return false
-    return (
-        window.matchMedia('(display-mode: standalone)').matches ||
-        window.matchMedia('(display-mode: minimal-ui)').matches ||
-        Boolean(window.navigator?.standalone)
-    )
+    return window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: minimal-ui)').matches || Boolean(window.navigator?.standalone)
 }
 
 function updateShowMobilePwaNav() {
@@ -59,7 +55,7 @@ const activeIndex = computed(() => {
 })
 
 const pillStyle = computed(() => ({
-    transform: activeIndex.value < 0 ? 'translateX(0)' : `translateX(calc(${activeIndex.value} * 100%))`,
+    left: activeIndex.value < 0 ? '0%' : `${activeIndex.value * 20}%`,
 }))
 
 function isItemActive(item) {
@@ -96,17 +92,11 @@ const avatarTextClass = computed(() => (collapsed.value ? 'text-[10px]' : 'text-
 
 /** Returns the full class list for a material-symbol icon */
 function iconClass(active) {
-    return [
-        'material-symbols-rounded leading-none',
-        'transition-[font-size,font-variation-settings] duration-[550ms] ease-[cubic-bezier(0.4_0_0.2_1)]',
-        iconSizeClass.value,
-        active ? '' : 'outlined',
-    ]
+    return ['material-symbols-rounded leading-none', 'transition-[font-size,font-variation-settings] duration-[550ms] ease-[cubic-bezier(0.4_0_0.2_1)]', iconSizeClass.value, active ? '' : 'outlined']
 }
 
 const ITEM_CLASS =
-    'relative z-10 flex min-h-0 min-w-0 flex-1 items-center justify-center rounded-full' +
-    ' transition-[padding,color] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)] active:opacity-90'
+    'relative z-10 flex min-h-0 min-w-0 flex-1 items-center justify-center rounded-full' + ' transition-[padding,color] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)] active:opacity-90'
 
 function itemColorClass(active) {
     return active ? 'text-white' : 'text-white/75 active:text-white/90'
@@ -122,10 +112,9 @@ function itemColorClass(active) {
     >
         <div :class="barClass">
             <div class="relative flex h-full min-h-0 w-full flex-1 items-stretch">
-                <!-- Sliding active pill -->
                 <div
                     aria-hidden="true"
-                    class="pointer-events-none absolute inset-y-0 left-0 z-0 w-[20%] rounded-full bg-zinc-500/55 will-change-transform transition-[transform,opacity] duration-[500ms] ease-[cubic-bezier(0.22_1_0.36_1)]"
+                    class="pointer-events-none absolute inset-y-0 z-0 w-[20%] rounded-full bg-zinc-500/55 transition-[left,opacity] duration-[500ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
                     :class="activeIndex < 0 ? 'opacity-0' : 'opacity-100'"
                     :style="pillStyle"
                 />
@@ -170,14 +159,7 @@ function itemColorClass(active) {
                     </NuxtLink>
 
                     <!-- Action button (search) -->
-                    <button
-                        v-else
-                        type="button"
-                        :class="[ITEM_CLASS, itemColorClass(isItemActive(item))]"
-                        :aria-label="item.label"
-                        :aria-pressed="isItemActive(item)"
-                        @click="onSearchClick"
-                    >
+                    <button v-else type="button" :class="[ITEM_CLASS, itemColorClass(isItemActive(item))]" :aria-label="item.label" :aria-pressed="isItemActive(item)" @click="onSearchClick">
                         <span :class="iconClass(isItemActive(item))" aria-hidden="true">
                             {{ item.icon }}
                         </span>

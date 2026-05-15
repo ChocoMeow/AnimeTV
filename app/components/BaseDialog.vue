@@ -36,6 +36,10 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"])
 
+const { isMobile } = useMobile()
+
+const effectiveShowClose = computed(() => props.showClose && !isMobile.value)
+
 function close() {
     if (!props.persistent) {
         emit("update:modelValue", false)
@@ -46,6 +50,10 @@ function handleBackdropClick() {
     if (!props.persistent) {
         close()
     }
+}
+
+function handleDrawerClose() {
+    emit("update:modelValue", false)
 }
 
 function handleEscape(event) {
@@ -81,19 +89,56 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <Teleport to="body">
+    <!-- Mobile: bottom drawer -->
+    <BaseBottomDrawer
+        v-if="isMobile"
+        :model-value="modelValue"
+        :title="showHeader ? title : ''"
+        :persistent="persistent"
+        @update:model-value="handleDrawerClose"
+    >
+        <template v-if="showHeader && (title || effectiveShowClose || $slots.header)" #header>
+            <div class="flex items-center justify-between w-full gap-3">
+                <slot name="header">
+                    <h3 v-if="title" class="text-xl font-bold text-gray-900 dark:text-white">
+                        {{ title }}
+                    </h3>
+                </slot>
+
+                <button
+                    v-if="effectiveShowClose"
+                    type="button"
+                    class="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    @click.stop="close"
+                >
+                    <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">close</span>
+                </button>
+            </div>
+        </template>
+
+        <div :class="padding ? '' : '-mx-4 -my-4'">
+            <slot />
+        </div>
+
+        <template v-if="$slots.footer" #footer>
+            <slot name="footer" />
+        </template>
+    </BaseBottomDrawer>
+
+    <!-- Desktop: centered dialog -->
+    <Teleport v-else to="body">
         <Transition name="dialog">
             <div v-if="modelValue" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" :class="{ 'overflow-y-auto': scrollable }" @click.self="handleBackdropClick">
                 <div class="bg-white dark:bg-gray-950 rounded-2xl shadow-2xl w-full transform transition-all border-1 border-gray-950/5 dark:border-white/10 overflow-hidden" :class="[maxWidth, scrollable ? 'my-8' : '', padding ? 'p-6' : 'p-0']" @click.stop>
                     <!-- Header -->
-                    <div v-if="showHeader && (title || showClose || $slots.header)" class="flex items-center justify-between mb-2 flex-shrink-0">
+                    <div v-if="showHeader && (title || effectiveShowClose || $slots.header)" class="flex items-center justify-between mb-2 flex-shrink-0">
                         <slot name="header">
                             <h3 class="text-2xl font-bold text-gray-900 dark:text-white">
                                 {{ title }}
                             </h3>
                         </slot>
 
-                        <button v-if="showClose" @click="close" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <button v-if="effectiveShowClose" type="button" @click="close" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                             <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">close</span>
                         </button>
                     </div>

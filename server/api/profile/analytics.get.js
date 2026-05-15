@@ -5,40 +5,50 @@ function parseEp(ep) {
     return Number.isFinite(n) ? n : 0
 }
 
-function dateKeyLocal(d) {
-    const y = d.getFullYear()
-    const mo = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${y}-${mo}-${day}`
+// ─── Timezone helpers ─────────────────────────────────────────────────────────
+// Use separate single-field formatters to avoid Intl bugs when mixing fields.
+
+// Returns "YYYY-MM-DD" — en-CA locale reliably gives ISO date format.
+function dateKeyTz(date, tz) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(date)
 }
 
-function computeStreaks(dayKeys) {
+// Returns the local hour 0–23.
+function hourTz(date, tz) {
+    const h = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', hour12: false }).format(date)
+    return Number(h) % 24 // some engines return "24" for midnight
+}
+
+// Returns 0=Sun … 6=Sat in the given timezone.
+const WEEKDAY_MAP = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+function weekdayTz(date, tz) {
+    const w = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short' }).format(date)
+    return WEEKDAY_MAP[w] ?? 0
+}
+
+// ─── Streak calculation ───────────────────────────────────────────────────────
+function computeStreaks(dayKeys, todayKey) {
     const set = new Set(dayKeys)
     const sorted = [...set].sort()
     if (!sorted.length) return { longestStreakDays: 0, currentStreakDays: 0 }
 
-    let best = 1
-    let run = 1
+    let best = 1,
+        run = 1
     for (let i = 1; i < sorted.length; i++) {
-        const prev = new Date(sorted[i - 1] + 'T12:00:00')
-        const cur = new Date(sorted[i] + 'T12:00:00')
-        const diffDays = Math.round((cur.getTime() - prev.getTime()) / 86400000)
-        if (diffDays === 1) {
-            run += 1
+        const prev = new Date(sorted[i - 1] + 'T12:00:00Z')
+        const cur = new Date(sorted[i] + 'T12:00:00Z')
+        if (Math.round((cur - prev) / 86400000) === 1) {
+            run++
             best = Math.max(best, run)
-        } else {
-            run = 1
-        }
+        } else run = 1
     }
 
     let current = 0
+    const anchor = new Date(todayKey + 'T12:00:00Z').getTime()
     for (let i = 0; i < 500; i++) {
-        const d = new Date()
-        d.setHours(0, 0, 0, 0)
-        d.setDate(d.getDate() - i)
-        const k = dateKeyLocal(d)
+        const k = new Date(anchor - i * 86400000).toISOString().slice(0, 10)
         if (!set.has(k)) break
-        current += 1
+        current++
     }
 
     return { longestStreakDays: best, currentStreakDays: current }
@@ -48,6 +58,14 @@ export default defineEventHandler(async (event) => {
     const user = await authUser(event)
     const client = await serverSupabaseClient(event)
     const userId = user.id || user.sub
+
+    // Validate client timezone; fall back to UTC.
+    const rawTz = getQuery(event).tz || 'UTC'
+    let tz = 'UTC'
+    try {
+        Intl.DateTimeFormat(undefined, { timeZone: rawTz })
+        tz = rawTz
+    } catch {}
 
     try {
         const { data: rows, error } = await client
@@ -59,7 +77,7 @@ export default defineEventHandler(async (event) => {
         if (error) throw error
 
         const list = rows || []
-        const totalWatchSeconds = list.reduce((sum, r) => sum + (r.playback_time || 0), 0)
+        const totalWatchSeconds = list.reduce((s, r) => s + (r.playback_time || 0), 0)
         const episodeRows = list.length
 
         const byAnime = new Map()
@@ -67,188 +85,135 @@ export default defineEventHandler(async (event) => {
         const hourTotals = Array(24).fill(0)
         const weekdayTotals = Array(7).fill(0)
         const weekdayLabels = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
+        const recordMonths = [] // cache "YYYY-MM" per row for monthly bucketing
 
-        let progressSum = 0
-        let progressN = 0
+        let progressSum = 0,
+            progressN = 0
 
         for (const r of list) {
             const id = r.anime_ref_id
-            if (!byAnime.has(id)) {
-                byAnime.set(id, {
-                    title: r.anime_title,
-                    image: r.anime_image,
-                    maxProgress: 0,
-                    hasDeepWatch: false,
-                })
-            }
+            if (!byAnime.has(id)) byAnime.set(id, { title: r.anime_title, image: r.anime_image, maxProgress: 0, hasDeepWatch: false })
             const entry = byAnime.get(id)
             const p = Number(r.progress_percentage) || 0
             entry.maxProgress = Math.max(entry.maxProgress, p)
             if (p >= 95) entry.hasDeepWatch = true
-
             progressSum += p
-            progressN += 1
+            progressN++
 
             const d = new Date(r.updated_at)
-            watchDays.add(dateKeyLocal(d))
-            hourTotals[d.getHours()] += r.playback_time || 0
-            const wd = (d.getDay() + 6) % 7
-            weekdayTotals[wd] += r.playback_time || 0
+            const dk = dateKeyTz(d, tz) // "YYYY-MM-DD" in client tz
+            watchDays.add(dk)
+            recordMonths.push(dk.slice(0, 7)) // "YYYY-MM"
+
+            hourTotals[hourTz(d, tz)] += r.playback_time || 0
+            weekdayTotals[(weekdayTz(d, tz) + 6) % 7] += r.playback_time || 0 // Mon-first
         }
 
         let deepWatchedAnimeCount = 0
-        for (const [, v] of byAnime) {
-            if (v.hasDeepWatch) deepWatchedAnimeCount += 1
-        }
+        for (const [, v] of byAnime) if (v.hasDeepWatch) deepWatchedAnimeCount++
 
-        const { longestStreakDays, currentStreakDays } = computeStreaks([...watchDays])
+        const todayKey = dateKeyTz(new Date(), tz)
+        const { longestStreakDays, currentStreakDays } = computeStreaks([...watchDays], todayKey)
 
-        let favoriteWeekdayLabel = null
-        let peakHourLabel = null
+        let favoriteWeekdayLabel = null,
+            peakHourLabel = null
         {
-            let maxW = -1
-            let wi = 0
-            for (let i = 0; i < 7; i++) {
-                if (weekdayTotals[i] > maxW) {
-                    maxW = weekdayTotals[i]
-                    wi = i
-                }
-            }
-            if (maxW > 0) favoriteWeekdayLabel = weekdayLabels[wi]
-            let maxH = -1
-            let hi = 0
-            for (let i = 0; i < 24; i++) {
-                if (hourTotals[i] > maxH) {
-                    maxH = hourTotals[i]
-                    hi = i
-                }
-            }
-            if (maxH > 0) peakHourLabel = `${String(hi).padStart(2, '0')}:00 前後`
+            const wi = weekdayTotals.indexOf(Math.max(...weekdayTotals))
+            if (weekdayTotals[wi] > 0) favoriteWeekdayLabel = weekdayLabels[wi]
+            const hi = hourTotals.indexOf(Math.max(...hourTotals))
+            if (hourTotals[hi] > 0) peakHourLabel = `${String(hi).padStart(2, '0')}:00 前後`
         }
 
+        // Top anime by time
         const timeByRef = new Map()
         for (const r of list) {
-            const id = r.anime_ref_id
-            if (!timeByRef.has(id)) {
-                timeByRef.set(id, { seconds: 0, title: r.anime_title, image: r.anime_image })
-            }
-            const e = timeByRef.get(id)
-            e.seconds += r.playback_time || 0
+            if (!timeByRef.has(r.anime_ref_id)) timeByRef.set(r.anime_ref_id, { seconds: 0, title: r.anime_title, image: r.anime_image })
+            timeByRef.get(r.anime_ref_id).seconds += r.playback_time || 0
         }
-
         const topAnimeByTime = [...timeByRef.entries()]
-            .map(([anime_ref_id, v]) => ({
-                anime_ref_id,
-                anime_title: v.title,
-                anime_image: v.image,
-                seconds: v.seconds,
-            }))
+            .map(([anime_ref_id, v]) => ({ anime_ref_id, anime_title: v.title, anime_image: v.image, seconds: v.seconds }))
             .sort((a, b) => b.seconds - a.seconds)
             .slice(0, 8)
 
+        // Studios
         const refIds = [...byAnime.keys()].filter(Boolean)
         const studioSeconds = new Map()
         if (refIds.length) {
             const { data: metaRows } = await client.from('anime_meta').select('source_id, production_company').in('source_id', refIds)
             const companyByRef = new Map()
-            for (const m of metaRows || []) {
-                const c = (m.production_company && String(m.production_company).trim()) || ''
-                companyByRef.set(m.source_id, c || '未標示')
-            }
+            for (const m of metaRows || []) companyByRef.set(m.source_id, String(m.production_company || '').trim() || '未標示')
             for (const r of list) {
-                const company = companyByRef.get(r.anime_ref_id) || '未標示'
-                studioSeconds.set(company, (studioSeconds.get(company) || 0) + (r.playback_time || 0))
+                const c = companyByRef.get(r.anime_ref_id) || '未標示'
+                studioSeconds.set(c, (studioSeconds.get(c) || 0) + (r.playback_time || 0))
             }
         }
-
         const topStudios = [...studioSeconds.entries()]
             .sort((a, b) => b[1] - a[1])
             .slice(0, 8)
             .map(([label, seconds]) => ({ label, seconds }))
 
-        const firstWatchAt = list.length ? list[0].updated_at : null
-        const lastWatchAt = list.length ? list[list.length - 1].updated_at : null
-
-        // Progress % histogram (5 buckets of 20%)
+        // Progress histogram
         const progressBuckets = [0, 0, 0, 0, 0]
         const progressLabels = ['0–19%', '20–39%', '40–59%', '60–79%', '80–100%']
         for (const r of list) {
             const p = Math.min(100, Math.max(0, Number(r.progress_percentage) || 0))
-            const idx = Math.min(4, Math.floor(p / 20))
-            progressBuckets[idx] += 1
+            progressBuckets[Math.min(4, Math.floor(p / 20))]++
         }
 
-        // Monthly watch time (last 12 months, local)
+        // Monthly watch time — bucket by "YYYY-MM" in client tz, last 12 months
+        const now = new Date()
+        const [nowY, nowM] = dateKeyTz(now, tz).slice(0, 7).split('-').map(Number)
         const monthlyLabels = []
-        const monthlyValues = []
-        const nowDate = new Date()
         for (let i = 11; i >= 0; i--) {
-            const d = new Date(nowDate.getFullYear(), nowDate.getMonth() - i, 1)
-            const y = d.getFullYear()
-            const m = d.getMonth()
-            const start = new Date(y, m, 1, 0, 0, 0, 0)
-            const end = new Date(y, m + 1, 0, 23, 59, 59, 999)
-            monthlyLabels.push(`${y}-${String(m + 1).padStart(2, '0')}`)
-            let sum = 0
-            for (const r of list) {
-                const t = new Date(r.updated_at)
-                if (t >= start && t <= end) sum += r.playback_time || 0
+            let m = nowM - i,
+                y = nowY
+            if (m <= 0) {
+                m += 12
+                y--
             }
-            monthlyValues.push(sum)
+            monthlyLabels.push(`${y}-${String(m).padStart(2, '0')}`)
+        }
+        const monthlyValues = new Array(12).fill(0)
+        for (let idx = 0; idx < list.length; idx++) {
+            const pos = monthlyLabels.indexOf(recordMonths[idx])
+            if (pos !== -1) monthlyValues[pos] += list[idx].playback_time || 0
         }
 
-        // Daily heatmap: last 42 days (6 rows × 7 cols), row-major Mon→Sun weeks
-        const heatmapCols = 7
-        const heatmapRows = 6
-        const heatmapDays = heatmapCols * heatmapRows
+        // 42-day heatmap in client local time
         const daySeconds = new Map()
         for (const r of list) {
-            const k = dateKeyLocal(new Date(r.updated_at))
+            const k = dateKeyTz(new Date(r.updated_at), tz)
             daySeconds.set(k, (daySeconds.get(k) || 0) + (r.playback_time || 0))
         }
-        const heatmapLabels = []
-        const heatmapValues = []
-        const heatmapMax = { start: null, end: null }
-        for (let i = heatmapDays - 1; i >= 0; i--) {
-            const d = new Date()
-            d.setHours(0, 0, 0, 0)
-            d.setDate(d.getDate() - i)
-            const k = dateKeyLocal(d)
+        const todayMs = new Date(todayKey + 'T12:00:00Z').getTime()
+        const heatmapLabels = [],
+            heatmapValues = []
+        for (let i = 41; i >= 0; i--) {
+            const k = new Date(todayMs - i * 86400000).toISOString().slice(0, 10)
+            // re-key through tz to be consistent (heatmap anchor is already in client tz)
             heatmapLabels.push(k.slice(5))
             heatmapValues.push(daySeconds.get(k) || 0)
-            if (!heatmapMax.start) heatmapMax.start = k
-            heatmapMax.end = k
         }
-        const heatmapPeak = heatmapValues.length ? Math.max(...heatmapValues, 1) : 1
+        const heatmapPeak = Math.max(...heatmapValues, 1)
 
+        // Episode bucket
         const epLabels = ['1–6', '7–12', '13–24', '25–48', '49+']
         const epBuckets = [0, 0, 0, 0, 0]
         for (const r of list) {
             const n = parseEp(r.episode_number)
-            let b = 4
-            if (n <= 6) b = 0
-            else if (n <= 12) b = 1
-            else if (n <= 24) b = 2
-            else if (n <= 48) b = 3
-            epBuckets[b] += r.playback_time || 0
+            epBuckets[n <= 6 ? 0 : n <= 12 ? 1 : n <= 24 ? 2 : n <= 48 ? 3 : 4] += r.playback_time || 0
         }
 
-        // Lifetime top tags by watch time
+        // Top tags
         const tagSeconds = new Map()
         if (refIds.length) {
             const { data: tagMeta } = await client.from('anime_meta').select('source_id, tags').in('source_id', refIds)
             const tagsByRef = new Map()
-            for (const m of tagMeta || []) {
-                const arr = Array.isArray(m.tags) ? m.tags.map((t) => String(t).trim()).filter(Boolean) : []
-                tagsByRef.set(m.source_id, arr)
-            }
+            for (const m of tagMeta || []) tagsByRef.set(m.source_id, Array.isArray(m.tags) ? m.tags.map((t) => String(t).trim()).filter(Boolean) : [])
             for (const r of list) {
                 const tags = tagsByRef.get(r.anime_ref_id) || []
-                const sec = r.playback_time || 0
                 if (!tags.length) continue
-                for (const tag of tags) {
-                    tagSeconds.set(tag, (tagSeconds.get(tag) || 0) + sec / tags.length)
-                }
+                for (const tag of tags) tagSeconds.set(tag, (tagSeconds.get(tag) || 0) + (r.playback_time || 0) / tags.length)
             }
         }
         const topTagsByTime = [...tagSeconds.entries()]
@@ -267,27 +232,16 @@ export default defineEventHandler(async (event) => {
                 currentStreakDays,
                 favoriteWeekdayLabel,
                 peakHourLabel,
-                firstWatchAt,
-                lastWatchAt,
+                firstWatchAt: list.length ? list[0].updated_at : null,
+                lastWatchAt: list.length ? list[list.length - 1].updated_at : null,
             },
-            watchByHour: {
-                labels: [...Array(24)].map((_, i) => `${String(i).padStart(2, '0')}:00`),
-                values: hourTotals,
-            },
+            watchByHour: { labels: [...Array(24)].map((_, i) => `${String(i).padStart(2, '0')}:00`), values: hourTotals },
             watchByWeekday: { labels: weekdayLabels, values: weekdayTotals },
             topAnimeByTime,
             topStudios,
             progressHistogram: { labels: progressLabels, values: progressBuckets },
             monthlyWatch: { labels: monthlyLabels, values: monthlyValues },
-            heatmap42: {
-                labels: heatmapLabels,
-                values: heatmapValues,
-                peak: heatmapPeak,
-                rows: heatmapRows,
-                cols: heatmapCols,
-                rangeStart: heatmapMax.start,
-                rangeEnd: heatmapMax.end,
-            },
+            heatmap42: { labels: heatmapLabels, values: heatmapValues, peak: heatmapPeak, rows: 6, cols: 7 },
             episodeBuckets: { labels: epLabels, values: epBuckets },
             topTagsByTime,
         }
