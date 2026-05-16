@@ -12,7 +12,7 @@
     "dependencies": {
         "@nuxt/image": "^2.0.0",
         "@nuxtjs/supabase": "^2.0.1",
-        "@vite-pwa/nuxt": "^1.0.4",
+        "@vite-pwa/nuxt": "^1.1.1",
         "cheerio": "^1.1.2",
         "hls.js": "^1.6.15",
         "nuxt": "^4.4.4",
