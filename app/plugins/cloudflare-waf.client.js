@@ -1,17 +1,52 @@
 /**
- * When the WAF serves a Cloudflare challenge, responses are usually HTML with 403/503/429.
- * App API errors use JSON — we only reload on HTML so e.g. /api/admin/check 403 stays safe.
+ * Recover when Cloudflare WAF serves a challenge page (HTML) on API calls.
+ * App API errors use JSON — we only reload after confirming challenge markers.
+ * No periodic probes (those triggered extra challenges and broke long video sessions).
  */
 const STORAGE_KEY = 'cf-waf-reload-at'
 const COOLDOWN_MS = 12_000
-const PING_COOLDOWN_MS = 30 * 60 * 1000
 
-let lastPingAt = 0
+/** Video/HLS traffic must never trigger a full-page reload. */
+const SKIP_API_PATH = /^\/api\/(?:proxy-video|download-proxy|download-video)/
 
-function isCloudflareHtmlBlock(res) {
+const CF_CHALLENGE_RE = /cf-challenge|challenge-platform|cdn-cgi\/challenge|__cf_chl/i
+
+let pendingReload = false
+
+function requestUrl(input) {
+    try {
+        if (typeof input === 'string') return new URL(input, location.origin)
+        if (input instanceof URL) return input
+        if (input instanceof Request) return new URL(input.url)
+    } catch {
+        return null
+    }
+    return null
+}
+
+function isRecoverableApiRequest(input) {
+    const url = requestUrl(input)
+    if (!url || url.origin !== location.origin) return false
+    if (!url.pathname.startsWith('/api/')) return false
+    if (SKIP_API_PATH.test(url.pathname)) return false
+    return true
+}
+
+function isMediaPlaybackActive() {
+    const video = document.querySelector('video')
+    return !!(video && !video.paused && !video.ended && video.readyState > 2)
+}
+
+async function isCloudflareChallengeResponse(res) {
     const ct = res.headers.get('content-type') || ''
     if (!ct.includes('text/html')) return false
-    return res.status === 403 || res.status === 503 || res.status === 429
+    if (res.status !== 403 && res.status !== 503 && res.status !== 429) return false
+    try {
+        const snippet = await res.clone().text()
+        return CF_CHALLENGE_RE.test(snippet.slice(0, 4096))
+    } catch {
+        return false
+    }
 }
 
 function reloadOnce() {
@@ -21,45 +56,34 @@ function reloadOnce() {
     window.location.reload()
 }
 
-/** Only our tunnel/origin is behind the WAF; ignore third-party HTML errors. */
-function isSameOriginRequest(input) {
-    try {
-        if (typeof input === 'string') return input.startsWith('/') || new URL(input, location.origin).origin === location.origin
-        if (input instanceof URL) return input.origin === location.origin
-        if (input instanceof Request) return new URL(input.url).origin === location.origin
-    } catch {
-        return false
+function scheduleReload() {
+    if (isMediaPlaybackActive()) {
+        pendingReload = true
+        return
     }
-    return false
+    reloadOnce()
 }
 
-function ping() {
-    if (!navigator.onLine) return  // Skip if offline
-    const now = Date.now()
-    if (now - lastPingAt < PING_COOLDOWN_MS) return
-    lastPingAt = now
-    globalThis.fetch(`/icons/icon_64x64.png?_=${now}`, { cache: 'no-store' })
-        .then((res) => { if (isCloudflareHtmlBlock(res)) reloadOnce() })
-        .catch(() => {})
+function tryPendingReload() {
+    if (!pendingReload || isMediaPlaybackActive()) return
+    pendingReload = false
+    reloadOnce()
 }
 
 export default defineNuxtPlugin({
     name: 'cloudflare-waf-recovery',
     enforce: 'post',
     setup() {
+        document.addEventListener('pause', tryPendingReload, true)
+        document.addEventListener('ended', tryPendingReload, true)
+
         const next = globalThis.fetch.bind(globalThis)
         globalThis.fetch = async (input, init) => {
             const res = await next(input, init)
-            if (isSameOriginRequest(input) && isCloudflareHtmlBlock(res)) reloadOnce()
+            if (isRecoverableApiRequest(input) && await isCloudflareChallengeResponse(res)) {
+                scheduleReload()
+            }
             return res
         }
-
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') ping()
-        })
-
-        window.addEventListener('pageshow', (e) => {
-            if (e.persisted) ping()
-        })
     },
 })
