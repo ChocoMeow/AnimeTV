@@ -1,6 +1,6 @@
 <script setup>
 /**
- * App open splash for all visitors: centered logo, then zoom-in dismiss after load.
+ * App open splash for all visitors: centered logo, then zoom-in dismiss after load or a short cap (offline-safe).
  * Instant coverage comes from an inline head script in nuxt.config (#app-splash-inline); this component
  * hands off from that layer and runs the exit animation.
  */
@@ -19,14 +19,25 @@ onBeforeMount(() => {
     if (shouldShowSplash()) show.value = true
 })
 
-function waitForWindowLoad() {
+/** `load` can hang forever offline if a cross-origin stylesheet never completes — cap wait time. */
+function waitForWindowLoadOrTimeout(maxMs) {
     return new Promise((resolve) => {
         if (typeof document === 'undefined') {
             resolve()
             return
         }
-        if (document.readyState === 'complete') resolve()
-        else window.addEventListener('load', () => resolve(), { once: true })
+        if (document.readyState === 'complete') {
+            resolve()
+            return
+        }
+        let settled = false
+        const done = () => {
+            if (settled) return
+            settled = true
+            resolve()
+        }
+        window.addEventListener('load', done, { once: true })
+        setTimeout(done, maxMs)
     })
 }
 
@@ -42,7 +53,11 @@ onMounted(async () => {
 
     if (!show.value) return
     const minVisibleMs = 450
-    await Promise.all([waitForWindowLoad(), new Promise((r) => setTimeout(r, minVisibleMs))])
+    const loadCapMs = 4000
+    await Promise.all([
+        waitForWindowLoadOrTimeout(loadCapMs),
+        new Promise((r) => setTimeout(r, minVisibleMs)),
+    ])
     await nextTick()
     show.value = false
 })
