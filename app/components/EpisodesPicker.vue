@@ -109,7 +109,7 @@ watch(
 
 <template>
     <!-- Compact Grid Mode (for sidebar) -->
-    <div v-if="compact" class="space-y-4" role="list" aria-label="Episode list">
+    <div v-if="compact" class="space-y-4 min-w-0 w-full max-w-full" role="list" aria-label="Episode list">
         <!-- Search -->
         <div class="flex items-center gap-2">
             <input 
@@ -122,7 +122,8 @@ watch(
         </div>
 
         <!-- Range Selector -->
-        <div v-if="totalPages > 1" class="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
+        <div v-if="totalPages > 1" class="min-w-0 w-full max-w-full overflow-x-auto overscroll-x-contain pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
+            <div class="flex gap-2 w-max min-w-full">
             <button 
                 v-for="(start, idx) in Array.from({ length: totalPages }, (_, i) => episodeList[i * pageSize])" 
                 :key="start" 
@@ -131,10 +132,11 @@ watch(
             >
                 {{ getEpisodeLabel(start) }}–{{ getEpisodeLabel(episodeList[Math.min((idx + 1) * pageSize - 1, episodeList.length - 1)]) }}
             </button>
+            </div>
         </div>
 
         <!-- Episodes Grid -->
-        <div>
+        <div class="min-w-0 w-full max-w-full overflow-hidden">
             <div v-if="paged.length === 0" class="text-center py-6 text-gray-500 dark:text-gray-400 text-sm">找不到相關集數</div>
 
             <div v-else class="episode-grid-compact gap-2" role="list">
@@ -200,8 +202,10 @@ watch(
             <div class="flex items-center gap-2 mb-3">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">範圍:</span>
             </div>
-            <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
+            <div class="min-w-0 w-full max-w-full overflow-x-auto overscroll-x-contain pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
+                <div class="flex gap-2 w-max min-w-full">
                 <button v-for="(start, idx) in Array.from({ length: totalPages }, (_, i) => episodeList[i * pageSize])" :key="start" @click="applyRange(start)" :class="['px-4 py-2 text-sm rounded-lg border transition-colors flex-shrink-0', currentPage === idx + 1 ? 'bg-black/70 dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-white/10 border-2 border-black/10 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20']">{{ getEpisodeLabel(start) }}–{{ getEpisodeLabel(episodeList[Math.min((idx + 1) * pageSize - 1, episodeList.length - 1)]) }}</button>
+                </div>
             </div>
         </div>
 
@@ -278,7 +282,7 @@ watch(
 
 .episode-button.active {
     @apply bg-black/70 dark:bg-gray-100 border-gray-900 dark:border-gray-100 text-white dark:text-gray-900
-           shadow-lg scale-105;
+           shadow-lg;
 }
 
 .episode-button.watched {

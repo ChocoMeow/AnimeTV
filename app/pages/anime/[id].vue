@@ -655,13 +655,13 @@ onUnmounted(() => {
     </div>
 
     <!-- Content -->
-    <div v-else class="bg-white dark:bg-gray-950">
-        <div class="space-y-8 max-w-[96rem] mx-auto px-3 sm:px-4 py-4 sm:py-8">
+    <div v-else class="bg-white dark:bg-gray-950 overflow-x-hidden">
+        <div class="space-y-8 max-w-[96rem] mx-auto px-3 sm:px-4 py-4 sm:py-8 min-w-0">
             <div :class="isTheaterMode
-                ? 'flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start'
-                : 'flex flex-col lg:flex-row gap-6'">
+                ? 'flex flex-col gap-6 min-w-0 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start'
+                : 'flex flex-col lg:flex-row gap-6 min-w-0'">
 
-                <div :class="isTheaterMode ? 'space-y-4 lg:contents' : 'flex-1 lg:w-[75%] space-y-4'">
+                <div :class="isTheaterMode ? 'space-y-4 min-w-0 lg:contents' : 'flex-1 min-w-0 lg:w-[75%] space-y-4'">
                     <!-- Video Player -->
                     <section aria-label="Video player" :class="isTheaterMode ? 'lg:col-span-2' : ''">
                         <!-- Thumbnail placeholder (no video selected) -->
@@ -813,7 +813,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Right Column / Sidebar (sticky on desktop, inline on mobile) -->
-                <aside :class="['space-y-6', isTheaterMode ? '' : 'lg:w-[25%] lg:sticky lg:top-20 lg:self-start']" aria-label="Episode list and related content">
+                <aside :class="['space-y-6 min-w-0', isTheaterMode ? '' : 'lg:w-[25%] lg:sticky lg:top-20 lg:self-start']" aria-label="Episode list and related content">
 
                     <AnimeContinueEpisodePanel class="hidden lg:block"
                         :show-continue-prompt="showContinuePrompt"

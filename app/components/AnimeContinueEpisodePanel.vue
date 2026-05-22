@@ -26,7 +26,7 @@ function formatTime(seconds) {
 </script>
 
 <template>
-    <div class="space-y-6">
+    <div class="space-y-6 min-w-0 max-w-full">
         <transition name="slide-down">
             <section v-if="showContinuePrompt && lastWatchedData" aria-label="Continue watching">
                 <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-lg overflow-hidden">
