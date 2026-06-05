@@ -73,6 +73,11 @@ const allWatchProgress = ref({})
 const videoPlayer = ref(null)
 const hasSetInitialTime = ref(false)
 const isTheaterMode = ref(false)
+const streamResumeTime = ref(null)
+const streamResumePlaying = ref(false)
+let streamRecoveryAttempts = 0
+const MAX_STREAM_RECOVERY = 3
+let streamRecovering = false
 
 const SAVE_INTERVAL = 120_000
 let saveTimer = null
@@ -422,6 +427,21 @@ async function toggleFavorite() {
 
 // ─── Video ready ──────────────────────────────────────────────────────────────
 async function onVideoReady() {
+    const recoveryTime = streamResumeTime.value
+    if (recoveryTime != null) {
+        streamResumeTime.value = null
+        hasSetInitialTime.value = true
+        const resumePlaying = streamResumePlaying.value
+        streamResumePlaying.value = false
+        const doResume = () => {
+            videoPlayer.value?.seek(recoveryTime)
+            if (resumePlaying) videoPlayer.value?.play()
+        }
+        const videoEl = videoPlayer.value?.videoElement
+        videoEl?.readyState >= 2 ? doResume() : videoEl?.addEventListener('canplay', doResume, { once: true })
+        return
+    }
+
     if (hasSetInitialTime.value) return
 
     let startTime = route.query.t ? parseFloat(route.query.t) : null
@@ -467,10 +487,60 @@ function applyEpisodeQueryFromRoute() {
     return false
 }
 
+async function fetchOnlineVideoUrl(epNum) {
+    const token = anime.value?.episodes[String(epNum)]?.token
+    if (!token) {
+        videoUrl.value = null
+        videoIsHls.value = false
+        return false
+    }
+
+    try {
+        const res = await $fetch(`/api/episode/${token}`)
+        const raw = res?.s?.[0]?.src
+        if (!raw) {
+            videoUrl.value = null
+            videoIsHls.value = false
+            return false
+        }
+        const finalUrl = raw.startsWith('http') ? raw : `https:${raw}`
+        videoUrl.value = `/api/proxy-video?url=${encodeURIComponent(finalUrl)}&cookie=${encodeURIComponent(res.videoCookie)}`
+        videoIsHls.value = /\.m3u8(\?|$)/i.test(finalUrl) || finalUrl.includes('m3u8')
+        return true
+    } catch (err) {
+        console.error('Episode fetch failed:', err)
+        return false
+    }
+}
+
+async function handleStreamError() {
+    if (streamRecovering || !selectedEpisode.value) return
+    if (!anime.value?.episodes[String(selectedEpisode.value)]?.token) return
+
+    if (streamRecoveryAttempts >= MAX_STREAM_RECOVERY) {
+        showToast('影片連線失敗，請重新整理頁面', 'error')
+        return
+    }
+
+    streamRecovering = true
+    streamRecoveryAttempts++
+    streamResumeTime.value = videoPlayer.value?.currentTime ?? 0
+    streamResumePlaying.value = videoPlayer.value?.isPlaying ?? false
+    showToast('正在重新連線…', 'info')
+
+    try {
+        const ok = await fetchOnlineVideoUrl(selectedEpisode.value)
+        if (!ok) showToast('影片重新連線失敗', 'error')
+    } finally {
+        streamRecovering = false
+    }
+}
+
 watch(selectedEpisode, async (epNum, oldEpNum) => {
     if (!epNum || !anime.value?.episodes) return
 
     if (oldEpNum && oldEpNum !== epNum) {
+        streamRecoveryAttempts = 0
         if (videoPlayer.value) await saveWatchHistory(oldEpNum)
         hasSetInitialTime.value = false
         if (route.query.t || route.query.e) {
@@ -504,27 +574,9 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
         }
     }
 
-    const token = anime.value.episodes[String(epNum)]?.token
-    if (!token) {
-        videoUrl.value = null
-        videoIsHls.value = false
-        return
-    }
-
     showContinuePrompt.value = false
-    try {
-        const res = await $fetch(`/api/episode/${token}`)
-        const raw = res?.s?.[0]?.src
-        if (raw) {
-            const finalUrl = raw.startsWith('http') ? raw : `https:${raw}`
-            videoUrl.value = `/api/proxy-video?url=${encodeURIComponent(finalUrl)}&cookie=${encodeURIComponent(res.videoCookie)}`
-            videoIsHls.value = /\.m3u8(\?|$)/i.test(finalUrl) || finalUrl.includes('m3u8')
-        } else {
-            videoUrl.value = null
-            videoIsHls.value = false
-        }
-    } catch (err) {
-        console.error('Episode fetch failed:', err)
+    const ok = await fetchOnlineVideoUrl(epNum)
+    if (!ok) {
         const playback = import.meta.client && refId ? await getOfflinePlayback(refId, epNum) : null
         if (playback) {
             offlinePlaybackRevoke.value = playback.revoke
@@ -700,6 +752,7 @@ onUnmounted(() => {
                             @next-episode="handleNextEpisode"
                             @previous-episode="handlePreviousEpisode"
                             @loadeddata="onVideoReady"
+                            @stream-error="handleStreamError"
                             @toggle-theater-mode="isTheaterMode = !isTheaterMode"
                         />
                     </section>

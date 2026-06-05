@@ -13,7 +13,7 @@ const props = defineProps({
     animeMeta: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(["play", "pause", "ended", "volumechange", "loadstart", "loadeddata", "timeupdate", "next-episode", "previous-episode", "toggle-theater-mode"])
+const emit = defineEmits(["play", "pause", "ended", "volumechange", "loadstart", "loadeddata", "timeupdate", "next-episode", "previous-episode", "toggle-theater-mode", "stream-error"])
 
 // Refs
 const videoRef = ref(null)
@@ -69,6 +69,8 @@ let controlsTimeout = null
 let notificationTimeout = null
 let spacePressTimeout = null
 let autoplayNextTimeout = null
+let streamErrorTimeout = null
+let streamRecoveryAttempts = 0
 
 // ─── Computed ────────────────────────────────────────────────────────────────
 
@@ -590,6 +592,16 @@ function handleKeyup(e) {
     }
 }
 
+function requestStreamRecovery() {
+    clearTimeout(streamErrorTimeout)
+    streamErrorTimeout = setTimeout(() => emit("stream-error"), 300)
+}
+
+function onVideoError() {
+    if (!props.src) return
+    requestStreamRecovery()
+}
+
 // ─── HLS setup ───────────────────────────────────────────────────────────────
 
 async function applyHlsOrSrc() {
@@ -606,12 +618,29 @@ async function applyHlsOrSrc() {
     const Hls = (await import("hls.js")).default
     if (Hls.isSupported()) {
         effectiveVideoSrc.value = ""
-        const hls = new Hls()
+        const hls = new Hls({
+            fragLoadingMaxRetry: 4,
+            manifestLoadingMaxRetry: 4,
+            levelLoadingMaxRetry: 4,
+        })
         hlsRef.value = hls
         hls.loadSource(src)
         hls.attachMedia(video)
         hls.on(Hls.Events.ERROR, (_, data) => {
-            if (data.fatal) { hls.destroy(); hlsRef.value = null }
+            if (!data.fatal) return
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR && streamRecoveryAttempts < 2) {
+                streamRecoveryAttempts++
+                isLoading.value = true
+                hls.startLoad()
+                return
+            }
+            if (data.type === Hls.ErrorTypes.MEDIA_ERROR && streamRecoveryAttempts < 2) {
+                streamRecoveryAttempts++
+                isLoading.value = true
+                hls.recoverMediaError()
+                return
+            }
+            requestStreamRecovery()
         })
     } else {
         // Native HLS (Safari) or fallback
@@ -622,6 +651,9 @@ async function applyHlsOrSrc() {
 watch([() => props.src, () => props.isHls, videoRef], applyHlsOrSrc, { immediate: true })
 
 watch(() => props.src, () => {
+    streamRecoveryAttempts = 0
+    clearTimeout(streamErrorTimeout)
+    streamErrorTimeout = null
     currentTime.value = 0
     duration.value = 0
     isPlaying.value = false
@@ -687,6 +719,7 @@ onUnmounted(() => {
     clearTimeout(notificationTimeout)
     clearTimeout(spacePressTimeout)
     clearTimeout(autoplayNextTimeout)
+    clearTimeout(streamErrorTimeout)
     document.removeEventListener("fullscreenchange", handleFullscreenChange)
     document.removeEventListener("pointerdown", handleDocumentPointerDown)
     window.removeEventListener("keydown", handleKeydown)
@@ -718,6 +751,7 @@ onUnmounted(() => {
             @loadedmetadata="onLoadedMetadata" @loadeddata="onLoadedData" @loadstart="onLoadStart"
             @ended="onEnded" @volumechange="onVolumeChange"
             @waiting="onWaiting" @canplay="onCanPlay" @canplaythrough="onCanPlayThrough"
+            @error="onVideoError"
             @click="togglePlay" />
 
         <!-- No Video Message -->
