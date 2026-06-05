@@ -813,7 +813,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Right Column / Sidebar (sticky on desktop, inline on mobile) -->
-                <aside :class="['space-y-6 min-w-0', isTheaterMode ? '' : 'lg:w-[25%] lg:sticky lg:top-20 lg:self-start']" aria-label="Episode list and related content">
+                <aside :class="['space-y-6 min-w-0', isTheaterMode ? '' : 'lg:w-[25%] lg:sticky lg:self-start']" aria-label="Episode list and related content">
 
                     <AnimeContinueEpisodePanel class="hidden lg:block"
                         :show-continue-prompt="showContinuePrompt"
