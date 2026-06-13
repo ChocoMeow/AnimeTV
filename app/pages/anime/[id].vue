@@ -321,7 +321,7 @@ const stopAutoSave = () => {
 
 async function saveWatchHistory(episodeNumber = null) {
     const { watch_history_enabled, id } = userSettings.value
-    if (!watch_history_enabled || !id || !anime.value || !videoPlayer.value) return
+    if (!watch_history_enabled || !id || !anime.value) return
     const safeEpisodeNumber =
         typeof episodeNumber === 'string' || typeof episodeNumber === 'number'
             ? episodeNumber
@@ -329,8 +329,10 @@ async function saveWatchHistory(episodeNumber = null) {
     const epNum = safeEpisodeNumber ?? selectedEpisode.value
     if (!epNum) return
 
-    const { duration, currentTime } = videoPlayer.value
+    const el = videoPlayer.value?.videoElement
+    const duration = Number(el?.duration) || 0
     if (!duration) return
+    const currentTime = Number(el?.currentTime) || 0
 
     const entry = {
         user_id: id,
@@ -351,6 +353,12 @@ async function saveWatchHistory(episodeNumber = null) {
     } catch (err) {
         console.error('Failed to save watch history:', err)
     }
+}
+
+function handleLeave() {
+    saveWatchHistory()
+    stopAutoSave()
+    setOnline()
 }
 
 async function fetchLastWatched() {
@@ -405,9 +413,7 @@ function handlePause() {
     stopAutoSave()
 }
 function handleEnded() {
-    saveWatchHistory()
-    stopAutoSave()
-    setOnline()
+    handleLeave()
 }
 
 // ─── Favorites ────────────────────────────────────────────────────────────────
@@ -669,18 +675,19 @@ function handleShortcutsKeydown(e) {
 }
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
+onBeforeUnmount(() => handleLeave())
+
 onMounted(() => {
     fetchDetail()
-    window.addEventListener('beforeunload', handleEnded)
+    window.addEventListener('beforeunload', handleLeave)
     window.addEventListener('keydown', handleShortcutsKeydown)
 })
 
 onUnmounted(() => {
-    handleEnded()
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
     if (toolbarOverflowClickHandler) document.removeEventListener('click', toolbarOverflowClickHandler, true)
-    window.removeEventListener('beforeunload', handleEnded)
+    window.removeEventListener('beforeunload', handleLeave)
     window.removeEventListener('keydown', handleShortcutsKeydown)
     cleanupAnimeTooltip()
 })

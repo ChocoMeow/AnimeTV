@@ -136,7 +136,7 @@ watch(
         </div>
 
         <!-- Episodes Grid -->
-        <div class="min-w-0 w-full max-w-full overflow-hidden">
+        <div class="min-w-0 w-full max-w-full overflow-visible">
             <div v-if="paged.length === 0" class="text-center py-6 text-gray-500 dark:text-gray-400 text-sm">找不到相關集數</div>
 
             <div v-else class="episode-grid-compact gap-2" role="list">
@@ -277,12 +277,17 @@ watch(
            hover:shadow-md
            flex items-center justify-center
            cursor-pointer
-           min-w-0;
+           min-w-0
+           overflow-visible;
 }
 
 .episode-button.active {
     @apply bg-black/70 dark:bg-gray-100 border-gray-900 dark:border-gray-100 text-white dark:text-gray-900
            shadow-lg;
+}
+
+.episode-button:hover {
+    @apply z-10;
 }
 
 .episode-button.watched {
@@ -316,12 +321,14 @@ watch(
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(2.5rem, 1fr));
     max-width: 100%;
+    overflow: visible;
 }
 
 .episode-grid-full {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(3rem, 5rem));
     max-width: 100%;
+    overflow: visible;
 }
 
 /* Adjust for larger screens to allow more buttons per row */
