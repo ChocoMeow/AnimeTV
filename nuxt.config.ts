@@ -11,15 +11,24 @@ export default defineNuxtConfig({
             supabaseKey: process.env.SUPABASE_KEY,
         },
     },
+    $production: {
+        vite: {
+            esbuild: {
+                drop: ['console', 'debugger'],
+                pure: ['console.debug', 'console.info', 'console.warn', 'console.error'],
+            },
+        },
+        nitro: {
+            esbuild: {
+                options: {
+                    drop: ['console'],
+                },
+            },
+        }
+    },
     devServer: {
         port: 3000,
         host: '0.0.0.0',
-    },
-    vite: {
-        esbuild: {
-            drop: ['console', 'debugger'],
-            pure: ['console.debug', 'console.info', 'console.warn', 'console.error'],
-        },
     },
     nitro: {
         preset: 'bun',
@@ -30,11 +39,6 @@ export default defineNuxtConfig({
         },
         experimental: {
             websocket: true,
-        },
-        esbuild: {
-            options: {
-                drop: ['console'],
-            },
         },
         prerender: {
             // Precache needs a document for navigateFallback "/" (see @vite-pwa/nuxt).

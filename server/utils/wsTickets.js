@@ -7,6 +7,7 @@ import { randomBytes } from 'crypto'
  * Ticket lifecycle:
  *   1. POST /api/ws-ticket  → creates ticket (TTL: 30s), returns { ticket: id }
  *   2. WS open              → consumeWsTicket(id) deletes ticket, returns { userId, accessToken }
+ *   3. refresh_ticket msg   → consumeWsTicket(newId) rotates JWT on an existing connection
  */
 
 const TICKET_TTL = 30 * 1000 // 30 seconds
