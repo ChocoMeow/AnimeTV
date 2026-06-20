@@ -717,8 +717,8 @@ onUnmounted(() => {
     <div v-else class="bg-white dark:bg-gray-950 overflow-x-hidden">
         <div class="space-y-8 max-w-[96rem] mx-auto px-3 sm:px-4 py-4 sm:py-8 min-w-0">
             <div :class="isTheaterMode
-                ? 'flex flex-col gap-6 min-w-0 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start'
-                : 'flex flex-col lg:flex-row gap-6 min-w-0'">
+                ? 'flex flex-col gap-4 min-w-0 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start'
+                : 'flex flex-col lg:flex-row gap-4 min-w-0'">
 
                 <div :class="isTheaterMode ? 'space-y-4 min-w-0 lg:contents' : 'flex-1 min-w-0 lg:w-[75%] space-y-4'">
                     <!-- Video Player -->

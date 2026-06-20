@@ -822,12 +822,13 @@ onUnmounted(() => {
         <!-- Custom Controls -->
         <transition name="slide-up">
             <div v-show="!isLoading && showControls && src"
-                class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent z-[9] pb-2 sm:pb-4 pointer-events-none">
+                class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent z-[9] pb-2 sm:pb-4 pointer-events-auto"
+                @click.stop>
 
                 <!-- Progress Bar -->
-                <div class="px-3 sm:px-6 pt-4 sm:pt-8 pb-2 sm:pb-3 pointer-events-none">
+                <div class="px-3 sm:px-6 pt-3">
                     <div ref="progressRef"
-                        class="relative h-6 sm:h-7 cursor-pointer group flex items-center pointer-events-auto"
+                        class="relative h-6 sm:h-7 cursor-pointer group flex items-center"
                         @click="handleProgressClick"
                         @mousedown="handleProgressMouseDown"
                         @mousemove="handleProgressHover"
@@ -853,7 +854,7 @@ onUnmounted(() => {
                                     <div v-if="activeThumbnail && thumbnailJpgUrl"
                                         class="flex flex-col items-center"
                                         :style="{ width: `${THUMB_PREVIEW_W}px` }">
-                                        <div class="relative overflow-hidden rounded-xl border border-gray-900/20 dark:border-white/20"
+                                        <div class="thumb-preview-frame relative overflow-hidden rounded-xl border border-gray-900/20 dark:border-white/20"
                                             :style="{ width: `${THUMB_PREVIEW_W}px`, height: `${thumbnailPreviewHeight}px` }">
                                             <img :src="thumbnailJpgUrl"
                                                 class="absolute top-0 left-0 block w-auto h-auto"
@@ -874,8 +875,8 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Control Buttons -->
-                <div class="flex items-center justify-between px-2 sm:px-6 gap-1 sm:gap-0 pointer-events-none">
-                    <div class="flex items-center gap-1 sm:gap-3 pointer-events-auto">
+                <div class="flex items-center justify-between px-2 sm:px-6 gap-1 sm:gap-0">
+                    <div class="flex items-center gap-1 sm:gap-3">
                         <!-- Play/Pause -->
                         <button @click="togglePlay" :title="tooltipLabels.playPause"
                             class="text-white bg-transparent border-none cursor-pointer transition-all duration-200 h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-md inline-flex items-center justify-center hover:text-gray-300 hover:bg-white/10">
@@ -908,7 +909,7 @@ onUnmounted(() => {
                         </span>
                     </div>
 
-                    <div class="flex items-center gap-1 sm:gap-3 pointer-events-auto">
+                    <div class="flex items-center gap-1 sm:gap-3">
                         <!-- Settings -->
                         <div ref="settingsRef" class="relative">
                             <button @click="toggleSettings" title="設定"
@@ -987,6 +988,11 @@ onUnmounted(() => {
 
 <style scoped>
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+/* Safari won't clip transformed children with overflow + border-radius alone */
+.thumb-preview-frame {
+    clip-path: inset(0 round 0.75rem);
+}
+
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
 .slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s ease; }
