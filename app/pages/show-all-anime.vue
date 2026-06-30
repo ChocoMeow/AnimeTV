@@ -13,7 +13,7 @@ const selectedTags = ref([])
 const selectedCategory = ref("")
 const selectedSort = ref("1") // 1: 依年份排列, 2: 依月人氣排序
 const showFilters = ref(true)
-const headerHiddenMobile = useState("animehub-mobile-header-hidden", () => false)
+const headerHiddenMobile = useState("app-mobile-header-hidden", () => false)
 
 // Flag to prevent watcher from triggering when we update URL programmatically
 const isUpdatingURL = ref(false)

@@ -7,7 +7,7 @@
 const INLINE_SPLASH_ID = 'app-splash-inline'
 const SPLASH_PENDING_CLASS = 'app-splash-pending'
 
-const splashDone = useState('animehub-app-splash-done', () => false)
+const splashDone = useState('app-splash-done', () => false)
 
 function shouldShowSplash() {
     return !splashDone.value

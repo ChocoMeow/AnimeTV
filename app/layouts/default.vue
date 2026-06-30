@@ -1,6 +1,6 @@
 <script setup>
-const headerHiddenMobile = useState("animehub-mobile-header-hidden", () => false)
-const showMobilePwaNav = useState("animehub-show-mobile-pwa-nav", () => false)
+const headerHiddenMobile = useState("app-mobile-header-hidden", () => false)
+const showMobilePwaNav = useState("app-show-mobile-pwa-nav", () => false)
 </script>
 
 <template>
@@ -50,6 +50,10 @@ html {
 
 /* Push main content when friend list is open on desktop */
 @media (min-width: 1024px) {
+    footer {
+        transition: padding-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
     body.friend-list-open main,
     body.friend-list-open footer {
         padding-right: 320px;

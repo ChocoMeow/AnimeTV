@@ -4,8 +4,8 @@ const { isMobile } = useMobile()
 
 const route = useRoute()
 const user = useSupabaseUser()
-const headerHiddenMobile = useState('animehub-mobile-header-hidden', () => false)
-const showMobilePwaNav = useState('animehub-show-mobile-pwa-nav', () => false)
+const headerHiddenMobile = useState('app-mobile-header-hidden', () => false)
+const showMobilePwaNav = useState('app-show-mobile-pwa-nav', () => false)
 
 function isStandaloneDisplay() {
     if (typeof window === 'undefined') return false
