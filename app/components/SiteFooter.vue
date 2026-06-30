@@ -9,7 +9,8 @@ const navExplore = [
 const navAccount = [
     { label: '觀看紀錄', to: '/history' },
     { label: '我的收藏', to: '/favorites' },
-    { label: '個人設定', to: '/profile' },
+    { label: '個人資料', to: '/profile' },
+    { label: '帳號設定', to: '/settings' },
 ]
 
 const navLegal = [

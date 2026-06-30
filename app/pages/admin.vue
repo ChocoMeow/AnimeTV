@@ -361,7 +361,7 @@ onMounted(() => {
                 >
                     <div class="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
                         <div class="flex items-center gap-2">
-                            <span class="material-icons text-base text-gray-500 dark:text-gray-400">search</span>
+                            <span class="material-symbols-rounded text-base text-gray-500 dark:text-gray-400">search</span>
                             <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">搜尋與篩選</h2>
                         </div>
                     </div>
@@ -422,7 +422,7 @@ onMounted(() => {
                                 class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
                                 @click="applySearch"
                             >
-                                <span class="material-icons text-xs">search</span>
+                                <span class="material-symbols-rounded text-xs">search</span>
                                 套用搜尋
                             </button>
                         </div>
@@ -435,7 +435,7 @@ onMounted(() => {
                 >
                     <div class="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
                         <div class="flex items-center gap-2">
-                            <span class="material-icons text-base text-gray-500 dark:text-gray-400">view_list</span>
+                            <span class="material-symbols-rounded text-base text-gray-500 dark:text-gray-400">view_list</span>
                             <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">紀錄列表</h2>
                         </div>
                         <span class="text-xs text-gray-500 dark:text-gray-400">
@@ -530,7 +530,7 @@ onMounted(() => {
             >
                 <div class="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                        <span class="material-icons text-base text-gray-500 dark:text-gray-400">edit</span>
+                        <span class="material-symbols-rounded text-base text-gray-500 dark:text-gray-400">edit</span>
                         <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">
                             {{ isCreating ? "新增紀錄" : "編輯紀錄" }}
                         </h2>
@@ -541,7 +541,7 @@ onMounted(() => {
                             class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                             @click="handleCreateNew"
                         >
-                            <span class="material-icons text-base">add</span>
+                            <span class="material-symbols-rounded text-base">add</span>
                             <span class="hidden sm:inline">新增紀錄</span>
                         </button>
                         <NuxtLink
@@ -550,7 +550,7 @@ onMounted(() => {
                             target="_blank"
                             class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                         >
-                            <span class="material-icons text-base">open_in_new</span>
+                            <span class="material-symbols-rounded text-base">open_in_new</span>
                             <span class="hidden sm:inline">查看動漫</span>
                         </NuxtLink>
                     </div>
@@ -724,7 +724,7 @@ onMounted(() => {
                                 :disabled="saving"
                                 @click="handleDelete"
                             >
-                                <span class="material-icons text-base">delete</span>
+                                <span class="material-symbols-rounded text-base">delete</span>
                                 <span class="hidden sm:inline">刪除</span>
                             </button>
                             <button
@@ -733,7 +733,7 @@ onMounted(() => {
                                 :disabled="saving || !editableRecord"
                                 @click="handleSave"
                             >
-                                <span class="material-icons text-base">save</span>
+                                <span class="material-symbols-rounded text-base">save</span>
                                 <span class="hidden sm:inline">{{ saving ? "儲存中..." : "儲存" }}</span>
                             </button>
                         </div>

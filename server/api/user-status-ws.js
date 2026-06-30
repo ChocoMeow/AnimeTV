@@ -6,11 +6,13 @@
  *   1. Client calls POST /api/ws-ticket  →  gets a short-lived opaque ticket ID
  *   2. Client opens  ws://.../api/user-status-ws?ticket=<id>
  *   3. On open, consumeWsTicket() deletes the ticket and returns { userId, accessToken }
+ *   4. Client may send refresh_ticket with a new ticket to rotate the server-side JWT in-place
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { consumeWsTicket } from '../utils/wsTickets.js'
 
-// peerId -> { peer, userId, status, watchingData, lastSeen, supabase }
+// peerId -> { peer, userId, accessToken, status, watchingData, lastSeen, supabase }
 const connections = new Map()
 // userId -> Set<peerId>
 const userPeers = new Map()
@@ -20,7 +22,7 @@ const lastWrittenStatus = new Map()
 const VALID_STATUSES = new Set(['online', 'idle', 'watching', 'offline'])
 const STATUS_PRIORITY = ['watching', 'online', 'idle']
 const CLEANUP_INTERVAL = 60 * 1000 // 1 min
-const CONNECTION_TIMEOUT = 3 * 60 * 1000 // 3 min
+const CONNECTION_TIMEOUT = 2 * 60 * 1000 // 2 min
 
 let cleanupTimer = null
 
@@ -119,6 +121,7 @@ function safeSend(peer, payload) {
 
 // ── Database ──────────────────────────────────────────────────────────────────
 
+/** @returns {{ ok: boolean, skipped?: boolean, error?: string }} */
 async function flushStatus(supabase, userId, { force = false, touch = false } = {}) {
     try {
         const status = aggregateStatus(userId)
@@ -127,7 +130,9 @@ async function flushStatus(supabase, userId, { force = false, touch = false } = 
         // Skip write if nothing changed (unless forced, e.g. on disconnect)
         if (!force && !touch) {
             const last = lastWrittenStatus.get(userId)
-            if (last?.status === status && last?.animeRefId === (watching?.refId ?? null) && last?.episodeNumber === (watching?.episode ?? null)) return
+            if (last?.status === status && last?.animeRefId === (watching?.refId ?? null) && last?.episodeNumber === (watching?.episode ?? null)) {
+                return { ok: true, skipped: true }
+            }
         }
 
         const now = new Date().toISOString()
@@ -145,7 +150,7 @@ async function flushStatus(supabase, userId, { force = false, touch = false } = 
         const { error } = await supabase.from('user_status').upsert(row, { onConflict: 'user_id' })
         if (error) {
             console.error('[DB] upsert error:', error)
-            return
+            return { ok: false, error: error.message || 'upsert_failed' }
         }
 
         lastWrittenStatus.set(userId, {
@@ -154,9 +159,19 @@ async function flushStatus(supabase, userId, { force = false, touch = false } = 
             episodeNumber: row.episode_number,
         })
         console.log(`[DB] ${userId} → ${status}`)
+        return { ok: true }
     } catch (err) {
         console.error('[DB] flushStatus error:', err)
+        return { ok: false, error: err instanceof Error ? err.message : 'flush_failed' }
     }
+}
+
+function refreshConnectionToken(conn, ticketId) {
+    const ticketData = consumeWsTicket(ticketId)
+    if (!ticketData || ticketData.userId !== conn.userId) return null
+    conn.accessToken = ticketData.accessToken
+    conn.supabase = getSupabaseClient(ticketData.accessToken)
+    return ticketData
 }
 
 // ── Cleanup ───────────────────────────────────────────────────────────────────
@@ -213,7 +228,15 @@ export default defineWebSocketHandler({
         const { userId, accessToken } = ticketData
         const supabase = getSupabaseClient(accessToken)
 
-        connections.set(peer.id, { peer, userId, status: 'online', watchingData: null, lastSeen: Date.now(), supabase })
+        connections.set(peer.id, {
+            peer,
+            userId,
+            accessToken,
+            status: 'online',
+            watchingData: null,
+            lastSeen: Date.now(),
+            supabase,
+        })
         addPeer(userId, peer.id)
         startCleanup()
 
@@ -269,7 +292,17 @@ export default defineWebSocketHandler({
                 }
 
                 const isHeartbeat = payload.type === 'heartbeat'
-                await flushStatus(conn.supabase, conn.userId, { touch: isHeartbeat })
+                const flushResult = await flushStatus(conn.supabase, conn.userId, { touch: isHeartbeat })
+
+                if (!flushResult.ok) {
+                    safeSend(peer, {
+                        type: isHeartbeat ? 'heartbeat_failed' : 'status_update_failed',
+                        peerId: peer.id,
+                        reason: flushResult.error || 'db_write_failed',
+                        timestamp: Date.now(),
+                    })
+                    break
+                }
 
                 const ackType = payload.type === 'heartbeat' ? 'heartbeat_ack' : 'status_updated'
                 safeSend(peer, {
@@ -282,6 +315,28 @@ export default defineWebSocketHandler({
                     }),
                     timestamp: Date.now(),
                 })
+                break
+            }
+
+            case 'refresh_ticket': {
+                const ticketId = typeof payload.ticket === 'string' ? payload.ticket.trim() : ''
+                if (!refreshConnectionToken(conn, ticketId)) {
+                    safeSend(peer, { type: 'token_refresh_failed', reason: 'invalid_ticket', timestamp: Date.now() })
+                    break
+                }
+
+                const flushResult = await flushStatus(conn.supabase, conn.userId, { force: true })
+                if (!flushResult.ok) {
+                    safeSend(peer, {
+                        type: 'token_refresh_failed',
+                        reason: flushResult.error || 'db_write_failed',
+                        timestamp: Date.now(),
+                    })
+                    break
+                }
+
+                safeSend(peer, { type: 'token_refreshed', timestamp: Date.now() })
+                console.log(`[WS] token refreshed peer=${peer.id} user=${conn.userId}`)
                 break
             }
 

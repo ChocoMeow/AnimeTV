@@ -13,6 +13,7 @@ const selectedTags = ref([])
 const selectedCategory = ref("")
 const selectedSort = ref("1") // 1: 依年份排列, 2: 依月人氣排序
 const showFilters = ref(true)
+const headerHiddenMobile = useState("app-mobile-header-hidden", () => false)
 
 // Flag to prevent watcher from triggering when we update URL programmatically
 const isUpdatingURL = ref(false)
@@ -177,6 +178,7 @@ watch(
 useHead({ title: `所有動畫 | ${appConfig.siteName}` })
 
 onMounted(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) showFilters.value = false
     initializeFromRoute()
     fetchAnime(currentPage.value)
 })
@@ -188,7 +190,10 @@ onUnmounted(() => {
 
 <template>
     <!-- Filters Section -->
-    <div class="sticky top-16 z-40 bg-white/95 dark:bg-gray-950/90 backdrop-blur-sm border-b border-gray-200 dark:border-white/10 shadow-sm rounded-2xl">
+    <div
+        class="sticky z-40 bg-white/95 dark:bg-gray-950/90 backdrop-blur-sm border-b border-gray-200 dark:border-white/10 shadow-sm rounded-2xl md:top-16 max-md:transition-[top] max-md:duration-300"
+        :class="headerHiddenMobile ? 'max-md:top-0' : 'max-md:top-14'"
+    >
         <div class="max-w-7xl mx-auto px-4 py-4">
             <!-- Header with Toggle -->
             <div class="flex items-center justify-between">
@@ -207,11 +212,11 @@ onUnmounted(() => {
                         @click="clearAllFilters"
                         class="text-sm text-black/70 dark:text-white hover:text-black/100 dark:hover:text-white font-medium transition-colors flex items-center gap-1"
                     >
-                        <span class="material-icons text-sm">clear</span>
+                        <span class="material-symbols-rounded text-sm">clear</span>
                         清除全部
                     </button>
                     <button @click="showFilters = !showFilters" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-white/20 flex items-center justify-center">
-                        <span class="material-icons text-gray-600 dark:text-gray-300">
+                        <span class="material-symbols-rounded text-gray-600 dark:text-gray-300">
                             {{ showFilters ? "expand_less" : "expand_more" }}
                         </span>
                     </button>
@@ -298,7 +303,7 @@ onUnmounted(() => {
         <!-- Empty State -->
         <div v-else-if="!animeList.length" class="flex flex-col items-center justify-center min-h-[400px] text-center">
             <div class="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                <span class="material-icons text-5xl text-gray-400 dark:text-gray-600">search_off</span>
+                <span class="material-symbols-rounded text-5xl text-gray-400 dark:text-gray-600">search_off</span>
             </div>
             <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">找不到相關作品</h3>
             <p class="text-gray-500 dark:text-gray-400 mb-4">請嘗試調整篩選條件</p>

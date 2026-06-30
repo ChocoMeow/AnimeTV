@@ -52,12 +52,12 @@ function goToPage(page) {
         <div class="inline-flex items-center gap-2 bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-lg p-2 border border-gray-200 dark:border-gray-700">
             <!-- First Page (Mobile Hidden) -->
             <button v-if="currentPage > 3" @click="emit('change', 1)" class="pagination-button hidden sm:flex" :disabled="currentPage === 1">
-                <span class="material-icons text-sm">first_page</span>
+                <span class="material-symbols-rounded text-sm">first_page</span>
             </button>
 
             <!-- Previous Page -->
             <button class="pagination-button pagination-nav" :class="{ 'pagination-disabled': currentPage === 1 }" :disabled="currentPage === 1" @click="emit('change', currentPage - 1)">
-                <span class="material-icons text-sm">chevron_left</span>
+                <span class="material-symbols-rounded text-sm">chevron_left</span>
                 <span class="hidden sm:inline ml-1">上一頁</span>
             </button>
 
@@ -82,12 +82,12 @@ function goToPage(page) {
             <!-- Next Page -->
             <button class="pagination-button pagination-nav" :class="{ 'pagination-disabled': currentPage === totalPage }" :disabled="currentPage === totalPage" @click="emit('change', currentPage + 1)">
                 <span class="hidden sm:inline mr-1">下一頁</span>
-                <span class="material-icons text-sm">chevron_right</span>
+                <span class="material-symbols-rounded text-sm">chevron_right</span>
             </button>
 
             <!-- Last Page (Mobile Hidden) -->
             <button v-if="currentPage < totalPage - 2" @click="emit('change', totalPage)" class="pagination-button hidden sm:flex" :disabled="currentPage === totalPage">
-                <span class="material-icons text-sm">last_page</span>
+                <span class="material-symbols-rounded text-sm">last_page</span>
             </button>
         </div>
     </div>

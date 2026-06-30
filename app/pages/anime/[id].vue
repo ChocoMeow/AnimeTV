@@ -73,6 +73,11 @@ const allWatchProgress = ref({})
 const videoPlayer = ref(null)
 const hasSetInitialTime = ref(false)
 const isTheaterMode = ref(false)
+const streamResumeTime = ref(null)
+const streamResumePlaying = ref(false)
+let streamRecoveryAttempts = 0
+const MAX_STREAM_RECOVERY = 3
+let streamRecovering = false
 
 const SAVE_INTERVAL = 120_000
 let saveTimer = null
@@ -316,7 +321,7 @@ const stopAutoSave = () => {
 
 async function saveWatchHistory(episodeNumber = null) {
     const { watch_history_enabled, id } = userSettings.value
-    if (!watch_history_enabled || !id || !anime.value || !videoPlayer.value) return
+    if (!watch_history_enabled || !id || !anime.value) return
     const safeEpisodeNumber =
         typeof episodeNumber === 'string' || typeof episodeNumber === 'number'
             ? episodeNumber
@@ -324,8 +329,10 @@ async function saveWatchHistory(episodeNumber = null) {
     const epNum = safeEpisodeNumber ?? selectedEpisode.value
     if (!epNum) return
 
-    const { duration, currentTime } = videoPlayer.value
+    const el = videoPlayer.value?.videoElement
+    const duration = Number(el?.duration) || 0
     if (!duration) return
+    const currentTime = Number(el?.currentTime) || 0
 
     const entry = {
         user_id: id,
@@ -346,6 +353,12 @@ async function saveWatchHistory(episodeNumber = null) {
     } catch (err) {
         console.error('Failed to save watch history:', err)
     }
+}
+
+function handleLeave() {
+    saveWatchHistory()
+    stopAutoSave()
+    setOnline()
 }
 
 async function fetchLastWatched() {
@@ -400,9 +413,7 @@ function handlePause() {
     stopAutoSave()
 }
 function handleEnded() {
-    saveWatchHistory()
-    stopAutoSave()
-    setOnline()
+    handleLeave()
 }
 
 // ─── Favorites ────────────────────────────────────────────────────────────────
@@ -422,6 +433,21 @@ async function toggleFavorite() {
 
 // ─── Video ready ──────────────────────────────────────────────────────────────
 async function onVideoReady() {
+    const recoveryTime = streamResumeTime.value
+    if (recoveryTime != null) {
+        streamResumeTime.value = null
+        hasSetInitialTime.value = true
+        const resumePlaying = streamResumePlaying.value
+        streamResumePlaying.value = false
+        const doResume = () => {
+            videoPlayer.value?.seek(recoveryTime)
+            if (resumePlaying) videoPlayer.value?.play()
+        }
+        const videoEl = videoPlayer.value?.videoElement
+        videoEl?.readyState >= 2 ? doResume() : videoEl?.addEventListener('canplay', doResume, { once: true })
+        return
+    }
+
     if (hasSetInitialTime.value) return
 
     let startTime = route.query.t ? parseFloat(route.query.t) : null
@@ -467,10 +493,60 @@ function applyEpisodeQueryFromRoute() {
     return false
 }
 
+async function fetchOnlineVideoUrl(epNum) {
+    const token = anime.value?.episodes[String(epNum)]?.token
+    if (!token) {
+        videoUrl.value = null
+        videoIsHls.value = false
+        return false
+    }
+
+    try {
+        const res = await $fetch(`/api/episode/${token}`)
+        const raw = res?.s?.[0]?.src
+        if (!raw) {
+            videoUrl.value = null
+            videoIsHls.value = false
+            return false
+        }
+        const finalUrl = raw.startsWith('http') ? raw : `https:${raw}`
+        videoUrl.value = `/api/proxy-video?url=${encodeURIComponent(finalUrl)}&cookie=${encodeURIComponent(res.videoCookie)}`
+        videoIsHls.value = /\.m3u8(\?|$)/i.test(finalUrl) || finalUrl.includes('m3u8')
+        return true
+    } catch (err) {
+        console.error('Episode fetch failed:', err)
+        return false
+    }
+}
+
+async function handleStreamError() {
+    if (streamRecovering || !selectedEpisode.value) return
+    if (!anime.value?.episodes[String(selectedEpisode.value)]?.token) return
+
+    if (streamRecoveryAttempts >= MAX_STREAM_RECOVERY) {
+        showToast('影片連線失敗，請重新整理頁面', 'error')
+        return
+    }
+
+    streamRecovering = true
+    streamRecoveryAttempts++
+    streamResumeTime.value = videoPlayer.value?.currentTime ?? 0
+    streamResumePlaying.value = videoPlayer.value?.isPlaying ?? false
+    showToast('正在重新連線…', 'info')
+
+    try {
+        const ok = await fetchOnlineVideoUrl(selectedEpisode.value)
+        if (!ok) showToast('影片重新連線失敗', 'error')
+    } finally {
+        streamRecovering = false
+    }
+}
+
 watch(selectedEpisode, async (epNum, oldEpNum) => {
     if (!epNum || !anime.value?.episodes) return
 
     if (oldEpNum && oldEpNum !== epNum) {
+        streamRecoveryAttempts = 0
         if (videoPlayer.value) await saveWatchHistory(oldEpNum)
         hasSetInitialTime.value = false
         if (route.query.t || route.query.e) {
@@ -504,27 +580,9 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
         }
     }
 
-    const token = anime.value.episodes[String(epNum)]?.token
-    if (!token) {
-        videoUrl.value = null
-        videoIsHls.value = false
-        return
-    }
-
     showContinuePrompt.value = false
-    try {
-        const res = await $fetch(`/api/episode/${token}`)
-        const raw = res?.s?.[0]?.src
-        if (raw) {
-            const finalUrl = raw.startsWith('http') ? raw : `https:${raw}`
-            videoUrl.value = `/api/proxy-video?url=${encodeURIComponent(finalUrl)}&cookie=${encodeURIComponent(res.videoCookie)}`
-            videoIsHls.value = /\.m3u8(\?|$)/i.test(finalUrl) || finalUrl.includes('m3u8')
-        } else {
-            videoUrl.value = null
-            videoIsHls.value = false
-        }
-    } catch (err) {
-        console.error('Episode fetch failed:', err)
+    const ok = await fetchOnlineVideoUrl(epNum)
+    if (!ok) {
         const playback = import.meta.client && refId ? await getOfflinePlayback(refId, epNum) : null
         if (playback) {
             offlinePlaybackRevoke.value = playback.revoke
@@ -617,18 +675,19 @@ function handleShortcutsKeydown(e) {
 }
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
+onBeforeUnmount(() => handleLeave())
+
 onMounted(() => {
     fetchDetail()
-    window.addEventListener('beforeunload', handleEnded)
+    window.addEventListener('beforeunload', handleLeave)
     window.addEventListener('keydown', handleShortcutsKeydown)
 })
 
 onUnmounted(() => {
-    handleEnded()
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
     if (toolbarOverflowClickHandler) document.removeEventListener('click', toolbarOverflowClickHandler, true)
-    window.removeEventListener('beforeunload', handleEnded)
+    window.removeEventListener('beforeunload', handleLeave)
     window.removeEventListener('keydown', handleShortcutsKeydown)
     cleanupAnimeTooltip()
 })
@@ -641,7 +700,7 @@ onUnmounted(() => {
     <!-- Error -->
     <div v-else-if="error" class="flex flex-col justify-center items-center min-h-screen text-center px-4">
         <div class="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-6">
-            <span class="material-icons text-5xl text-red-500 dark:text-red-400">error_outline</span>
+            <span class="material-symbols-rounded text-5xl text-red-500 dark:text-red-400">error_outline</span>
         </div>
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">載入失敗</h2>
         <p class="text-red-600 dark:text-red-400 mb-6 max-w-md">{{ error }}</p>
@@ -650,18 +709,18 @@ onUnmounted(() => {
 
     <!-- Empty -->
     <div v-else-if="!anime" class="flex flex-col justify-center items-center min-h-screen">
-        <span class="material-icons text-6xl text-gray-400 mb-4">movie_filter</span>
+        <span class="material-symbols-rounded text-6xl text-gray-400 mb-4">movie_filter</span>
         <p class="text-gray-600 dark:text-gray-400">無可用的動漫資料</p>
     </div>
 
     <!-- Content -->
-    <div v-else class="bg-white dark:bg-gray-950">
-        <div class="space-y-8 max-w-[96rem] mx-auto px-3 sm:px-4 py-4 sm:py-8">
+    <div v-else class="bg-white dark:bg-gray-950 overflow-x-hidden">
+        <div class="space-y-8 max-w-[96rem] mx-auto px-3 sm:px-4 py-4 sm:py-8 min-w-0">
             <div :class="isTheaterMode
-                ? 'flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start'
-                : 'flex flex-col lg:flex-row gap-6'">
+                ? 'flex flex-col gap-4 min-w-0 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start'
+                : 'flex flex-col lg:flex-row gap-4 min-w-0'">
 
-                <div :class="isTheaterMode ? 'space-y-4 lg:contents' : 'flex-1 lg:w-[75%] space-y-4'">
+                <div :class="isTheaterMode ? 'space-y-4 min-w-0 lg:contents' : 'flex-1 min-w-0 lg:w-[75%] space-y-4'">
                     <!-- Video Player -->
                     <section aria-label="Video player" :class="isTheaterMode ? 'lg:col-span-2' : ''">
                         <!-- Thumbnail placeholder (no video selected) -->
@@ -674,7 +733,7 @@ onUnmounted(() => {
                             </div>
                             <div class="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
                             <div class="absolute inset-0 flex flex-col items-center justify-center z-[1] px-4 sm:px-8">
-                                <span class="material-icons text-white text-4xl sm:text-5xl pb-4">play_circle_outline</span>
+                                <span class="material-symbols-rounded outlined text-white text-4xl sm:text-5xl pb-4">play_circle</span>
                                 <div class="text-center space-y-2 sm:space-y-3">
                                     <h3 class="text-xl sm:text-2xl font-bold text-white mb-2">選擇集數開始播放</h3>
                                     <p class="text-sm sm:text-base text-white/80 max-w-md">請從右側（或下方）選擇您想觀看的集數</p>
@@ -700,6 +759,7 @@ onUnmounted(() => {
                             @next-episode="handleNextEpisode"
                             @previous-episode="handlePreviousEpisode"
                             @loadeddata="onVideoReady"
+                            @stream-error="handleStreamError"
                             @toggle-theater-mode="isTheaterMode = !isTheaterMode"
                         />
                     </section>
@@ -708,7 +768,7 @@ onUnmounted(() => {
                     <div v-if="offlineModeBanner"
                         :class="['flex items-center gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 text-amber-900 dark:text-amber-100 text-sm', isTheaterMode ? 'lg:col-span-2' : '']"
                         role="status">
-                        <span class="material-icons flex-shrink-0 text-xl">wifi_off</span>
+                        <span class="material-symbols-rounded flex-shrink-0 text-xl">wifi_off</span>
                         <p>離線模式：已從本機載入先前快取的動漫資料。請選擇已下載的集數觀看；重新整理前請勿關閉此分頁。</p>
                     </div>
 
@@ -734,7 +794,7 @@ onUnmounted(() => {
                                     class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
                                     :title="action.label" :aria-label="action.label"
                                     @click="action.run()">
-                                    <span class="material-icons text-xl" :class="action.iconClass">{{ action.icon }}</span>
+                                    <span class="material-symbols-rounded text-xl" :class="action.iconClass">{{ action.icon }}</span>
                                 </button>
                                 <div v-if="toolbarOverflowActions.length" ref="toolbarOverflowRoot" class="relative">
                                     <button type="button"
@@ -742,7 +802,7 @@ onUnmounted(() => {
                                         title="更多" aria-label="更多操作"
                                         :aria-expanded="showToolbarOverflowMenu"
                                         @click.stop="showToolbarOverflowMenu = !showToolbarOverflowMenu">
-                                        <span class="material-icons text-xl text-gray-900 dark:text-white">more_vert</span>
+                                        <span class="material-symbols-rounded text-xl text-gray-900 dark:text-white">more_vert</span>
                                     </button>
                                     <div v-show="showToolbarOverflowMenu"
                                         class="absolute right-0 top-full mt-2 min-w-[11rem] py-1 rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-gray-950 shadow-lg z-10"
@@ -752,7 +812,7 @@ onUnmounted(() => {
                                             class="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
                                             role="menuitem"
                                             @click="action.run(); showToolbarOverflowMenu = false">
-                                            <span class="material-icons text-lg flex-shrink-0" :class="action.iconClass">{{ action.icon }}</span>
+                                            <span class="material-symbols-rounded text-lg flex-shrink-0" :class="action.iconClass">{{ action.icon }}</span>
                                             <span>{{ action.label }}</span>
                                         </button>
                                     </div>
@@ -763,17 +823,17 @@ onUnmounted(() => {
                     <!-- Stats -->
                     <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                         <div class="flex items-center gap-1.5">
-                            <span class="material-icons text-base">visibility</span>
+                            <span class="material-symbols-rounded text-base">visibility</span>
                             <span class="text-gray-900 dark:text-white">{{ formatViews(anime.views) }}</span>
                             <span>觀看</span>
                         </div>
                         <div class="flex items-center gap-1.5">
-                            <span class="material-icons text-base">favorite</span>
+                            <span class="material-symbols-rounded text-base">favorite</span>
                             <span class="text-gray-900 dark:text-white">{{ formatViews(anime.userRating.votes) }}</span>
                             <span>喜歡</span>
                         </div>
                         <div v-if="anime.userRating?.score" class="flex items-center gap-1.5">
-                            <span class="material-icons text-base text-yellow-400">star</span>
+                            <span class="material-symbols-rounded text-base text-yellow-400">star</span>
                             <span class="text-gray-900 dark:text-white">{{ formatRating(anime.userRating.score) }}</span>
                         </div>
                     </div>
@@ -786,7 +846,7 @@ onUnmounted(() => {
                         <NuxtLink v-for="tag in anime.tags" :key="tag"
                             :to="`/show-all-anime?tags=${encodeURIComponent(tag)}`"
                             class="px-3 py-1.5 bg-gray-950/5 dark:bg-white/10 rounded-full border border-gray-200 dark:border-white/20 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-950/10 dark:hover:bg-white/20 hover:border-gray-300 dark:hover:border-white/40 transition-all flex items-center gap-1.5 focus:outline-none">
-                            <span class="material-icons text-xs">tag</span>
+                            <span class="material-symbols-rounded text-xs">tag</span>
                             {{ tag }}
                         </NuxtLink>
                     </div>
@@ -799,7 +859,7 @@ onUnmounted(() => {
                                 class="bg-gray-950/5 dark:bg-white/10 rounded-xl p-4">
                                 <div class="flex items-start gap-3">
                                     <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="detail.iconBg">
-                                        <span class="material-icons text-xl" :class="detail.iconColor">{{ detail.icon }}</span>
+                                        <span class="material-symbols-rounded text-xl" :class="detail.iconColor">{{ detail.icon }}</span>
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{{ detail.label }}</p>
@@ -813,7 +873,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Right Column / Sidebar (sticky on desktop, inline on mobile) -->
-                <aside :class="['space-y-6', isTheaterMode ? '' : 'lg:w-[25%] lg:sticky lg:top-20 lg:self-start']" aria-label="Episode list and related content">
+                <aside :class="['space-y-6 min-w-0', isTheaterMode ? '' : 'lg:w-[25%] lg:sticky lg:self-start']" aria-label="Episode list and related content">
 
                     <AnimeContinueEpisodePanel class="hidden lg:block"
                         :show-continue-prompt="showContinuePrompt"
@@ -826,38 +886,13 @@ onUnmounted(() => {
                         @update:model-value="(n) => (selectedEpisode = n)"
                         @continue-last="continueLast" />
 
-                    <!-- Related Anime -->
-                    <section v-if="anime.relatedAnime?.length" aria-label="Related anime">
-                        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">相關動漫</h2>
-                        <div class="space-y-3" role="list">
-                            <NuxtLink v-for="item in anime.relatedAnime" :key="item.refId || item.video_url"
-                                :to="`/anime/${item.refId}`"
-                                class="flex gap-3 p-2 rounded-lg hover:bg-gray-950/5 dark:hover:bg-white/10 transition-colors group focus:outline-none"
-                                role="listitem" :aria-label="`View ${item.title}`"
-                                @mouseenter="handleTooltipMouseEnter(item, $event)"
-                                @mouseleave="handleTooltipMouseLeave">
-                                <div class="flex-shrink-0 w-32 aspect-video rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
-                                    <NuxtImg :src="item.image" :alt="`${item.title} thumbnail`"
-                                        loading="lazy" decoding="async"
-                                        class="w-full h-full object-cover transform transition-transform duration-300 group-hover:scale-110" />
-                                </div>
-                                <div class="flex-1 min-w-0 space-y-1">
-                                    <h3 class="font-semibold text-sm text-gray-900 dark:text-white line-clamp-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">{{ item.title }}</h3>
-                                    <div class="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                        <span v-if="item.year" class="flex items-center gap-1">
-                                            <span class="material-icons text-xs">calendar_today</span> {{ item.year }}
-                                        </span>
-                                        <span v-if="item.episodes" class="flex items-center gap-1">
-                                            <span class="material-icons text-xs">movie</span> {{ item.episodes }}
-                                        </span>
-                                        <span v-if="item.views" class="flex items-center gap-1">
-                                            <span class="material-icons text-xs">visibility</span> {{ formatViews(item.views) }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </NuxtLink>
-                        </div>
-                    </section>
+                    <AnimeRelatedSection
+                        v-if="anime"
+                        :related-anime="anime.relatedAnime || []"
+                        :tags="anime.tags || []"
+                        :current-ref-id="anime.refId"
+                        @tooltip-enter="handleTooltipMouseEnter"
+                        @tooltip-leave="handleTooltipMouseLeave" />
                 </aside>
 
             </div>
@@ -893,7 +928,7 @@ onUnmounted(() => {
     <LazyBaseDialog v-model="showShortcutsModal" max-width="max-w-2xl">
         <template #header>
             <div class="flex items-center gap-3">
-                <span class="material-icons text-3xl text-gray-600 dark:text-gray-400">keyboard</span>
+                <span class="material-symbols-rounded text-3xl text-gray-600 dark:text-gray-400">keyboard</span>
                 <h3 class="text-2xl font-bold text-gray-900 dark:text-white">鍵盤快捷鍵</h3>
             </div>
         </template>

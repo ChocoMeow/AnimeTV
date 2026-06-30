@@ -1,7 +1,9 @@
 <script setup>
 const { searchHistory, userSettings } = useUserSettings()
+const { mobileSearchOpen } = useMobileSearchState()
 const { isMobile } = useMobile()
 const { isAdmin, clearAdmin } = useAdmin()
+const headerHiddenMobile = useState('app-mobile-header-hidden', () => false)
 const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
@@ -11,11 +13,10 @@ const user = useSupabaseUser()
 const searchRef = ref(null)
 const mobileSearchRef = ref(null)
 
-const searchQuery = ref("")
+const searchQuery = ref('')
 const searchResults = ref([])
 const loading = ref(false)
 const mobileMenuOpen = ref(false)
-const mobileSearchOpen = ref(false)
 const showDropdown = ref(false)
 const showUserMenu = ref(false)
 
@@ -25,18 +26,15 @@ let searchDebounceTimeout = null
 
 // User dropdown menu items (shared by desktop dropdown and mobile nav)
 const menuItems = [
-    { to: "/profile", icon: "person", label: "個人設定" },
-    { to: "/history", icon: "history", label: "觀看紀錄" },
-    { to: "/favorites", icon: "bookmark_added", label: "我的收藏" },
-    { to: "/friends", icon: "group", label: "我的好友" },
-    { to: "/offline-downloads", icon: "download_for_offline", label: "下載管理" },
-    { to: "/admin", icon: "admin_panel_settings", label: "管理後台", adminOnly: true },
-    { icon: "logout", label: "登出", action: signOut, variant: "danger", dividerBefore: true },
+    { to: '/history', icon: 'history', label: '觀看紀錄' },
+    { to: '/favorites', icon: 'bookmark_added', label: '我的收藏' },
+    { to: '/friends', icon: 'group', label: '我的好友' },
+    { to: '/offline-downloads', icon: 'download_for_offline', label: '下載管理' },
+    { to: '/settings', icon: 'settings', label: '帳號設定' },
+    { to: '/admin', icon: 'admin_panel_settings', label: '管理後台', adminOnly: true },
+    { icon: 'logout', label: '登出', action: signOut, variant: 'danger', dividerBefore: true },
 ]
-const mobileNavItems = computed(() => [
-    { to: "/show-all-anime", icon: "movie", label: "全部作品" },
-    ...menuItems.filter((i) => !i.adminOnly || isAdmin.value),
-])
+const mobileNavItems = computed(() => [{ to: '/show-all-anime', icon: 'movie', label: '全部作品' }, ...menuItems.filter((i) => !i.adminOnly || isAdmin.value)])
 const desktopDropdownItems = computed(() => menuItems.filter((i) => !i.adminOnly || isAdmin.value))
 
 function closeUserMenu() {
@@ -48,6 +46,7 @@ watch(isMobile, (newValue) => {
     if (!newValue) {
         mobileSearchOpen.value = false
         mobileMenuOpen.value = false
+        headerHiddenMobile.value = false
     }
 })
 
@@ -88,9 +87,8 @@ function selectResult(result) {
 
 function closeMobileSearch() {
     mobileSearchOpen.value = false
-    searchQuery.value = ""
+    searchQuery.value = ''
     searchResults.value = []
-    unlockScroll()
 }
 
 function hideDropdownDelayed() {
@@ -113,20 +111,14 @@ function cancelHideUserMenu() {
 
 function openMobileSearch() {
     mobileSearchOpen.value = true
-    lockScroll()
-    nextTick(() => {
-        if (mobileSearchRef.value) {
-            mobileSearchRef.value.focus()
-        }
-    })
 }
 
 function lockScroll() {
-    document.body.style.overflow = "hidden"
+    document.body.style.overflow = 'hidden'
 }
 
 function unlockScroll() {
-    document.body.style.overflow = ""
+    document.body.style.overflow = ''
 }
 
 async function saveSearchHistory(query) {
@@ -136,12 +128,12 @@ async function saveSearchHistory(query) {
     try {
         // Save to Supabase
         const { data, error } = await client
-            .from("search_history")
+            .from('search_history')
             .insert({
                 user_id: userSettings.value.id,
                 query: query,
             })
-            .select("id, query, created_at")
+            .select('id, query, created_at')
             .single()
 
         if (error) throw error
@@ -149,20 +141,20 @@ async function saveSearchHistory(query) {
         searchHistory.value.push(data)
         searchHistory.value.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
     } catch (err) {
-        console.error("Failed to save search history:", err)
+        console.error('Failed to save search history:', err)
     }
 }
 
 async function removeFromHistory(id) {
     try {
-        const { error } = await client.from("search_history").delete().eq("id", id)
+        const { error } = await client.from('search_history').delete().eq('id', id)
 
         if (error) throw error
 
         // Remove from local state
         searchHistory.value = searchHistory.value.filter((item) => item.id !== id)
     } catch (err) {
-        console.error("Failed to remove search history:", err)
+        console.error('Failed to remove search history:', err)
     }
 }
 
@@ -173,17 +165,13 @@ async function fetchSearchHistory() {
     }
 
     try {
-        const { data, error } = await client
-            .from("search_history")
-            .select("id, query, created_at")
-            .eq("user_id", userSettings.value.id)
-            .order("created_at", { ascending: false })
+        const { data, error } = await client.from('search_history').select('id, query, created_at').eq('user_id', userSettings.value.id).order('created_at', { ascending: false })
 
         if (error) throw error
 
         searchHistory.value = data || []
     } catch (err) {
-        console.error("Failed to fetch search history:", err)
+        console.error('Failed to fetch search history:', err)
         searchHistory.value = []
     }
 }
@@ -198,7 +186,7 @@ async function fetchSearchSuggestions() {
         const res = await $fetch(`/api/search/${encodeURIComponent(searchQuery.value)}`)
         searchResults.value = res.results || []
     } catch (err) {
-        console.error("Search failed:", err)
+        console.error('Search failed:', err)
         searchResults.value = []
     } finally {
         loading.value = false
@@ -209,14 +197,43 @@ async function signOut() {
     showUserMenu.value = false
     clearAdmin()
     const { error } = await client.auth.signOut()
-    navigateTo("/login")
+    navigateTo('/login')
+}
+
+let lastScrollY = 0
+
+function onScroll() {
+    if (!isMobile.value || mobileSearchOpen.value || mobileMenuOpen.value) {
+        headerHiddenMobile.value = false
+        lastScrollY = window.scrollY
+        return
+    }
+    const y = window.scrollY
+    const delta = y - lastScrollY
+    const viewportHeight = window.visualViewport?.height || window.innerHeight
+    const docHeight = document.documentElement.scrollHeight
+    const nearBottom = y + viewportHeight >= docHeight - 2
+
+    // Ignore tiny oscillations (especially iOS rubber-band) to prevent jitter.
+    if (Math.abs(delta) < 4) return
+
+    if (y <= 12 || nearBottom) {
+        headerHiddenMobile.value = false
+        lastScrollY = y
+        return
+    }
+
+    headerHiddenMobile.value = delta > 0
+    lastScrollY = y
 }
 
 onMounted(() => {
     fetchSearchHistory()
+    window.addEventListener('scroll', onScroll, { passive: true })
 })
 
 onUnmounted(() => {
+    window.removeEventListener('scroll', onScroll)
     if (searchDebounceTimeout) {
         clearTimeout(searchDebounceTimeout)
     }
@@ -228,8 +245,23 @@ onUnmounted(() => {
     }
 })
 
+watch([mobileSearchOpen, mobileMenuOpen], ([s, m]) => {
+    if (s || m) headerHiddenMobile.value = false
+})
+
 watch(searchQuery, () => {
     debouncedSearch()
+})
+
+watch(mobileSearchOpen, (open) => {
+    if (open) {
+        lockScroll()
+        nextTick(() => {
+            mobileSearchRef.value?.focus()
+        })
+    } else {
+        unlockScroll()
+    }
 })
 
 // Watch user changes to fetch history when user logs in
@@ -246,12 +278,16 @@ watch(
     (newPath, oldPath) => {
         mobileMenuOpen.value = false
         showUserMenu.value = false
-    }
+        headerHiddenMobile.value = false
+    },
 )
 </script>
 
 <template>
-    <header class="sticky top-0 z-50 w-full bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-white/10 shadow-sm">
+    <header
+        class="sticky top-0 z-50 w-full bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-white/10 shadow-sm max-md:fixed max-md:inset-x-0 max-md:top-0 transition-transform duration-300 max-md:duration-300"
+        :class="headerHiddenMobile && !mobileSearchOpen && !mobileMenuOpen ? 'max-md:-translate-y-full' : ''"
+    >
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
             <!-- Left: Logo -->
             <div class="flex items-center gap-2">
@@ -263,25 +299,45 @@ watch(
 
             <!-- Desktop search -->
             <div class="hidden md:flex flex-1 justify-center max-w-xl px-4 relative">
-                <input ref="searchRef" v-model="searchQuery" @keyup.enter="handleEnter" @focus="showDropdown = true" @blur="hideDropdownDelayed" type="search" placeholder="搜尋動漫..." class="w-full bg-gray-950/5 dark:bg-white/10 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:border-white/10 outline-none" />
+                <input
+                    ref="searchRef"
+                    v-model="searchQuery"
+                    @keyup.enter="handleEnter"
+                    @focus="showDropdown = true"
+                    @blur="hideDropdownDelayed"
+                    type="search"
+                    placeholder="搜尋動漫..."
+                    class="w-full bg-gray-950/5 dark:bg-white/10 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:border-white/10 outline-none"
+                />
                 <!-- Loading Spinner -->
                 <div v-if="loading" class="absolute right-8 top-1/2 -translate-y-1/2">
                     <div class="h-4 w-4 rounded-full animate-spin border-2 border-gray-300 border-t-gray-900 dark:border-gray-600 dark:border-t-white"></div>
                 </div>
                 <!-- Modern Dropdown -->
                 <transition name="dropdown">
-                    <div v-if="(searchResults.length || searchHistory.length || (searchQuery && !loading)) && showDropdown" class="absolute top-full mt-2 w-full bg-white dark:bg-gray-950 rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 z-50 max-h-96 overflow-y-auto">
+                    <div
+                        v-if="(searchResults.length || searchHistory.length || (searchQuery && !loading)) && showDropdown"
+                        class="absolute top-full mt-2 w-full bg-white dark:bg-gray-950 rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 z-50 max-h-96 overflow-y-auto"
+                    >
                         <!-- Search History (shown when no query) -->
                         <div v-if="!searchQuery && searchHistory.length" class="py-2">
                             <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">最近搜尋</div>
                             <ul>
-                                <li v-for="item in searchHistory" :key="item.id" class="px-4 py-2 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer transition-colors flex items-center justify-between group" @mousedown.prevent="searchFromHistory(item.query)">
+                                <li
+                                    v-for="item in searchHistory"
+                                    :key="item.id"
+                                    class="px-4 py-2 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer transition-colors flex items-center justify-between group"
+                                    @mousedown.prevent="searchFromHistory(item.query)"
+                                >
                                     <div class="flex items-center gap-2">
-                                        <span class="material-icons text-gray-400 text-sm">history</span>
+                                        <span class="material-symbols-rounded text-gray-400 text-sm">history</span>
                                         <span class="text-sm text-gray-700 dark:text-gray-300">{{ item.query }}</span>
                                     </div>
-                                    <button @mousedown.prevent.stop="removeFromHistory(item.id)" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
-                                        <span class="material-icons text-gray-500 text-sm">close</span>
+                                    <button
+                                        @mousedown.prevent.stop="removeFromHistory(item.id)"
+                                        class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                                    >
+                                        <span class="material-symbols-rounded text-gray-500 text-sm">close</span>
                                     </button>
                                 </li>
                             </ul>
@@ -289,13 +345,18 @@ watch(
 
                         <!-- Search Results -->
                         <ul v-if="searchResults.length" class="py-2">
-                            <li v-for="(result, i) in searchResults" :key="i" class="px-3 py-2 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer transition-colors" @mousedown.prevent="selectResult(result)">
+                            <li
+                                v-for="(result, i) in searchResults"
+                                :key="i"
+                                class="px-3 py-2 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer transition-colors"
+                                @mousedown.prevent="selectResult(result)"
+                            >
                                 <div class="flex items-center gap-3">
                                     <!-- Image -->
                                     <div class="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
                                         <NuxtImg v-if="result.image" :src="result.image" :alt="result.title" class="w-full h-full object-cover" loading="lazy" />
                                         <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
-                                            <span class="material-icons">image</span>
+                                            <span class="material-symbols-rounded">image</span>
                                         </div>
                                     </div>
                                     <!-- Info -->
@@ -306,11 +367,11 @@ watch(
                                         <div class="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
                                             <span v-if="result.year">{{ result.year }}</span>
                                             <span v-if="result.episodes" class="flex items-center gap-1">
-                                                <span class="material-icons text-xs">play_circle</span>
+                                                <span class="material-symbols-rounded text-xs">play_circle</span>
                                                 {{ result.episodes }}
                                             </span>
                                             <span v-if="result.views" class="flex items-center gap-1">
-                                                <span class="material-icons text-xs">visibility</span>
+                                                <span class="material-symbols-rounded text-xs">visibility</span>
                                                 {{ formatViews(result.views) }}
                                             </span>
                                         </div>
@@ -321,7 +382,7 @@ watch(
 
                         <!-- Desktop No Results Message -->
                         <div v-if="searchQuery && !loading && !searchResults.length" class="py-8 px-4 text-center">
-                            <span class="material-icons text-gray-400 text-4xl mb-2">search_off</span>
+                            <span class="material-symbols-rounded text-gray-400 text-4xl mb-2">search_off</span>
                             <p class="text-gray-600 dark:text-gray-400 text-sm">找不到「{{ searchQuery }}」的相關結果</p>
                         </div>
                     </div>
@@ -334,33 +395,60 @@ watch(
 
                 <!-- User Profile Dropdown -->
                 <div class="relative">
-                    <button @click="showUserMenu = !showUserMenu" @mouseenter="cancelHideUserMenu" @mouseleave="hideUserMenuDelayed" class="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
-                        <NuxtImg v-if="user?.user_metadata?.avatar_url" :src="user.user_metadata.avatar_url" :alt="user.user_metadata.name" class="w-8 h-8 rounded-full object-cover border-2 border-gray-200 dark:border-white/10" loading="lazy" />
+                    <button
+                        @click="showUserMenu = !showUserMenu"
+                        @mouseenter="cancelHideUserMenu"
+                        @mouseleave="hideUserMenuDelayed"
+                        class="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                    >
+                        <NuxtImg
+                            v-if="user?.user_metadata?.avatar_url"
+                            :src="user.user_metadata.avatar_url"
+                            :alt="user.user_metadata.name"
+                            class="w-8 h-8 rounded-full object-cover border-2 border-gray-200 dark:border-white/10"
+                            loading="lazy"
+                        />
                         <div v-else class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold">
-                            {{ user?.user_metadata?.name?.[0]?.toUpperCase() || "U" }}
+                            {{ user?.user_metadata?.name?.[0]?.toUpperCase() || 'U' }}
                         </div>
                     </button>
 
                     <!-- User Menu Dropdown -->
                     <transition name="dropdown">
-                        <div v-if="showUserMenu" @mouseenter="cancelHideUserMenu" @mouseleave="hideUserMenuDelayed" class="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-950 rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 z-50 overflow-hidden">
-                            <!-- User Info Header -->
-                            <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-750">
+                        <div
+                            v-if="showUserMenu"
+                            @mouseenter="cancelHideUserMenu"
+                            @mouseleave="hideUserMenuDelayed"
+                            class="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-950 rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 z-50 overflow-hidden"
+                        >
+                            <!-- User Info Header → 個人資料 -->
+                            <NuxtLink
+                                to="/profile"
+                                class="block px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-750 hover:from-indigo-100/80 hover:to-purple-100/80 dark:hover:from-gray-600 dark:hover:to-gray-700 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+                                @click="closeUserMenu"
+                            >
                                 <div class="flex items-center gap-3">
-                                    <NuxtImg v-if="user?.user_metadata?.avatar_url" :src="user.user_metadata.avatar_url" :alt="user.user_metadata.name" class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-600" loading="lazy" />
+                                    <NuxtImg
+                                        v-if="user?.user_metadata?.avatar_url"
+                                        :src="user.user_metadata.avatar_url"
+                                        :alt="user.user_metadata.name"
+                                        class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-600"
+                                        loading="lazy"
+                                    />
                                     <div v-else class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
-                                        {{ user?.user_metadata?.name?.[0]?.toUpperCase() || "U" }}
+                                        {{ user?.user_metadata?.name?.[0]?.toUpperCase() || 'U' }}
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <p class="font-semibold text-gray-900 dark:text-gray-100 truncate">
-                                            {{ user?.user_metadata?.name || "User" }}
+                                            {{ user?.user_metadata?.name || 'User' }}
                                         </p>
                                         <p class="text-xs text-gray-600 dark:text-gray-400 truncate">
                                             {{ user?.email }}
                                         </p>
                                     </div>
+                                    <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-xl shrink-0" aria-hidden="true">chevron_right</span>
                                 </div>
-                            </div>
+                            </NuxtLink>
 
                             <!-- Menu Items -->
                             <div class="py-2">
@@ -372,18 +460,24 @@ watch(
                                         class="w-full px-4 py-2.5 text-left hover:bg-black/10 dark:hover:bg-white/20 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300"
                                         @click.native="closeUserMenu"
                                     >
-                                        <span class="material-icons text-gray-500 dark:text-gray-400">{{ item.icon }}</span>
-<span class="text-sm font-medium">{{ item.label }}</span>
-              <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{ item.badge }}</span>
-          </NuxtLink>
-          <button
-            v-else-if="item.action"
+                                        <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">{{ item.icon }}</span>
+                                        <span class="text-sm font-medium">{{ item.label }}</span>
+                                        <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{
+                                            item.badge
+                                        }}</span>
+                                    </NuxtLink>
+                                    <button
+                                        v-else-if="item.action"
                                         type="button"
                                         class="w-full px-4 py-2.5 text-left transition-colors flex items-center gap-3"
-                                        :class="item.variant === 'danger' ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400' : 'hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300'"
+                                        :class="
+                                            item.variant === 'danger'
+                                                ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400'
+                                                : 'hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300'
+                                        "
                                         @click="item.action()"
                                     >
-                                        <span class="material-icons">{{ item.icon }}</span>
+                                        <span class="material-symbols-rounded">{{ item.icon }}</span>
                                         <span class="text-sm font-medium">{{ item.label }}</span>
                                     </button>
                                 </template>
@@ -397,11 +491,11 @@ watch(
             <div class="md:hidden flex items-center gap-2">
                 <!-- Search icon -->
                 <button @click="openMobileSearch" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center">
-                    <span class="material-icons text-gray-700 dark:text-gray-200">search</span>
+                    <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">search</span>
                 </button>
                 <!-- Menu icon -->
                 <button @click="mobileMenuOpen = !mobileMenuOpen" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center">
-                    <span class="material-icons text-gray-700 dark:text-gray-200">menu</span>
+                    <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">{{ mobileMenuOpen ? 'close' : 'menu' }}</span>
                 </button>
             </div>
         </div>
@@ -412,13 +506,20 @@ watch(
                 <!-- Fixed Search Bar at Top -->
                 <div class="px-4 py-3 flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
                     <div class="flex items-center relative">
-                        <input ref="mobileSearchRef" v-model="searchQuery" @keyup.enter="handleEnter" type="search" placeholder="搜尋動漫..." class="flex-1 bg-gray-950/5 dark:bg-white/10 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:border-white/10 outline-none" />
+                        <input
+                            ref="mobileSearchRef"
+                            v-model="searchQuery"
+                            @keyup.enter="handleEnter"
+                            type="search"
+                            placeholder="搜尋動漫..."
+                            class="flex-1 bg-gray-950/5 dark:bg-white/10 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:border-white/10 outline-none"
+                        />
                         <!-- Mobile Loading Spinner -->
                         <div v-if="loading" class="absolute right-14 top-1/2 -translate-y-1/2">
                             <div class="h-4 w-4 rounded-full animate-spin border-2 border-gray-300 border-t-gray-900 dark:border-gray-600 dark:border-t-white"></div>
                         </div>
                         <button @click="closeMobileSearch" class="ml-2 p-2 flex items-center justify-center">
-                            <span class="material-icons text-gray-700 dark:text-gray-200">close</span>
+                            <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">close</span>
                         </button>
                     </div>
                 </div>
@@ -429,13 +530,18 @@ watch(
                     <div v-if="!searchQuery && searchHistory.length" class="bg-white dark:bg-gray-950">
                         <div class="px-4 py-3 bg-white dark:bg-gray-950 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide sticky top-0">最近搜尋</div>
                         <ul>
-                            <li v-for="item in searchHistory" :key="item.id" class="px-4 py-2 hover:bg-black/10 dark:hover:bg-white/20 cursor-pointer transition-colors flex items-center justify-between group" @click="searchFromHistory(item.query)">
+                            <li
+                                v-for="item in searchHistory"
+                                :key="item.id"
+                                class="px-4 py-2 hover:bg-black/10 dark:hover:bg-white/20 cursor-pointer transition-colors flex items-center justify-between group"
+                                @click="searchFromHistory(item.query)"
+                            >
                                 <div class="flex items-center gap-2">
-                                    <span class="material-icons text-gray-400 text-sm">history</span>
+                                    <span class="material-symbols-rounded text-gray-400 text-sm">history</span>
                                     <span class="text-sm text-gray-700 dark:text-gray-300">{{ item.query }}</span>
                                 </div>
                                 <button @click.stop="removeFromHistory(item.id)" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
-                                    <span class="material-icons text-gray-500 text-sm">close</span>
+                                    <span class="material-symbols-rounded text-gray-500 text-sm">close</span>
                                 </button>
                             </li>
                         </ul>
@@ -450,7 +556,7 @@ watch(
                                     <div class="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
                                         <NuxtImg v-if="result.image" :src="result.image" :alt="result.title" class="w-full h-full object-cover" loading="lazy" />
                                         <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
-                                            <span class="material-icons">image</span>
+                                            <span class="material-symbols-rounded">image</span>
                                         </div>
                                     </div>
                                     <!-- Info -->
@@ -461,11 +567,11 @@ watch(
                                         <div class="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
                                             <span v-if="result.year">{{ result.year }}</span>
                                             <span v-if="result.episodes" class="flex items-center gap-1">
-                                                <span class="material-icons text-xs">play_circle</span>
+                                                <span class="material-symbols-rounded text-xs">play_circle</span>
                                                 {{ result.episodes }}
                                             </span>
                                             <span v-if="result.views" class="flex items-center gap-1">
-                                                <span class="material-icons text-xs">visibility</span>
+                                                <span class="material-symbols-rounded text-xs">visibility</span>
                                                 {{ formatViews(result.views) }}
                                             </span>
                                         </div>
@@ -478,7 +584,7 @@ watch(
                     <!-- Mobile No Results Message -->
                     <div v-if="searchQuery && !loading && !searchResults.length" class="flex items-center justify-center min-h-[50vh]">
                         <div class="text-center py-8 px-4">
-                            <span class="material-icons text-gray-400 text-5xl mb-3">search_off</span>
+                            <span class="material-symbols-rounded text-gray-400 text-5xl mb-3">search_off</span>
                             <p class="text-gray-600 dark:text-gray-400 text-sm">找不到「{{ searchQuery }}」的相關結果</p>
                         </div>
                     </div>
@@ -487,49 +593,70 @@ watch(
         </transition>
 
         <!-- Mobile nav -->
-        <div v-if="mobileMenuOpen" class="md:hidden px-4 pb-3 space-y-3">
-            <!-- User Profile Section (Mobile) -->
-            <div class="flex items-center gap-3 px-3 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-750 rounded-lg">
-                <NuxtImg v-if="user?.user_metadata?.avatar_url" :src="user.user_metadata.avatar_url" :alt="user.user_metadata.name" class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-600" loading="lazy" />
-                <div v-else class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
-                    {{ user?.user_metadata?.name?.[0]?.toUpperCase() || "U" }}
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="font-semibold text-gray-900 dark:text-gray-100 truncate">
-                        {{ user?.user_metadata?.name || "User" }}
-                    </p>
-                    <p class="text-xs text-gray-600 dark:text-gray-400 truncate">
-                        {{ user?.email }}
-                    </p>
+        <transition name="menu-collapse">
+            <div v-if="mobileMenuOpen" class="md:hidden grid">
+                <div class="overflow-hidden min-h-0">
+                    <div class="px-4 pb-3 space-y-3">
+                        <!-- User Profile Section (Mobile) → 個人資料 -->
+                        <NuxtLink
+                            to="/profile"
+                            class="flex items-center gap-3 px-3 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-750 rounded-lg hover:from-indigo-100/80 hover:to-purple-100/80 dark:hover:from-gray-600 dark:hover:to-gray-700 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                            @click="mobileMenuOpen = false"
+                        >
+                            <NuxtImg
+                                v-if="user?.user_metadata?.avatar_url"
+                                :src="user.user_metadata.avatar_url"
+                                :alt="user.user_metadata.name"
+                                class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-600"
+                                loading="lazy"
+                            />
+                            <div v-else class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+                                {{ user?.user_metadata?.name?.[0]?.toUpperCase() || 'U' }}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                    {{ user?.user_metadata?.name || 'User' }}
+                                </p>
+                                <p class="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                    {{ user?.email }}
+                                </p>
+                            </div>
+                            <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-xl shrink-0" aria-hidden="true">chevron_right</span>
+                        </NuxtLink>
+
+                        <nav class="flex flex-col gap-2">
+                            <template v-for="item in mobileNavItems" :key="item.to || item.label">
+                                <div v-if="item.dividerBefore" class="border-t border-gray-200 dark:border-gray-700 my-2" />
+                                <NuxtLink v-if="item.to" :to="item.to" class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3">
+                                    <span class="material-symbols-rounded text-gray-500 dark:text-gray-400 text-xl">{{ item.icon }}</span>
+                                    <span>{{ item.label }}</span>
+                                    <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{
+                                        item.badge
+                                    }}</span>
+                                </NuxtLink>
+                                <button
+                                    v-else-if="item.action"
+                                    type="button"
+                                    class="text-sm px-3 py-2 rounded flex items-center gap-3 text-left"
+                                    :class="
+                                        item.variant === 'danger'
+                                            ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400'
+                                            : 'hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300'
+                                    "
+                                    @click="item.action()"
+                                >
+                                    <span class="material-symbols-rounded text-xl">{{ item.icon }}</span>
+                                    <span>{{ item.label }}</span>
+                                    <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{
+                                        item.badge
+                                    }}</span>
+                                </button>
+                            </template>
+                        </nav>
+                    </div>
                 </div>
             </div>
-
-            <nav class="flex flex-col gap-2">
-                <template v-for="item in mobileNavItems" :key="item.to || item.label">
-                    <div v-if="item.dividerBefore" class="border-t border-gray-200 dark:border-gray-700 my-2" />
-                    <NuxtLink
-                        v-if="item.to"
-                        :to="item.to"
-                        class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3"
-                    >
-<span class="material-icons text-gray-500 dark:text-gray-400 text-xl">{{ item.icon }}</span>
-            <span>{{ item.label }}</span>
-            <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{ item.badge }}</span>
-          </NuxtLink>
-          <button
-            v-else-if="item.action"
-                        type="button"
-                        class="text-sm px-3 py-2 rounded flex items-center gap-3 text-left"
-                        :class="item.variant === 'danger' ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400' : 'hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300'"
-                        @click="item.action()"
-                    >
-<span class="material-icons text-xl">{{ item.icon }}</span>
-            <span>{{ item.label }}</span>
-            <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{ item.badge }}</span>
-          </button>
-                </template>
-            </nav>
-        </div>
+        </transition>
     </header>
 </template>
 
@@ -541,6 +668,23 @@ watch(
 .fade-enter-from,
 .fade-leave-to {
     opacity: 0;
+}
+
+.menu-collapse-enter-active,
+.menu-collapse-leave-active {
+    transition:
+        grid-template-rows 0.28s ease,
+        opacity 0.22s ease;
+}
+.menu-collapse-enter-from,
+.menu-collapse-leave-to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+}
+.menu-collapse-enter-to,
+.menu-collapse-leave-from {
+    grid-template-rows: 1fr;
+    opacity: 1;
 }
 
 .dropdown-enter-active,

@@ -282,7 +282,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                     <div class="relative inline-flex items-center justify-center">
                         <div class="absolute w-20 h-20 border-4 border-gray-300 dark:border-gray-600 border-t-gray-950 dark:border-t-gray-100 rounded-full animate-spin"></div>
                         <div class="w-16 h-16 rounded-full bg-gray-600 dark:bg-gray-800 flex items-center justify-center shadow-lg">
-                            <span class="material-icons text-white text-3xl">security</span>
+                            <span class="material-symbols-rounded text-white text-3xl">security</span>
                         </div>
                     </div>
 
@@ -300,7 +300,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                 <div v-else-if="authStatus === 'success'" class="text-center space-y-6">
                     <div class="relative inline-flex items-center justify-center">
                         <div class="w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg animate-success-pop">
-                            <span class="material-icons text-white text-4xl animate-checkmark">check</span>
+                            <span class="material-symbols-rounded text-white text-4xl animate-checkmark">check</span>
                         </div>
                         <div class="absolute w-24 h-24 border-4 border-green-200 dark:border-green-900 rounded-full animate-ping-slow"></div>
                     </div>
@@ -323,7 +323,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                     </div>
 
                     <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
-                        <span class="material-icons text-xs">schedule</span>
+                        <span class="material-symbols-rounded text-xs">schedule</span>
                         正在重定向到{{ redirectPath !== '/' ? "您的目標頁面" : "首頁" }}...
                     </p>
                 </div>
@@ -332,7 +332,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                 <div v-else-if="authStatus === 'error'" class="text-center space-y-6">
                     <div class="relative inline-flex items-center justify-center">
                         <div class="w-20 h-20 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg animate-success-pop">
-                            <span class="material-icons text-white text-4xl">error</span>
+                            <span class="material-symbols-rounded text-white text-4xl">error</span>
                         </div>
                         <div class="absolute w-24 h-24 border-4 border-red-200 dark:border-red-900 rounded-full animate-ping-slow"></div>
                     </div>
@@ -341,7 +341,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
 
                     <div class="bg-red-50 dark:bg-red-500/10 rounded-xl p-4 border border-red-200 dark:border-red-500/30">
                         <div class="flex items-center">
-                            <span class="material-icons text-red-600 dark:text-red-400 text-xl flex-shrink-0">info</span>
+                            <span class="material-symbols-rounded text-red-600 dark:text-red-400 text-xl flex-shrink-0">info</span>
                             <p class="text-sm font-medium text-red-800 dark:text-red-300 flex-1">{{ authMessage || error }}</p>
                         </div>
                     </div>
@@ -365,7 +365,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                     <Transition name="fade">
                         <div v-if="error" class="p-4 bg-red-50 dark:bg-red-500/10 backdrop-blur-sm border border-red-200 dark:border-red-500/30 rounded-xl">
                             <div class="flex items-center gap-2 text-red-600 dark:text-red-400">
-                                <span class="material-icons text-sm">error</span>
+                                <span class="material-symbols-rounded text-sm">error</span>
                                 <p class="text-sm font-medium">{{ error }}</p>
                             </div>
                         </div>

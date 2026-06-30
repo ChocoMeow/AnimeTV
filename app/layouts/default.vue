@@ -1,8 +1,23 @@
+<script setup>
+const headerHiddenMobile = useState("app-mobile-header-hidden", () => false)
+const showMobilePwaNav = useState("app-show-mobile-pwa-nav", () => false)
+</script>
+
 <template>
-    <div class="min-h-screen flex flex-col">
+    <div
+        class="min-h-screen flex flex-col md:pb-0"
+        :class="
+            showMobilePwaNav
+                ? 'max-md:pb-[calc(3.75rem+(env(safe-area-inset-bottom,0px)/2))]'
+                : ''
+        "
+    >
         <SiteHeader />
 
-        <main class="flex-1 w-full transition-all duration-300 ease-in-out">
+        <main
+            class="flex-1 w-full transition-all duration-300 ease-in-out max-md:transition-[margin-top,padding] max-md:duration-300"
+            :class="'max-md:pt-14'"
+        >
             <slot />
             <GlobalToast />
         </main>
@@ -10,6 +25,8 @@
         <FriendList />
 
         <SiteFooter />
+
+        <LazyMobileBottomNav />
     </div>
 </template>
 
@@ -33,6 +50,10 @@ html {
 
 /* Push main content when friend list is open on desktop */
 @media (min-width: 1024px) {
+    footer {
+        transition: padding-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
     body.friend-list-open main,
     body.friend-list-open footer {
         padding-right: 320px;

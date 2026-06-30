@@ -178,7 +178,7 @@ function formatDate(dateString) {
         <!-- Loading -->
         <div v-if="loading" class="relative flex flex-col items-center justify-center py-12 px-6">
             <button type="button" @click="close" class="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors">
-                <span class="material-icons text-xl">close</span>
+                <span class="material-symbols-rounded text-xl">close</span>
             </button>
             <div class="inline-block w-10 h-10 border-4 border-gray-600 border-t-transparent rounded-full animate-spin mb-4" />
             <p class="text-gray-600 dark:text-gray-400">載入資料中...</p>
@@ -187,10 +187,10 @@ function formatDate(dateString) {
         <!-- Error -->
         <div v-else-if="error" class="relative flex flex-col items-center justify-center py-12 px-6 text-center">
             <button type="button" @click="close" class="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors">
-                <span class="material-icons text-xl">close</span>
+                <span class="material-symbols-rounded text-xl">close</span>
             </button>
             <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
-                <span class="material-icons text-4xl text-red-500">error_outline</span>
+                <span class="material-symbols-rounded text-4xl text-red-500">error_outline</span>
             </div>
             <p class="text-red-600 dark:text-red-400">{{ error }}</p>
         </div>
@@ -204,7 +204,7 @@ function formatDate(dateString) {
                 :style="bannerStyle || undefined"
             >
                 <button type="button" @click="close" class="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-lg bg-black/30 hover:bg-black/50 text-white transition-colors">
-                    <span class="material-icons text-xl">close</span>
+                    <span class="material-symbols-rounded text-xl">close</span>
                 </button>
                 <div class="absolute inset-0 opacity-40 mix-blend-soft-light bg-[radial-gradient(circle_at_top,_#ffffff33,_transparent_55%)]" />
                 <div class="absolute -bottom-12 left-6">
@@ -236,11 +236,11 @@ function formatDate(dateString) {
                                 <span class="text-gray-200">{{ activityStatus.label }}</span>
                             </div>
                             <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-                                <span class="material-icons text-sm text-indigo-300">movie</span>
+                                <span class="material-symbols-rounded text-sm text-indigo-300">movie</span>
                                 <span class="text-gray-200">{{ stats.totalWatched }} 個觀看紀錄</span>
                             </div>
                             <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-                                <span class="material-icons text-sm text-pink-300">bookmark</span>
+                                <span class="material-symbols-rounded text-sm text-pink-300">bookmark</span>
                                 <span class="text-gray-200">{{ stats.totalFavorites }} 個收藏</span>
                             </div>
                         </div>
@@ -266,11 +266,11 @@ function formatDate(dateString) {
                                 <p class="text-sm font-semibold text-gray-100 truncate">{{ watchingNow.anime_title }}</p>
                                 <p class="text-xs text-gray-400 mt-0.5">第 {{ watchingNow.episode_number }} 集</p>
                                 <div class="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-[11px] w-fit">
-                                    <span class="material-icons text-sm">play_circle</span>
+                                    <span class="material-symbols-rounded text-sm">play_circle</span>
                                     正在觀看
                                 </div>
                             </div>
-                            <span class="material-icons text-gray-500 group-hover:text-gray-300 self-center pr-3">chevron_right</span>
+                            <span class="material-symbols-rounded text-gray-500 group-hover:text-gray-300 self-center pr-3">chevron_right</span>
                         </NuxtLink>
                     </div>
 
@@ -326,7 +326,7 @@ function formatDate(dateString) {
                                     <NuxtImg :src="anime.anime_image" :alt="anime.anime_title" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
                                     <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
                                     <div class="absolute top-2 right-2 w-6 h-6 rounded-full bg-pink-500 flex items-center justify-center shadow-lg shadow-pink-500/60">
-                                        <span class="material-icons text-xs text-white">bookmark</span>
+                                        <span class="material-symbols-rounded text-xs text-white">bookmark</span>
                                     </div>
                                     <div class="absolute bottom-0 left-0 right-0 p-2">
                                         <p class="text-[11px] font-medium text-gray-100 truncate">{{ anime.anime_title }}</p>
@@ -399,11 +399,11 @@ function formatDate(dateString) {
                         <span class="text-[11px] text-gray-500 dark:text-gray-400">{{ activityStatus.label }}</span>
                         <div class="flex gap-1.5 flex-shrink-0 ml-auto">
                             <div class="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 text-[11px] text-gray-500 dark:text-gray-300">
-                                <span class="material-icons text-xs text-indigo-400">movie</span>
+                                <span class="material-symbols-rounded text-xs text-indigo-400">movie</span>
                                 {{ stats.totalWatched }}
                             </div>
                             <div class="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 text-[11px] text-gray-500 dark:text-gray-300">
-                                <span class="material-icons text-xs text-pink-400">bookmark</span>
+                                <span class="material-symbols-rounded text-xs text-pink-400">bookmark</span>
                                 {{ stats.totalFavorites }}
                             </div>
                         </div>
@@ -420,7 +420,7 @@ function formatDate(dateString) {
 
         <!-- Error -->
         <div v-else-if="error" class="flex flex-col items-center justify-center py-16 text-center gap-3">
-            <span class="material-icons text-3xl text-red-400">error_outline</span>
+            <span class="material-symbols-rounded text-3xl text-red-400">error_outline</span>
             <p class="text-sm text-red-400">{{ error }}</p>
         </div>
 
@@ -441,11 +441,11 @@ function formatDate(dateString) {
                         <p class="text-sm font-semibold text-gray-100 truncate">{{ watchingNow.anime_title }}</p>
                         <p class="text-xs text-gray-400 mt-0.5">第 {{ watchingNow.episode_number }} 集</p>
                         <div class="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-[11px] w-fit">
-                            <span class="material-icons text-xs">play_circle</span>
+                            <span class="material-symbols-rounded text-xs">play_circle</span>
                             正在觀看
                         </div>
                     </div>
-                    <span class="material-icons text-gray-500 self-center pr-2">chevron_right</span>
+                    <span class="material-symbols-rounded text-gray-500 self-center pr-2">chevron_right</span>
                 </NuxtLink>
             </div>
 
@@ -501,7 +501,7 @@ function formatDate(dateString) {
                             <NuxtImg :src="anime.anime_image" :alt="anime.anime_title" class="w-full h-full object-cover" loading="lazy" />
                             <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
                             <div class="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-pink-500 flex items-center justify-center shadow-lg shadow-pink-500/60">
-                                <span class="material-icons text-[10px] text-white">bookmark</span>
+                                <span class="material-symbols-rounded text-[10px] text-white">bookmark</span>
                             </div>
                             <div class="absolute bottom-0 left-0 right-0 p-1.5">
                                 <p class="text-[10px] font-medium text-gray-100 truncate">{{ anime.anime_title }}</p>

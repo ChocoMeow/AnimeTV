@@ -76,7 +76,7 @@ function removeChip(value) {
                 class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/80 dark:bg-white text-white dark:text-black text-xs"
             >
                 <span>{{ chip }}</span>
-                <button type="button" class="material-icons text-[14px] leading-none" @click="removeChip(chip)">close</button>
+                <button type="button" class="material-symbols-rounded text-[14px] leading-none" @click="removeChip(chip)">close</button>
             </span>
             <input
                 v-model="inputValue"

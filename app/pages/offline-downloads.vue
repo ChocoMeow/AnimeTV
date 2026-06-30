@@ -110,7 +110,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                     <div
                         class="px-4 py-2 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center gap-2"
                     >
-                        <span class="material-icons text-gray-600 dark:text-gray-400 text-lg">storage</span>
+                        <span class="material-symbols-rounded text-gray-600 dark:text-gray-400 text-lg">storage</span>
                         <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ formatBytes(totalDownloadedBytes) }}</span>
                     </div>
                     <button
@@ -146,7 +146,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                                 :stroke-dashoffset="progressRingDashoffset"
                             />
                         </svg>
-                        <span v-else class="material-icons text-lg shrink-0" aria-hidden="true">downloading</span>
+                        <span v-else class="material-symbols-rounded text-lg shrink-0" aria-hidden="true">downloading</span>
                         下載進度
                     </button>
                     <button
@@ -154,7 +154,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                         class="px-4 py-2 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors font-medium flex items-center gap-2"
                         @click="refreshList"
                     >
-                        <span class="material-icons text-lg">refresh</span>
+                        <span class="material-symbols-rounded text-lg">refresh</span>
                         重新整理
                     </button>
                 </div>
@@ -169,7 +169,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
         <div v-else class="space-y-6">
             <!-- Empty State -->
             <div v-if="!items.length" class="text-center py-20">
-                <span class="material-icons text-gray-400 text-6xl mb-4">download_for_offline</span>
+                <span class="material-symbols-rounded text-gray-400 text-6xl mb-4">download_for_offline</span>
                 <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">目前沒有已下載的動漫</h3>
                 <p class="text-gray-500 dark:text-gray-400 mb-6">前往動漫頁面下載集數以便離線觀看</p>
                 <NuxtLink
@@ -201,11 +201,11 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                                 </h3>
                                 <div class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
                                     <p class="flex items-center gap-2">
-                                        <span class="material-icons text-xs">movie</span>
+                                        <span class="material-symbols-rounded text-xs">movie</span>
                                         {{ anime.episodeCount }} 集已下載
                                     </p>
                                     <p class="flex items-center gap-2">
-                                        <span class="material-icons text-xs">storage</span>
+                                        <span class="material-symbols-rounded text-xs">storage</span>
                                         {{ formatBytes(anime.totalBytes) }}
                                     </p>
                                 </div>
@@ -218,7 +218,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                             class="flex items-center justify-center w-10 h-10 rounded-md bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 transition-colors"
                             title="前往播放"
                         >
-                            <span class="material-icons text-lg">open_in_new</span>
+                            <span class="material-symbols-rounded text-lg">open_in_new</span>
                         </NuxtLink>
                         <button
                             type="button"
@@ -226,7 +226,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                             title="清除全部"
                             @click="clearOneAnime(anime.refId, anime.animeTitle)"
                         >
-                            <span class="material-icons text-lg">delete</span>
+                            <span class="material-symbols-rounded text-lg">delete</span>
                         </button>
                     </div>
 
@@ -244,7 +244,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                                     class="text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                                     @click.prevent="removeOneEpisode(anime.refId, ep)"
                                 >
-                                    <span class="material-icons text-base">close</span>
+                                    <span class="material-symbols-rounded text-base">close</span>
                                 </button>
                             </NuxtLink>
                         </div>
@@ -272,7 +272,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
     <!-- Download Progress Dialog -->
     <BaseDialog v-model="showDownloadProgress" title="下載進度" max-width="max-w-2xl" scrollable>
         <div v-if="!activeTasks.length && !recentTasks.length" class="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">
-            <span class="material-icons text-4xl mb-2 text-gray-300 dark:text-gray-600">download_done</span>
+            <span class="material-symbols-rounded text-4xl mb-2 text-gray-300 dark:text-gray-600">download_done</span>
             <p>目前沒有下載任務</p>
         </div>
 
@@ -302,7 +302,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                                 title="繼續下載"
                                 @click="resumeDownload(task)"
                             >
-                                <span class="material-icons text-[20px] leading-none transition-transform group-hover:scale-105">play_arrow</span>
+                                <span class="material-symbols-rounded text-[20px] leading-none transition-transform group-hover:scale-105">play_arrow</span>
                             </button>
                             <button
                                 type="button"
@@ -310,7 +310,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                                 title="取消下載"
                                 @click="cancelTask(task)"
                             >
-                                <span class="material-icons text-[18px] leading-none">close</span>
+                                <span class="material-symbols-rounded text-[18px] leading-none">close</span>
                             </button>
                         </template>
                         <template v-else>
@@ -320,7 +320,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                                 title="暫停下載"
                                 @click="pauseDownload(task)"
                             >
-                                <span class="material-icons text-[20px] leading-none">pause</span>
+                                <span class="material-symbols-rounded text-[20px] leading-none">pause</span>
                             </button>
                             <button
                                 type="button"
@@ -328,7 +328,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                                 title="取消下載"
                                 @click="cancelTask(task)"
                             >
-                                <span class="material-icons text-[18px] leading-none">close</span>
+                                <span class="material-symbols-rounded text-[18px] leading-none">close</span>
                             </button>
                         </template>
                     </div>
@@ -371,7 +371,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                                     : 'text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-300'
                             "
                         >
-                            <span class="material-icons text-sm">{{ task.status === 'error' ? 'error' : 'check_circle' }}</span>
+                            <span class="material-symbols-rounded text-sm">{{ task.status === 'error' ? 'error' : 'check_circle' }}</span>
                             {{ task.status === 'error' ? task.error || '下載失敗' : '下載完成' }}
                         </p>
                     </div>

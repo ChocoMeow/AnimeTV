@@ -103,7 +103,7 @@ onUnmounted(() => {
             <template v-else>
                 <!-- Empty state -->
                 <div v-if="!displayedItems.length" class="text-center py-12 text-gray-500 dark:text-gray-400">
-                    <span class="material-icons text-4xl mb-2 opacity-50">event_busy</span>
+                    <span class="material-symbols-rounded text-4xl mb-2 opacity-50">event_busy</span>
                     <p>今日暫無更新節目</p>
                 </div>
 
@@ -131,7 +131,7 @@ onUnmounted(() => {
                             <!-- Play icon overlay -->
                             <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <div class="w-10 h-10 rounded-full bg-white/90 dark:bg-gray-900/90 flex items-center justify-center shadow-lg">
-                                    <span class="material-icons text-2xl">play_arrow</span>
+                                    <span class="material-symbols-rounded text-2xl">play_arrow</span>
                                 </div>
                             </div>
                         </div>
@@ -141,7 +141,7 @@ onUnmounted(() => {
                                 {{ item.title }}
                             </div>
                             <div class="flex items-center text-xs text-gray-500 dark:text-gray-400 font-medium">
-                                <span class="material-icons text-xs mr-1">play_circle</span>
+                                <span class="material-symbols-rounded text-xs mr-1">play_circle</span>
                                 {{ item.episode }}
                             </div>
                         </div>

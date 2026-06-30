@@ -88,7 +88,7 @@ async function shareNative() {
             <!-- Timestamp Toggle -->
             <div v-if="hasEpisode" class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
                 <div class="flex items-center gap-3">
-                    <span class="material-icons text-gray-600 dark:text-gray-400">schedule</span>
+                    <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">schedule</span>
                     <div>
                         <p class="font-medium text-gray-900 dark:text-white">包含播放進度</p>
                         <p class="text-sm text-gray-500 dark:text-gray-400">分享當前集數和時間點</p>
@@ -107,8 +107,8 @@ async function shareNative() {
                     <input type="text" :value="finalUrl" readonly class="flex-1 px-4 py-3 bg-black/10 dark:bg-white/10 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent" />
                     <button @click="copyUrl" :class="['copy-btn px-4 py-3 rounded-lg transition-all flex items-center gap-2', copied ? 'bg-emerald-500 hover:bg-emerald-600 scale-105 text-white' : 'bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900']" aria-pressed="false" type="button">
                         <span class="icon-wrap w-5 h-5 relative">
-                            <span class="material-icons icon-copy absolute inset-0 w-5 h-5" aria-hidden="true">content_copy</span>
-                            <span class="material-icons icon-check absolute inset-0 w-5 h-5" aria-hidden="true">check</span>
+                            <span class="material-symbols-rounded icon-copy absolute inset-0 w-5 h-5" aria-hidden="true">content_copy</span>
+                            <span class="material-symbols-rounded icon-check absolute inset-0 w-5 h-5" aria-hidden="true">check</span>
                         </span>
                     </button>
                 </div>
@@ -117,7 +117,7 @@ async function shareNative() {
             <!-- Native Share Button -->
             <div class="flex flex-col sm:flex-row gap-3">
                 <button @click="shareNative" class="flex-1 px-4 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-all flex items-center justify-center gap-2 font-medium">
-                    <span class="material-icons">share</span>
+                    <span class="material-symbols-rounded">share</span>
                     <span>分享</span>
                 </button>
             </div>
@@ -168,8 +168,8 @@ async function shareNative() {
     position: relative;
 }
 
-/* base icon styles (material-icons are text glyphs) */
-.icon-wrap .material-icons {
+/* base icon styles (material-symbols-rounded are text glyphs) */
+.icon-wrap .material-symbols-rounded {
     display: inline-flex;
     align-items: center;
     justify-content: center;

@@ -84,7 +84,7 @@ onBeforeUnmount(() => {
     >
         <template #header>
             <div v-if="title || icon" class="flex items-center gap-3">
-                <span v-if="icon" class="material-icons text-3xl" :class="iconColor">
+                <span v-if="icon" class="material-symbols-rounded text-3xl" :class="iconColor">
                     {{ icon }}
                 </span>
                 <h3 v-if="title" class="text-xl font-bold text-gray-900 dark:text-white">
@@ -110,7 +110,7 @@ onBeforeUnmount(() => {
             <div class="bg-white dark:bg-gray-950 rounded-xl shadow-2xl w-full p-6 border-1 border-gray-950/5 dark:border-white/10" :class="maxWidth" @click.stop>
                 <!-- Header -->
                 <div v-if="title || icon" class="flex items-center gap-3 mb-4">
-                    <span v-if="icon" class="material-icons text-3xl" :class="iconColor">
+                    <span v-if="icon" class="material-symbols-rounded text-3xl" :class="iconColor">
                         {{ icon }}
                     </span>
                     <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100">

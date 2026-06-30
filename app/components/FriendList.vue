@@ -124,7 +124,7 @@ onBeforeUnmount(() => {
             <button @click="closeFriendList"
                 class="absolute -left-9 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-950 border-t border-b border-l border-gray-300 dark:border-white/20 p-2 rounded-l-lg hover:border-black/70 dark:hover:border-white/70 transition-all"
                 title="關閉好友列表">
-                <span class="material-icons text-gray-600 dark:text-gray-300 text-lg">chevron_right</span>
+                <span class="material-symbols-rounded text-gray-600 dark:text-gray-300 text-lg">chevron_right</span>
             </button>
 
             <!-- Friends List -->
@@ -155,7 +155,7 @@ onBeforeUnmount(() => {
                                             class="font-semibold text-sm text-white drop-shadow-lg truncate mb-1 hover:underline">
                                             {{ friend.name }}</h4>
                                         <div class="flex items-center gap-1.5 text-xs text-white drop-shadow-md mb-0.5">
-                                            <span class="material-icons text-xs">play_circle</span>
+                                            <span class="material-symbols-rounded text-xs">play_circle</span>
                                             <span class="truncate font-medium">{{ friend.currentAnime }}</span>
                                         </div>
                                         <div class="text-xs text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }}
@@ -184,7 +184,7 @@ onBeforeUnmount(() => {
                                 <p v-if="section.isOffline" class="text-xs text-gray-500 dark:text-gray-400">上次上線 {{
                                     formatLastSeen(friend.lastSeen) }}</p>
                                 <p v-else class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                    <span v-if="section.icon" class="material-icons text-xs">{{ section.icon }}</span>
+                                    <span v-if="section.icon" class="material-symbols-rounded text-xs">{{ section.icon }}</span>
                                     {{ section.text }}
                                 </p>
                             </div>
@@ -223,7 +223,7 @@ onBeforeUnmount(() => {
                                         <h4 class="font-bold text-base text-white drop-shadow-lg truncate mb-1">{{
                                             friend.name }}</h4>
                                         <div class="flex items-center gap-1.5 text-sm text-white drop-shadow-md mb-1">
-                                            <span class="material-icons text-base">play_circle</span>
+                                            <span class="material-symbols-rounded text-base">play_circle</span>
                                             <span class="truncate font-medium">{{ friend.currentAnime }}</span>
                                         </div>
                                         <div class="text-sm text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }}
@@ -251,7 +251,7 @@ onBeforeUnmount(() => {
                                 <p v-if="section.isOffline" class="text-sm text-gray-500 dark:text-gray-400">上次上線 {{
                                     formatLastSeen(friend.lastSeen) }}</p>
                                 <p v-else class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                    <span v-if="section.icon" class="material-icons text-sm">{{ section.icon }}</span>
+                                    <span v-if="section.icon" class="material-symbols-rounded text-sm">{{ section.icon }}</span>
                                     {{ section.text }}
                                 </p>
                             </div>
@@ -268,7 +268,7 @@ onBeforeUnmount(() => {
             <button v-if="!isOpen" @click="openFriendList"
                 class="lg:flex fixed right-4 top-1/2 -translate-y-1/2 z-30 bg-white dark:bg-gray-950 border-2 border-gray-300 dark:border-gray-600 p-2.5 rounded-lg hover:border-black/70 dark:hover:border-white/70 transition-all duration-300 shadow-md"
                 title="顯示好友列表">
-                <span class="material-icons text-gray-600 dark:text-gray-300 text-xl">group</span>
+                <span class="material-symbols-rounded text-gray-600 dark:text-gray-300 text-xl">group</span>
             </button>
         </transition>
     </ClientOnly>

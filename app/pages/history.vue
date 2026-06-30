@@ -126,7 +126,7 @@ function applyTimeFilter(query) {
 }
 
 async function loadMore() {
-    if (loadingMore.value || !hasMore.value) return
+    if (loading.value || loadingMore.value || !hasMore.value) return
 
     loadingMore.value = true
     try {
@@ -309,7 +309,7 @@ useHead({
                         placeholder="搜尋動漫..."
                         class="w-full bg-white dark:bg-white/10 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm"
                     />
-                    <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
+                    <span class="material-symbols-rounded absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
                 </div>
             </div>
 
@@ -338,7 +338,7 @@ useHead({
                         @click="selectAll"
                         class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
                     >
-                        <span class="material-icons text-lg">
+                        <span class="material-symbols-rounded text-lg">
                             {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? 'check_box' : 'check_box_outline_blank' }}
                         </span>
                         {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? '取消全選' : '全選' }}
@@ -349,7 +349,7 @@ useHead({
                         @click="deleteSelected"
                         class="text-sm px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2"
                     >
-                        <span class="material-icons text-lg">delete</span>
+                        <span class="material-symbols-rounded text-lg">delete</span>
                         刪除已選 ({{ selectedItems.size }})
                     </button>
 
@@ -357,7 +357,7 @@ useHead({
                         @click="showDeleteAllConfirm = true"
                         class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
                     >
-                        <span class="material-icons text-lg">delete_sweep</span>
+                        <span class="material-symbols-rounded text-lg">delete_sweep</span>
                         清除全部
                     </button>
                 </div>
@@ -371,14 +371,14 @@ useHead({
 
         <!-- No Search Results -->
         <div v-else-if="filteredHistory.length === 0" class="text-center py-20">
-            <span class="material-icons text-gray-400 text-6xl mb-4">search_off</span>
+            <span class="material-symbols-rounded text-gray-400 text-6xl mb-4">search_off</span>
             <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">找不到相關紀錄</h3>
             <p class="text-gray-500 dark:text-gray-400">試試其他搜尋關鍵字或篩選條件</p>
         </div>
 
         <!-- Empty State -->
         <div v-else-if="historyItems.length === 0" class="text-center py-20">
-            <span class="material-icons text-gray-400 text-6xl mb-4">history</span>
+            <span class="material-symbols-rounded text-gray-400 text-6xl mb-4">history</span>
             <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">還沒有觀看紀錄</h3>
             <p class="text-gray-500 dark:text-gray-400 mb-6">開始觀看動漫，這裡會記錄你的觀看歷史</p>
             <NuxtLink
@@ -412,8 +412,8 @@ useHead({
                             class="absolute top-3 left-3 z-10 w-6 h-6 rounded bg-white dark:bg-gray-700 shadow-md flex items-center justify-center transition-opacity"
                             :class="selectedItems.has(item.anime_ref_id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
                         >
-                            <span v-if="selectedItems.has(item.anime_ref_id)" class="material-icons text-gray-900 dark:text-gray-100 text-lg">check_box</span>
-                            <span v-else class="material-icons text-gray-400 text-lg">check_box_outline_blank</span>
+                            <span v-if="selectedItems.has(item.anime_ref_id)" class="material-symbols-rounded text-gray-900 dark:text-gray-100 text-lg">check_box</span>
+                            <span v-else class="material-symbols-rounded text-gray-400 text-lg">check_box_outline_blank</span>
                         </button>
 
                         <!-- Clickable Link - Wraps content -->
@@ -429,7 +429,7 @@ useHead({
                                         loading="lazy"
                                     />
                                     <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
-                                        <span class="material-icons text-4xl">movie</span>
+                                        <span class="material-symbols-rounded text-4xl">movie</span>
                                     </div>
 
                                     <!-- Progress Bar -->
@@ -446,15 +446,15 @@ useHead({
 
                                     <div class="space-y-1 text-sm text-gray-600 dark:text-gray-400 mb-3">
                                         <p class="flex items-center gap-2">
-                                            <span class="material-icons text-xs">play_circle</span>
+                                            <span class="material-symbols-rounded text-xs">play_circle</span>
                                             上次觀看：第 {{ item.episode_number }} 集
                                         </p>
                                         <p class="flex items-center gap-2">
-                                            <span class="material-icons text-xs">schedule</span>
+                                            <span class="material-symbols-rounded text-xs">schedule</span>
                                             {{ formatClockTime(item.updated_at) }}
                                         </p>
                                         <p v-if="item.playback_time" class="flex items-center gap-2">
-                                            <span class="material-icons text-xs">timer</span>
+                                            <span class="material-symbols-rounded text-xs">timer</span>
                                             觀看 {{ formatTime(item.playback_time) }} / {{ formatTime(item.video_duration) }}
                                         </p>
                                     </div>

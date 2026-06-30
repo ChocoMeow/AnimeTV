@@ -27,10 +27,18 @@ const sharedState = {
     lastWatchingDataBeforeHidden: null,
     /** Timer for delayed disconnect when tab hidden (cancel if user returns quickly) */
     hiddenTabDisconnectTimer: null,
+    /** Proactive JWT rotation on the server connection */
+    tokenRefreshTimer: null,
+    /** Watchdog when heartbeat ack is missing */
+    heartbeatAckTimer: null,
+    /** True while swapping WebSocket without tearing down page/video */
+    reconnecting: false,
 }
 
 const CONFIG = {
     HEARTBEAT_INTERVAL: 1 * 60 * 1000,  // 1 min
+    HEARTBEAT_ACK_TIMEOUT: 90 * 1000,     // 90s — reconnect if no ack
+    TOKEN_REFRESH_INTERVAL: 20 * 60 * 1000, // 20 min — rotate JWT before typical expiry
     IDLE_TIMEOUT: 3 * 60 * 1000,    // 3 min
     RECONNECT_DELAY: 5 * 1000,      // 5s
     HIDDEN_TAB_DISCONNECT_DELAY: 30000, // 30s delay before disconnect when tab hidden
@@ -47,25 +55,93 @@ export const useUserStatus = () => {
     // ============================================================================
 
     /**
+     * Fetch a short-lived WebSocket auth ticket from the server.
+     */
+    const fetchWsTicket = async () => {
+        if (!isClient()) return null
+        try {
+            const res = await $fetch('/api/ws-ticket', { method: 'POST' })
+            return res?.ticket ?? null
+        } catch {
+            return null
+        }
+    }
+
+    /**
      * Get a WebSocket URL backed by a short-lived server-issued ticket.
      * The access token stays on the server — only an opaque ticket ID goes in the URL.
      */
     const getWsUrl = async () => {
-        if (!isClient()) return null
-
-        let ticket
-        try {
-            const res = await $fetch('/api/ws-ticket', { method: 'POST' })
-            ticket = res?.ticket
-        } catch {
-            return null
-        }
-
+        const ticket = await fetchWsTicket()
         if (!ticket) return null
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
         const host = window.location.host
         return `${protocol}//${host}/api/user-status-ws?ticket=${encodeURIComponent(ticket)}`
+    }
+
+    const clearHeartbeatAckTimer = () => {
+        clearTimeout(sharedState.heartbeatAckTimer)
+        sharedState.heartbeatAckTimer = null
+    }
+
+    const expectHeartbeatAck = () => {
+        clearHeartbeatAckTimer()
+        sharedState.heartbeatAckTimer = setTimeout(() => {
+            console.warn('[Status] Heartbeat ack timeout — reconnecting WebSocket')
+            reconnectWebSocket()
+        }, CONFIG.HEARTBEAT_ACK_TIMEOUT)
+    }
+
+    /**
+     * Rotate the server-side Supabase JWT on the existing WebSocket (no page reload).
+     */
+    const refreshServerToken = async () => {
+        if (sharedState.ws?.readyState !== WebSocket.OPEN) return false
+        const ticket = await fetchWsTicket()
+        if (!ticket) return false
+        return sendMessage({ type: 'refresh_ticket', ticket })
+    }
+
+    /**
+     * Swap WebSocket only — preserves local status/video playback.
+     */
+    const reconnectWebSocket = async () => {
+        if (!sharedState.isTracking.value || sharedState.disconnectedDueToHiddenTab) return
+        if (sharedState.reconnecting) return
+
+        sharedState.reconnecting = true
+        stopHeartbeat()
+        stopTokenRefresh()
+        clearHeartbeatAckTimer()
+        clearTimeout(sharedState.reconnectTimer)
+        sharedState.reconnectTimer = null
+
+        if (sharedState.ws) {
+            const oldWs = sharedState.ws
+            oldWs.onclose = null
+            oldWs.onerror = null
+            oldWs.onmessage = null
+            try {
+                oldWs.close()
+            } catch {}
+            sharedState.ws = null
+        }
+
+        sharedState.isConnected.value = false
+
+        try {
+            await connectWebSocket()
+        } finally {
+            sharedState.reconnecting = false
+        }
+    }
+
+    const handleAuthFailure = async () => {
+        const refreshed = await refreshServerToken()
+        if (!refreshed) {
+            await reconnectWebSocket()
+        }
     }
 
     /**
@@ -107,7 +183,23 @@ export const useUserStatus = () => {
                     break
 
                 case 'heartbeat_ack':
-                    // Heartbeat acknowledged - connection is healthy
+                    clearHeartbeatAckTimer()
+                    break
+
+                case 'heartbeat_failed':
+                case 'status_update_failed':
+                    console.warn('[Status] Server DB write failed:', data.reason)
+                    clearHeartbeatAckTimer()
+                    handleAuthFailure()
+                    break
+
+                case 'token_refreshed':
+                    console.log('[Status] Server token refreshed')
+                    break
+
+                case 'token_refresh_failed':
+                    console.warn('[Status] Token refresh failed:', data.reason)
+                    reconnectWebSocket()
                     break
 
                 case 'error':
@@ -133,7 +225,10 @@ export const useUserStatus = () => {
         }
 
         if (sharedState.ws?.readyState === WebSocket.OPEN) {
-            console.log('[Status] Already connected')
+            return
+        }
+
+        if (sharedState.ws?.readyState === WebSocket.CONNECTING) {
             return
         }
 
@@ -176,9 +271,10 @@ export const useUserStatus = () => {
                     animeData: status === 'watching' ? sharedState.watchingData.value : null,
                 })
 
-                // Start heartbeat only for active tabs.
+                // Start heartbeat and proactive token refresh for active tabs.
                 if (isPageVisible()) {
                     startHeartbeat()
+                    startTokenRefresh()
                 }
             }
 
@@ -187,8 +283,15 @@ export const useUserStatus = () => {
             sharedState.ws.onclose = () => {
                 console.log('[Status] WebSocket disconnected')
                 sharedState.isConnected.value = false
-                sharedState.currentStatus.value = 'offline'
                 stopHeartbeat()
+                stopTokenRefresh()
+                clearHeartbeatAckTimer()
+
+                if (sharedState.reconnecting) return
+
+                if (!sharedState.disconnectedDueToHiddenTab) {
+                    sharedState.currentStatus.value = 'offline'
+                }
 
                 if (sharedState.isTracking.value && !sharedState.disconnectedDueToHiddenTab) {
                     sharedState.reconnectTimer = setTimeout(() => {
@@ -224,12 +327,29 @@ export const useUserStatus = () => {
 
         clearTimeout(sharedState.reconnectTimer)
         sharedState.reconnectTimer = null
+        stopTokenRefresh()
+        clearHeartbeatAckTimer()
         sharedState.isConnected.value = false
     }
 
     // ============================================================================
-    // Heartbeat Management
+    // Heartbeat & token refresh
     // ============================================================================
+
+    const startTokenRefresh = () => {
+        if (sharedState.tokenRefreshTimer) return
+        if (!isPageVisible()) return
+
+        sharedState.tokenRefreshTimer = setInterval(() => {
+            if (!isPageVisible() || sharedState.ws?.readyState !== WebSocket.OPEN) return
+            refreshServerToken()
+        }, CONFIG.TOKEN_REFRESH_INTERVAL)
+    }
+
+    const stopTokenRefresh = () => {
+        clearInterval(sharedState.tokenRefreshTimer)
+        sharedState.tokenRefreshTimer = null
+    }
 
     /**
      * Start heartbeat to keep connection alive
@@ -244,12 +364,17 @@ export const useUserStatus = () => {
                 return
             }
 
-            sendMessage({
+            const sent = sendMessage({
                 type: 'heartbeat',
                 userId: userSettings.value?.id,
                 status: sharedState.currentStatus.value,
                 animeData: sharedState.watchingData.value,
             })
+            if (sent) {
+                expectHeartbeatAck()
+            } else if (sharedState.isTracking.value) {
+                reconnectWebSocket()
+            }
         }, CONFIG.HEARTBEAT_INTERVAL)
     }
 
@@ -275,12 +400,16 @@ export const useUserStatus = () => {
         sharedState.currentStatus.value = status
         sharedState.watchingData.value = watchingPayload
 
-        return sendMessage({
+        const sent = sendMessage({
             type: 'status_update',
             userId: userSettings.value.id,
             status,
             animeData: watchingPayload,
         })
+        if (!sent && sharedState.isTracking.value) {
+            reconnectWebSocket()
+        }
+        return sent
     }
 
     /**
@@ -381,6 +510,8 @@ export const useUserStatus = () => {
             // Tab hidden — schedule disconnect after delay (cancel if user returns quickly)
             clearIdleTimer()
             stopHeartbeat()
+            stopTokenRefresh()
+            clearHeartbeatAckTimer()
             clearTimeout(sharedState.reconnectTimer)
             sharedState.reconnectTimer = null
             clearTimeout(sharedState.hiddenTabDisconnectTimer)
@@ -421,6 +552,7 @@ export const useUserStatus = () => {
             } else {
                 // User returned before disconnect delay — still connected, restart heartbeat and idle
                 startHeartbeat()
+                startTokenRefresh()
                 resetIdleTimer()
             }
         }
@@ -472,6 +604,7 @@ export const useUserStatus = () => {
         sharedState.isTracking.value = false
 
         stopHeartbeat()
+        stopTokenRefresh()
         clearIdleTimer()
         clearTimeout(sharedState.hiddenTabDisconnectTimer)
         sharedState.hiddenTabDisconnectTimer = null
