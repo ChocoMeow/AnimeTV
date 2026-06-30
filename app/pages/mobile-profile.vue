@@ -22,7 +22,17 @@ const avatarUrl = computed(
 const initials = computed(() => (displayName.value || '?').trim().slice(0, 2).toUpperCase())
 
 const NAV_LINK_CLASS =
-    'flex w-full items-center gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-950/5 dark:bg-white/10 px-4 py-3.5 text-gray-900 dark:text-gray-100 transition-colors active:bg-black/5 dark:active:bg-white/10'
+    'flex w-full items-center gap-3 py-3 text-gray-900 dark:text-gray-100 transition-colors active:opacity-80'
+
+const NAV_ITEMS = [
+    { to: '/profile', icon: 'person', label: '個人資料' },
+    { to: '/settings', icon: 'settings', label: '帳號設定' },
+    { to: '/friends', icon: 'group', label: '我的好友' },
+    { to: '/offline-downloads', icon: 'download_for_offline', label: '下載管理' },
+    { to: '/admin', icon: 'admin_panel_settings', label: '管理後台', adminOnly: true },
+]
+
+const navItems = computed(() => NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin.value))
 
 async function fetchPreviews() {
     if (!userSettings.value?.id) {
@@ -97,7 +107,7 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
 
         <div v-else class="space-y-6">
             <!-- Account -->
-            <section class="rounded-2xl border border-gray-200 bg-gray-950/5 p-4 dark:border-gray-700 dark:bg-white/10">
+            <section>
                 <div class="flex items-center gap-4">
                     <NuxtImg
                         v-if="avatarUrl"
@@ -116,23 +126,6 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                         <p class="truncate text-lg font-semibold text-gray-900 dark:text-gray-100">{{ displayName }}</p>
                         <p v-if="email" class="truncate text-sm text-gray-500 dark:text-gray-400">{{ email }}</p>
                     </div>
-                </div>
-
-                <div class="mt-4 grid grid-cols-2 gap-2">
-                    <NuxtLink
-                        to="/profile"
-                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2.5 text-sm font-medium text-white transition-opacity active:opacity-90 dark:bg-gray-100 dark:text-gray-900"
-                    >
-                        <span class="material-symbols-rounded text-lg">person</span>
-                        個人資料
-                    </NuxtLink>
-                    <NuxtLink
-                        to="/settings"
-                        class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-900 transition-colors active:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:active:bg-gray-700"
-                    >
-                        <span class="material-symbols-rounded text-lg">settings</span>
-                        帳號設定
-                    </NuxtLink>
                 </div>
             </section>
 
@@ -235,34 +228,16 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
 
             <!-- Navigation links -->
             <section class="space-y-2">
-                <NuxtLink to="/friends" :class="NAV_LINK_CLASS">
-                    <span class="material-symbols-rounded text-xl text-gray-500 dark:text-gray-400">group</span>
-                    <span class="flex-1 text-sm font-medium">我的好友</span>
-                    <span class="material-symbols-rounded text-xl text-gray-400">chevron_right</span>
+                <NuxtLink v-for="item in navItems" :key="item.to" :to="item.to" :class="NAV_LINK_CLASS">
+                    <span class="material-symbols-rounded text-xl text-gray-500 dark:text-gray-400">{{ item.icon }}</span>
+                    <span class="flex-1 text-sm font-medium">{{ item.label }}</span>
                 </NuxtLink>
 
-                <NuxtLink to="/offline-downloads" :class="NAV_LINK_CLASS">
-                    <span class="material-symbols-rounded text-xl text-gray-500 dark:text-gray-400">download_for_offline</span>
-                    <span class="flex-1 text-sm font-medium">下載管理</span>
-                    <span class="material-symbols-rounded text-xl text-gray-400">chevron_right</span>
-                </NuxtLink>
-
-                <NuxtLink v-if="isAdmin" to="/admin" :class="NAV_LINK_CLASS">
-                    <span class="material-symbols-rounded text-xl text-gray-500">admin_panel_settings</span>
-                    <span class="flex-1 text-sm font-medium">管理後台</span>
-                    <span class="material-symbols-rounded text-xl text-gray-400">chevron_right</span>
-                </NuxtLink>
+                <button type="button" :class="[NAV_LINK_CLASS, 'text-red-600 dark:text-red-400']" @click="signOut">
+                    <span class="material-symbols-rounded text-xl">logout</span>
+                    <span class="flex-1 text-sm font-medium text-left">登出</span>
+                </button>
             </section>
-
-            <!-- Logout -->
-            <button
-                type="button"
-                class="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5 text-sm font-medium text-red-600 transition-colors active:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-400 dark:active:bg-red-950/50"
-                @click="signOut"
-            >
-                <span class="material-symbols-rounded text-lg">logout</span>
-                登出
-            </button>
         </div>
     </div>
 </template>
