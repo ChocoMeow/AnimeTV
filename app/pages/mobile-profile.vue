@@ -22,7 +22,7 @@ const avatarUrl = computed(
 const initials = computed(() => (displayName.value || '?').trim().slice(0, 2).toUpperCase())
 
 const NAV_LINK_CLASS =
-    'flex w-full items-center gap-3 py-3 text-gray-900 dark:text-gray-100 transition-colors active:opacity-80'
+    'flex w-full items-center gap-3 px-4 py-3.5 text-gray-900 dark:text-gray-100 transition-colors hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/5 dark:active:bg-white/10'
 
 const NAV_ITEMS = [
     { to: '/profile', icon: 'person', label: '個人資料' },
@@ -227,17 +227,18 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
             </section>
 
             <!-- Navigation links -->
-            <section class="space-y-2">
+            <section class="overflow-hidden rounded-xl border border-gray-200 bg-gray-950/5 dark:border-gray-700 dark:bg-white/10 divide-y divide-gray-200 dark:divide-gray-700">
                 <NuxtLink v-for="item in navItems" :key="item.to" :to="item.to" :class="NAV_LINK_CLASS">
                     <span class="material-symbols-rounded text-xl text-gray-500 dark:text-gray-400">{{ item.icon }}</span>
                     <span class="flex-1 text-sm font-medium">{{ item.label }}</span>
+                    <span class="material-symbols-rounded text-xl text-gray-400">chevron_right</span>
                 </NuxtLink>
-
-                <button type="button" :class="[NAV_LINK_CLASS, 'text-red-600 dark:text-red-400']" @click="signOut">
-                    <span class="material-symbols-rounded text-xl">logout</span>
-                    <span class="flex-1 text-sm font-medium text-left">登出</span>
-                </button>
             </section>
+
+            <button type="button" :class="[NAV_LINK_CLASS, 'w-full rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50 dark:active:bg-red-950/50']" @click="signOut">
+                <span class="material-symbols-rounded text-xl">logout</span>
+                <span class="flex-1 text-sm font-medium text-left">登出</span>
+            </button>
         </div>
     </div>
 </template>
