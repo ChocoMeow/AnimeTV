@@ -4,6 +4,7 @@ const { mobileSearchOpen } = useMobileSearchState()
 const { isMobile } = useMobile()
 const { isAdmin, clearAdmin } = useAdmin()
 const headerHiddenMobile = useState('app-mobile-header-hidden', () => false)
+const showMobilePwaNav = useState('app-show-mobile-pwa-nav', () => false)
 const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
@@ -247,6 +248,10 @@ onUnmounted(() => {
 
 watch([mobileSearchOpen, mobileMenuOpen], ([s, m]) => {
     if (s || m) headerHiddenMobile.value = false
+})
+
+watch(showMobilePwaNav, (show) => {
+    if (show) mobileMenuOpen.value = false
 })
 
 watch(searchQuery, () => {
@@ -494,7 +499,7 @@ watch(
                     <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">search</span>
                 </button>
                 <!-- Menu icon -->
-                <button @click="mobileMenuOpen = !mobileMenuOpen" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center">
+                <button v-if="!showMobilePwaNav" @click="mobileMenuOpen = !mobileMenuOpen" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center">
                     <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">{{ mobileMenuOpen ? 'close' : 'menu' }}</span>
                 </button>
             </div>
@@ -594,7 +599,7 @@ watch(
 
         <!-- Mobile nav -->
         <transition name="menu-collapse">
-            <div v-if="mobileMenuOpen" class="md:hidden grid">
+            <div v-if="mobileMenuOpen && !showMobilePwaNav" class="md:hidden grid">
                 <div class="overflow-hidden min-h-0">
                     <div class="px-4 pb-3 space-y-3">
                         <!-- User Profile Section (Mobile) → 個人資料 -->

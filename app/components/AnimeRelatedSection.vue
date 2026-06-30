@@ -2,7 +2,7 @@
 const props = defineProps({
     relatedAnime: { type: Array, default: () => [] },
     tags: { type: Array, default: () => [] },
-    currentRefId: { type: String, default: "" },
+    currentRefId: { type: [String, Number], default: "" },
 })
 
 const emit = defineEmits(["tooltip-enter", "tooltip-leave"])
