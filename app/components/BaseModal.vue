@@ -106,14 +106,14 @@ onBeforeUnmount(() => {
 
     <!-- Desktop: Use Centered Modal -->
     <transition v-else name="fade">
-        <div v-if="show" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" @click="handleBackdropClick">
-            <div class="bg-white dark:bg-gray-950 rounded-xl shadow-2xl w-full p-6 border-1 border-gray-950/5 dark:border-white/10" :class="maxWidth" @click.stop>
+        <div v-if="show" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4" @click="handleBackdropClick">
+            <div class="bg-white dark:bg-gray-950 rounded-2xl shadow-2xl w-full p-6 ring-1 ring-black/5 dark:ring-white/10" :class="maxWidth" @click.stop>
                 <!-- Header -->
                 <div v-if="title || icon" class="flex items-center gap-3 mb-4">
                     <span v-if="icon" class="material-symbols-rounded text-3xl" :class="iconColor">
                         {{ icon }}
                     </span>
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100">
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white">
                         {{ title }}
                     </h3>
                 </div>

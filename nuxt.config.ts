@@ -64,7 +64,7 @@ export default defineNuxtConfig({
                 },
                 // Instant splash before JS/Vue (all visitors) — avoids first paint showing app shell before Vue.
                 {
-                    innerHTML: `(function(){try{var h=document.documentElement;h.classList.add('app-splash-pending');var st=document.createElement('style');st.textContent='html.app-splash-pending body{visibility:hidden!important}#app-splash-inline{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#fff}html.dark #app-splash-inline{background:#030712}#app-splash-inline img{width:72px;height:72px;border-radius:0.875rem;object-fit:cover}';document.head.appendChild(st);var el=document.createElement('div');el.id='app-splash-inline';var im=document.createElement('img');im.src='/icons/icon_512x512.webp';im.alt='';im.width=72;im.height=72;im.setAttribute('fetchpriority','high');el.appendChild(im);h.appendChild(el);setTimeout(function(){try{document.documentElement.classList.remove('app-splash-pending');var e=document.getElementById('app-splash-inline');e&&e.remove()}catch(x){}},10000)}catch(e){}})();`,
+                    innerHTML: `(function(){try{var h=document.documentElement;h.classList.add('app-splash-pending');var st=document.createElement('style');st.textContent='html.app-splash-pending body{visibility:hidden!important}#app-splash-inline{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#fff}html.dark #app-splash-inline{background:#0a0a0a}#app-splash-inline img{width:72px;height:72px;border-radius:0.875rem;object-fit:cover}';document.head.appendChild(st);var el=document.createElement('div');el.id='app-splash-inline';var im=document.createElement('img');im.src='/icons/icon_512x512.webp';im.alt='';im.width=72;im.height=72;im.setAttribute('fetchpriority','high');el.appendChild(im);h.appendChild(el);setTimeout(function(){try{document.documentElement.classList.remove('app-splash-pending');var e=document.getElementById('app-splash-inline');e&&e.remove()}catch(x){}},10000)}catch(e){}})();`,
                     type: 'text/javascript',
                     tagPosition: 'head',
                 },
@@ -160,8 +160,8 @@ export default defineNuxtConfig({
             name: 'AnimeTV',
             short_name: 'AnimeTV',
             description: 'Stream your favorite anime series and movies anytime, anywhere.',
-            theme_color: '#030712',
-            background_color: '#030712',
+            theme_color: '#0a0a0a',
+            background_color: '#0a0a0a',
             display: 'standalone',
             start_url: '/',
             icons: [

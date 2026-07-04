@@ -704,7 +704,7 @@ onUnmounted(() => {
         </div>
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">載入失敗</h2>
         <p class="text-red-600 dark:text-red-400 mb-6 max-w-md">{{ error }}</p>
-        <button @click="router.back()" class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg shadow-lg transition-all transform hover:-translate-y-0.5">返回上一頁</button>
+        <button @click="router.back()" class="px-6 py-3 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black rounded-full font-semibold shadow-lg transition-all transform hover:-translate-y-0.5">返回上一頁</button>
     </div>
 
     <!-- Empty -->
@@ -791,25 +791,25 @@ onUnmounted(() => {
                             <div class="flex items-center gap-2 flex-shrink-0">
                                 <button v-for="action in toolbarPrimaryActions" :key="action.key"
                                     type="button"
-                                    class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
+                                    class="w-10 h-10 bg-black/5 dark:bg-white/10 rounded-full ring-1 ring-black/5 dark:ring-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
                                     :title="action.label" :aria-label="action.label"
                                     @click="action.run()">
                                     <span class="material-symbols-rounded text-xl" :class="action.iconClass">{{ action.icon }}</span>
                                 </button>
                                 <div v-if="toolbarOverflowActions.length" ref="toolbarOverflowRoot" class="relative">
                                     <button type="button"
-                                        class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
+                                        class="w-10 h-10 bg-black/5 dark:bg-white/10 rounded-full ring-1 ring-black/5 dark:ring-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
                                         title="更多" aria-label="更多操作"
                                         :aria-expanded="showToolbarOverflowMenu"
                                         @click.stop="showToolbarOverflowMenu = !showToolbarOverflowMenu">
                                         <span class="material-symbols-rounded text-xl text-gray-900 dark:text-white">more_vert</span>
                                     </button>
                                     <div v-show="showToolbarOverflowMenu"
-                                        class="absolute right-0 top-full mt-2 min-w-[11rem] py-1 rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-gray-950 shadow-lg z-10"
+                                        class="absolute right-0 top-full mt-2 min-w-[11rem] py-1 rounded-xl ring-1 ring-black/5 dark:ring-white/10 bg-white dark:bg-gray-950 shadow-xl z-10"
                                         role="menu" @click.stop>
                                         <button v-for="action in toolbarOverflowActions" :key="action.key"
                                             type="button"
-                                            class="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
+                                            class="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left text-gray-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10"
                                             role="menuitem"
                                             @click="action.run(); showToolbarOverflowMenu = false">
                                             <span class="material-symbols-rounded text-lg flex-shrink-0" :class="action.iconClass">{{ action.icon }}</span>
@@ -845,18 +845,18 @@ onUnmounted(() => {
                     <div v-if="anime.tags?.length" class="flex flex-wrap items-center gap-2">
                         <NuxtLink v-for="tag in anime.tags" :key="tag"
                             :to="`/show-all-anime?tags=${encodeURIComponent(tag)}`"
-                            class="px-3 py-1.5 bg-gray-950/5 dark:bg-white/10 rounded-full border border-gray-200 dark:border-white/20 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-950/10 dark:hover:bg-white/20 hover:border-gray-300 dark:hover:border-white/40 transition-all flex items-center gap-1.5 focus:outline-none">
+                            class="px-3 py-1.5 bg-black/5 dark:bg-white/10 rounded-full ring-1 ring-black/5 dark:ring-white/10 text-sm font-medium text-gray-900 dark:text-white hover:bg-black/10 dark:hover:bg-white/20 hover:ring-black/10 dark:hover:ring-white/20 transition-all flex items-center gap-1.5 focus:outline-none">
                             <span class="material-symbols-rounded text-xs">tag</span>
                             {{ tag }}
                         </NuxtLink>
                     </div>
 
                     <!-- Additional Details -->
-                    <div v-if="additionalDetails.length" class="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div v-if="additionalDetails.length" class="pt-4 border-t border-black/10 dark:border-white/10">
                         <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">詳細資訊</h3>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div v-for="detail in additionalDetails" :key="detail.label"
-                                class="bg-gray-950/5 dark:bg-white/10 rounded-xl p-4">
+                                class="bg-black/[0.02] dark:bg-white/5 rounded-xl ring-1 ring-black/5 dark:ring-white/10 p-4">
                                 <div class="flex items-start gap-3">
                                     <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="detail.iconBg">
                                         <span class="material-symbols-rounded text-xl" :class="detail.iconColor">{{ detail.icon }}</span>
@@ -935,22 +935,22 @@ onUnmounted(() => {
         <div class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="space-y-2">
-                    <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between py-2 border-b border-black/10 dark:border-white/10">
                         <span class="text-sm text-gray-600 dark:text-gray-400">{{ userShortcuts.playPause?.label || "播放/暫停" }}</span>
-                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">{{ formatShortcutKey(userShortcuts.playPause) }}</kbd>
+                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 rounded">{{ formatShortcutKey(userShortcuts.playPause) }}</kbd>
                     </div>
-                    <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between py-2 border-b border-black/10 dark:border-white/10">
                         <span class="text-sm text-gray-600 dark:text-gray-400">長按 {{ formatShortcutKey(userShortcuts.playPause) }} (2x 速度)</span>
-                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">{{ formatShortcutKey(userShortcuts.playPause) }} (長按)</kbd>
+                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 rounded">{{ formatShortcutKey(userShortcuts.playPause) }} (長按)</kbd>
                     </div>
                 </div>
                 <div class="space-y-2">
                     <div class="flex items-center justify-between py-2">
                         <span class="text-sm text-gray-600 dark:text-gray-400">顯示快捷鍵</span>
                         <div class="flex items-center gap-1">
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">{{ isMac ? '⌘' : 'Ctrl' }}</kbd>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 rounded">{{ isMac ? '⌘' : 'Ctrl' }}</kbd>
                             <span class="text-xs text-gray-400">+</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">/</kbd>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 rounded">/</kbd>
                         </div>
                     </div>
                 </div>
@@ -958,9 +958,9 @@ onUnmounted(() => {
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                 <template v-for="(shortcut, action) in userShortcuts" :key="action">
                     <div v-if="action !== 'playPause' && shortcut?.label"
-                        class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                        class="flex items-center justify-between py-2 border-b border-black/10 dark:border-white/10">
                         <span class="text-sm text-gray-600 dark:text-gray-400">{{ shortcut.label }}</span>
-                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">{{ formatShortcutKey(shortcut) }}</kbd>
+                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 rounded">{{ formatShortcutKey(shortcut) }}</kbd>
                     </div>
                 </template>
             </div>
@@ -975,5 +975,5 @@ onUnmounted(() => {
 .slide-down-enter-active, .slide-down-leave-active { transition: all 0.4s ease-out; }
 .slide-down-enter-from, .slide-down-leave-to { opacity: 0; transform: translateY(-20px); }
 
-*:focus-visible { @apply outline-none ring-2 ring-gray-900 dark:ring-white ring-offset-2; }
+*:focus-visible { @apply outline-none ring-2 ring-gray-900 dark:ring-white ring-offset-2 dark:ring-offset-gray-950; }
 </style>

@@ -119,10 +119,10 @@ onBeforeUnmount(() => {
     <!-- Desktop Friend List Panel -->
     <transition name="slide-left">
         <div v-if="isOpen"
-            class="hidden lg:flex fixed right-0 top-0 h-screen w-80 bg-white dark:bg-gray-950 shadow-2xl border-l border-gray-200 dark:border-white/10 flex-col z-30 pt-16">
+            class="hidden lg:flex fixed right-0 top-0 h-screen w-80 bg-white dark:bg-gray-950 shadow-2xl border-l border-black/10 dark:border-white/10 flex-col z-30 pt-16">
             <!-- Toggle Button (Left Side - when open) -->
             <button @click="closeFriendList"
-                class="absolute -left-9 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-950 border-t border-b border-l border-gray-300 dark:border-white/20 p-2 rounded-l-lg hover:border-black/70 dark:hover:border-white/70 transition-all"
+                class="absolute -left-9 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-950 ring-1 ring-black/10 dark:ring-white/15 p-2 rounded-l-lg hover:ring-black/20 dark:hover:ring-white/25 transition-all"
                 title="關閉好友列表">
                 <span class="material-symbols-rounded text-gray-600 dark:text-gray-300 text-lg">chevron_right</span>
             </button>
@@ -136,7 +136,7 @@ onBeforeUnmount(() => {
                     <div v-for="friend in section.friends" :key="friend.id" class="friend-card">
                         <!-- Watching Friend Card -->
                         <div v-if="section.isWatching"
-                            class="relative p-3 rounded-xl border border-gray-300 dark:border-gray-700 hover:shadow-md transition-shadow overflow-hidden">
+                            class="relative p-3 rounded-xl ring-1 ring-black/10 dark:ring-white/10 hover:shadow-md transition-shadow overflow-hidden">
                             <div v-if="friend.animeBackground"
                                 class="anime-background absolute inset-0 bg-cover bg-center"
                                 :style="{ backgroundImage: `url(${friend.animeBackground})` }"></div>
@@ -163,19 +163,19 @@ onBeforeUnmount(() => {
                                     </div>
                                 </div>
                                 <NuxtLink :to="`/anime/${friend.animeId}?e=${friend.currentEpisode}`"
-                                    class="w-full px-3 py-2 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-md">
+                                    class="w-full px-3 py-2 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black text-xs font-semibold rounded-full transition-opacity flex items-center justify-center gap-1.5 shadow-md">
                                     前往</NuxtLink>
                             </div>
                         </div>
                         <!-- Regular Friend Card -->
                         <div v-else
-                            :class="['flex items-center gap-3 p-3 rounded-xl transition-colors border border-gray-200 dark:border-white/10 cursor-pointer', section.isOffline ? 'bg-gray-950/5 dark:bg-white/10 opacity-70 hover:opacity-90' : 'bg-gray-950/5 dark:bg-white/10 hover:bg-gray-950/10 dark:hover:bg-white/20']"
+                            :class="['flex items-center gap-3 p-3 rounded-xl transition-colors ring-1 ring-black/5 dark:ring-white/10 cursor-pointer', section.isOffline ? 'bg-black/[0.02] dark:bg-white/5 opacity-70 hover:opacity-90' : 'bg-black/[0.02] dark:bg-white/5 hover:bg-black/5 dark:hover:bg-white/10']"
                             @click="openFriendProfile(friend)">
                             <div class="relative flex-shrink-0">
                                 <NuxtImg :src="friend.avatar" :alt="friend.name"
-                                    :class="['w-10 h-10 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover', section.isOffline && 'grayscale']" loading="lazy" />
+                                    :class="['w-10 h-10 rounded-full border-2 border-black/10 dark:border-white/10 object-cover', section.isOffline && 'grayscale']" loading="lazy" />
                                 <span
-                                    :class="['absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-gray-900 rounded-full', section.dotColorClass]"
+                                    :class="['absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"
                                     :title="friend.status"></span>
                             </div>
                             <div class="flex-1 min-w-0">
@@ -206,7 +206,7 @@ onBeforeUnmount(() => {
                     <div v-for="friend in section.friends" :key="friend.id" class="friend-card">
                         <!-- Watching Friend Card (Mobile) -->
                         <div v-if="section.isWatching"
-                            class="relative p-4 rounded-2xl border border-gray-300 dark:border-gray-700 overflow-hidden">
+                            class="relative p-4 rounded-2xl ring-1 ring-black/10 dark:ring-white/10 overflow-hidden">
                             <div v-if="friend.animeBackground"
                                 class="anime-background absolute inset-0 bg-cover bg-center"
                                 :style="{ backgroundImage: `url(${friend.animeBackground})` }"></div>
@@ -231,19 +231,19 @@ onBeforeUnmount(() => {
                                     </div>
                                 </div>
                                 <NuxtLink :to="`/anime/${friend.animeId}?e=${friend.currentEpisode}`"
-                                    class="w-full px-4 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md">
+                                    class="w-full px-4 py-3 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black text-sm font-semibold rounded-xl transition-opacity flex items-center justify-center gap-2 shadow-md">
                                     前往</NuxtLink>
                             </div>
                         </div>
                         <!-- Regular Friend Card (Mobile) -->
                         <div v-else
-                            :class="['flex items-center gap-3 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 cursor-pointer', section.isOffline ? 'bg-gray-50 dark:bg-white/10 opacity-70' : 'bg-gray-50 dark:bg-white/10']"
+                            :class="['flex items-center gap-3 p-4 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 cursor-pointer', section.isOffline ? 'bg-black/[0.02] dark:bg-white/5 opacity-70' : 'bg-black/[0.02] dark:bg-white/5']"
                             @click="openFriendProfile(friend)">
                             <div class="relative flex-shrink-0">
                                 <NuxtImg :src="friend.avatar" :alt="friend.name"
-                                    :class="['w-12 h-12 rounded-full border-2 border-gray-200 dark:border-gray-700 object-cover', section.isOffline && 'grayscale']" loading="lazy" />
+                                    :class="['w-12 h-12 rounded-full border-2 border-black/10 dark:border-white/10 object-cover', section.isOffline && 'grayscale']" loading="lazy" />
                                 <span
-                                    :class="['absolute -bottom-0.5 -right-0.5 w-4 h-4 border-2 border-white dark:border-gray-900 rounded-full', section.dotColorClass]"></span>
+                                    :class="['absolute -bottom-0.5 -right-0.5 w-4 h-4 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"></span>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <h4 class="font-semibold text-base text-gray-900 dark:text-white truncate">{{
@@ -266,7 +266,7 @@ onBeforeUnmount(() => {
     <ClientOnly>
         <transition v-if="friends.length" name="fade">
             <button v-if="!isOpen" @click="openFriendList"
-                class="lg:flex fixed right-4 top-1/2 -translate-y-1/2 z-30 bg-white dark:bg-gray-950 border-2 border-gray-300 dark:border-gray-600 p-2.5 rounded-lg hover:border-black/70 dark:hover:border-white/70 transition-all duration-300 shadow-md"
+                class="lg:flex fixed right-4 top-1/2 -translate-y-1/2 z-30 bg-white dark:bg-gray-950 ring-1 ring-black/10 dark:ring-white/15 p-2.5 rounded-full hover:ring-black/20 dark:hover:ring-white/25 transition-all duration-300 shadow-md"
                 title="顯示好友列表">
                 <span class="material-symbols-rounded text-gray-600 dark:text-gray-300 text-xl">group</span>
             </button>

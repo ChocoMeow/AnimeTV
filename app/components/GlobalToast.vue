@@ -3,17 +3,17 @@
         <div v-if="toastState.show" class="fixed bottom-4 right-4 z-50 max-w-sm">
             <div
                 :class="{
-                    'bg-green-500': toastState.type === 'success',
+                    'bg-emerald-500': toastState.type === 'success',
                     'bg-red-500': toastState.type === 'error',
                     'bg-blue-500': toastState.type === 'info',
-                    'bg-yellow-500': toastState.type === 'warning',
+                    'bg-amber-500': toastState.type === 'warning',
                 }"
-                class="px-6 py-3 rounded-lg shadow-lg text-white flex items-center gap-3"
+                class="px-5 py-3.5 rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/50 ring-1 ring-white/10 backdrop-blur-sm text-white flex items-center gap-3"
             >
-                <span class="material-symbols-rounded">
+                <span class="material-symbols-rounded text-xl flex-shrink-0">
                     {{ toastState.type === "success" ? "check_circle" : toastState.type === "error" ? "error" : toastState.type === "warning" ? "warning" : "info" }}
                 </span>
-                <span>{{ toastState.message }}</span>
+                <span class="text-sm font-medium">{{ toastState.message }}</span>
             </div>
         </div>
     </transition>

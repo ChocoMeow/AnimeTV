@@ -736,7 +736,7 @@ onUnmounted(() => {
             hidePlaybackCursor ? 'cursor-none' : 'cursor-default',
             props.theaterMode
                 ? 'aspect-video bg-black lg:max-h-[calc(100vh-8rem)]'
-                : 'aspect-video bg-gray-950/5 dark:bg-white/10'
+                : 'aspect-video bg-black/5 dark:bg-white/10'
         ]"
         @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
 
@@ -763,7 +763,7 @@ onUnmounted(() => {
         <!-- Loading Indicator -->
         <div v-if="isLoading && src"
             class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-10">
-            <div class="w-10 h-10 sm:w-12 sm:h-12 border-4 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin mb-4" />
+            <div class="w-10 h-10 sm:w-12 sm:h-12 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4" />
             <p class="text-white text-sm sm:text-base">載入影片中...</p>
         </div>
 

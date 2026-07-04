@@ -102,10 +102,10 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
 <template>
     <div class="max-w-7xl mx-auto px-4 py-6 md:hidden">
         <div v-if="loading" class="flex items-center justify-center py-20">
-            <div class="h-10 w-10 animate-spin rounded-full border-4 border-gray-600 border-t-transparent" />
+            <div class="h-10 w-10 animate-spin rounded-full border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white" />
         </div>
 
-        <div v-else class="space-y-6">
+        <div v-else class="space-y-7">
             <!-- Account -->
             <section>
                 <div class="flex items-center gap-4">
@@ -113,7 +113,7 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                         v-if="avatarUrl"
                         :src="avatarUrl"
                         :alt="displayName"
-                        class="h-16 w-16 shrink-0 rounded-full object-cover ring-2 ring-white dark:ring-gray-700"
+                        class="h-16 w-16 shrink-0 rounded-full object-cover ring-2 ring-black/5 dark:ring-white/10"
                         loading="lazy"
                     />
                     <div
@@ -123,7 +123,7 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                         {{ initials }}
                     </div>
                     <div class="min-w-0 flex-1">
-                        <p class="truncate text-lg font-semibold text-gray-900 dark:text-gray-100">{{ displayName }}</p>
+                        <p class="truncate text-lg font-semibold text-gray-900 dark:text-white">{{ displayName }}</p>
                         <p v-if="email" class="truncate text-sm text-gray-500 dark:text-gray-400">{{ email }}</p>
                     </div>
                 </div>
@@ -132,10 +132,10 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
             <!-- History -->
             <section>
                 <div class="mb-3 flex items-center justify-between gap-3">
-                    <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">觀看紀錄</h2>
+                    <h2 class="text-base font-semibold text-gray-900 dark:text-white">觀看紀錄</h2>
                     <NuxtLink
                         to="/history"
-                        class="shrink-0 text-sm font-medium text-indigo-600 dark:text-indigo-400 active:opacity-80"
+                        class="shrink-0 text-sm font-medium text-gray-500 dark:text-gray-400 active:opacity-80"
                     >
                         查看全部
                     </NuxtLink>
@@ -151,7 +151,7 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                         :to="`/anime/${item.anime_ref_id}?e=${item.episode_number}&t=${item.playback_time}`"
                         class="w-24 shrink-0"
                     >
-                        <div class="relative aspect-[2/3] overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-700">
+                        <div class="relative aspect-[2/3] overflow-hidden rounded-lg bg-gray-200 dark:bg-white/5">
                             <NuxtImg
                                 v-if="item.anime_image"
                                 :src="item.anime_image"
@@ -164,10 +164,10 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                             </div>
                             <div
                                 v-if="item.progress_percentage > 0"
-                                class="absolute bottom-0 left-0 right-0 h-1 bg-gray-800/50"
+                                class="absolute bottom-0 left-0 right-0 h-1 bg-black/40"
                             >
                                 <div
-                                    class="h-full bg-gray-600 dark:bg-gray-400"
+                                    class="h-full bg-white"
                                     :style="{ width: `${item.progress_percentage}%` }"
                                 />
                             </div>
@@ -177,18 +177,16 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                         </p>
                     </NuxtLink>
                 </div>
-                <p v-else class="rounded-xl border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                    還沒有觀看紀錄
-                </p>
+                <p v-else class="empty-hint">還沒有觀看紀錄</p>
             </section>
 
             <!-- Favorites -->
             <section>
                 <div class="mb-3 flex items-center justify-between gap-3">
-                    <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">我的收藏</h2>
+                    <h2 class="text-base font-semibold text-gray-900 dark:text-white">我的收藏</h2>
                     <NuxtLink
                         to="/favorites"
-                        class="shrink-0 text-sm font-medium text-indigo-600 dark:text-indigo-400 active:opacity-80"
+                        class="shrink-0 text-sm font-medium text-gray-500 dark:text-gray-400 active:opacity-80"
                     >
                         查看全部
                     </NuxtLink>
@@ -204,7 +202,7 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                         :to="`/anime/${item.anime_ref_id}`"
                         class="w-24 shrink-0"
                     >
-                        <div class="relative aspect-[2/3] overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-700">
+                        <div class="relative aspect-[2/3] overflow-hidden rounded-lg bg-gray-200 dark:bg-white/5">
                             <NuxtImg
                                 v-if="item.anime_image"
                                 :src="item.anime_image"
@@ -221,13 +219,11 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                         </p>
                     </NuxtLink>
                 </div>
-                <p v-else class="rounded-xl border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                    還沒有收藏作品
-                </p>
+                <p v-else class="empty-hint">還沒有收藏作品</p>
             </section>
 
             <!-- Navigation links -->
-            <section class="overflow-hidden rounded-xl border border-gray-200 bg-gray-950/5 dark:border-gray-700 dark:bg-white/10 divide-y divide-gray-200 dark:divide-gray-700">
+            <section class="overflow-hidden rounded-2xl bg-black/[0.02] dark:bg-white/5 ring-1 ring-black/5 dark:ring-white/10 divide-y divide-black/5 dark:divide-white/10">
                 <NuxtLink v-for="item in navItems" :key="item.to" :to="item.to" :class="NAV_LINK_CLASS">
                     <span class="material-symbols-rounded text-xl text-gray-500 dark:text-gray-400">{{ item.icon }}</span>
                     <span class="flex-1 text-sm font-medium">{{ item.label }}</span>
@@ -235,10 +231,16 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                 </NuxtLink>
             </section>
 
-            <button type="button" :class="[NAV_LINK_CLASS, 'w-full rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50 dark:active:bg-red-950/50']" @click="signOut">
+            <button type="button" :class="[NAV_LINK_CLASS, 'w-full rounded-2xl bg-red-500/10 text-red-600 hover:bg-red-500/20 active:bg-red-500/20 dark:text-red-400']" @click="signOut">
                 <span class="material-symbols-rounded text-xl">logout</span>
                 <span class="flex-1 text-sm font-medium text-left">登出</span>
             </button>
         </div>
     </div>
 </template>
+
+<style scoped>
+.empty-hint {
+    @apply rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-dashed border-black/10 dark:border-white/10 px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400;
+}
+</style>
