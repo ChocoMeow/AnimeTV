@@ -67,7 +67,7 @@ useHead({
                             <span class="material-symbols-rounded text-base group-open:rotate-180 transition-transform">expand_more</span>
                             技術細節
                         </summary>
-                        <div class="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
+                        <div class="mt-4 p-4 bg-black/[0.02] dark:bg-white/5 rounded-lg ring-1 ring-black/5 dark:ring-white/10">
                             <code class="text-sm text-red-600 dark:text-red-400 font-mono break-words">
                                 {{ error.message }}
                             </code>
@@ -109,7 +109,7 @@ useHead({
 
 .action-btn.primary {
     @apply bg-gray-900 dark:bg-white 
-           text-white dark:text-gray-900
+           text-white dark:text-black
            hover:scale-105 hover:shadow-2xl
            focus:ring-gray-900 dark:focus:ring-white;
 }
@@ -117,7 +117,7 @@ useHead({
 .action-btn.secondary {
     @apply bg-transparent
            text-gray-700 dark:text-gray-300
-           border-2 border-gray-300 dark:border-gray-700
+           border-2 border-black/10 dark:border-white/15
            hover:border-gray-900 dark:hover:border-white
            hover:text-gray-900 dark:hover:text-white
            hover:scale-105

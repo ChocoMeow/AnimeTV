@@ -290,7 +290,7 @@ watch(
 
 <template>
     <header
-        class="sticky top-0 z-50 w-full bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-white/10 shadow-sm max-md:fixed max-md:inset-x-0 max-md:top-0 transition-transform duration-300 max-md:duration-300"
+        class="sticky top-0 z-50 w-full bg-white dark:bg-gray-950 border-b border-black/10 dark:border-white/10 shadow-sm max-md:fixed max-md:inset-x-0 max-md:top-0 transition-transform duration-300 max-md:duration-300"
         :class="headerHiddenMobile && !mobileSearchOpen && !mobileMenuOpen ? 'max-md:-translate-y-full' : ''"
     >
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -312,17 +312,17 @@ watch(
                     @blur="hideDropdownDelayed"
                     type="search"
                     placeholder="搜尋動漫..."
-                    class="w-full bg-gray-950/5 dark:bg-white/10 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:border-white/10 outline-none"
+                    class="w-full bg-black/5 dark:bg-white/10 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 outline-none"
                 />
                 <!-- Loading Spinner -->
                 <div v-if="loading" class="absolute right-8 top-1/2 -translate-y-1/2">
-                    <div class="h-4 w-4 rounded-full animate-spin border-2 border-gray-300 border-t-gray-900 dark:border-gray-600 dark:border-t-white"></div>
+                    <div class="h-4 w-4 rounded-full animate-spin border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
                 </div>
                 <!-- Modern Dropdown -->
                 <transition name="dropdown">
                     <div
                         v-if="(searchResults.length || searchHistory.length || (searchQuery && !loading)) && showDropdown"
-                        class="absolute top-full mt-2 w-full bg-white dark:bg-gray-950 rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 z-50 max-h-96 overflow-y-auto"
+                        class="absolute top-full mt-2 w-full bg-white dark:bg-gray-950 rounded-xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 z-50 max-h-96 overflow-y-auto"
                     >
                         <!-- Search History (shown when no query) -->
                         <div v-if="!searchQuery && searchHistory.length" class="py-2">
@@ -331,7 +331,7 @@ watch(
                                 <li
                                     v-for="item in searchHistory"
                                     :key="item.id"
-                                    class="px-4 py-2 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer transition-colors flex items-center justify-between group"
+                                    class="px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer transition-colors flex items-center justify-between group"
                                     @mousedown.prevent="searchFromHistory(item.query)"
                                 >
                                     <div class="flex items-center gap-2">
@@ -340,7 +340,7 @@ watch(
                                     </div>
                                     <button
                                         @mousedown.prevent.stop="removeFromHistory(item.id)"
-                                        class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                                        class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded"
                                     >
                                         <span class="material-symbols-rounded text-gray-500 text-sm">close</span>
                                     </button>
@@ -353,12 +353,12 @@ watch(
                             <li
                                 v-for="(result, i) in searchResults"
                                 :key="i"
-                                class="px-3 py-2 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer transition-colors"
+                                class="px-3 py-2 hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer transition-colors"
                                 @mousedown.prevent="selectResult(result)"
                             >
                                 <div class="flex items-center gap-3">
                                     <!-- Image -->
-                                    <div class="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
+                                    <div class="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-white/10">
                                         <NuxtImg v-if="result.image" :src="result.image" :alt="result.title" class="w-full h-full object-cover" loading="lazy" />
                                         <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
                                             <span class="material-symbols-rounded">image</span>
@@ -396,7 +396,7 @@ watch(
 
             <!-- Right: Nav (desktop) -->
             <nav class="hidden md:flex items-center gap-3">
-                <NuxtLink to="/show-all-anime" class="text-sm px-3 py-1 rounded hover:bg-gray-100 dark:hover:bg-white/20"> 全部作品 </NuxtLink>
+                <NuxtLink to="/show-all-anime" class="text-sm px-3 py-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10"> 全部作品 </NuxtLink>
 
                 <!-- User Profile Dropdown -->
                 <div class="relative">
@@ -404,16 +404,16 @@ watch(
                         @click="showUserMenu = !showUserMenu"
                         @mouseenter="cancelHideUserMenu"
                         @mouseleave="hideUserMenuDelayed"
-                        class="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                        class="flex items-center gap-2 p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                     >
                         <NuxtImg
                             v-if="user?.user_metadata?.avatar_url"
                             :src="user.user_metadata.avatar_url"
                             :alt="user.user_metadata.name"
-                            class="w-8 h-8 rounded-full object-cover border-2 border-gray-200 dark:border-white/10"
+                            class="w-8 h-8 rounded-full object-cover border-2 border-black/10 dark:border-white/10"
                             loading="lazy"
                         />
-                        <div v-else class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold">
+                        <div v-else class="w-8 h-8 rounded-full bg-gray-900 dark:bg-white flex items-center justify-center text-white dark:text-black font-semibold">
                             {{ user?.user_metadata?.name?.[0]?.toUpperCase() || 'U' }}
                         </div>
                     </button>
@@ -424,12 +424,12 @@ watch(
                             v-if="showUserMenu"
                             @mouseenter="cancelHideUserMenu"
                             @mouseleave="hideUserMenuDelayed"
-                            class="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-950 rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 z-50 overflow-hidden"
+                            class="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-950 rounded-xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 z-50 overflow-hidden"
                         >
                             <!-- User Info Header → 個人資料 -->
                             <NuxtLink
                                 to="/profile"
-                                class="block px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-750 hover:from-indigo-100/80 hover:to-purple-100/80 dark:hover:from-gray-600 dark:hover:to-gray-700 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+                                class="block px-4 py-3 border-b border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/5 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gray-900 dark:focus-visible:ring-white"
                                 @click="closeUserMenu"
                             >
                                 <div class="flex items-center gap-3">
@@ -437,10 +437,10 @@ watch(
                                         v-if="user?.user_metadata?.avatar_url"
                                         :src="user.user_metadata.avatar_url"
                                         :alt="user.user_metadata.name"
-                                        class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-600"
+                                        class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-white/10"
                                         loading="lazy"
                                     />
-                                    <div v-else class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+                                    <div v-else class="w-12 h-12 rounded-full bg-gray-900 dark:bg-white flex items-center justify-center text-white dark:text-black font-bold text-lg">
                                         {{ user?.user_metadata?.name?.[0]?.toUpperCase() || 'U' }}
                                     </div>
                                     <div class="flex-1 min-w-0">
@@ -458,16 +458,16 @@ watch(
                             <!-- Menu Items -->
                             <div class="py-2">
                                 <template v-for="item in desktopDropdownItems" :key="item.to || item.label">
-                                    <div v-if="item.dividerBefore" class="border-t border-gray-200 dark:border-gray-700 my-2" />
+                                    <div v-if="item.dividerBefore" class="border-t border-black/10 dark:border-white/10 my-2" />
                                     <NuxtLink
                                         v-if="item.to"
                                         :to="item.to"
-                                        class="w-full px-4 py-2.5 text-left hover:bg-black/10 dark:hover:bg-white/20 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300"
+                                        class="w-full px-4 py-2.5 text-left hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex items-center gap-3 text-gray-700 dark:text-gray-300"
                                         @click.native="closeUserMenu"
                                     >
                                         <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">{{ item.icon }}</span>
                                         <span class="text-sm font-medium">{{ item.label }}</span>
-                                        <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{
+                                        <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-black/10 dark:bg-white/15 text-gray-700 dark:text-gray-200">{{
                                             item.badge
                                         }}</span>
                                     </NuxtLink>
@@ -478,7 +478,7 @@ watch(
                                         :class="
                                             item.variant === 'danger'
                                                 ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400'
-                                                : 'hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300'
+                                                : 'hover:bg-black/5 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300'
                                         "
                                         @click="item.action()"
                                     >
@@ -495,11 +495,11 @@ watch(
             <!-- Mobile buttons -->
             <div class="md:hidden flex items-center gap-2">
                 <!-- Search icon -->
-                <button @click="openMobileSearch" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center">
+                <button @click="openMobileSearch" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center">
                     <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">search</span>
                 </button>
                 <!-- Menu icon -->
-                <button v-if="!showMobilePwaNav" @click="mobileMenuOpen = !mobileMenuOpen" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center">
+                <button v-if="!showMobilePwaNav" @click="mobileMenuOpen = !mobileMenuOpen" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center">
                     <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">{{ mobileMenuOpen ? 'close' : 'menu' }}</span>
                 </button>
             </div>
@@ -509,7 +509,7 @@ watch(
         <transition name="fade">
             <div v-if="mobileSearchOpen" class="md:hidden fixed inset-0 bg-white dark:bg-gray-950 flex flex-col z-[60]">
                 <!-- Fixed Search Bar at Top -->
-                <div class="px-4 py-3 flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
+                <div class="px-4 py-3 flex-shrink-0 border-b border-black/10 dark:border-white/10">
                     <div class="flex items-center relative">
                         <input
                             ref="mobileSearchRef"
@@ -517,11 +517,11 @@ watch(
                             @keyup.enter="handleEnter"
                             type="search"
                             placeholder="搜尋動漫..."
-                            class="flex-1 bg-gray-950/5 dark:bg-white/10 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:border-white/10 outline-none"
+                            class="flex-1 bg-black/5 dark:bg-white/10 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 outline-none"
                         />
                         <!-- Mobile Loading Spinner -->
                         <div v-if="loading" class="absolute right-14 top-1/2 -translate-y-1/2">
-                            <div class="h-4 w-4 rounded-full animate-spin border-2 border-gray-300 border-t-gray-900 dark:border-gray-600 dark:border-t-white"></div>
+                            <div class="h-4 w-4 rounded-full animate-spin border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
                         </div>
                         <button @click="closeMobileSearch" class="ml-2 p-2 flex items-center justify-center">
                             <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">close</span>
@@ -538,14 +538,14 @@ watch(
                             <li
                                 v-for="item in searchHistory"
                                 :key="item.id"
-                                class="px-4 py-2 hover:bg-black/10 dark:hover:bg-white/20 cursor-pointer transition-colors flex items-center justify-between group"
+                                class="px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer transition-colors flex items-center justify-between group"
                                 @click="searchFromHistory(item.query)"
                             >
                                 <div class="flex items-center gap-2">
                                     <span class="material-symbols-rounded text-gray-400 text-sm">history</span>
                                     <span class="text-sm text-gray-700 dark:text-gray-300">{{ item.query }}</span>
                                 </div>
-                                <button @click.stop="removeFromHistory(item.id)" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
+                                <button @click.stop="removeFromHistory(item.id)" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded">
                                     <span class="material-symbols-rounded text-gray-500 text-sm">close</span>
                                 </button>
                             </li>
@@ -555,10 +555,10 @@ watch(
                     <!-- Mobile Results -->
                     <div v-if="searchResults.length">
                         <ul class="py-2">
-                            <li v-for="(result, i) in searchResults" :key="i" class="px-3 py-2 hover:bg-black/10 dark:hover:bg-white/20 cursor-pointer transition-colors" @click="selectResult(result)">
+                            <li v-for="(result, i) in searchResults" :key="i" class="px-3 py-2 hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer transition-colors" @click="selectResult(result)">
                                 <div class="flex items-center gap-3">
                                     <!-- Image -->
-                                    <div class="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
+                                    <div class="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-white/10">
                                         <NuxtImg v-if="result.image" :src="result.image" :alt="result.title" class="w-full h-full object-cover" loading="lazy" />
                                         <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
                                             <span class="material-symbols-rounded">image</span>
@@ -605,17 +605,17 @@ watch(
                         <!-- User Profile Section (Mobile) → 個人資料 -->
                         <NuxtLink
                             to="/profile"
-                            class="flex items-center gap-3 px-3 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-750 rounded-lg hover:from-indigo-100/80 hover:to-purple-100/80 dark:hover:from-gray-600 dark:hover:to-gray-700 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                            class="flex items-center gap-3 px-3 py-3 bg-black/[0.02] dark:bg-white/5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-gray-900 dark:focus-visible:ring-white"
                             @click="mobileMenuOpen = false"
                         >
                             <NuxtImg
                                 v-if="user?.user_metadata?.avatar_url"
                                 :src="user.user_metadata.avatar_url"
                                 :alt="user.user_metadata.name"
-                                class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-600"
+                                class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-white/10"
                                 loading="lazy"
                             />
-                            <div v-else class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+                            <div v-else class="w-12 h-12 rounded-full bg-gray-900 dark:bg-white flex items-center justify-center text-white dark:text-black font-bold text-lg">
                                 {{ user?.user_metadata?.name?.[0]?.toUpperCase() || 'U' }}
                             </div>
                             <div class="flex-1 min-w-0">
@@ -629,30 +629,30 @@ watch(
                             <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-xl shrink-0" aria-hidden="true">chevron_right</span>
                         </NuxtLink>
 
-                        <nav class="flex flex-col gap-2">
+                        <nav class="flex flex-col gap-1">
                             <template v-for="item in mobileNavItems" :key="item.to || item.label">
-                                <div v-if="item.dividerBefore" class="border-t border-gray-200 dark:border-gray-700 my-2" />
-                                <NuxtLink v-if="item.to" :to="item.to" class="text-sm px-3 py-2 rounded hover:bg-black/10 dark:hover:bg-white/20 flex items-center gap-3">
+                                <div v-if="item.dividerBefore" class="border-t border-black/10 dark:border-white/10 my-2" />
+                                <NuxtLink v-if="item.to" :to="item.to" class="text-sm px-3 py-2.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-3">
                                     <span class="material-symbols-rounded text-gray-500 dark:text-gray-400 text-xl">{{ item.icon }}</span>
                                     <span>{{ item.label }}</span>
-                                    <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{
+                                    <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-black/10 dark:bg-white/15 text-gray-700 dark:text-gray-200">{{
                                         item.badge
                                     }}</span>
                                 </NuxtLink>
                                 <button
                                     v-else-if="item.action"
                                     type="button"
-                                    class="text-sm px-3 py-2 rounded flex items-center gap-3 text-left"
+                                    class="text-sm px-3 py-2.5 rounded-lg flex items-center gap-3 text-left"
                                     :class="
                                         item.variant === 'danger'
                                             ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400'
-                                            : 'hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300'
+                                            : 'hover:bg-black/5 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300'
                                     "
                                     @click="item.action()"
                                 >
                                     <span class="material-symbols-rounded text-xl">{{ item.icon }}</span>
                                     <span>{{ item.label }}</span>
-                                    <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">{{
+                                    <span v-if="item.badge" class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-black/10 dark:bg-white/15 text-gray-700 dark:text-gray-200">{{
                                         item.badge
                                     }}</span>
                                 </button>

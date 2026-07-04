@@ -108,7 +108,7 @@ onBeforeUnmount(() => {
                 <button
                     v-if="effectiveShowClose"
                     type="button"
-                    class="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    class="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                     @click.stop="close"
                 >
                     <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">close</span>
@@ -129,7 +129,7 @@ onBeforeUnmount(() => {
     <Teleport v-else to="body">
         <Transition name="dialog">
             <div v-if="modelValue" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" :class="{ 'overflow-y-auto': scrollable }" @click.self="handleBackdropClick">
-                <div class="bg-white dark:bg-gray-950 rounded-2xl shadow-2xl w-full transform transition-all border-1 border-gray-950/5 dark:border-white/10 overflow-hidden" :class="[maxWidth, scrollable ? 'my-8' : '', padding ? 'p-6' : 'p-0']" @click.stop>
+                <div class="bg-white dark:bg-gray-950 rounded-2xl shadow-2xl w-full transform transition-all ring-1 ring-black/5 dark:ring-white/10 overflow-hidden" :class="[maxWidth, scrollable ? 'my-8' : '', padding ? 'p-6' : 'p-0']" @click.stop>
                     <!-- Header -->
                     <div v-if="showHeader && (title || effectiveShowClose || $slots.header)" class="flex items-center justify-between mb-2 flex-shrink-0">
                         <slot name="header">
@@ -138,7 +138,7 @@ onBeforeUnmount(() => {
                             </h3>
                         </slot>
 
-                        <button v-if="effectiveShowClose" type="button" @click="close" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <button v-if="effectiveShowClose" type="button" @click="close" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
                             <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">close</span>
                         </button>
                     </div>

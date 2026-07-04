@@ -196,11 +196,11 @@ function formatDate(dateString) {
         </div>
 
         <!-- Profile -->
-        <div v-else-if="profile" class="bg-[#101318] dark:bg-[#05070b] rounded-2xl overflow-hidden shadow-xl border border-white/5">
+        <div v-else-if="profile" class="bg-gray-950 rounded-2xl overflow-hidden shadow-xl ring-1 ring-white/10">
             <!-- Banner + Avatar -->
             <div
                 class="relative h-40"
-                :class="!bannerStyle && 'bg-gradient-to-r from-indigo-500 via-purple-500 to-sky-500'"
+                :class="!bannerStyle && 'bg-gradient-to-r from-slate-700 via-slate-600 to-slate-800'"
                 :style="bannerStyle || undefined"
             >
                 <button type="button" @click="close" class="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-lg bg-black/30 hover:bg-black/50 text-white transition-colors">
@@ -209,14 +209,14 @@ function formatDate(dateString) {
                 <div class="absolute inset-0 opacity-40 mix-blend-soft-light bg-[radial-gradient(circle_at_top,_#ffffff33,_transparent_55%)]" />
                 <div class="absolute -bottom-12 left-6">
                     <div class="relative">
-                        <div v-if="friendAvatar" class="w-24 h-24 rounded-2xl border-4 border-[#101318] bg-gray-900 overflow-hidden shadow-2xl shadow-black/60">
+                        <div v-if="friendAvatar" class="w-24 h-24 rounded-2xl border-4 border-gray-950 bg-gray-900 overflow-hidden shadow-2xl shadow-black/60">
                             <NuxtImg :src="friendAvatar" :alt="friendName" class="w-full h-full object-cover" loading="lazy" />
                         </div>
-                        <div v-else class="w-24 h-24 rounded-2xl border-4 border-[#101318] bg-gradient-to-br from-slate-600 via-slate-800 to-slate-950 flex items-center justify-center text-white text-3xl font-bold shadow-2xl shadow-black/60">
+                        <div v-else class="w-24 h-24 rounded-2xl border-4 border-gray-950 bg-gradient-to-br from-slate-600 via-slate-800 to-slate-950 flex items-center justify-center text-white text-3xl font-bold shadow-2xl shadow-black/60">
                             {{ initials }}
                         </div>
-                        <div class="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#101318] flex items-center justify-center">
-                            <div class="w-4 h-4 rounded-full border-2 border-[#101318]" :class="activityStatus.dotClass" />
+                        <div class="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-gray-950 flex items-center justify-center">
+                            <div class="w-4 h-4 rounded-full border-2 border-gray-950" :class="activityStatus.dotClass" />
                         </div>
                     </div>
                 </div>
@@ -231,15 +231,15 @@ function formatDate(dateString) {
                         <h2 class="text-2xl font-semibold truncate">{{ friendName }}</h2>
                         <p class="text-xs text-gray-400 mt-1">動漫夥伴 · 一起追番吧</p>
                         <div class="mt-3 flex flex-wrap gap-2 text-xs">
-                            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 ring-1 ring-white/10">
                                 <span class="w-2 h-2 rounded-full" :class="activityStatus.dotClass" />
                                 <span class="text-gray-200">{{ activityStatus.label }}</span>
                             </div>
-                            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-                                <span class="material-symbols-rounded text-sm text-indigo-300">movie</span>
+                            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 ring-1 ring-white/10">
+                                <span class="material-symbols-rounded text-sm text-gray-400">movie</span>
                                 <span class="text-gray-200">{{ stats.totalWatched }} 個觀看紀錄</span>
                             </div>
-                            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 ring-1 ring-white/10">
                                 <span class="material-symbols-rounded text-sm text-pink-300">bookmark</span>
                                 <span class="text-gray-200">{{ stats.totalFavorites }} 個收藏</span>
                             </div>
@@ -251,7 +251,7 @@ function formatDate(dateString) {
                         <h3 class="text-xs font-semibold tracking-wide text-gray-400 uppercase">正在觀看</h3>
                         <NuxtLink
                             :to="`/anime/${watchingNow.anime_ref_id}`"
-                            class="group flex gap-4 overflow-hidden rounded-xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all"
+                            class="group flex gap-4 overflow-hidden rounded-xl bg-white/[0.02] ring-1 ring-white/5 hover:ring-emerald-500/50 hover:bg-emerald-500/5 transition-all"
                             @click="close"
                         >
                             <div class="w-24 sm:w-32 flex-shrink-0 aspect-[2/3] overflow-hidden rounded-lg">
@@ -285,7 +285,7 @@ function formatDate(dateString) {
                                 v-for="anime in recentlyWatched"
                                 :key="anime.anime_ref_id"
                                 :to="`/anime/${anime.anime_ref_id}`"
-                                class="group overflow-hidden rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/20 shadow-sm hover:shadow-md hover:shadow-black/40 transition-all"
+                                class="group overflow-hidden rounded-xl bg-white/[0.02] ring-1 ring-white/5 hover:ring-white/20 shadow-sm hover:shadow-md hover:shadow-black/40 transition-all"
                                 @click="close"
                             >
                                 <div class="relative aspect-[2/3] overflow-hidden">
@@ -319,7 +319,7 @@ function formatDate(dateString) {
                                 v-for="anime in favorites"
                                 :key="anime.anime_ref_id"
                                 :to="`/anime/${anime.anime_ref_id}`"
-                                class="group overflow-hidden rounded-xl bg-white/[0.02] border border-white/5 hover:border-pink-400/60 hover:bg-pink-500/5 shadow-sm hover:shadow-md hover:shadow-black/40 transition-all"
+                                class="group overflow-hidden rounded-xl bg-white/[0.02] ring-1 ring-white/5 hover:ring-pink-400/60 hover:bg-pink-500/5 shadow-sm hover:shadow-md hover:shadow-black/40 transition-all"
                                 @click="close"
                             >
                                 <div class="relative aspect-[2/3] overflow-hidden">
@@ -343,7 +343,7 @@ function formatDate(dateString) {
 
                 <!-- Right col -->
                 <div class="space-y-4">
-                    <div class="rounded-xl bg-white/[0.03] border border-white/5 p-4">
+                    <div class="rounded-xl bg-white/[0.03] ring-1 ring-white/5 p-4">
                         <h3 class="text-xs font-semibold tracking-wide text-gray-400 uppercase mb-2">個人簡介</h3>
                         <p class="text-xs text-gray-300 leading-relaxed">這位好友還沒有填寫自我介紹。<br />一起追番、分享收藏清單，或許能更了解彼此的動漫品味。</p>
                     </div>
@@ -352,7 +352,7 @@ function formatDate(dateString) {
                         { title: '共同收藏', desc: '你和這位好友都收藏過的動漫', items: mutualFavorites },
                         { title: '共同觀看紀錄', desc: '你和這位好友都看過的動漫（依好友最近觀看排序）', items: mutualWatched }
                     ]" :key="title">
-                        <div v-if="items.length" class="rounded-xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
+                        <div v-if="items.length" class="rounded-xl bg-white/[0.03] ring-1 ring-white/5 p-4 space-y-3">
                             <h3 class="text-xs font-semibold tracking-wide text-gray-400 uppercase">{{ title }}</h3>
                             <p class="text-[11px] text-gray-400">{{ desc }}</p>
                             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-3 gap-2">
@@ -360,7 +360,7 @@ function formatDate(dateString) {
                                     v-for="item in items"
                                     :key="item.anime_ref_id"
                                     :to="`/anime/${item.anime_ref_id}`"
-                                    class="group relative overflow-hidden rounded-lg border border-white/10 hover:border-white/30 hover:bg-white/10 transition-all"
+                                    class="group relative overflow-hidden rounded-lg ring-1 ring-white/10 hover:ring-white/30 hover:bg-white/10 transition-all"
                                     @click="close"
                                 >
                                     <div class="aspect-[2/3] relative overflow-hidden">
@@ -386,7 +386,7 @@ function formatDate(dateString) {
     >
         <template #header>
             <div class="flex items-center gap-3">
-                <div v-if="friendAvatar" class="w-12 h-12 rounded-2xl bg-gray-800 overflow-hidden flex-shrink-0">
+                <div v-if="friendAvatar" class="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
                     <NuxtImg :src="friendAvatar" :alt="friendName" class="w-full h-full object-cover" loading="lazy" />
                 </div>
                 <div v-else class="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-600 via-slate-800 to-slate-950 flex items-center justify-center text-white text-lg font-semibold flex-shrink-0">
@@ -399,7 +399,7 @@ function formatDate(dateString) {
                         <span class="text-[11px] text-gray-500 dark:text-gray-400">{{ activityStatus.label }}</span>
                         <div class="flex gap-1.5 flex-shrink-0 ml-auto">
                             <div class="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 text-[11px] text-gray-500 dark:text-gray-300">
-                                <span class="material-symbols-rounded text-xs text-indigo-400">movie</span>
+                                <span class="material-symbols-rounded text-xs text-gray-400 dark:text-gray-500">movie</span>
                                 {{ stats.totalWatched }}
                             </div>
                             <div class="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 text-[11px] text-gray-500 dark:text-gray-300">
@@ -414,53 +414,53 @@ function formatDate(dateString) {
 
         <!-- Loading -->
         <div v-if="loading" class="flex flex-col items-center justify-center py-16 gap-3">
-            <div class="w-8 h-8 border-[3px] border-gray-600 border-t-transparent rounded-full animate-spin" />
-            <p class="text-xs text-gray-500">載入中...</p>
+            <div class="w-8 h-8 border-[3px] border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white rounded-full animate-spin" />
+            <p class="text-xs text-gray-500 dark:text-gray-400">載入中...</p>
         </div>
 
         <!-- Error -->
         <div v-else-if="error" class="flex flex-col items-center justify-center py-16 text-center gap-3">
-            <span class="material-symbols-rounded text-3xl text-red-400">error_outline</span>
-            <p class="text-sm text-red-400">{{ error }}</p>
+            <span class="material-symbols-rounded text-3xl text-red-500 dark:text-red-400">error_outline</span>
+            <p class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
         </div>
 
         <!-- Profile content -->
         <div v-else-if="profile" class="space-y-6 pb-4">
             <!-- Watching Now (mobile) -->
             <div v-if="watchingNow" class="space-y-3">
-                <h3 class="text-xs font-semibold tracking-wide text-gray-400 uppercase">正在觀看</h3>
+                <h3 class="text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase">正在觀看</h3>
                 <NuxtLink
                     :to="`/anime/${watchingNow.anime_ref_id}`"
-                    class="group flex gap-3 overflow-hidden rounded-xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/50"
+                    class="group flex gap-3 overflow-hidden rounded-xl bg-black/[0.02] dark:bg-white/5 ring-1 ring-black/5 dark:ring-white/10 hover:ring-emerald-500/50"
                     @click="close"
                 >
                     <div class="w-20 flex-shrink-0 aspect-[2/3] overflow-hidden rounded-lg">
                         <NuxtImg :src="watchingNow.anime_image" :alt="watchingNow.anime_title" class="w-full h-full object-cover" loading="lazy" />
                     </div>
                     <div class="flex-1 min-w-0 py-2 flex flex-col justify-center">
-                        <p class="text-sm font-semibold text-gray-100 truncate">{{ watchingNow.anime_title }}</p>
-                        <p class="text-xs text-gray-400 mt-0.5">第 {{ watchingNow.episode_number }} 集</p>
-                        <div class="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-[11px] w-fit">
+                        <p class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{{ watchingNow.anime_title }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">第 {{ watchingNow.episode_number }} 集</p>
+                        <div class="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] w-fit">
                             <span class="material-symbols-rounded text-xs">play_circle</span>
                             正在觀看
                         </div>
                     </div>
-                    <span class="material-symbols-rounded text-gray-500 self-center pr-2">chevron_right</span>
+                    <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 self-center pr-2">chevron_right</span>
                 </NuxtLink>
             </div>
 
             <!-- Recently Watched -->
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
-                    <h3 class="text-xs font-semibold tracking-wide text-gray-400 uppercase">最近活動</h3>
-                    <span v-if="recentlyWatched.length" class="text-[11px] text-gray-500">最近看過的動漫</span>
+                    <h3 class="text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase">最近活動</h3>
+                    <span v-if="recentlyWatched.length" class="text-[11px] text-gray-400 dark:text-gray-500">最近看過的動漫</span>
                 </div>
                 <div v-if="recentlyWatched.length" class="grid grid-cols-3 gap-2">
                     <NuxtLink
                         v-for="anime in recentlyWatched"
                         :key="anime.anime_ref_id"
                         :to="`/anime/${anime.anime_ref_id}`"
-                        class="group overflow-hidden rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/20 transition-all"
+                        class="group overflow-hidden rounded-xl bg-black/[0.02] dark:bg-white/5 ring-1 ring-black/5 dark:ring-white/10 hover:ring-black/20 dark:hover:ring-white/20 transition-all"
                         @click="close"
                     >
                         <div class="relative aspect-[2/3] overflow-hidden">
@@ -478,7 +478,7 @@ function formatDate(dateString) {
                         </div>
                     </NuxtLink>
                 </div>
-                <div v-else class="flex items-center justify-center rounded-xl border border-dashed border-white/10 px-4 py-8 text-xs text-gray-500">
+                <div v-else class="flex items-center justify-center rounded-xl border border-dashed border-black/10 dark:border-white/10 px-4 py-8 text-xs text-gray-500 dark:text-gray-400">
                     尚未有任何觀看活動
                 </div>
             </div>
@@ -486,15 +486,15 @@ function formatDate(dateString) {
             <!-- Favorites -->
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
-                    <h3 class="text-xs font-semibold tracking-wide text-gray-400 uppercase">收藏的動漫</h3>
-                    <span v-if="favorites.length" class="text-[11px] text-gray-500">好友收藏的作品</span>
+                    <h3 class="text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase">收藏的動漫</h3>
+                    <span v-if="favorites.length" class="text-[11px] text-gray-400 dark:text-gray-500">好友收藏的作品</span>
                 </div>
                 <div v-if="favorites.length" class="grid grid-cols-3 gap-2">
                     <NuxtLink
                         v-for="anime in favorites"
                         :key="anime.anime_ref_id"
                         :to="`/anime/${anime.anime_ref_id}`"
-                        class="group overflow-hidden rounded-xl bg-white/[0.02] border border-white/5 hover:border-pink-400/60 transition-all"
+                        class="group overflow-hidden rounded-xl bg-black/[0.02] dark:bg-white/5 ring-1 ring-black/5 dark:ring-white/10 hover:ring-pink-400/60 transition-all"
                         @click="close"
                     >
                         <div class="relative aspect-[2/3] overflow-hidden">
@@ -510,7 +510,7 @@ function formatDate(dateString) {
                         </div>
                     </NuxtLink>
                 </div>
-                <div v-else class="flex items-center justify-center rounded-xl border border-dashed border-white/10 px-4 py-8 text-xs text-gray-500">
+                <div v-else class="flex items-center justify-center rounded-xl border border-dashed border-black/10 dark:border-white/10 px-4 py-8 text-xs text-gray-500 dark:text-gray-400">
                     尚未收藏任何動漫
                 </div>
             </div>
@@ -522,15 +522,15 @@ function formatDate(dateString) {
             ]" :key="title">
                 <div v-if="items.length" class="space-y-3">
                     <div>
-                        <h3 class="text-xs font-semibold tracking-wide text-gray-400 uppercase">{{ title }}</h3>
-                        <p class="text-[11px] text-gray-500 mt-0.5">{{ desc }}</p>
+                        <h3 class="text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase">{{ title }}</h3>
+                        <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">{{ desc }}</p>
                     </div>
                     <div class="grid grid-cols-3 gap-2">
                         <NuxtLink
                             v-for="item in items"
                             :key="item.anime_ref_id"
                             :to="`/anime/${item.anime_ref_id}`"
-                            class="group relative overflow-hidden rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 transition-all"
+                            class="group relative overflow-hidden rounded-xl ring-1 ring-black/10 dark:ring-white/10 hover:ring-black/20 dark:hover:ring-white/30 hover:bg-black/5 dark:hover:bg-white/5 transition-all"
                             @click="close"
                         >
                             <div class="aspect-[2/3] relative overflow-hidden">

@@ -98,24 +98,22 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
 </script>
 
 <template>
-    <div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8">
         <!-- Header -->
-        <div class="mb-6">
+        <div class="mb-6 sm:mb-8">
             <div class="flex items-center justify-between gap-4 flex-wrap mb-6">
                 <div>
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">下載管理</h1>
+                    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">下載管理</h1>
                     <p class="text-gray-600 dark:text-gray-400 mt-1">管理你的離線下載</p>
                 </div>
-                <div class="flex items-center gap-3">
-                    <div
-                        class="px-4 py-2 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center gap-2"
-                    >
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <div class="px-4 py-2.5 bg-black/5 dark:bg-white/10 rounded-full flex items-center gap-2">
                         <span class="material-symbols-rounded text-gray-600 dark:text-gray-400 text-lg">storage</span>
                         <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ formatBytes(totalDownloadedBytes) }}</span>
                     </div>
                     <button
                         type="button"
-                        class="px-4 py-2 bg-gray-950/5 dark:bg-white/10 hover:bg-gray-100 dark:hover:bg-white/20 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors font-medium flex items-center gap-2"
+                        class="px-4 py-2.5 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 rounded-full transition-colors font-medium flex items-center gap-2"
                         :class="{ 'text-blue-600 dark:text-blue-400': hasDownloadTasks, 'text-gray-700 dark:text-gray-300': !hasDownloadTasks }"
                         @click="showDownloadProgress = true"
                     >
@@ -151,7 +149,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                     </button>
                     <button
                         type="button"
-                        class="px-4 py-2 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors font-medium flex items-center gap-2"
+                        class="px-4 py-2.5 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black rounded-full transition-opacity font-medium flex items-center gap-2"
                         @click="refreshList"
                     >
                         <span class="material-symbols-rounded text-lg">refresh</span>
@@ -163,36 +161,27 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
 
         <!-- Loading State -->
         <div v-if="loading" class="flex items-center justify-center py-20">
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-600 border-t-transparent"></div>
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
         </div>
 
         <div v-else class="space-y-6">
             <!-- Empty State -->
-            <div v-if="!items.length" class="text-center py-20">
-                <span class="material-symbols-rounded text-gray-400 text-6xl mb-4">download_for_offline</span>
-                <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">目前沒有已下載的動漫</h3>
+            <div v-if="!items.length" class="empty-state">
+                <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-6xl mb-4 opacity-60">download_for_offline</span>
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">目前沒有已下載的動漫</h3>
                 <p class="text-gray-500 dark:text-gray-400 mb-6">前往動漫頁面下載集數以便離線觀看</p>
-                <NuxtLink
-                    to="/show-all-anime"
-                    class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors"
-                >
-                    探索動漫
-                </NuxtLink>
+                <NuxtLink to="/show-all-anime" class="btn-primary">探索動漫</NuxtLink>
             </div>
 
             <!-- Downloaded Anime Grid -->
-            <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div
-                    v-for="anime in items"
-                    :key="anime.refId"
-                    class="relative bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all"
-                >
+            <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+                <div v-for="anime in items" :key="anime.refId" class="relative panel-card overflow-hidden hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/40">
                     <div class="p-4 flex gap-4">
                         <NuxtImg
                             v-if="anime.image"
                             :src="anime.image"
                             alt="Anime cover"
-                            class="w-20 aspect-[2/3] rounded-lg object-cover bg-gray-200 dark:bg-gray-700 flex-shrink-0"
+                            class="w-20 aspect-[2/3] rounded-lg object-cover bg-gray-200 dark:bg-white/5 flex-shrink-0"
                         />
                         <div class="flex-1 min-w-0 flex flex-col justify-between pr-24">
                             <div>
@@ -215,14 +204,14 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                     <div class="absolute top-4 right-4 flex items-center gap-2">
                         <NuxtLink
                             :to="`/anime/${anime.refId}`"
-                            class="flex items-center justify-center w-10 h-10 rounded-md bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 transition-colors"
+                            class="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black transition-opacity"
                             title="前往播放"
                         >
                             <span class="material-symbols-rounded text-lg">open_in_new</span>
                         </NuxtLink>
                         <button
                             type="button"
-                            class="flex items-center justify-center w-10 h-10 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                            class="flex items-center justify-center w-10 h-10 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-colors"
                             title="清除全部"
                             @click="clearOneAnime(anime.refId, anime.animeTitle)"
                         >
@@ -236,7 +225,7 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                                 v-for="ep in anime.episodes"
                                 :key="`${anime.refId}-${ep}`"
                                 :to="`/anime/${anime.refId}?e=${ep}`"
-                                class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white dark:bg-white/10 border border-gray-200 dark:border-gray-700 text-sm hover:bg-gray-100 dark:hover:bg-white/20 transition-colors"
+                                class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-black/5 dark:bg-white/10 text-sm hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
                             >
                                 <span class="text-gray-900 dark:text-gray-100">第 {{ ep }} 集</span>
                                 <button
@@ -259,13 +248,8 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
         <p class="text-gray-600 dark:text-gray-400">確定要清除「{{ animeToDelete?.title }}」所有離線集數嗎？此操作無法復原。</p>
 
         <template #actions>
-            <button
-                @click="showDeleteConfirm = false"
-                class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-            >
-                取消
-            </button>
-            <button @click="confirmClearAnime" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認清除</button>
+            <button @click="showDeleteConfirm = false" class="btn-modal-cancel">取消</button>
+            <button @click="confirmClearAnime" class="btn-modal-danger">確認清除</button>
         </template>
     </BaseModal>
 
@@ -354,13 +338,13 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
             </div>
 
             <!-- Recent Tasks -->
-            <div v-if="recentTasks.length" class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+            <div v-if="recentTasks.length" class="border-t border-black/10 dark:border-white/10 pt-4 mt-4">
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-3">已完成/失敗</p>
                 <div class="space-y-2">
                     <div
                         v-for="task in recentTasks"
                         :key="task.id"
-                        class="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5"
+                        class="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
                     >
                         <p class="text-sm text-gray-900 dark:text-white">{{ task.animeTitle }} - 第 {{ task.episodeKey }} 集</p>
                         <p
@@ -380,3 +364,28 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
         </div>
     </BaseDialog>
 </template>
+
+<style scoped>
+.panel-card {
+    @apply bg-black/[0.02] dark:bg-white/5 rounded-xl ring-1 ring-black/5 dark:ring-white/10 transition-all duration-300;
+}
+
+.empty-state {
+    @apply text-center py-20 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/5 dark:border-white/5;
+}
+
+.btn-primary {
+    @apply inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm
+           bg-gray-900 dark:bg-white text-white dark:text-black
+           hover:opacity-90 transition-opacity;
+}
+
+.btn-modal-cancel {
+    @apply px-4 py-2 rounded-full bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300
+           hover:bg-black/10 dark:hover:bg-white/20 transition-colors;
+}
+
+.btn-modal-danger {
+    @apply px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors;
+}
+</style>

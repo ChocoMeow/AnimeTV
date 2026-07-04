@@ -68,7 +68,7 @@ useHead({ title: `服務條款 | ${appConfig.siteName}` })
             </section>
         </div>
 
-        <div class="mt-12 pt-8 border-t border-gray-200 dark:border-white/10">
+        <div class="mt-12 pt-8 border-t border-black/10 dark:border-white/10">
             <NuxtLink
                 to="/privacy"
                 class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:underline"

@@ -275,92 +275,53 @@ useHead({
 </script>
 
 <template>
-    <div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8">
         <!-- Header -->
-        <div class="mb-6">
+        <div class="mb-6 sm:mb-8">
             <!-- Title and Search Row -->
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 flex-shrink-0">我的收藏</h1>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-5">
+                <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white flex-shrink-0">我的收藏</h1>
 
                 <!-- Search -->
                 <div class="relative w-full sm:max-w-xs">
-                    <input
-                        v-model="searchQuery"
-                        type="text"
-                        placeholder="搜尋收藏..."
-                        class="w-full bg-white dark:bg-white/10 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 outline-none"
-                    />
-                    <span class="material-symbols-rounded absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
+                    <input v-model="searchQuery" type="text" placeholder="搜尋收藏..." class="page-search" />
+                    <span class="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
                 </div>
             </div>
 
             <!-- Filters and Actions Row -->
-            <div class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            <div class="flex flex-col md:flex-row gap-3 sm:gap-4 items-start md:items-center justify-between">
                 <!-- Sort Options -->
                 <div class="flex gap-2 flex-wrap">
-                    <button
-                        @click="sortBy = 'recent'"
-                        :class="
-                            sortBy === 'recent'
-                                ? 'text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900'
-                                : 'bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300'
-                        "
-                        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md flex items-center gap-2"
-                    >
+                    <button @click="sortBy = 'recent'" :class="['pill-tab', sortBy === 'recent' ? 'pill-tab-active' : 'pill-tab-inactive']">
                         <span class="material-symbols-rounded text-lg">schedule</span>
                         最近收藏
                     </button>
-                    <button
-                        @click="sortBy = 'title'"
-                        :class="
-                            sortBy === 'title'
-                                ? 'text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900'
-                                : 'bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300'
-                        "
-                        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md flex items-center gap-2"
-                    >
+                    <button @click="sortBy = 'title'" :class="['pill-tab', sortBy === 'title' ? 'pill-tab-active' : 'pill-tab-inactive']">
                         <span class="material-symbols-rounded text-lg">sort_by_alpha</span>
                         名稱排序
                     </button>
-                    <button
-                        @click="sortBy = 'season'"
-                        :class="
-                            sortBy === 'season'
-                                ? 'text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900'
-                                : 'bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300'
-                        "
-                        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-md flex items-center gap-2"
-                    >
+                    <button @click="sortBy = 'season'" :class="['pill-tab', sortBy === 'season' ? 'pill-tab-active' : 'pill-tab-inactive']">
                         <span class="material-symbols-rounded text-lg">event</span>
                         季節排序
                     </button>
                 </div>
 
                 <!-- Action Buttons -->
-                <div v-if="favoriteItems.length > 0" class="flex items-center gap-3 flex-wrap">
-                    <button
-                        @click="selectAll"
-                        class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
-                    >
+                <div v-if="favoriteItems.length > 0" class="flex items-center gap-2 sm:gap-3 flex-wrap">
+                    <button @click="selectAll" class="btn-ghost">
                         <span class="material-symbols-rounded text-lg">
                             {{ selectedItems.size === filteredFavorites.length && filteredFavorites.length > 0 ? 'check_box' : 'check_box_outline_blank' }}
                         </span>
                         {{ selectedItems.size === filteredFavorites.length && filteredFavorites.length > 0 ? '取消全選' : '全選' }}
                     </button>
 
-                    <button
-                        v-if="selectedItems.size > 0"
-                        @click="deleteSelected"
-                        class="text-sm px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2"
-                    >
+                    <button v-if="selectedItems.size > 0" @click="deleteSelected" class="btn-danger">
                         <span class="material-symbols-rounded text-lg">delete</span>
                         刪除已選 ({{ selectedItems.size }})
                     </button>
 
-                    <button
-                        @click="showDeleteAllConfirm = true"
-                        class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
-                    >
+                    <button @click="showDeleteAllConfirm = true" class="btn-ghost-danger">
                         <span class="material-symbols-rounded text-lg">delete_sweep</span>
                         清除全部
                     </button>
@@ -375,25 +336,22 @@ useHead({
 
         <!-- Loading State -->
         <div v-if="loading" class="flex items-center justify-center py-20">
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-600 border-t-transparent"></div>
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
         </div>
 
         <!-- No Search Results -->
-        <div v-else-if="filteredFavorites.length === 0" class="text-center py-20">
-            <span class="material-symbols-rounded text-gray-400 text-6xl mb-4">search_off</span>
-            <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">找不到相關收藏</h3>
+        <div v-else-if="filteredFavorites.length === 0" class="empty-state">
+            <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-6xl mb-4 opacity-60">search_off</span>
+            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">找不到相關收藏</h3>
             <p class="text-gray-500 dark:text-gray-400">試試其他搜尋關鍵字</p>
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="favoriteItems.length === 0" class="text-center py-20">
-            <span class="material-symbols-rounded text-gray-400 text-6xl mb-4">bookmark_add</span>
-            <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">還沒有收藏動漫</h3>
+        <div v-else-if="favoriteItems.length === 0" class="empty-state">
+            <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-6xl mb-4 opacity-60">bookmark_add</span>
+            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">還沒有收藏動漫</h3>
             <p class="text-gray-500 dark:text-gray-400 mb-6">找到喜歡的動漫就收藏起來吧</p>
-            <NuxtLink
-                to="/"
-                class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors inline-flex items-center gap-2"
-            >
+            <NuxtLink to="/" class="btn-primary">
                 <span class="material-symbols-rounded">explore</span>
                 探索動漫
             </NuxtLink>
@@ -402,25 +360,21 @@ useHead({
         <!-- Favorites Grid -->
         <div v-else>
             <!-- Season grouped view (similar to history date groups) -->
-            <div v-if="sortBy === 'season'" class="space-y-8">
+            <div v-if="sortBy === 'season'" class="space-y-8 sm:space-y-10">
                 <div v-for="(items, seasonLabel) in groupedFavoritesBySeason" :key="seasonLabel">
                     <!-- Season Header -->
                     <div class="flex items-center gap-3 mb-4">
                         <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ seasonLabel }}</h2>
-                        <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                        <div class="flex-1 h-px bg-black/10 dark:bg-white/10"></div>
                     </div>
 
                     <!-- Season Favorites Grid -->
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                        <div
-                            v-for="item in items"
-                            :key="item.id"
-                            class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow hover:shadow-xl transition-all overflow-hidden group relative"
-                        >
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+                        <div v-for="item in items" :key="item.id" class="poster-card group">
                             <!-- Checkbox -->
                             <button
                                 @click="toggleSelectItem(item.id, $event)"
-                                class="absolute top-2 left-2 z-10 w-7 h-7 rounded bg-white/90 dark:bg-gray-700/90 shadow-md flex items-center justify-center transition-opacity backdrop-blur-sm"
+                                class="absolute top-2 left-2 z-10 w-7 h-7 rounded-md bg-white/90 dark:bg-gray-950/90 shadow-md flex items-center justify-center transition-opacity backdrop-blur-sm"
                                 :class="selectedItems.has(item.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
                             >
                                 <span v-if="selectedItems.has(item.id)" class="material-symbols-rounded text-gray-900 dark:text-gray-100 text-lg">check_box</span>
@@ -435,7 +389,7 @@ useHead({
                             <!-- Clickable Link -->
                             <NuxtLink :to="`/anime/${item.anime_ref_id}`" class="block">
                                 <!-- Poster -->
-                                <div class="aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
+                                <div class="aspect-[2/3] w-full bg-gray-200 dark:bg-white/5 relative overflow-hidden">
                                     <NuxtImg
                                         v-if="item.anime_image"
                                         :src="item.anime_image"
@@ -461,16 +415,12 @@ useHead({
             </div>
 
             <!-- Default flat grid view -->
-            <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                <div
-                    v-for="item in filteredFavorites"
-                    :key="item.id"
-                    class="bg-gray-950/5 dark:bg-white/10 rounded-lg shadow hover:shadow-xl transition-all overflow-hidden group relative"
-                >
+            <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+                <div v-for="item in filteredFavorites" :key="item.id" class="poster-card group">
                     <!-- Checkbox -->
                     <button
                         @click="toggleSelectItem(item.id, $event)"
-                        class="absolute top-2 left-2 z-10 w-7 h-7 rounded bg-white/90 dark:bg-gray-700/90 shadow-md flex items-center justify-center transition-opacity backdrop-blur-sm"
+                        class="absolute top-2 left-2 z-10 w-7 h-7 rounded-md bg-white/90 dark:bg-gray-950/90 shadow-md flex items-center justify-center transition-opacity backdrop-blur-sm"
                         :class="selectedItems.has(item.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
                     >
                         <span v-if="selectedItems.has(item.id)" class="material-symbols-rounded text-gray-900 dark:text-gray-100 text-lg">check_box</span>
@@ -485,7 +435,7 @@ useHead({
                     <!-- Clickable Link -->
                     <NuxtLink :to="`/anime/${item.anime_ref_id}`" class="block">
                         <!-- Poster -->
-                        <div class="aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
+                        <div class="aspect-[2/3] w-full bg-gray-200 dark:bg-white/5 relative overflow-hidden">
                             <NuxtImg
                                 v-if="item.anime_image"
                                 :src="item.anime_image"
@@ -512,7 +462,7 @@ useHead({
 
     <!-- Loading More Spinner -->
     <div v-if="loadingMore" class="flex justify-center py-6">
-        <div class="animate-spin rounded-full h-8 w-8 border-4 border-gray-600 border-t-transparent"></div>
+        <div class="animate-spin rounded-full h-8 w-8 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
     </div>
 
     <!-- Delete Confirmation Modal -->
@@ -520,13 +470,8 @@ useHead({
         <p class="text-gray-600 dark:text-gray-400 mb-6">確定要刪除 {{ selectedItems.size }} 個收藏嗎？此操作無法復原。</p>
 
         <template #actions>
-            <button
-                @click="showDeleteConfirm = false"
-                class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-            >
-                取消
-            </button>
-            <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認刪除</button>
+            <button @click="showDeleteConfirm = false" class="btn-modal-cancel">取消</button>
+            <button @click="confirmDelete" class="btn-modal-danger">確認刪除</button>
         </template>
     </BaseModal>
 
@@ -535,13 +480,69 @@ useHead({
         <p class="text-gray-600 dark:text-gray-400 mb-2">確定要清除所有收藏紀錄嗎？此操作無法復原。</p>
 
         <template #actions>
-            <button
-                @click="showDeleteAllConfirm = false"
-                class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-            >
-                取消
-            </button>
-            <button @click="confirmDeleteAll" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認清除</button>
+            <button @click="showDeleteAllConfirm = false" class="btn-modal-cancel">取消</button>
+            <button @click="confirmDeleteAll" class="btn-modal-danger">確認清除</button>
         </template>
     </BaseModal>
 </template>
+
+<style scoped>
+.page-search {
+    @apply w-full bg-black/5 dark:bg-white/10 border border-transparent rounded-full px-4 py-2.5 pl-10 text-sm
+           text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400
+           focus:ring-2 focus:ring-black/10 dark:focus:ring-white/20 outline-none transition-shadow;
+}
+
+.pill-tab {
+    @apply px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2;
+}
+
+.pill-tab-inactive {
+    @apply bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20;
+}
+
+.pill-tab-active {
+    @apply bg-gray-900 dark:bg-white text-white dark:text-black shadow-md;
+}
+
+.btn-primary {
+    @apply inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm
+           bg-gray-900 dark:bg-white text-white dark:text-black
+           hover:opacity-90 transition-opacity;
+}
+
+.btn-ghost {
+    @apply text-sm px-4 py-2 rounded-full bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300
+           hover:bg-black/10 dark:hover:bg-white/20 transition-colors flex items-center gap-2;
+}
+
+.btn-ghost-danger {
+    @apply text-sm px-4 py-2 rounded-full bg-black/5 dark:bg-white/10 text-red-600 dark:text-red-400
+           hover:bg-red-500/10 transition-colors flex items-center gap-2;
+}
+
+.btn-danger {
+    @apply text-sm px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2;
+}
+
+.btn-modal-cancel {
+    @apply px-4 py-2 rounded-full bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300
+           hover:bg-black/10 dark:hover:bg-white/20 transition-colors;
+}
+
+.btn-modal-danger {
+    @apply px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors;
+}
+
+.empty-state {
+    @apply text-center py-20 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/5 dark:border-white/5;
+}
+
+.poster-card {
+    @apply relative bg-black/[0.02] dark:bg-white/5 rounded-xl overflow-hidden
+           ring-1 ring-black/5 dark:ring-white/10
+           hover:ring-black/10 dark:hover:ring-white/20
+           hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-black/50
+           hover:-translate-y-1 transition-all duration-300;
+}
+</style>

@@ -144,7 +144,7 @@ function itemColorClass(active) {
                                 />
                                 <div
                                     v-else
-                                    class="flex h-full w-full items-center justify-center bg-indigo-600 font-semibold text-white transition-[font-size] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]"
+                                    class="flex h-full w-full items-center justify-center bg-zinc-600 font-semibold text-white transition-[font-size] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]"
                                     :class="avatarTextClass"
                                 >
                                     {{ profileInitial }}

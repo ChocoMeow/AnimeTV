@@ -338,11 +338,11 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="max-w-7xl mx-auto px-4 py-8 space-y-6">
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8 space-y-6">
         <!-- Header -->
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">動畫資料管理</h1>
+                <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">動畫資料管理</h1>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     僅限擁有管理員身份的使用者，可以在此頁面管理動畫資料表。
                 </p>
@@ -356,10 +356,8 @@ onMounted(() => {
             <!-- Left Panel: List & Search -->
             <div class="space-y-4">
                 <!-- Search Card -->
-                <div
-                    class="rounded-2xl border border-gray-200/80 dark:border-white/10 bg-white/90 dark:bg-gray-950/80 shadow-sm backdrop-blur"
-                >
-                    <div class="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
+                <div class="admin-panel">
+                    <div class="px-4 py-3 border-b border-black/5 dark:border-white/10 flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <span class="material-symbols-rounded text-base text-gray-500 dark:text-gray-400">search</span>
                             <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">搜尋與篩選</h2>
@@ -400,7 +398,7 @@ onMounted(() => {
                                 v-model="searchValue"
                                 type="text"
                                 :placeholder="searchOperator === 'in' ? '多個值請用逗號分隔' : '輸入欄位值進行搜尋'"
-                                class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/70 dark:focus:ring-white/70"
+                                class="admin-input"
                                 @keyup.enter="applySearch"
                             />
                         </div>
@@ -408,7 +406,7 @@ onMounted(() => {
                         <div class="flex items-center justify-between pt-1">
                             <button
                                 type="button"
-                                class="text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                class="btn-admin-ghost"
                                 @click="
                                     searchValue = '';
                                     page = 1;
@@ -419,7 +417,7 @@ onMounted(() => {
                             </button>
                             <button
                                 type="button"
-                                class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                                class="btn-admin-primary"
                                 @click="applySearch"
                             >
                                 <span class="material-symbols-rounded text-xs">search</span>
@@ -430,10 +428,8 @@ onMounted(() => {
                 </div>
 
                 <!-- List Card -->
-                <div
-                    class="rounded-2xl border border-gray-200/80 dark:border-white/10 bg-white/90 dark:bg-gray-950/80 shadow-sm backdrop-blur flex flex-col max-h-[600px]"
-                >
-                    <div class="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
+                <div class="admin-panel flex flex-col max-h-[600px]">
+                    <div class="px-4 py-3 border-b border-black/5 dark:border-white/10 flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <span class="material-symbols-rounded text-base text-gray-500 dark:text-gray-400">view_list</span>
                             <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">紀錄列表</h2>
@@ -444,14 +440,14 @@ onMounted(() => {
                     </div>
                     <div class="flex-1 overflow-auto">
                         <div v-if="loading" class="flex items-center justify-center py-10">
-                            <div class="animate-spin rounded-full h-10 w-10 border-4 border-gray-600 border-t-transparent"></div>
+                            <div class="animate-spin rounded-full h-10 w-10 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
                         </div>
 
                         <div v-else-if="!records.length" class="py-8 px-4 text-center text-sm text-gray-500 dark:text-gray-400">
                             目前沒有任何紀錄，請點選右上方「新增紀錄」建立。
                         </div>
 
-                        <ul v-else class="divide-y divide-gray-100 dark:divide-white/5">
+                        <ul v-else class="divide-y divide-black/5 dark:divide-white/5">
                             <li
                                 v-for="record in records"
                                 :key="record.source_id || record.id"
@@ -459,12 +455,12 @@ onMounted(() => {
                                     'px-4 py-3 cursor-pointer transition-colors flex items-center gap-3',
                                     selectedRecord && (selectedRecord.source_id || selectedRecord.id) === (record.source_id || record.id)
                                         ? 'bg-black/5 dark:bg-white/10'
-                                        : 'hover:bg-gray-50 dark:hover:bg-white/5',
+                                        : 'hover:bg-black/[0.03] dark:hover:bg-white/5',
                                 ]"
                                 @click="handleSelect(record)"
                             >
                                 <!-- Thumbnail -->
-                                <div class="flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200/70 dark:border-white/10">
+                                <div class="flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-white/5">
                                     <NuxtImg
                                         v-if="record.thumbnail"
                                         :src="record.thumbnail"
@@ -499,13 +495,13 @@ onMounted(() => {
                     <!-- Simple Pagination -->
                     <div
                         v-if="totalPages > 1"
-                        class="px-4 py-2 border-t border-gray-100 dark:border-white/10 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400"
+                        class="px-4 py-2 border-t border-black/5 dark:border-white/10 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400"
                     >
                         <span> 第 {{ page }} / {{ totalPages }} 頁 </span>
                         <div class="flex items-center gap-2">
                             <button
                                 type="button"
-                                class="px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                                class="px-2 py-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed"
                                 :disabled="page <= 1"
                                 @click="changePage(page - 1)"
                             >
@@ -513,7 +509,7 @@ onMounted(() => {
                             </button>
                             <button
                                 type="button"
-                                class="px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                                class="px-2 py-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed"
                                 :disabled="page >= totalPages"
                                 @click="changePage(page + 1)"
                             >
@@ -525,10 +521,8 @@ onMounted(() => {
             </div>
 
             <!-- Right Panel: Editor -->
-            <div
-                class="rounded-2xl border border-gray-200/80 dark:border-white/10 bg-white/90 dark:bg-gray-950/80 shadow-sm backdrop-blur flex flex-col"
-            >
-                <div class="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
+            <div class="admin-panel flex flex-col">
+                <div class="px-4 py-3 border-b border-black/5 dark:border-white/10 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <span class="material-symbols-rounded text-base text-gray-500 dark:text-gray-400">edit</span>
                         <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">
@@ -538,7 +532,7 @@ onMounted(() => {
                     <div class="flex items-center gap-2">
                         <button
                             type="button"
-                            class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-white dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            class="btn-admin-ghost inline-flex items-center gap-2"
                             @click="handleCreateNew"
                         >
                             <span class="material-symbols-rounded text-base">add</span>
@@ -548,7 +542,7 @@ onMounted(() => {
                             v-if="selectedRecord?.source_id"
                             :to="`/anime/${selectedRecord.source_id}`"
                             target="_blank"
-                            class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                            class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                         >
                             <span class="material-symbols-rounded text-base">open_in_new</span>
                             <span class="hidden sm:inline">查看動漫</span>
@@ -557,7 +551,7 @@ onMounted(() => {
                 </div>
 
                 <div class="px-4 py-4 space-y-4">
-                    <div v-if="errorMessage" class="rounded-xl bg-red-50 dark:bg-red-900/30 border border-red-200/70 dark:border-red-500/40 px-3 py-2 text-xs text-red-700 dark:text-red-200">
+                    <div v-if="errorMessage" class="rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2 text-xs text-red-700 dark:text-red-200">
                         {{ errorMessage }}
                     </div>
 
@@ -571,7 +565,7 @@ onMounted(() => {
                         class="space-y-4"
                     >
                         <div class="flex items-start gap-4">
-                            <div class="w-32 h-44 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200/70 dark:border-white/10 flex-shrink-0">
+                            <div class="w-32 h-44 rounded-xl overflow-hidden bg-gray-100 dark:bg-white/5 flex-shrink-0">
                                 <NuxtImg
                                     v-if="editableRecord.thumbnail"
                                     :src="editableRecord.thumbnail"
@@ -634,7 +628,7 @@ onMounted(() => {
                                             :readonly="field.readOnly"
                                             type="number"
                                             step="1"
-                                            class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                            class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                         />
                                     </div>
 
@@ -646,7 +640,7 @@ onMounted(() => {
                                             :readonly="field.readOnly"
                                             type="number"
                                             step="0.1"
-                                            class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                            class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                         />
                                     </div>
 
@@ -656,7 +650,7 @@ onMounted(() => {
                                             v-model="editableRecord[field.name]"
                                             :readonly="field.readOnly"
                                             type="date"
-                                            class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
+                                            class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
                                         />
                                     </div>
 
@@ -666,7 +660,7 @@ onMounted(() => {
                                             v-model="editableRecord[field.name]"
                                             :readonly="field.readOnly"
                                             type="datetime-local"
-                                            class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
+                                            class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
                                         />
                                     </div>
 
@@ -677,7 +671,7 @@ onMounted(() => {
                                             v-model="editableRecord[field.name]"
                                             :readonly="field.readOnly"
                                             type="checkbox"
-                                            class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-black/70 dark:focus:ring-white/70 disabled:opacity-60"
+                                            class="w-4 h-4 rounded border-black/20 dark:border-white/20 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 disabled:opacity-60"
                                         />
                                         <label :for="`checkbox-${field.name}`" class="text-sm text-gray-700 dark:text-gray-300">
                                             {{ editableRecord[field.name] ? '是' : '否' }}
@@ -690,7 +684,7 @@ onMounted(() => {
                                         v-model="editableRecord[field.name]"
                                         :readonly="field.readOnly"
                                         rows="4"
-                                        class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60 resize-y"
+                                        class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 resize-y"
                                     />
 
                                     <!-- JSONB fields (editable JSON textarea, saved as object) -->
@@ -700,7 +694,7 @@ onMounted(() => {
                                         :readonly="field.readOnly"
                                         rows="8"
                                         placeholder="{}"
-                                        class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 font-mono focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60 resize-y"
+                                        class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 font-mono focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 resize-y"
                                     />
 
                                     <!-- Text fields (default) -->
@@ -709,18 +703,18 @@ onMounted(() => {
                                         v-model="editableRecord[field.name]"
                                         :readonly="field.readOnly"
                                         type="text"
-                                        class="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent disabled:opacity-60"
+                                        class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60"
                                     />
                                 </div>
                             </div>
                         </form>
 
                         <!-- Action Buttons at Bottom -->
-                        <div v-if="editableRecord" class="flex items-center justify-end gap-3 pt-4 mt-4 border-t border-gray-100 dark:border-white/10">
+                        <div v-if="editableRecord" class="flex items-center justify-end gap-3 pt-4 mt-4 border-t border-black/5 dark:border-white/10">
                             <button
                                 v-if="selectedRecord"
                                 type="button"
-                                class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                 :disabled="saving"
                                 @click="handleDelete"
                             >
@@ -729,7 +723,7 @@ onMounted(() => {
                             </button>
                             <button
                                 type="button"
-                                class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                class="btn-admin-primary"
                                 :disabled="saving || !editableRecord"
                                 @click="handleSave"
                             >
@@ -743,4 +737,27 @@ onMounted(() => {
         </div>
     </div>
 </template>
+
+<style scoped>
+.admin-panel {
+    @apply rounded-2xl ring-1 ring-black/5 dark:ring-white/10 bg-white/90 dark:bg-gray-950/80 shadow-sm backdrop-blur;
+}
+
+.admin-input {
+    @apply w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2
+           text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500
+           focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent transition-shadow;
+}
+
+.btn-admin-primary {
+    @apply inline-flex items-center gap-2 text-sm px-4 py-2 rounded-full font-medium
+           bg-gray-900 dark:bg-white text-white dark:text-black
+           hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed;
+}
+
+.btn-admin-ghost {
+    @apply text-sm px-4 py-2 rounded-full bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300
+           hover:bg-black/10 dark:hover:bg-white/20 transition-colors;
+}
+</style>
 
