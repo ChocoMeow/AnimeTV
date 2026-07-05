@@ -259,17 +259,19 @@ useHead({
 
             <!-- Keyboard Shortcuts -->
             <div class="settings-panel">
-                <div class="flex items-center justify-between gap-4 flex-wrap">
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">keyboard</span>
-                        <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">鍵盤快捷鍵</h3>
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-3 mb-1">
+                            <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">keyboard</span>
+                            <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">鍵盤快捷鍵</h3>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">調整影片播放器的鍵盤快捷鍵</p>
                     </div>
-                    <button @click="showShortcutsModal = true" class="btn-primary-sm">
+                    <button type="button" @click="showShortcutsModal = true" class="pill-tab pill-tab-inactive sm:justify-end">
                         <span class="material-symbols-rounded text-lg">edit</span>
-                        自訂快捷鍵
+                        自訂
                     </button>
                 </div>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mt-3">自訂影片播放器的鍵盤快捷鍵以符合你的使用習慣</p>
             </div>
 
             <!-- Privacy Settings -->
@@ -442,10 +444,6 @@ useHead({
 
 .pill-tab-active {
     @apply bg-gray-900 dark:bg-white text-white dark:text-black shadow-md;
-}
-
-.btn-primary-sm {
-    @apply px-4 py-2 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black rounded-full transition-opacity font-medium flex items-center gap-2;
 }
 
 .btn-danger-outline {

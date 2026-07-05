@@ -172,6 +172,48 @@ async function getSuggestions(client, userId) {
         }))
 }
 
+async function getSpotlight(client, userId) {
+    const end = new Date();
+    const start = new Date();
+    start.setMonth(start.getMonth() - 3);
+    const toDate = (d) => d.toISOString().slice(0, 10);
+
+    // 1. Fetch the Top 50 candidates from the 3-month window
+    const { data: candidates, error: cError } = await client
+        .from("anime_meta")
+        .select("source_id, title, thumbnail")
+        .not("video_id", "is", null)
+        .gte("premiere_date", toDate(start))
+        .lte("premiere_date", toDate(end))
+        .order("views", { ascending: false })
+        .order("score", { ascending: false })
+        .limit(50);
+
+    if (cError || !candidates?.length) return [];
+
+    // Which of these 50 candidates has the user already watched?
+    let watchedIds = [];
+    if (userId) {
+        const candidateIds = candidates.map(c => c.source_id);
+        const { data: watched } = await client
+            .from("watch_history_latest_updates")
+            .select("anime_ref_id")
+            .eq("user_id", userId)
+            .in("anime_ref_id", candidateIds);
+
+        watchedIds = watched?.map(w => w.anime_ref_id) || [];
+    }
+
+    return candidates
+        .filter(c => !watchedIds.includes(c.source_id))
+        .slice(0, 5)
+        .map(row => ({
+            refId: String(row.source_id),
+            title: row.title,
+            image: row.thumbnail,
+        }));
+}
+
 async function getUserThemes(client, userId) {
     if (!userId) return {}
     const [continueWatching, suggestions] = await Promise.all([
@@ -187,19 +229,22 @@ async function getUserThemes(client, userId) {
 async function scrapeAllAnime(client, userId) {
     const now = Date.now()
     const fetchedAt = new Date(now).toISOString()
-    const empty = { byDay: {}, themes: {}, fetchedAt }
+    const empty = { byDay: {}, themes: {}, spotlight: [], fetchedAt }
 
-    const mergeUserThemes = async (base) => {
-        const userThemes = await getUserThemes(client, userId)
-        return { ...base, themes: { ...userThemes, ...base.themes } }
+    const mergeUserData = async (base) => {
+        const [userThemes, spotlight] = await Promise.all([
+            getUserThemes(client, userId),
+            getSpotlight(client, userId),
+        ])
+        return { ...base, themes: { ...userThemes, ...base.themes }, spotlight }
     }
 
     if (ANIME_CACHE.data && now - ANIME_CACHE.timestamp < TWO_HOURS)
-        return mergeUserThemes(ANIME_CACHE.data)
+        return mergeUserData(ANIME_CACHE.data)
 
     const pageResult = await cfFetch(GAMER_BASE_URL)
     if (!pageResult?.html) {
-        return mergeUserThemes(ANIME_CACHE.data || empty)
+        return mergeUserData(ANIME_CACHE.data || empty)
     }
 
     const $ = cheerio.load(pageResult.html)
@@ -210,7 +255,7 @@ async function scrapeAllAnime(client, userId) {
     if (!allRaw.length) {
         ANIME_CACHE.timestamp = now
         ANIME_CACHE.data = empty
-        return mergeUserThemes(empty)
+        return mergeUserData(empty)
     }
 
     const blockCount = blockItems.length
@@ -230,7 +275,7 @@ async function scrapeAllAnime(client, userId) {
     ANIME_CACHE.timestamp = now
     ANIME_CACHE.data = { byDay, themes, fetchedAt }
 
-    return mergeUserThemes(ANIME_CACHE.data)
+    return mergeUserData(ANIME_CACHE.data)
 }
 
 export default defineEventHandler(async (event) => {

@@ -82,6 +82,13 @@ let streamRecovering = false
 const SAVE_INTERVAL = 120_000
 let saveTimer = null
 
+// Action Toolbar
+const toolbarHeaderRef = ref(null)
+const toolbarHeaderWidth = ref(1024)
+const toolbarRowLayout = ref(true)
+let toolbarResizeObserver = null
+let disposeToolbarLayout = null
+
 // ─── Computed ─────────────────────────────────────────────────────────────────
 const sortedEpisodeKeys = computed(() => {
     if (!anime.value?.episodes) return []
@@ -195,8 +202,20 @@ const animeToolbarActions = computed(() => {
     return actions
 })
 
-const toolbarPrimaryActions = computed(() => animeToolbarActions.value.slice(0, 3))
-const toolbarOverflowActions = computed(() => animeToolbarActions.value.slice(3))
+const toolbarActionsSplit = computed(() => {
+    const actions = animeToolbarActions.value
+    const visible = Math.min(toolbarMaxVisible(toolbarHeaderWidth.value, toolbarRowLayout.value), actions.length)
+    return { primary: actions.slice(0, visible), overflow: actions.slice(visible) }
+})
+
+// ─── Toolbar actions split ─────────────────────────────────────────────────────
+function toolbarMaxVisible(width, rowLayout) {
+    const [show3, show2, show1] = rowLayout ? [900, 720, 520] : [360, 280, 180]
+    if (width >= show3) return 3
+    if (width >= show2) return 2
+    if (width >= show1) return 1
+    return 0
+}
 
 // ─── Offline helpers ──────────────────────────────────────────────────────────
 function revokeOfflinePlayback() {
@@ -285,6 +304,15 @@ const formatRating = (score) => (score ? parseFloat(score).toFixed(1) : 'N/A')
 
 // ─── Toolbar overflow click-outside ──────────────────────────────────────────
 let toolbarOverflowClickHandler = null
+
+watch(toolbarHeaderRef, (el) => {
+    toolbarResizeObserver?.disconnect()
+    if (!el) return
+    toolbarResizeObserver = new ResizeObserver(([entry]) => {
+        toolbarHeaderWidth.value = entry.contentRect.width
+    })
+    toolbarResizeObserver.observe(el)
+})
 
 watch(showToolbarOverflowMenu, (open) => {
     if (!import.meta.client) return
@@ -678,12 +706,20 @@ function handleShortcutsKeydown(e) {
 onBeforeUnmount(() => handleLeave())
 
 onMounted(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const syncLayout = () => { toolbarRowLayout.value = mq.matches }
+    syncLayout()
+    mq.addEventListener('change', syncLayout)
+    disposeToolbarLayout = () => mq.removeEventListener('change', syncLayout)
+
     fetchDetail()
     window.addEventListener('beforeunload', handleLeave)
     window.addEventListener('keydown', handleShortcutsKeydown)
 })
 
 onUnmounted(() => {
+    disposeToolbarLayout?.()
+    toolbarResizeObserver?.disconnect()
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
     if (toolbarOverflowClickHandler) document.removeEventListener('click', toolbarOverflowClickHandler, true)
@@ -786,17 +822,18 @@ onUnmounted(() => {
                     <!-- Anime Information -->
                     <section class="space-y-4" aria-label="Anime information">
                         <!-- Title + Actions -->
-                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">{{ anime.title }}</h1>
-                            <div class="flex items-center gap-2 flex-shrink-0">
-                                <button v-for="action in toolbarPrimaryActions" :key="action.key"
+                        <div ref="toolbarHeaderRef" class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                            <h1 class="min-w-0 md:flex-1 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">{{ anime.title }}</h1>
+                            <div v-if="animeToolbarActions.length" class="flex flex-wrap items-center gap-2 w-full md:w-auto md:flex-shrink-0 md:justify-end">
+                                <button v-for="action in toolbarActionsSplit.primary" :key="action.key"
                                     type="button"
-                                    class="w-10 h-10 bg-black/5 dark:bg-white/10 rounded-full ring-1 ring-black/5 dark:ring-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
-                                    :title="action.label" :aria-label="action.label"
+                                    class="inline-flex items-center gap-1.5 h-10 px-3 bg-black/5 dark:bg-white/10 rounded-full ring-1 ring-black/5 dark:ring-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all focus:outline-none"
+                                    :aria-label="action.label"
                                     @click="action.run()">
                                     <span class="material-symbols-rounded text-xl" :class="action.iconClass">{{ action.icon }}</span>
+                                    <span class="text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">{{ action.label }}</span>
                                 </button>
-                                <div v-if="toolbarOverflowActions.length" ref="toolbarOverflowRoot" class="relative">
+                                <div v-if="toolbarActionsSplit.overflow.length" ref="toolbarOverflowRoot" class="relative">
                                     <button type="button"
                                         class="w-10 h-10 bg-black/5 dark:bg-white/10 rounded-full ring-1 ring-black/5 dark:ring-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
                                         title="更多" aria-label="更多操作"
@@ -807,7 +844,7 @@ onUnmounted(() => {
                                     <div v-show="showToolbarOverflowMenu"
                                         class="absolute right-0 top-full mt-2 min-w-[11rem] py-1 rounded-xl ring-1 ring-black/5 dark:ring-white/10 bg-white dark:bg-gray-950 shadow-xl z-10"
                                         role="menu" @click.stop>
-                                        <button v-for="action in toolbarOverflowActions" :key="action.key"
+                                        <button v-for="action in toolbarActionsSplit.overflow" :key="action.key"
                                             type="button"
                                             class="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left text-gray-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10"
                                             role="menuitem"

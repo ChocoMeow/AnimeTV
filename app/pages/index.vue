@@ -3,6 +3,7 @@ const appConfig = useAppConfig()
 const loading = ref(true)
 const byDay = ref({})
 const themes = ref({})
+const spotlight = ref([])
 const fetchedAt = ref(null)
 
 const today = new Date()
@@ -28,17 +29,6 @@ const weekdayLabel = {
     7: '週日',
 }
 
-// Discovery bento — a spotlight tile + a handful of side tiles pulled from
-// *today's* lineup (falling back to the first themed row if today is empty),
-// shown together instead of a single rotating banner so more gets seen at once.
-const featuredItems = computed(() => {
-    const todayItems = byDay.value[todayCode] || []
-    if (todayItems.length) return todayItems.slice(0, 5)
-    const firstTheme = Object.values(themes.value || {}).find((list) => list?.length)
-    return firstTheme ? firstTheme.slice(0, 5) : []
-})
-const mainFeature = computed(() => featuredItems.value[0] || null)
-const sideFeatures = computed(() => featuredItems.value.slice(1))
 const todayCount = computed(() => (byDay.value[todayCode] || []).length)
 
 // Personalized, time-of-day greeting — small but human touch on arrival.
@@ -54,7 +44,7 @@ const greeting = computed(() => {
 // "Surprise me" — picks from the whole week's lineup, not just today, for real variety.
 const shufflePool = computed(() => {
     const all = Object.values(byDay.value || {}).flat()
-    return all.length ? all : featuredItems.value
+    return all.length ? all : spotlight.value
 })
 function goRandom() {
     const pool = shufflePool.value
@@ -99,11 +89,19 @@ async function fetchHomeAnime() {
         const res = await $fetch('/api/anime')
         byDay.value = res.byDay || {}
         themes.value = res.themes || {}
+        const daily = Object.fromEntries(
+            Object.values(byDay.value).flat().filter((i) => i?.refId).map((i) => [String(i.refId), i]),
+        )
+        spotlight.value = (res.spotlight || []).map((item) => {
+            const d = daily[String(item.refId)]
+            return d ? { ...item, image: d.thumbnail ?? item.image, episode: d.episode ?? null } : item
+        })
         fetchedAt.value = res.fetchedAt || null
     } catch (err) {
         console.error('Failed to fetch /api/anime:', err)
         byDay.value = {}
         themes.value = {}
+        spotlight.value = []
     } finally {
         loading.value = false
     }
@@ -151,17 +149,17 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Bento grid -->
-                <div v-else-if="mainFeature" class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 auto-rows-[132px] sm:auto-rows-[260px]">
+                <div v-else-if="spotlight.length" class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 auto-rows-[132px] sm:auto-rows-[260px]">
                     <!-- Spotlight tile -->
                     <NuxtLink
-                        :to="`/anime/${mainFeature.refId}`"
+                        :to="`/anime/${spotlight[0].refId}`"
                         class="bento-main group col-span-2 row-span-2"
                         :style="tiltStyle"
                         @mousemove="handleTiltMove"
                         @mouseleave="resetTilt"
                     >
                         <NuxtImg
-                            :src="mainFeature.thumbnail || mainFeature.image"
+                            :src="spotlight[0].image"
                             alt=""
                             loading="eager"
                             fetchpriority="high"
@@ -171,12 +169,12 @@ onUnmounted(() => {
                         <div class="relative z-10 h-full flex flex-col justify-end p-4 sm:p-6">
                             <span class="bento-badge">
                                 <span class="material-symbols-rounded text-sm">bolt</span>
-                                焦點新番 · {{ weekdayLabel[todayCode] }}
+                                焦點新番
                             </span>
-                            <h2 class="bento-main-title">{{ mainFeature.title }}</h2>
-                            <div v-if="mainFeature.episode" class="bento-main-episode">
+                            <h2 class="bento-main-title">{{ spotlight[0].title }}</h2>
+                            <div v-if="spotlight[0].episode" class="bento-main-episode">
                                 <span class="material-symbols-rounded text-base">play_circle</span>
-                                {{ mainFeature.episode }}
+                                {{ spotlight[0].episode }}
                             </div>
                             <span class="bento-main-cta">
                                 <span class="material-symbols-rounded">play_arrow</span>
@@ -187,14 +185,14 @@ onUnmounted(() => {
 
                     <!-- Side tiles -->
                     <NuxtLink
-                        v-for="item in sideFeatures"
+                        v-for="item in spotlight.slice(1)"
                         :key="item.refId"
                         :to="`/anime/${item.refId}`"
                         class="bento-tile group"
                         @mouseenter="handleMouseEnter(item, $event)"
                         @mouseleave="handleMouseLeave"
                     >
-                        <NuxtImg :src="item.thumbnail || item.image" alt="" loading="lazy" class="bento-tile-img" />
+                        <NuxtImg :src="item.image" alt="" loading="lazy" class="bento-tile-img" />
                         <div class="bento-tile-scrim" />
                         <div v-if="item.episode" class="bento-tile-episode">{{ item.episode }}</div>
                         <span class="bento-tile-title">{{ item.title }}</span>
@@ -349,7 +347,7 @@ onUnmounted(() => {
 }
 
 .btn-shuffle {
-    @apply inline-flex items-center gap-1.5 px-4 py-2 sm:py-2.5 rounded-full font-semibold text-xs sm:text-sm
+    @apply hidden sm:inline-flex items-center gap-1.5 px-4 py-2 sm:py-2.5 rounded-full font-semibold text-xs sm:text-sm
            bg-black/5 dark:bg-white/10 text-gray-800 dark:text-gray-100
            ring-1 ring-black/10 dark:ring-white/10
            transition-all duration-200 hover:bg-black/10 dark:hover:bg-white/15 hover:-translate-y-0.5 active:translate-y-0
@@ -386,7 +384,7 @@ onUnmounted(() => {
 }
 
 .bento-main-img {
-    @apply absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out;
+    @apply absolute inset-0 w-full h-full object-cover object-top origin-top transition-transform duration-700 ease-out;
 }
 
 .bento-main:hover .bento-main-img {
@@ -427,7 +425,7 @@ onUnmounted(() => {
 }
 
 .bento-tile-img {
-    @apply absolute inset-0 w-full h-full object-cover transition-transform duration-500;
+    @apply absolute inset-0 w-full h-full object-cover object-top origin-top transition-transform duration-500;
 }
 
 .bento-tile:hover .bento-tile-img {
