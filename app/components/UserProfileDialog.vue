@@ -12,10 +12,7 @@ const client = useSupabaseClient()
 const friend = computed(() => props.data || {})
 const userId = computed(() => friend.value.id || null)
 const friendName = computed(() => friend.value.name || '好友')
-const friendAvatar = computed(() => friend.value.avatar || null)
-const initials = computed(() =>
-    (friendName.value || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-)
+const friendAvatar = computed(() => friend.value.avatar || '')
 
 const profile = ref(null)
 const recentlyWatched = ref([])
@@ -176,12 +173,11 @@ function formatDate(dateString) {
         :show-header="false"
     >
         <!-- Loading -->
-        <div v-if="loading" class="relative flex flex-col items-center justify-center py-12 px-6">
-            <button type="button" @click="close" class="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors">
+        <div v-if="loading" class="relative bg-white dark:bg-gray-950 rounded-2xl overflow-hidden">
+            <button type="button" @click="close" class="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors">
                 <span class="material-symbols-rounded text-xl">close</span>
             </button>
-            <div class="inline-block w-10 h-10 border-4 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin mb-4" />
-            <p class="text-gray-600 dark:text-gray-400">載入資料中...</p>
+            <SkeletonUserProfile />
         </div>
 
         <!-- Error -->
@@ -209,12 +205,14 @@ function formatDate(dateString) {
                 <div class="absolute inset-0 opacity-40 mix-blend-soft-light bg-[radial-gradient(circle_at_top,_#ffffff33,_transparent_55%)]" />
                 <div class="absolute -bottom-12 left-6">
                     <div class="relative">
-                        <div v-if="friendAvatar" class="w-24 h-24 rounded-2xl border-4 border-white dark:border-gray-950 bg-gray-100 dark:bg-gray-900 overflow-hidden shadow-2xl shadow-black/20 dark:shadow-black/60">
-                            <NuxtImg :src="friendAvatar" :alt="friendName" class="w-full h-full object-cover" loading="lazy" />
-                        </div>
-                        <div v-else class="w-24 h-24 rounded-2xl border-4 border-white dark:border-gray-950 bg-gradient-to-br from-slate-500 via-slate-700 to-slate-900 dark:from-slate-600 dark:via-slate-800 dark:to-slate-950 flex items-center justify-center text-white text-3xl font-bold shadow-2xl shadow-black/20 dark:shadow-black/60">
-                            {{ initials }}
-                        </div>
+                        <UserAvatar
+                            :src="friendAvatar"
+                            :name="friendName"
+                            :max-initials="2"
+                            rounded="rounded-2xl"
+                            class="w-24 h-24 text-3xl shadow-2xl shadow-black/20 dark:shadow-black/60"
+                            img-class="border-4 border-white dark:border-gray-950"
+                        />
                         <div class="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white dark:bg-gray-950 flex items-center justify-center">
                             <div class="w-4 h-4 rounded-full border-2 border-white dark:border-gray-950" :class="activityStatus.dotClass" />
                         </div>
@@ -386,12 +384,13 @@ function formatDate(dateString) {
     >
         <template #header>
             <div class="flex items-center gap-3">
-                <div v-if="friendAvatar" class="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
-                    <NuxtImg :src="friendAvatar" :alt="friendName" class="w-full h-full object-cover" loading="lazy" />
-                </div>
-                <div v-else class="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-600 via-slate-800 to-slate-950 flex items-center justify-center text-white text-lg font-semibold flex-shrink-0">
-                    {{ initials }}
-                </div>
+                <UserAvatar
+                    :src="friendAvatar"
+                    :name="friendName"
+                    :max-initials="2"
+                    rounded="rounded-2xl"
+                    class="w-12 h-12 shrink-0 text-lg"
+                />
                 <div class="flex-1 min-w-0">
                     <h2 class="text-lg font-semibold text-gray-900 dark:text-white truncate">{{ friendName }}</h2>
                     <div class="flex items-center gap-1.5 mt-0.5 w-full">
@@ -413,10 +412,7 @@ function formatDate(dateString) {
         </template>
 
         <!-- Loading -->
-        <div v-if="loading" class="flex flex-col items-center justify-center py-16 gap-3">
-            <div class="w-8 h-8 border-[3px] border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white rounded-full animate-spin" />
-            <p class="text-xs text-gray-500 dark:text-gray-400">載入中...</p>
-        </div>
+        <SkeletonUserProfile v-if="loading" compact />
 
         <!-- Error -->
         <div v-else-if="error" class="flex flex-col items-center justify-center py-16 text-center gap-3">

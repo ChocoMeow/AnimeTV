@@ -330,10 +330,7 @@ onUnmounted(() => {
                 <!-- In Friends Tab, replace the friend card section: -->
                 <div v-for="friend in friends" :key="friend.id" class="panel-card p-4">
                     <div class="flex items-center gap-4">
-                        <NuxtImg v-if="friend.avatar" :src="friend.avatar" :alt="friend.name" class="w-16 h-16 rounded-full object-cover ring-2 ring-black/5 dark:ring-white/10" loading="lazy" />
-                            <div v-else class="w-16 h-16 rounded-full bg-gray-900 dark:bg-white flex items-center justify-center text-white dark:text-black font-bold text-xl">
-                            {{ friend.name?.[0]?.toUpperCase() || "?" }}
-                        </div>
+                        <UserAvatar :src="friend.avatar" :name="friend.name" class="w-16 h-16 text-xl" img-class="ring-2 ring-black/5 dark:ring-white/10" />
 
                         <div class="flex-1 min-w-0">
                             <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ friend.name }}</h3>
@@ -399,10 +396,7 @@ onUnmounted(() => {
                 <div v-else class="space-y-3">
                     <div v-for="request in incomingRequests" :key="request.id" class="panel-card p-4">
                         <div class="flex items-center gap-4">
-                            <NuxtImg v-if="request.sender_avatar" :src="request.sender_avatar" :alt="request.sender_name" class="w-14 h-14 rounded-full object-cover ring-2 ring-black/5 dark:ring-white/10" loading="lazy" />
-                            <div v-else class="w-14 h-14 rounded-full bg-gray-900 dark:bg-white flex items-center justify-center text-white dark:text-black font-bold text-lg">
-                                {{ request.sender_name?.[0]?.toUpperCase() || '?' }}
-                            </div>
+                            <UserAvatar :src="request.sender_avatar" :name="request.sender_name" class="w-14 h-14 text-lg" img-class="ring-2 ring-black/5 dark:ring-white/10" />
 
                             <div class="flex-1 min-w-0">
                                 <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ request.sender_name }}</h3>
@@ -429,10 +423,7 @@ onUnmounted(() => {
                 <div v-else class="space-y-3">
                     <div v-for="request in outgoingRequests" :key="request.id" class="panel-card p-4">
                         <div class="flex items-center gap-4">
-                            <NuxtImg v-if="request.receiver_avatar" :src="request.receiver_avatar" :alt="request.receiver_name" class="w-14 h-14 rounded-full object-cover ring-2 ring-black/5 dark:ring-white/10" loading="lazy" />
-                            <div v-else class="w-14 h-14 rounded-full bg-gray-900 dark:bg-white flex items-center justify-center text-white dark:text-black font-bold text-lg">
-                                {{ request.receiver_name?.[0]?.toUpperCase() || '?' }}
-                            </div>
+                            <UserAvatar :src="request.receiver_avatar" :name="request.receiver_name" class="w-14 h-14 text-lg" img-class="ring-2 ring-black/5 dark:ring-white/10" />
 
                             <div class="flex-1 min-w-0">
                                 <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ request.receiver_name }}</h3>
@@ -468,10 +459,7 @@ onUnmounted(() => {
             <div v-else-if="searchResults.length > 0" class="space-y-3">
                 <div v-for="result in searchResults" :key="result.id" class="panel-card p-4">
                     <div class="flex items-center gap-4">
-                        <NuxtImg v-if="result.avatar" :src="result.avatar" :alt="result.name" class="w-14 h-14 rounded-full object-cover ring-2 ring-black/5 dark:ring-white/10" loading="lazy" />
-                        <div v-else class="w-14 h-14 rounded-full bg-gray-900 dark:bg-white flex items-center justify-center text-white dark:text-black font-bold text-lg">
-                            {{ result.name[0].toUpperCase() }}
-                        </div>
+                        <UserAvatar :src="result.avatar" :name="result.name" class="w-14 h-14 text-lg" img-class="ring-2 ring-black/5 dark:ring-white/10" />
 
                         <div class="flex-1 min-w-0">
                             <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ result.name }}</h3>
@@ -523,10 +511,7 @@ onUnmounted(() => {
 
                 <div v-for="blockedUser in blockedUsers" :key="blockedUser.id" class="panel-card p-4">
                     <div class="flex items-center gap-4">
-                        <NuxtImg v-if="blockedUser.avatar" :src="blockedUser.avatar" :alt="blockedUser.name" class="w-14 h-14 rounded-full object-cover ring-2 ring-black/5 dark:ring-white/10 grayscale" loading="lazy" />
-                        <div v-else class="w-14 h-14 rounded-full bg-gray-500 flex items-center justify-center text-white font-bold text-lg grayscale">
-                            {{ blockedUser.name[0].toUpperCase() }}
-                        </div>
+                        <UserAvatar :src="blockedUser.avatar" :name="blockedUser.name" class="w-14 h-14 text-lg" img-class="ring-2 ring-black/5 dark:ring-white/10" grayscale />
 
                         <div class="flex-1 min-w-0">
                             <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ blockedUser.name }}</h3>

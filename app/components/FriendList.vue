@@ -144,8 +144,12 @@ onBeforeUnmount(() => {
                                 <div class="flex items-start gap-3 mb-3 cursor-pointer"
                                     @click="openFriendProfile(friend)">
                                     <div class="relative flex-shrink-0">
-                                        <NuxtImg :src="friend.avatar" :alt="friend.name"
-                                            class="w-11 h-11 rounded-full border-2 border-white dark:border-gray-200 object-cover shadow-lg" loading="lazy" />
+                                        <UserAvatar
+                                            :src="friend.avatar"
+                                            :name="friend.name"
+                                            class="w-11 h-11"
+                                            img-class="border-2 border-white dark:border-gray-200 shadow-lg"
+                                        />
                                         <span
                                             class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"
                                             :title="friend.status"></span>
@@ -172,8 +176,13 @@ onBeforeUnmount(() => {
                             :class="['flex items-center gap-3 p-3 rounded-xl transition-colors ring-1 ring-black/5 dark:ring-white/10 cursor-pointer', section.isOffline ? 'bg-black/[0.02] dark:bg-white/5 opacity-70 hover:opacity-90' : 'bg-black/[0.02] dark:bg-white/5 hover:bg-black/5 dark:hover:bg-white/10']"
                             @click="openFriendProfile(friend)">
                             <div class="relative flex-shrink-0">
-                                <NuxtImg :src="friend.avatar" :alt="friend.name"
-                                    :class="['w-10 h-10 rounded-full border-2 border-black/10 dark:border-white/10 object-cover', section.isOffline && 'grayscale']" loading="lazy" />
+                                <UserAvatar
+                                    :src="friend.avatar"
+                                    :name="friend.name"
+                                    class="w-10 h-10"
+                                    img-class="border-2 border-black/10 dark:border-white/10"
+                                    :grayscale="section.isOffline"
+                                />
                                 <span
                                     :class="['absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"
                                     :title="friend.status"></span>
@@ -214,8 +223,12 @@ onBeforeUnmount(() => {
                                 <div class="flex items-start gap-3 mb-3 cursor-pointer"
                                     @click="openFriendProfile(friend)">
                                     <div class="relative flex-shrink-0">
-                                        <NuxtImg :src="friend.avatar" :alt="friend.name"
-                                            class="w-14 h-14 rounded-full border-2 border-white dark:border-gray-200 object-cover shadow-lg" loading="lazy" />
+                                        <UserAvatar
+                                            :src="friend.avatar"
+                                            :name="friend.name"
+                                            class="w-14 h-14"
+                                            img-class="border-2 border-white dark:border-gray-200 shadow-lg"
+                                        />
                                         <span
                                             class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-3 border-white dark:border-gray-900 rounded-full"></span>
                                     </div>
@@ -240,8 +253,13 @@ onBeforeUnmount(() => {
                             :class="['flex items-center gap-3 p-4 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 cursor-pointer', section.isOffline ? 'bg-black/[0.02] dark:bg-white/5 opacity-70' : 'bg-black/[0.02] dark:bg-white/5']"
                             @click="openFriendProfile(friend)">
                             <div class="relative flex-shrink-0">
-                                <NuxtImg :src="friend.avatar" :alt="friend.name"
-                                    :class="['w-12 h-12 rounded-full border-2 border-black/10 dark:border-white/10 object-cover', section.isOffline && 'grayscale']" loading="lazy" />
+                                <UserAvatar
+                                    :src="friend.avatar"
+                                    :name="friend.name"
+                                    class="w-12 h-12"
+                                    img-class="border-2 border-black/10 dark:border-white/10"
+                                    :grayscale="section.isOffline"
+                                />
                                 <span
                                     :class="['absolute -bottom-0.5 -right-0.5 w-4 h-4 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"></span>
                             </div>

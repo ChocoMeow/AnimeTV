@@ -10,6 +10,10 @@ const route = useRoute()
 const router = useRouter()
 const client = useSupabaseClient()
 const user = useSupabaseUser()
+const userAvatar = computed(() => ({
+    src: user.value?.user_metadata?.avatar_url,
+    name: user.value?.user_metadata?.name || 'User',
+}))
 
 const searchRef = ref(null)
 const mobileSearchRef = ref(null)
@@ -297,7 +301,7 @@ watch(
             <!-- Left: Logo -->
             <div class="flex items-center gap-2">
                 <NuxtLink to="/" class="flex items-center group pr-2 gap-1">
-                    <NuxtImg class="w-8 h-8 flex items-center justify-center" src="/icons/icon_64x64.webp" alt="" loading="lazy" />
+                    <img src="/icons/icon_64x64.webp" alt="" class="w-8 h-8" width="32" height="32" fetchpriority="high" />
                     <span class="text-black dark:text-white font-semibold text-xl"> {{ appConfig.siteName }}</span>
                 </NuxtLink>
             </div>
@@ -406,16 +410,7 @@ watch(
                         @mouseleave="hideUserMenuDelayed"
                         class="flex items-center gap-2 p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                     >
-                        <NuxtImg
-                            v-if="user?.user_metadata?.avatar_url"
-                            :src="user.user_metadata.avatar_url"
-                            :alt="user.user_metadata.name"
-                            class="w-8 h-8 rounded-full object-cover border-2 border-black/10 dark:border-white/10"
-                            loading="lazy"
-                        />
-                        <div v-else class="w-8 h-8 rounded-full bg-gray-900 dark:bg-white flex items-center justify-center text-white dark:text-black font-semibold">
-                            {{ user?.user_metadata?.name?.[0]?.toUpperCase() || 'U' }}
-                        </div>
+                        <UserAvatar v-bind="userAvatar" class="w-8 h-8 text-xs" img-class="border-2 border-black/10 dark:border-white/10" />
                     </button>
 
                     <!-- User Menu Dropdown -->
@@ -433,16 +428,7 @@ watch(
                                 @click="closeUserMenu"
                             >
                                 <div class="flex items-center gap-3">
-                                    <NuxtImg
-                                        v-if="user?.user_metadata?.avatar_url"
-                                        :src="user.user_metadata.avatar_url"
-                                        :alt="user.user_metadata.name"
-                                        class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-white/10"
-                                        loading="lazy"
-                                    />
-                                    <div v-else class="w-12 h-12 rounded-full bg-gray-900 dark:bg-white flex items-center justify-center text-white dark:text-black font-bold text-lg">
-                                        {{ user?.user_metadata?.name?.[0]?.toUpperCase() || 'U' }}
-                                    </div>
+                                    <UserAvatar v-bind="userAvatar" class="w-12 h-12 text-lg" img-class="border-2 border-white dark:border-white/10" />
                                     <div class="flex-1 min-w-0">
                                         <p class="font-semibold text-gray-900 dark:text-gray-100 truncate">
                                             {{ user?.user_metadata?.name || 'User' }}
@@ -608,16 +594,7 @@ watch(
                             class="flex items-center gap-3 px-3 py-3 bg-black/[0.02] dark:bg-white/5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-gray-900 dark:focus-visible:ring-white"
                             @click="mobileMenuOpen = false"
                         >
-                            <NuxtImg
-                                v-if="user?.user_metadata?.avatar_url"
-                                :src="user.user_metadata.avatar_url"
-                                :alt="user.user_metadata.name"
-                                class="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-white/10"
-                                loading="lazy"
-                            />
-                            <div v-else class="w-12 h-12 rounded-full bg-gray-900 dark:bg-white flex items-center justify-center text-white dark:text-black font-bold text-lg">
-                                {{ user?.user_metadata?.name?.[0]?.toUpperCase() || 'U' }}
-                            </div>
+                            <UserAvatar v-bind="userAvatar" class="w-12 h-12 text-lg" img-class="border-2 border-white dark:border-white/10" />
                             <div class="flex-1 min-w-0">
                                 <p class="font-semibold text-gray-900 dark:text-gray-100 truncate">
                                     {{ user?.user_metadata?.name || 'User' }}

@@ -21,8 +21,7 @@ const chartLoading = ref(false)
 
 const displayName = computed(() => user.value?.user_metadata?.name || user.value?.user_metadata?.full_name || '使用者')
 const email = computed(() => user.value?.email || '')
-const avatarUrl = computed(() => user.value?.user_metadata?.avatar_url || user.value?.user_metadata?.picture || null)
-const initials = computed(() => (displayName.value || '?').trim().slice(0, 2).toUpperCase())
+const avatarUrl = computed(() => user.value?.user_metadata?.avatar_url || user.value?.user_metadata?.picture || '')
 
 const monthlyCumulative = computed(() => {
     const vals = analytics.value?.monthlyWatch?.values
@@ -133,18 +132,14 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
             <!-- ── 1. ACCOUNT STRIP ── -->
             <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between p-5 rounded-2xl panel-card">
                 <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center min-w-0 flex-1">
-                    <div class="shrink-0">
-                        <NuxtImg
-                            v-if="avatarUrl"
-                            :src="avatarUrl"
-                            :alt="displayName"
-                            class="w-16 h-16 rounded-xl object-cover border border-black/10 dark:border-white/10"
-                            loading="lazy"
-                        />
-                        <div v-else class="w-16 h-16 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-lg font-bold border border-indigo-500/50">
-                            {{ initials }}
-                        </div>
-                    </div>
+                    <UserAvatar
+                        :src="avatarUrl"
+                        :name="displayName"
+                        :max-initials="2"
+                        rounded="rounded-xl"
+                        class="w-16 h-16 shrink-0 text-lg"
+                        img-class="border border-black/10 dark:border-white/10"
+                    />
                     <div class="min-w-0 flex-1">
                         <p class="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">{{ displayName }}</p>
                         <p v-if="email" class="text-sm text-gray-600 dark:text-gray-400 truncate">{{ email }}</p>
