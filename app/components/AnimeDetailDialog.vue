@@ -89,6 +89,10 @@ watch(
     @apply leading-relaxed my-2;
 }
 
+.wiki-content :deep(iframe) {
+    @apply my-4 w-full aspect-video rounded-lg border-0;
+}
+
 .dialog-enter-active,
 .dialog-leave-active {
     transition: all 0.3s ease-out;

@@ -122,8 +122,7 @@ onUnmounted(() => {
     <div>
         <div class="space-y-8 sm:space-y-14 max-w-7xl mx-auto px-3 sm:px-4 md:px-6 pt-5 sm:pt-8 pb-8 sm:pb-10">
             <!-- Discovery Bento -->
-            <section>
-                <!-- Greeting + Surprise Me -->
+            <section v-if="loading || spotlight.length">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-5">
                     <div class="flex items-center gap-3">
                         <span class="greeting-icon">
@@ -142,14 +141,14 @@ onUnmounted(() => {
                     </button>
                 </div>
 
-                <!-- Loading skeleton -->
+                <!-- Spotlight: skeleton while loading, bento when data exists -->
                 <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 auto-rows-[132px] sm:auto-rows-[260px]">
                     <div class="col-span-2 row-span-2 rounded-2xl sm:rounded-3xl bg-gray-200 dark:bg-white/5 animate-pulse" />
                     <div v-for="n in 4" :key="n" class="rounded-2xl bg-gray-200 dark:bg-white/5 animate-pulse" />
                 </div>
 
                 <!-- Bento grid -->
-                <div v-else-if="spotlight.length" class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 auto-rows-[132px] sm:auto-rows-[260px]">
+                <div v-else class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 auto-rows-[132px] sm:auto-rows-[260px]">
                     <!-- Spotlight tile -->
                     <NuxtLink
                         :to="`/anime/${spotlight[0].refId}`"
@@ -200,12 +199,6 @@ onUnmounted(() => {
                             <span class="material-symbols-rounded text-base">play_arrow</span>
                         </div>
                     </NuxtLink>
-                </div>
-
-                <!-- Empty state -->
-                <div v-else class="empty-state">
-                    <span class="material-symbols-rounded text-4xl mb-2 opacity-40">event_busy</span>
-                    <p>今日暫無更新節目</p>
                 </div>
             </section>
             <!-- Daily Schedule Section -->

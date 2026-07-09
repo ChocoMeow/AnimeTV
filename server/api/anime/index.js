@@ -1,9 +1,19 @@
 import * as cheerio from "cheerio"
 import { serverSupabaseClient } from "#supabase/server"
 
+// NOTE: ANIME_CACHE, CHINESE_WEEKDAY_MAP, GAMER_BASE_URL, cfFetch, authUser,
+// and parseViews are assumed to be auto-imported from server/utils/*, same
+// as in the original file. SPOTLIGHT_CACHE is new — declared below.
+
 const TWO_HOURS = 1000 * 60 * 60 * 2
 const CONTINUE_WATCHING_TITLE = "繼續觀看"
 const SUGGESTIONS_TITLE = "你可能會喜歡的動畫"
+
+const SPOTLIGHT_CANDIDATE_LIMIT = 50
+const SPOTLIGHT_RESULT_LIMIT = 5
+const SUGGESTION_HISTORY_LIMIT = 200
+const SUGGESTION_TAG_LIMIT = 8
+const SUGGESTION_RESULT_LIMIT = 18
 
 const THEME_SELECTOR = [
     "#blockHotAnime.animate-theme-list",
@@ -16,6 +26,11 @@ const ITEM_SELECTOR = [
     ".theme-item", ".theme-list-item",
     ".theme-list a", ".theme-list-block a",
 ].join(", ")
+
+// Spotlight's "top 50 recent anime" query is identical for every visitor —
+// only the per-user watched-filter differs — so it gets its own cache
+// instead of being re-run on every request.
+const SPOTLIGHT_CACHE = { data: null, timestamp: 0 }
 
 const text = ($, el, sel) => $(el).find(sel).text().trim() || null
 const attr = ($, el, sel, a) => $(el).find(sel).attr(a)?.trim() || null
@@ -97,6 +112,32 @@ function scrapeThemes($) {
     return { allRawItems, themeRanges }
 }
 
+/** Parses the raw Gamer homepage HTML into the byDay / themes cache shape. */
+function parseAnimePage(html, fetchedAt) {
+    const $ = cheerio.load(html)
+    const blockItems = scrapeAnimeBlocks($)
+    const { allRawItems: themeRawItems, themeRanges } = scrapeThemes($)
+    const allRaw = [...blockItems, ...themeRawItems]
+
+    if (!allRaw.length) return { byDay: {}, themes: {}, fetchedAt }
+
+    const blockCount = blockItems.length
+
+    const byDay = {}
+    for (let i = 0; i < blockCount; i++) {
+        const item = allRaw[i]
+        if (!item?.dayCode) continue
+        const { dayCode, ...rest } = item
+            ; (byDay[dayCode] ??= []).push(rest)
+    }
+
+    const themes = {}
+    for (const { themeTitle, start, count } of themeRanges)
+        themes[themeTitle] = allRaw.slice(blockCount + start, blockCount + start + count)
+
+    return { byDay, themes, fetchedAt }
+}
+
 async function getContinueWatching(client, userId) {
     if (!userId) return []
 
@@ -135,10 +176,12 @@ async function getSuggestions(client, userId) {
         .from("watch_history_latest_updates")
         .select("anime_ref_id, anime_meta!anime_ref_id(tags)")
         .eq("user_id", userId)
+        .limit(SUGGESTION_HISTORY_LIMIT)
 
     if (!history?.length) return []
 
     const watchedSet = new Set(history.map(r => r.anime_ref_id))
+
     // Count tag frequency across watched anime
     const tagCounts = new Map()
     for (const { anime_meta } of history)
@@ -147,17 +190,22 @@ async function getSuggestions(client, userId) {
             if (t) tagCounts.set(t, (tagCounts.get(t) || 0) + 1)
         }
 
-    const topTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([tag]) => tag)
+    const topTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, SUGGESTION_TAG_LIMIT).map(([tag]) => tag)
     if (!topTags.length) return []
 
-    // Only fetch anime that share at least one top tag, excluding watched, pre-sorted by views
-    const { data: candidates } = await client
+    // Only fetch anime that share at least one top tag, excluding watched, pre-sorted by views/score
+    let query = client
         .from("anime_meta")
         .select("source_id, title, thumbnail, premiere_date, views, tags")
         .overlaps("tags", topTags)
-        .not("source_id", "in", `(${[...watchedSet].join(",")})`)
-        .order("views", { ascending: false }, "score", { ascending: false })
-        .limit(18)
+        .not("video_id", "is", null)
+        .order("views", { ascending: false })
+        .order("score", { ascending: false })
+        .limit(SUGGESTION_RESULT_LIMIT)
+
+    if (watchedSet.size) query = query.not("source_id", "in", `(${[...watchedSet].join(",")})`)
+
+    const { data: candidates } = await query
 
     return (candidates || [])
         .map(row => {
@@ -167,19 +215,23 @@ async function getSuggestions(client, userId) {
         .sort((a, b) => b._score - a._score || b.views - a.views)
         .map(({ source_id, title, thumbnail, premiere_date, views }) => ({
             refId: source_id, title, image: thumbnail,
-            year: `${premiere_date?.split("-")[0]}/${premiere_date?.split("-")[1]}` ?? null,
+            year: premiere_date ? `${premiere_date.split("-")[0]}/${premiere_date.split("-")[1]}` : null,
             episodes: null, views: views ?? null,
         }))
 }
 
-async function getSpotlight(client, userId) {
-    const end = new Date();
-    const start = new Date();
-    start.setMonth(start.getMonth() - 3);
-    const toDate = (d) => d.toISOString().slice(0, 10);
+/** Top-50 recent/popular anime — identical for every visitor, so it's cached independently. */
+async function getSpotlightCandidates(client) {
+    const now = Date.now()
+    if (SPOTLIGHT_CACHE.data && now - SPOTLIGHT_CACHE.timestamp < TWO_HOURS)
+        return SPOTLIGHT_CACHE.data
 
-    // 1. Fetch the Top 50 candidates from the 3-month window
-    const { data: candidates, error: cError } = await client
+    const end = new Date()
+    const start = new Date()
+    start.setMonth(start.getMonth() - 3)
+    const toDate = d => d.toISOString().slice(0, 10)
+
+    const { data, error } = await client
         .from("anime_meta")
         .select("source_id, title, thumbnail")
         .not("video_id", "is", null)
@@ -187,95 +239,81 @@ async function getSpotlight(client, userId) {
         .lte("premiere_date", toDate(end))
         .order("views", { ascending: false })
         .order("score", { ascending: false })
-        .limit(50);
+        .limit(SPOTLIGHT_CANDIDATE_LIMIT)
 
-    if (cError || !candidates?.length) return [];
+    if (error || !data?.length) return SPOTLIGHT_CACHE.data || []
 
-    // Which of these 50 candidates has the user already watched?
-    let watchedIds = [];
+    SPOTLIGHT_CACHE.data = data
+    SPOTLIGHT_CACHE.timestamp = now
+    return data
+}
+
+async function getSpotlight(client, userId) {
+    const candidates = await getSpotlightCandidates(client)
+    if (!candidates.length) return []
+
+    let watchedIds = null
     if (userId) {
-        const candidateIds = candidates.map(c => c.source_id);
         const { data: watched } = await client
             .from("watch_history_latest_updates")
             .select("anime_ref_id")
             .eq("user_id", userId)
-            .in("anime_ref_id", candidateIds);
-
-        watchedIds = watched?.map(w => w.anime_ref_id) || [];
+            .in("anime_ref_id", candidates.map(c => c.source_id))
+        watchedIds = new Set(watched?.map(w => w.anime_ref_id))
     }
 
-    return candidates
-        .filter(c => !watchedIds.includes(c.source_id))
-        .slice(0, 5)
-        .map(row => ({
-            refId: String(row.source_id),
-            title: row.title,
-            image: row.thumbnail,
-        }));
+    const result = []
+    for (const row of candidates) {
+        if (watchedIds?.has(row.source_id)) continue
+        result.push({ refId: String(row.source_id), title: row.title, image: row.thumbnail })
+        if (result.length === SPOTLIGHT_RESULT_LIMIT) break
+    }
+    return result
 }
 
 async function getUserThemes(client, userId) {
     if (!userId) return {}
-    const [continueWatching, suggestions] = await Promise.all([
+
+    const [continueWatching, suggestions] = await Promise.allSettled([
         getContinueWatching(client, userId),
         getSuggestions(client, userId),
     ])
+
     const out = {}
-    if (continueWatching?.length) out[CONTINUE_WATCHING_TITLE] = continueWatching
-    if (suggestions?.length) out[SUGGESTIONS_TITLE] = suggestions
+    if (continueWatching.status === "fulfilled" && continueWatching.value.length)
+        out[CONTINUE_WATCHING_TITLE] = continueWatching.value
+    if (suggestions.status === "fulfilled" && suggestions.value.length)
+        out[SUGGESTIONS_TITLE] = suggestions.value
     return out
 }
 
 async function scrapeAllAnime(client, userId) {
     const now = Date.now()
     const fetchedAt = new Date(now).toISOString()
-    const empty = { byDay: {}, themes: {}, spotlight: [], fetchedAt }
+    const empty = { byDay: {}, themes: {}, fetchedAt }
 
-    const mergeUserData = async (base) => {
-        const [userThemes, spotlight] = await Promise.all([
-            getUserThemes(client, userId),
-            getSpotlight(client, userId),
-        ])
-        return { ...base, themes: { ...userThemes, ...base.themes }, spotlight }
-    }
+    // Kick off user-specific data immediately — it doesn't depend on the
+    // page scrape, so there's no reason to wait for that to finish first.
+    const userDataPromise = Promise.allSettled([
+        getUserThemes(client, userId),
+        getSpotlight(client, userId),
+    ])
 
-    if (ANIME_CACHE.data && now - ANIME_CACHE.timestamp < TWO_HOURS)
-        return mergeUserData(ANIME_CACHE.data)
-
-    const pageResult = await cfFetch(GAMER_BASE_URL)
-    if (!pageResult?.html) {
-        return mergeUserData(ANIME_CACHE.data || empty)
-    }
-
-    const $ = cheerio.load(pageResult.html)
-    const blockItems = scrapeAnimeBlocks($)
-    const { allRawItems: themeRawItems, themeRanges } = scrapeThemes($)
-    const allRaw = [...blockItems, ...themeRawItems]
-
-    if (!allRaw.length) {
+    let base
+    if (ANIME_CACHE.data && now - ANIME_CACHE.timestamp < TWO_HOURS) {
+        base = ANIME_CACHE.data
+    } else {
+        const pageResult = await cfFetch(GAMER_BASE_URL)
+        base = pageResult?.html ? parseAnimePage(pageResult.html, fetchedAt) : (ANIME_CACHE.data || empty)
         ANIME_CACHE.timestamp = now
-        ANIME_CACHE.data = empty
-        return mergeUserData(empty)
+        ANIME_CACHE.data = base
     }
 
-    const blockCount = blockItems.length
+    const [userThemesResult, spotlightResult] = await userDataPromise
+    const userThemes = userThemesResult.status === "fulfilled" ? userThemesResult.value : {}
+    const spotlight = spotlightResult.status === "fulfilled" ? spotlightResult.value : []
 
-    const byDay = {}
-    for (let i = 0; i < blockCount; i++) {
-        const item = allRaw[i]
-        if (!item?.dayCode) continue
-        const { dayCode, ...rest } = item
-            ; (byDay[dayCode] ??= []).push(rest)
-    }
-
-    const themes = {}
-    for (const { themeTitle, start, count } of themeRanges)
-        themes[themeTitle] = allRaw.slice(blockCount + start, blockCount + start + count)
-
-    ANIME_CACHE.timestamp = now
-    ANIME_CACHE.data = { byDay, themes, fetchedAt }
-
-    return mergeUserData(ANIME_CACHE.data)
+    return { ...base, themes: { ...userThemes, ...base.themes }, spotlight }
 }
 
 export default defineEventHandler(async (event) => {
