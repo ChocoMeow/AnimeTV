@@ -30,11 +30,13 @@ defineProps({
             </div>
         </template>
         <template v-else>
-            <div class="grid grid-cols-3 gap-2">
-                <div v-for="n in 6" :key="n" class="aspect-[2/3] rounded-xl bg-gray-200 dark:bg-white/10" />
-            </div>
-            <div class="grid grid-cols-3 gap-2">
-                <div v-for="n in 6" :key="`fav-${n}`" class="aspect-[2/3] rounded-xl bg-gray-200 dark:bg-white/10" />
+            <div class="space-y-6 pb-4">
+                <div v-for="n in 2" :key="n" class="space-y-3">
+                    <div class="h-3 w-20 rounded bg-gray-200 dark:bg-white/10" />
+                    <div class="grid grid-cols-3 gap-2">
+                        <div v-for="m in 6" :key="`${n}-${m}`" class="aspect-[2/3] rounded-xl bg-gray-200 dark:bg-white/10" />
+                    </div>
+                </div>
             </div>
         </template>
     </div>

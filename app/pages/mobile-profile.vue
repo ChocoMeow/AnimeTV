@@ -17,9 +17,8 @@ const displayName = computed(
 )
 const email = computed(() => user.value?.email || '')
 const avatarUrl = computed(
-    () => user.value?.user_metadata?.avatar_url || user.value?.user_metadata?.picture || null,
+    () => user.value?.user_metadata?.avatar_url || user.value?.user_metadata?.picture || '',
 )
-const initials = computed(() => (displayName.value || '?').trim().slice(0, 2).toUpperCase())
 
 const NAV_LINK_CLASS =
     'flex w-full items-center gap-3 px-4 py-3.5 text-gray-900 dark:text-gray-100 transition-colors hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/5 dark:active:bg-white/10'
@@ -109,19 +108,13 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
             <!-- Account -->
             <section>
                 <div class="flex items-center gap-4">
-                    <NuxtImg
-                        v-if="avatarUrl"
+                    <UserAvatar
                         :src="avatarUrl"
-                        :alt="displayName"
-                        class="h-16 w-16 shrink-0 rounded-full object-cover ring-2 ring-black/5 dark:ring-white/10"
-                        loading="lazy"
+                        :name="displayName"
+                        :max-initials="2"
+                        class="h-16 w-16 shrink-0 text-xl"
+                        img-class="ring-2 ring-black/5 dark:ring-white/10"
                     />
-                    <div
-                        v-else
-                        class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-lg font-bold text-white"
-                    >
-                        {{ initials }}
-                    </div>
                     <div class="min-w-0 flex-1">
                         <p class="truncate text-lg font-semibold text-gray-900 dark:text-white">{{ displayName }}</p>
                         <p v-if="email" class="truncate text-sm text-gray-500 dark:text-gray-400">{{ email }}</p>
