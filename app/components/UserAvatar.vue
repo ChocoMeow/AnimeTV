@@ -23,7 +23,7 @@ const initial = computed(() => {
 <template>
     <div
         v-bind="$attrs"
-        class="relative inline-flex shrink-0 overflow-hidden"
+        class="relative flex shrink-0 overflow-hidden"
         :class="[rounded, imgClass, showImg ? 'bg-transparent' : 'bg-gray-200 dark:bg-white/10']"
     >
         <img
@@ -35,6 +35,6 @@ const initial = computed(() => {
             loading="lazy"
             @error="failed = true"
         />
-        <span v-else class="flex size-full items-center justify-center font-semibold text-gray-500 dark:text-gray-400">{{ initial }}</span>
+        <span v-else class="flex size-full items-center justify-center font-semibold leading-none text-gray-500 dark:text-gray-400">{{ initial }}</span>
     </div>
 </template>

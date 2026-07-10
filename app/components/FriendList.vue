@@ -143,15 +143,15 @@ onBeforeUnmount(() => {
                             <div class="relative z-10">
                                 <div class="flex items-start gap-3 mb-3 cursor-pointer"
                                     @click="openFriendProfile(friend)">
-                                    <div class="relative flex-shrink-0">
+                                    <div class="relative shrink-0 size-11">
                                         <UserAvatar
                                             :src="friend.avatar"
                                             :name="friend.name"
-                                            class="w-11 h-11"
+                                            class="size-full"
                                             img-class="border-2 border-white dark:border-gray-200 shadow-lg"
                                         />
                                         <span
-                                            :class="['absolute bottom-1 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"
+                                            :class="['absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"
                                             :title="friend.status"></span>
                                     </div>
                                     <div class="flex-1 min-w-0">
@@ -175,16 +175,16 @@ onBeforeUnmount(() => {
                         <div v-else
                             :class="['flex items-center gap-3 p-3 rounded-xl transition-colors ring-1 ring-black/5 dark:ring-white/10 cursor-pointer', section.isOffline ? 'bg-black/[0.02] dark:bg-white/5 opacity-70 hover:opacity-90' : 'bg-black/[0.02] dark:bg-white/5 hover:bg-black/5 dark:hover:bg-white/10']"
                             @click="openFriendProfile(friend)">
-                            <div class="relative flex-shrink-0">
+                            <div class="relative shrink-0 size-10">
                                 <UserAvatar
                                     :src="friend.avatar"
                                     :name="friend.name"
-                                    class="w-10 h-10"
+                                    class="size-full"
                                     img-class="border-2 border-black/10 dark:border-white/10"
                                     :grayscale="section.isOffline"
                                 />
                                 <span
-                                    :class="['absolute bottom-1 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"
+                                    :class="['absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"
                                     :title="friend.status"></span>
                             </div>
                             <div class="flex-1 min-w-0">
@@ -222,15 +222,15 @@ onBeforeUnmount(() => {
                             <div class="relative z-10">
                                 <div class="flex items-start gap-3 mb-3 cursor-pointer"
                                     @click="openFriendProfile(friend)">
-                                    <div class="relative flex-shrink-0">
+                                    <div class="relative shrink-0 size-14">
                                         <UserAvatar
                                             :src="friend.avatar"
                                             :name="friend.name"
-                                            class="w-14 h-14"
+                                            class="size-full"
                                             img-class="border-2 border-white dark:border-gray-200 shadow-lg"
                                         />
                                         <span
-                                            :class="['absolute bottom-1 -right-0.5 w-4 h-4 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"
+                                            :class="['absolute -bottom-0.5 -right-0.5 w-4 h-4 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"
                                             :title="friend.status"></span>
                                     </div>
                                     <div class="flex-1 min-w-0">
@@ -253,16 +253,16 @@ onBeforeUnmount(() => {
                         <div v-else
                             :class="['flex items-center gap-3 p-4 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 cursor-pointer', section.isOffline ? 'bg-black/[0.02] dark:bg-white/5 opacity-70' : 'bg-black/[0.02] dark:bg-white/5']"
                             @click="openFriendProfile(friend)">
-                            <div class="relative flex-shrink-0">
+                            <div class="relative shrink-0 size-12">
                                 <UserAvatar
                                     :src="friend.avatar"
                                     :name="friend.name"
-                                    class="w-12 h-12"
+                                    class="size-full"
                                     img-class="border-2 border-black/10 dark:border-white/10"
                                     :grayscale="section.isOffline"
                                 />
                                 <span
-                                    :class="['absolute bottom-1 -right-0.5 w-4 h-4 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"></span>
+                                    :class="['absolute -bottom-0.5 -right-0.5 w-4 h-4 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"></span>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <h4 class="font-semibold text-base text-gray-900 dark:text-white truncate">{{
