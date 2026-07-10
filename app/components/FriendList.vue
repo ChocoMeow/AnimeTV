@@ -151,7 +151,7 @@ onBeforeUnmount(() => {
                                             img-class="border-2 border-white dark:border-gray-200 shadow-lg"
                                         />
                                         <span
-                                            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"
+                                            :class="['absolute bottom-1 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"
                                             :title="friend.status"></span>
                                     </div>
                                     <div class="flex-1 min-w-0">
@@ -184,7 +184,7 @@ onBeforeUnmount(() => {
                                     :grayscale="section.isOffline"
                                 />
                                 <span
-                                    :class="['absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"
+                                    :class="['absolute bottom-1 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"
                                     :title="friend.status"></span>
                             </div>
                             <div class="flex-1 min-w-0">
@@ -230,7 +230,8 @@ onBeforeUnmount(() => {
                                             img-class="border-2 border-white dark:border-gray-200 shadow-lg"
                                         />
                                         <span
-                                            class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-3 border-white dark:border-gray-900 rounded-full"></span>
+                                            :class="['absolute bottom-1 -right-0.5 w-4 h-4 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"
+                                            :title="friend.status"></span>
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <h4 class="font-bold text-base text-white drop-shadow-lg truncate mb-1">{{
@@ -261,7 +262,7 @@ onBeforeUnmount(() => {
                                     :grayscale="section.isOffline"
                                 />
                                 <span
-                                    :class="['absolute -bottom-0.5 -right-0.5 w-4 h-4 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"></span>
+                                    :class="['absolute bottom-1 -right-0.5 w-4 h-4 border-2 border-white dark:border-gray-950 rounded-full', section.dotColorClass]"></span>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <h4 class="font-semibold text-base text-gray-900 dark:text-white truncate">{{
