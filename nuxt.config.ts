@@ -33,9 +33,9 @@ export default defineNuxtConfig({
     nitro: {
         preset: 'bun',
         routeRules: {
-            '/apple-touch-icon.png': { redirect: '/icons/icon_144x144.png' },
-            '/apple-touch-icon-precomposed.png': { redirect: '/icons/icon_144x144.png' },
-            '/apple-touch-icon-120x120-precomposed.png': { redirect: '/icons/icon_144x144.png' },
+            '/apple-touch-icon.png': { redirect: '/icons/icon_512x512.png' },
+            '/apple-touch-icon-precomposed.png': { redirect: '/icons/icon_512x512.png' },
+            '/apple-touch-icon-120x120-precomposed.png': { redirect: '/icons/icon_512x512.png' },
         },
         experimental: {
             websocket: true,
@@ -64,7 +64,7 @@ export default defineNuxtConfig({
                 },
                 // Instant splash before JS/Vue (all visitors) — avoids first paint showing app shell before Vue.
                 {
-                    innerHTML: `(function(){try{var h=document.documentElement;h.classList.add('app-splash-pending');var st=document.createElement('style');st.textContent='html.app-splash-pending body{visibility:hidden!important}#app-splash-inline{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#fff}html.dark #app-splash-inline{background:#0a0a0a}#app-splash-inline img{width:72px;height:72px;border-radius:0.875rem;object-fit:cover}';document.head.appendChild(st);var el=document.createElement('div');el.id='app-splash-inline';var im=document.createElement('img');im.src='/icons/icon_512x512.webp';im.alt='';im.width=72;im.height=72;im.setAttribute('fetchpriority','high');el.appendChild(im);h.appendChild(el);setTimeout(function(){try{document.documentElement.classList.remove('app-splash-pending');var e=document.getElementById('app-splash-inline');e&&e.remove()}catch(x){}},10000)}catch(e){}})();`,
+                    innerHTML: `(function(){try{var h=document.documentElement;h.classList.add('app-splash-pending');var st=document.createElement('style');st.textContent='html.app-splash-pending body{visibility:hidden!important}#app-splash-inline{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#fff}html.dark #app-splash-inline{background:#0a0a0a}#app-splash-inline img{width:144px;height:144px;border-radius:1rem;object-fit:contain}';document.head.appendChild(st);var el=document.createElement('div');el.id='app-splash-inline';var im=document.createElement('img');im.src='/icons/animated_icon_400x400.webp';im.alt='';im.width=144;im.height=144;im.setAttribute('fetchpriority','high');el.appendChild(im);h.appendChild(el);setTimeout(function(){try{document.documentElement.classList.remove('app-splash-pending');var e=document.getElementById('app-splash-inline');e&&e.remove()}catch(x){}},10000)}catch(e){}})();`,
                     type: 'text/javascript',
                     tagPosition: 'head',
                 },
@@ -81,8 +81,8 @@ export default defineNuxtConfig({
                 { name: 'mobile-web-app-capable', content: 'yes' },
             ],
             link: [
-                { rel: 'icon', type: 'image/png', href: '/icons/icon_64x64.png' },
-                { rel: 'apple-touch-icon', href: '/icons/icon_144x144.png', sizes: '144x144', type: 'image/png' },
+                { rel: 'icon', type: 'image/svg+xml', href: '/icons/icon.svg' },
+                { rel: 'apple-touch-icon', href: '/icons/icon_512x512.png', sizes: '512x512', type: 'image/png' },
                 {
                     rel: 'stylesheet',
                     href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,-50..200&display=swap',

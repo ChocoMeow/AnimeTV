@@ -301,7 +301,7 @@ watch(
             <!-- Left: Logo -->
             <div class="flex items-center gap-2">
                 <NuxtLink to="/" class="flex items-center group pr-2 gap-1">
-                    <img src="/icons/icon_64x64.webp" alt="" class="w-8 h-8" width="32" height="32" fetchpriority="high" />
+                    <img src="/icons/icon.svg" :alt="appConfig.siteName" class="w-7 h-7 object-contain" width="28" height="28" fetchpriority="high" />
                     <span class="text-black dark:text-white font-semibold text-xl"> {{ appConfig.siteName }}</span>
                 </NuxtLink>
             </div>

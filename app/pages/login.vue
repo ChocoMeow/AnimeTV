@@ -354,7 +354,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                 <!-- Login Form (Default) -->
                 <div v-else class="space-y-8">
                     <div class="flex justify-center lg:justify-start">
-                        <NuxtImg class="w-16 h-16" src="/icons/icon_512x512.webp" alt="" loading="lazy" />
+                        <NuxtImg class="w-24 h-24" src="/icons/icon.svg" alt="" loading="lazy" />
                     </div>
                     
                     <div class="text-center lg:text-left space-y-3">
