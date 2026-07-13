@@ -176,11 +176,6 @@ export default defineNuxtConfig({
                     type: 'image/webp',
                 },
                 {
-                    src: 'icons/icon_819x819.webp',
-                    sizes: '819x819',
-                    type: 'image/webp',
-                },
-                {
                     src: 'icons/icon_1024x1024.webp',
                     sizes: '1024x1024',
                     type: 'image/webp',
