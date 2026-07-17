@@ -1,7 +1,7 @@
 // server/api/proxy-video.js
 
-const DEFAULT_CHUNK_SIZE = 4 * 1024 * 1024 // 4 MB initial chunk
-const MAX_PASSTHROUGH_SIZE = 8 * 1024 * 1024 // 8 MB per response, hard cap
+const DEFAULT_CHUNK_SIZE = 1 * 1024 * 1024 // 1 MB initial chunk
+const MAX_PASSTHROUGH_SIZE = 2 * 1024 * 1024 // 2 MB per response, hard cap
 const METADATA_CACHE_MAX = 500
 const METADATA_CACHE_TTL = 600_000 // 10 min
 const UPSTREAM_TIMEOUT = 30_000
@@ -162,59 +162,76 @@ async function handleProgressive(videoUrl, cookie, signal, event) {
 
 // A ReadableStream over [start, end] that resumes with an adjusted Range
 // request if the upstream connection drops partway through, instead of
-// failing the whole chunk. Holds at most one upstream chunk in memory.
+// failing the whole chunk.
+//
+// IMPORTANT: `pull()` enqueues exactly ONE read per call and returns. This is
+// what makes backpressure actually work — the stream only calls `pull()`
+// again once its internal queue has room, which in turn only happens once
+// the client has actually drained previously-sent bytes. Do NOT loop reading
+// the whole range inside a single `pull()` call: that stuffs the entire
+// chunk into memory up front regardless of how fast the client can consume
+// it, which is exactly what caused the memory blow-up under concurrent load.
 function resilientRangeStream(url, cookie, start, end, signal) {
     const total = end - start + 1
     let delivered = 0
     let cursor = start
+    let reader = null
+    let attempt = 0
+
+    async function ensureReader() {
+        if (reader) return reader
+        while (attempt <= MAX_RETRIES) {
+            if (signal.aborted) return null
+            try {
+                const res = await fetchWithRetry(url, {
+                    cookie,
+                    signal,
+                    headers: { Range: `bytes=${cursor}-${end}` },
+                })
+                if (!res.ok && res.status !== 206) throw createError({ statusCode: res.status, statusMessage: 'Video stream error' })
+                if (!res.body) throw new Error('Empty upstream body')
+                reader = res.body.getReader()
+                attempt = 0 // reset backoff once we're actually receiving bytes
+                return reader
+            } catch (err) {
+                if (signal.aborted) return null
+                attempt++
+                if (attempt > MAX_RETRIES) throw err
+                await sleep(RETRY_BASE_DELAY * attempt)
+            }
+        }
+        return null
+    }
 
     return new ReadableStream({
         async pull(controller) {
             if (signal.aborted) return controller.close()
             if (delivered >= total) return controller.close()
 
-            let attempt = 0
-            while (attempt <= MAX_RETRIES) {
-                if (signal.aborted) return controller.close()
-                try {
-                    const res = await fetchWithRetry(url, {
-                        cookie,
-                        signal,
-                        headers: { Range: `bytes=${cursor}-${end}` },
-                    })
-                    if (!res.ok && res.status !== 206) throw createError({ statusCode: res.status, statusMessage: 'Video stream error' })
-                    if (!res.body) throw new Error('Empty upstream body')
+            try {
+                const r = await ensureReader()
+                if (!r) return controller.close()
 
-                    const reader = res.body.getReader()
-                    try {
-                        while (true) {
-                            const { done, value } = await reader.read()
-                            if (done) break
-                            controller.enqueue(value)
-                            delivered += value.byteLength
-                            cursor += value.byteLength
-                        }
-                    } finally {
-                        reader.releaseLock()
-                    }
-
-                    if (delivered >= total) return controller.close()
-                    // Upstream closed early — loop again from the new cursor.
-                    attempt++
-                    await sleep(RETRY_BASE_DELAY * attempt)
-                    continue
-                } catch (err) {
-                    if (signal.aborted) return controller.close()
-                    attempt++
-                    if (attempt > MAX_RETRIES) return controller.error(err)
-                    await sleep(RETRY_BASE_DELAY * attempt)
+                const { done, value } = await r.read()
+                if (done) {
+                    // Upstream closed before delivering the full range — drop the
+                    // reader and let the *next* pull() reconnect from `cursor`.
+                    reader = null
+                    if (delivered >= total) controller.close()
+                    return
                 }
+
+                controller.enqueue(value)
+                delivered += value.byteLength
+                cursor += value.byteLength
+            } catch (err) {
+                if (signal.aborted) return controller.close()
+                controller.error(err)
             }
-            controller.error(new Error('Upstream unavailable after retries'))
         },
         cancel() {
-            // Reader stopped (client seeked away) — nothing to clean up beyond
-            // the shared `signal`, which the request-level 'close' handler owns.
+            reader?.cancel().catch(() => {})
+            reader = null
         },
     })
 }
