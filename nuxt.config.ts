@@ -6,6 +6,7 @@ export default defineNuxtConfig({
     devtools: { enabled: true },
     runtimeConfig: {
         supabaseSecretKey: process.env.SUPABASE_SECRET_KEY,
+        cfFetchFlaresolverr: process.env.CF_FETCH_FLARESOLVERR || '',
         public: {
             supabaseUrl: process.env.SUPABASE_URL,
             supabaseKey: process.env.SUPABASE_KEY,

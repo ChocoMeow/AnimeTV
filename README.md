@@ -63,14 +63,18 @@ Make sure you have the following installed:
         ```
         > You can find your database URL in your Supabase project under **Settings → Database → Connection string**.
 
-    - Update your `.env` file with the necessary Supabase credentials:
+    - Update your `.env` file with the necessary credentials:
 
         ```plaintext
+        # Supabase (required)
         NUXT_PUBLIC_SUPABASE_URL=your_supabase_url
         NUXT_PUBLIC_SUPABASE_KEY=your_supabase_key
         NUXT_SUPABASE_SECRET_KEY=your_supabase_secret_key
+
+        # Optional: FlareSolverr for Cloudflare (https://github.com/FlareSolverr/FlareSolverr)
+        # NUXT_CF_FETCH_FLARESOLVERR=http://127.0.0.1:8191/v1
         ```
-        > Replace the values with your actual credentials from **Supabase → Settings → API**.
+        > Replace Supabase values from **Supabase → Settings → API**.
 
 4. **Run the development server**:
 

@@ -513,78 +513,38 @@ export async function fetchAnimeData() {
     return ANIME1_LIST_CACHE.fetchPromise;
 }
 
-async function curlFetchHtml(url) {
-    const { execFile } = await import('node:child_process')
-    const { promisify } = await import('node:util')
-    const execFileAsync = promisify(execFile)
-    const bin = process.platform === 'win32' ? 'curl.exe' : 'curl'
-    const { stdout } = await execFileAsync(
-        bin,
-        [
-            '-sL',
-            '--compressed',
-            '--max-time', '20',
-            '-A',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            '-H',
-            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            '-H',
-            'Accept-Language: zh-TW,zh;q=0.9,en;q=0.8',
-            url,
-        ],
-        { maxBuffer: 5 * 1024 * 1024, encoding: 'utf8', timeout: 25000 },
-    )
-    return stdout
-}
-
-const GAMER_HOST_RE = /(?:^https?:\/\/)?(?:[\w-]+\.)?gamer\.com\.tw/i
-const MAX_CACHE_ENTRIES = 40
-
 export async function cfFetch(url) {
     try {
         const now = Date.now()
 
         const cached = RESPONSE_CACHE.get(url)
         if (cached && now - cached.timestamp < CACHE_LIFETIME) {
+            console.log(`Cache hit for: ${url} (${cached.html.length} bytes)`)
             return cached
         }
 
-        let html = null
+        const solver = (useRuntimeConfig().cfFetchFlaresolverr || '').trim()
+        let html
 
-        // Bahamut is Cloudflare-protected — Node fetch usually wastes a 403 round-trip on Pi
-        const useCurlFirst = GAMER_HOST_RE.test(url)
-
-        if (!useCurlFirst) {
-            try {
-                const response = await fetch(url, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                        'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8',
-                    },
-                    signal: AbortSignal.timeout(8000),
-                })
-                if (response.ok) {
-                    html = await response.text()
-                    if (response.headers.get('cf-mitigated') === 'challenge' || html.includes('class="captcha"')) {
-                        html = null
-                    }
-                }
-            } catch {
-                html = null
-            }
+        if (solver) {
+            const res = await fetch(solver, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cmd: 'request.get', url, maxTimeout: 60000 }),
+            })
+            const data = await res.json()
+            if (data.status !== 'ok') throw new Error(data.message || 'FlareSolverr failed')
+            html = data.solution.response
+        } else {
+            const response = await fetch(url)
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`)
+            html = await response.text()
         }
-
-        if (!html) {
-            html = await curlFetchHtml(url)
-        }
-
-        if (!html) throw new Error('Empty response')
 
         const result = { html, timestamp: now }
 
         RESPONSE_CACHE.set(url, result)
-        while (RESPONSE_CACHE.size > MAX_CACHE_ENTRIES) {
+        while (RESPONSE_CACHE.size > 200) {
             const firstKey = RESPONSE_CACHE.keys().next().value
             RESPONSE_CACHE.delete(firstKey)
         }
