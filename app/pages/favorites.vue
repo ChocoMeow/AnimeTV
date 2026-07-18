@@ -525,15 +525,6 @@ useHead({
     @apply text-sm px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2;
 }
 
-.btn-modal-cancel {
-    @apply px-4 py-2 rounded-full bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300
-           hover:bg-black/10 dark:hover:bg-white/20 transition-colors;
-}
-
-.btn-modal-danger {
-    @apply px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors;
-}
-
 .empty-state {
     @apply text-center py-20 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/5 dark:border-white/5;
 }

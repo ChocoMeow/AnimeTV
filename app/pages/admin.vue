@@ -4,6 +4,7 @@ const route = useRoute()
 
 const loading = ref(false)
 const saving = ref(false)
+const autofilling = ref(false)
 const errorMessage = ref('')
 
 const records = ref([])
@@ -36,6 +37,37 @@ const pageSize = ref(50)
 const total = ref(0)
 
 const isCreating = ref(false)
+const showUnsavedModal = ref(false)
+const baselineSnapshot = ref('')
+let pendingAction = null
+
+const isEdited = computed(() => {
+    if (!editableRecord.value || !baselineSnapshot.value) return false
+    return JSON.stringify(editableRecord.value) !== baselineSnapshot.value
+})
+
+function markClean() {
+    baselineSnapshot.value = editableRecord.value ? JSON.stringify(editableRecord.value) : ''
+}
+
+function guard(action) {
+    if (!isEdited.value) return action()
+    pendingAction = action
+    showUnsavedModal.value = true
+}
+
+function discardAndProceed() {
+    showUnsavedModal.value = false
+    if (baselineSnapshot.value) {
+        editableRecord.value = JSON.parse(baselineSnapshot.value)
+    } else {
+        editableRecord.value = null
+        selectedRecord.value = null
+        isCreating.value = false
+    }
+    pendingAction?.()
+    pendingAction = null
+}
 
 // Field labels are now provided by backend in fields array
 
@@ -173,28 +205,68 @@ async function loadRecords() {
 }
 
 function handleSelect(record) {
-    selectedRecord.value = record
-    editableRecord.value = toEditableRecord(record)
-    isCreating.value = false
+    const same =
+        !isCreating.value &&
+        selectedRecord.value &&
+        (selectedRecord.value.source_id || selectedRecord.value.id) === (record.source_id || record.id)
+    if (same) return
+    guard(() => {
+        selectedRecord.value = record
+        editableRecord.value = toEditableRecord(record)
+        isCreating.value = false
+        markClean()
+    })
 }
 
 function handleCreateNew() {
-    const base = {}
-    for (const field of fields.value) {
-        if (field.readOnly) continue
-        if (field.type === 'array') {
-            base[field.name] = []
-        } else if (field.type === 'jsonb') {
-            base[field.name] = {}
-        } else if (field.type === 'number' || field.type === 'double') {
-            base[field.name] = null
-        } else {
-            base[field.name] = ''
+    guard(() => {
+        const base = {}
+        for (const field of fields.value) {
+            if (field.readOnly) continue
+            if (field.type === 'array') {
+                base[field.name] = []
+            } else if (field.type === 'jsonb') {
+                base[field.name] = {}
+            } else if (field.type === 'number' || field.type === 'double') {
+                base[field.name] = null
+            } else {
+                base[field.name] = ''
+            }
         }
+        editableRecord.value = toEditableRecord(base)
+        selectedRecord.value = null
+        isCreating.value = true
+        markClean()
+    })
+}
+
+async function handleAutofill() {
+    const detailId = editableRecord.value?.source_details_id
+    if (!detailId) {
+        errorMessage.value = '請先填寫詳細資料編號（source_details_id）再自動填入。'
+        return
     }
-    editableRecord.value = toEditableRecord(base)
-    selectedRecord.value = null
-    isCreating.value = true
+
+    autofilling.value = true
+    errorMessage.value = ''
+
+    try {
+        const data = await $fetch(`/api/admin/anime-meta/autofill?detailId=${encodeURIComponent(detailId)}`)
+        const fieldMap = new Map(fields.value.map((f) => [f.name, f]))
+
+        for (const [key, value] of Object.entries(data || {})) {
+            const field = fieldMap.get(key)
+            if (!field || field.readOnly) continue
+            // Keep existing source_id when editing a record
+            if (key === 'source_id' && editableRecord.value.source_id && !isCreating.value) continue
+            editableRecord.value[key] = formatValueForInput(value, field.type)
+        }
+    } catch (err) {
+        console.error('Failed to autofill anime_meta:', err)
+        errorMessage.value = '自動填入失敗，請確認 source_details_id 是否正確。'
+    } finally {
+        autofilling.value = false
+    }
 }
 
 async function handleSave() {
@@ -250,9 +322,12 @@ async function handleSave() {
         if (result) {
             const match = records.value.find((r) => r.source_id === result.source_id)
             if (match) {
-                handleSelect(match)
+                selectedRecord.value = match
+                editableRecord.value = toEditableRecord(match)
+                isCreating.value = false
             }
         }
+        markClean()
     } catch (err) {
         console.error('Failed to save anime_meta record:', err)
         errorMessage.value = '儲存資料時發生錯誤，請確認欄位內容是否正確。'
@@ -281,6 +356,7 @@ async function handleDelete() {
         selectedRecord.value = null
         editableRecord.value = null
         isCreating.value = false
+        baselineSnapshot.value = ''
 
         await loadRecords()
     } catch (err) {
@@ -308,8 +384,18 @@ function changePage(newPage) {
 }
 
 function applySearch() {
-    page.value = 1
-    loadRecords()
+    guard(() => {
+        page.value = 1
+        loadRecords()
+    })
+}
+
+function resetSearch() {
+    guard(() => {
+        searchValue.value = ''
+        page.value = 1
+        loadRecords()
+    })
 }
 
 // Watch sortOrder changes to reload records
@@ -407,11 +493,7 @@ onMounted(() => {
                             <button
                                 type="button"
                                 class="btn-admin-ghost"
-                                @click="
-                                    searchValue = '';
-                                    page = 1;
-                                    loadRecords();
-                                "
+                                @click="resetSearch"
                             >
                                 重設
                             </button>
@@ -621,6 +703,30 @@ onMounted(() => {
                                         />
                                     </div>
 
+                                    <!-- source_details_id with autofill -->
+                                    <div v-else-if="field.name === 'source_details_id'" class="flex gap-2">
+                                        <input
+                                            v-model="editableRecord[field.name]"
+                                            :readonly="field.readOnly"
+                                            type="text"
+                                            class="min-w-0 flex-1 rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60"
+                                        />
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center justify-center h-[42px] px-4 rounded-full bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shrink-0"
+                                            title="自動填入"
+                                            :disabled="autofilling || !editableRecord.source_details_id"
+                                            @click="handleAutofill"
+                                        >
+                                            <span
+                                                class="material-symbols-rounded text-xl"
+                                                :class="autofilling ? 'animate-spin' : ''"
+                                            >
+                                                {{ autofilling ? 'progress_activity' : 'auto_fix' }}
+                                            </span>
+                                        </button>
+                                    </div>
+
                                     <!-- Number fields -->
                                     <div v-else-if="field.type === 'number'" class="relative">
                                         <input
@@ -736,6 +842,22 @@ onMounted(() => {
             </div>
         </div>
     </div>
+
+    <BaseModal
+        :show="showUnsavedModal"
+        title="尚未儲存的變更"
+        icon="warning"
+        icon-color="text-amber-500"
+        @close="showUnsavedModal = false; pendingAction = null"
+    >
+        <p class="text-gray-600 dark:text-gray-400 mb-6">
+            目前編輯內容尚未儲存，確定要離開並放棄變更嗎？
+        </p>
+        <template #actions>
+            <button type="button" class="btn-modal-cancel" @click="showUnsavedModal = false; pendingAction = null">取消</button>
+            <button type="button" class="btn-modal-danger" @click="discardAndProceed">放棄變更</button>
+        </template>
+    </BaseModal>
 </template>
 
 <style scoped>

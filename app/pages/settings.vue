@@ -449,14 +449,5 @@ useHead({
 .btn-danger-outline {
     @apply px-4 py-2 bg-red-500/10 text-red-600 dark:text-red-400 rounded-full hover:bg-red-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed font-medium;
 }
-
-.btn-modal-cancel {
-    @apply px-4 py-2 rounded-full bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300
-           hover:bg-black/10 dark:hover:bg-white/20 transition-colors;
-}
-
-.btn-modal-danger {
-    @apply px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors;
-}
 </style>
 

@@ -1,4 +1,6 @@
 <script setup>
+import { ANIME_TAGS } from '~~/shared/animeTags'
+
 const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
@@ -33,43 +35,7 @@ const {
     cleanup,
 } = useAnimeTooltip()
 
-const tags = [
-    "全部",
-    "動作",
-    "冒險",
-    "奇幻",
-    "異世界",
-    "魔法",
-    "超能力",
-    "科幻",
-    "機甲",
-    "校園",
-    "喜劇",
-    "戀愛",
-    "青春",
-    "勵志",
-    "溫馨",
-    "悠閒",
-    "料理",
-    "親情",
-    "感人",
-    "運動",
-    "競技",
-    "偶像",
-    "音樂",
-    "職場",
-    "推理",
-    "懸疑",
-    "時間穿越",
-    "歷史",
-    "戰爭",
-    "血腥暴力",
-    "靈異神怪",
-    "黑暗",
-    "特攝",
-    "BL",
-    "GL",
-]
+const tags = ["全部", ...ANIME_TAGS]
 const categories = ["電影", "OVA", "雙語", "泡麵番", "真人演出"]
 const sortOptions = [
     { value: "1", label: "依年份排列" },

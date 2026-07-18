@@ -379,13 +379,4 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
            bg-gray-900 dark:bg-white text-white dark:text-black
            hover:opacity-90 transition-opacity;
 }
-
-.btn-modal-cancel {
-    @apply px-4 py-2 rounded-full bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300
-           hover:bg-black/10 dark:hover:bg-white/20 transition-colors;
-}
-
-.btn-modal-danger {
-    @apply px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors;
-}
 </style>
