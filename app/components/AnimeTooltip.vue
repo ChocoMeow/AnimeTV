@@ -86,14 +86,17 @@ async function toggleFavorite(event) {
                     <!-- Favourite button top right -->
                     <button
                         type="button"
-                        class="absolute top-3.5 right-3.5 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 dark:focus:ring-offset-gray-950 dark:focus:ring-gray-500 disabled:opacity-50"
-                        :class="{ 'text-red-500': animeDetails.isFavorite }"
+                        class="absolute top-3.5 right-3.5 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 dark:focus:ring-offset-gray-950 dark:focus:ring-gray-500 disabled:opacity-50"
                         :disabled="favoriteLoading || !userSettings?.id"
                         :title="animeDetails.isFavorite ? '已收藏' : '收藏'"
                         aria-label="Toggle favorite"
                         @click="toggleFavorite"
                     >
-                        <span class="material-symbols-rounded text-xl text-center" v-if="!favoriteLoading">
+                        <span
+                            v-if="!favoriteLoading"
+                            class="material-symbols-rounded text-xl text-center"
+                            :class="animeDetails.isFavorite ? 'text-red-500' : 'text-gray-700 dark:text-gray-300'"
+                        >
                             {{ animeDetails.isFavorite ? 'bookmark_added' : 'bookmark_add' }}
                         </span>
                         <span v-else class="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />

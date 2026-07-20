@@ -36,7 +36,7 @@ const {
 } = useAnimeTooltip()
 
 const tags = ["全部", ...ANIME_TAGS]
-const categories = ["電影", "OVA", "雙語", "泡麵番", "真人演出"]
+const categories = ["電影", "OVA", "雙語", "泡麵番", "真人演出", "自訂作品"]
 const sortOptions = [
     { value: "1", label: "依年份排列" },
     { value: "2", label: "依月人氣排序" },

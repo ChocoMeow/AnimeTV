@@ -7,6 +7,7 @@ const props = defineProps({
 
 const emit = defineEmits(["tooltip-enter", "tooltip-leave"])
 
+const client = useSupabaseClient()
 const selectedTab = ref(null)
 const listItems = ref([])
 const listLoading = ref(false)
@@ -42,6 +43,38 @@ function scrollTags(direction) {
     tagScroll.value?.scrollBy({ left: direction * 140, behavior: "smooth" })
 }
 
+async function fetchByTags(tagList) {
+    const tags = tagList.map(String).map((t) => t.trim()).filter(Boolean)
+    if (!tags.length) return []
+
+    let query = client
+        .from("anime_meta")
+        .select("source_id, title, thumbnail, premiere_date, views")
+        .overlaps("tags", tags)
+        .not("video_id", "is", null)
+        .order("views", { ascending: false })
+        .limit(20)
+
+    if (props.currentRefId) {
+        query = query.neq("source_id", props.currentRefId)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+
+    return (data || []).map((row) => {
+        const premiere = row.premiere_date ? String(row.premiere_date) : ""
+        return {
+            refId: String(row.source_id),
+            title: row.title,
+            image: row.thumbnail,
+            year: premiere ? premiere.slice(0, 7).replace("-", "/") : null,
+            episodes: null,
+            views: row.views ?? null,
+        }
+    })
+}
+
 async function loadTab(tabId) {
     selectedTab.value = tabId
 
@@ -57,12 +90,8 @@ async function loadTab(tabId) {
 
     listLoading.value = true
     try {
-        const params = new URLSearchParams({ page: "1" })
-        const tagParam = tabId === "all-tags" ? props.tags.join(",") : tabId.slice(4)
-        params.set("tags", tagParam)
-
-        const res = await $fetch(`/api/animeList?${params}&sort=2`)
-        const items = (res.results || []).filter((a) => String(a.refId) !== String(props.currentRefId))
+        const tagList = tabId === "all-tags" ? props.tags : [tabId.slice(4)]
+        const items = await fetchByTags(tagList)
         listCache.value[tabId] = items
         listItems.value = items
     } catch {

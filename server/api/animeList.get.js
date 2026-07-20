@@ -1,8 +1,42 @@
 import * as cheerio from "cheerio"
+import { serverSupabaseClient } from "#supabase/server"
+
+async function fetchManualAnime(event, { page, tags, sort }) {
+    const pageNum = Math.max(1, Number(page) || 1)
+    const from = (pageNum - 1) * 30
+    const cleanTags = tags.filter(Boolean)
+
+    let dbQuery = (await serverSupabaseClient(event))
+        .from("anime_meta")
+        .select("source_id, title, thumbnail, premiere_date, views", { count: "exact" })
+        .gte("source_id", CUSTOM_SOURCE_ID_MIN)
+
+    if (cleanTags.length) dbQuery = dbQuery.overlaps("tags", cleanTags)
+
+    dbQuery = (sort === "2"
+        ? dbQuery.order("views", { ascending: false, nullsFirst: false })
+        : dbQuery.order("premiere_date", { ascending: false, nullsFirst: false })
+    ).range(from, from + 29)
+
+    const { data, error, count } = await dbQuery
+    if (error) throw error
+
+    return {
+        results: (data || []).map((row) => ({
+            refId: String(row.source_id),
+            image: row.thumbnail,
+            title: row.title,
+            year: toYearMonthSlash(row.premiere_date),
+            episodes: null,
+            views: row.views ?? null,
+        })),
+        totalPage: String(Math.max(1, Math.ceil((count || 0) / 30))),
+    }
+}
 
 // Nuxt API handler
 export default defineEventHandler(async (event) => {
-    const user = await authUser(event)
+    await authUser(event)
 
     try {
         const query = getQuery(event)
@@ -10,6 +44,10 @@ export default defineEventHandler(async (event) => {
         const tags = query.tags ? query.tags.split(",") : []
         const categories = query.categories ? query.categories.split(",") : []
         const sort = query.sort || null
+
+        if (query.category === "自訂作品") {
+            return await fetchManualAnime(event, { page, tags, sort })
+        }
 
         const params = new URLSearchParams({ page })
         if (tags.length) params.set("tags", tags.join(","))
