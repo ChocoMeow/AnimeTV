@@ -55,7 +55,7 @@ useSeoMeta({
     ogDescription: () => seoDesc.value,
     ogImage: () => seo.value?.image,
     ogType: 'website',
-    twitterCard: 'summary_large_image',
+    twitterCard: 'summary',
     twitterTitle: () => seoTitle.value,
     twitterDescription: () => seoDesc.value,
     twitterImage: () => seo.value?.image,
