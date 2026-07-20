@@ -8,7 +8,7 @@ Welcome to **AnimeTV**, a project designed for anime enthusiasts in Taiwan and H
 
 -   **Anime Metadata**: Fetches detailed information about various anime from [ani.gamer.com.tw](https://ani.gamer.com.tw).
 -   **Video Streaming**: Provides video content sourced from [anime1.me](https://anime1.me).
--   **User-Friendly Interface**: Built with Nuxt 4.1.3 for a seamless and responsive experience.
+-   **User-Friendly Interface**: Built with Nuxt 4 for a seamless and responsive experience.
 -   **Watch History**: Tracks the viewing history for each video, allowing users to resume where they left off.
 -   **User Settings**: Customize user preferences for a personalized experience.
 -   **Favorite List**: Save favorite anime shows for easy access.
@@ -86,7 +86,7 @@ Make sure you have the following installed:
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the GPL 3.0 License. See the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 

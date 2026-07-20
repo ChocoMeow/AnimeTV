@@ -34,6 +34,32 @@ const {
 const userShortcuts = computed(() => getShortcuts())
 const isMac = computed(() => /Mac|iPhone|iPod|iPad/i.test(navigator.platform ?? ''))
 
+// ─── SEO (public meta; SSR for link previews) ─────────────────────────────────
+const { data: seo } = await useFetch(`/api/public/anime/${route.params.id}/seo`)
+
+const seoTitle = computed(() => seo.value?.title ? `${seo.value.title} | ${appConfig.siteName}` : appConfig.siteName)
+const seoDesc = computed(() => {
+    if (!seo.value) return appConfig.siteDescription
+    const parts = []
+    if (seo.value.score > 0) parts.push(`★ ${seo.value.score}`)
+    if (seo.value.views) parts.push(`${formatViews(seo.value.views)} 觀看`)
+    if (seo.value.description) parts.push(seo.value.description)
+    return parts.join(' · ') || appConfig.siteDescription
+})
+
+useSeoMeta({
+    title: () => seoTitle.value,
+    description: () => seoDesc.value,
+    ogTitle: () => seoTitle.value,
+    ogDescription: () => seoDesc.value,
+    ogImage: () => seo.value?.image,
+    ogType: 'website',
+    twitterCard: 'summary_large_image',
+    twitterTitle: () => seoTitle.value,
+    twitterDescription: () => seoDesc.value,
+    twitterImage: () => seo.value?.image,
+})
+
 // ─── State ────────────────────────────────────────────────────────────────────
 const anime = ref(null)
 const selectedEpisode = ref(null)
