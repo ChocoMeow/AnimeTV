@@ -513,6 +513,19 @@ export async function fetchAnimeData() {
     return ANIME1_LIST_CACHE.fetchPromise;
 }
 
+let flareSessionId = null
+
+async function flareRequest(solver, body) {
+    const res = await fetch(solver, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    })
+    const data = await res.json()
+    if (data.status !== 'ok') throw new Error(data.message || 'FlareSolverr failed')
+    return data
+}
+
 export async function cfFetch(url) {
     try {
         const now = Date.now()
@@ -527,13 +540,26 @@ export async function cfFetch(url) {
         let html
 
         if (solver) {
-            const res = await fetch(solver, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cmd: 'request.get', url, maxTimeout: 60000 }),
-            })
-            const data = await res.json()
-            if (data.status !== 'ok') throw new Error(data.message || 'FlareSolverr failed')
+            if (!flareSessionId) {
+                flareSessionId = (await flareRequest(solver, { cmd: 'sessions.create' })).session
+            }
+            let data
+            try {
+                data = await flareRequest(solver, {
+                    cmd: 'request.get',
+                    url,
+                    session: flareSessionId,
+                    maxTimeout: 60000,
+                })
+            } catch {
+                flareSessionId = (await flareRequest(solver, { cmd: 'sessions.create' })).session
+                data = await flareRequest(solver, {
+                    cmd: 'request.get',
+                    url,
+                    session: flareSessionId,
+                    maxTimeout: 60000,
+                })
+            }
             html = data.solution.response
         } else {
             const response = await fetch(url)
