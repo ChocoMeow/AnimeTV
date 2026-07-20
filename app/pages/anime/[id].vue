@@ -1,6 +1,7 @@
 <script setup>
 // ─── Composables ──────────────────────────────────────────────────────────────
 const { userSettings, getShortcuts, formatShortcutKey } = useUserSettings()
+const user = useSupabaseUser()
 const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
@@ -34,21 +35,21 @@ const {
 const userShortcuts = computed(() => getShortcuts())
 const isMac = computed(() => /Mac|iPhone|iPod|iPad/i.test(navigator.platform ?? ''))
 
-// ─── SEO (public meta; SSR for link previews) ─────────────────────────────────
-const { data: seo } = await useFetch(`/api/public/anime/${route.params.id}/seo`)
-
-const seoTitle = computed(() => seo.value?.title ? `${seo.value.title} | ${appConfig.siteName}` : appConfig.siteName)
-const seoDesc = computed(() => {
-    if (!seo.value) return appConfig.siteDescription
-    const parts = []
-    if (seo.value.score > 0) parts.push(`★ ${seo.value.score}`)
-    if (seo.value.views) parts.push(`${formatViews(seo.value.views)} 觀看`)
-    if (seo.value.description) parts.push(seo.value.description)
-    return parts.join(' · ') || appConfig.siteDescription
+// SEO: public API only when logged out (crawlers)
+const { data: seo } = await useFetch(`/api/public/anime/${route.params.id}/seo`, {
+    immediate: !user.value,
+    default: () => null,
 })
-
+const seoTitle = computed(() => (seo.value?.title ? `${seo.value.title} | ${appConfig.siteName}` : appConfig.siteName))
+const seoDesc = computed(() => {
+    const s = seo.value
+    if (!s) return appConfig.siteDescription
+    return [s.score > 0 && `★ ${s.score}`, s.views && `${formatViews(s.views)} 觀看`, s.description]
+        .filter(Boolean)
+        .join(' · ') || appConfig.siteDescription
+})
 useSeoMeta({
-    title: () => seoTitle.value,
+    title: () => (seo.value?.title ? seoTitle.value : undefined),
     description: () => seoDesc.value,
     ogTitle: () => seoTitle.value,
     ogDescription: () => seoDesc.value,
