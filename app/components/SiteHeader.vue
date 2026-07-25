@@ -344,7 +344,7 @@ watch(
                                     </div>
                                     <button
                                         @mousedown.prevent.stop="removeFromHistory(item.id)"
-                                        class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded"
+                                        class="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 inline-flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 rounded-full"
                                     >
                                         <span class="material-symbols-rounded text-gray-500 text-sm">close</span>
                                     </button>
@@ -531,7 +531,7 @@ watch(
                                     <span class="material-symbols-rounded text-gray-400 text-sm">history</span>
                                     <span class="text-sm text-gray-700 dark:text-gray-300">{{ item.query }}</span>
                                 </div>
-                                <button @click.stop="removeFromHistory(item.id)" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded">
+                                <button @click.stop="removeFromHistory(item.id)" class="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 inline-flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 rounded-full">
                                     <span class="material-symbols-rounded text-gray-500 text-sm">close</span>
                                 </button>
                             </li>
@@ -643,6 +643,16 @@ watch(
 </template>
 
 <style scoped>
+input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    height: 1rem;
+    width: 1rem;
+    background: currentColor;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E") center / contain no-repeat;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E") center / contain no-repeat;
+    cursor: pointer;
+}
+
 .fade-enter-active,
 .fade-leave-active {
     transition: opacity 0.3s ease;

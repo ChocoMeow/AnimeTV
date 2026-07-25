@@ -1117,7 +1117,7 @@ onUnmounted(() => {
 }
 
 .player-group-btn {
-    width: 2rem; height: 2rem; display: inline-flex;
+    width: 3rem; height: 2rem; display: inline-flex;
     align-items: center; justify-content: center; border-radius: 9999px;
     color: white; border: 0; cursor: pointer; outline: none;
     transition: background-color 0.2s ease, transform 0.2s ease;
@@ -1181,7 +1181,7 @@ onUnmounted(() => {
 @media (min-width: 640px) {
     .player-volume-slider { display: flex; }
     .player-volume-group.is-expanded .player-volume-slider {
-        width: 5.4rem; opacity: 1; overflow: visible;
+        width: 5.9rem; opacity: 1; overflow: visible;
     }
 }
 

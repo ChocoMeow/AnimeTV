@@ -156,13 +156,13 @@ onBeforeUnmount(() => {
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <h4
-                                            class="font-semibold text-sm text-white drop-shadow-lg truncate mb-1 hover:underline">
+                                            class="font-semibold text-sm text-gray-900 dark:text-white drop-shadow-lg truncate mb-1 hover:underline">
                                             {{ friend.name }}</h4>
-                                        <div class="flex items-center gap-1.5 text-xs text-white drop-shadow-md mb-0.5">
+                                        <div class="flex items-center gap-1.5 text-xs text-gray-800 dark:text-white drop-shadow-md mb-0.5">
                                             <span class="material-symbols-rounded text-xs">play_circle</span>
                                             <span class="truncate font-medium">{{ friend.currentAnime }}</span>
                                         </div>
-                                        <div class="text-xs text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }}
+                                        <div class="text-xs text-gray-700 dark:text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }}
                                             集</div>
                                     </div>
                                 </div>
@@ -234,13 +234,13 @@ onBeforeUnmount(() => {
                                             :title="friend.status"></span>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <h4 class="font-bold text-base text-white drop-shadow-lg truncate mb-1">{{
+                                        <h4 class="font-bold text-base text-gray-900 dark:text-white drop-shadow-lg truncate mb-1">{{
                                             friend.name }}</h4>
-                                        <div class="flex items-center gap-1.5 text-sm text-white drop-shadow-md mb-1">
+                                        <div class="flex items-center gap-1.5 text-sm text-gray-800 dark:text-white drop-shadow-md mb-1">
                                             <span class="material-symbols-rounded text-base">play_circle</span>
                                             <span class="truncate font-medium">{{ friend.currentAnime }}</span>
                                         </div>
-                                        <div class="text-sm text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }}
+                                        <div class="text-sm text-gray-700 dark:text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }}
                                             集</div>
                                     </div>
                                 </div>
