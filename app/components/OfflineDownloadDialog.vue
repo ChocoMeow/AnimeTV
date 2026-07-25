@@ -142,13 +142,13 @@ function removeAll() {
             <div class="flex flex-wrap gap-2 pb-1">
                 <NuxtLink
                     to="/offline-downloads"
-                    class="px-3 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                    class="px-3 py-1.5 text-xs rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
                 >
                     管理頁
                 </NuxtLink>
                 <button
                     type="button"
-                    class="px-3 py-1.5 text-xs rounded-lg bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+                    class="px-3 py-1.5 text-xs rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
                     :disabled="isDownloading"
                     @click="selectAll"
                 >
@@ -156,7 +156,7 @@ function removeAll() {
                 </button>
                 <button
                     type="button"
-                    class="px-3 py-1.5 text-xs rounded-lg bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+                    class="px-3 py-1.5 text-xs rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
                     :disabled="isDownloading"
                     @click="clearSelection"
                 >
@@ -164,7 +164,7 @@ function removeAll() {
                 </button>
                 <button
                     type="button"
-                    class="px-3 py-1.5 text-xs rounded-lg bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium disabled:opacity-50"
+                    class="px-3 py-1.5 text-xs rounded-full bg-gray-900 dark:bg-white text-white dark:text-black font-semibold disabled:opacity-50"
                     :disabled="isDownloading"
                     @click="downloadAllPending"
                 >
@@ -173,7 +173,7 @@ function removeAll() {
                 <button
                     v-if="downloadedKeys.length"
                     type="button"
-                    class="px-3 py-1.5 text-xs rounded-lg text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700/60 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    class="px-3 py-1.5 text-xs rounded-full text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
                     :disabled="isDownloading"
                     @click="removeAll"
                 >
@@ -181,15 +181,15 @@ function removeAll() {
                 </button>
             </div>
 
-            <div class="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+            <div class="max-h-64 overflow-y-auto rounded-xl ring-1 ring-black/5 dark:ring-white/10 divide-y divide-black/5 dark:divide-white/10">
                 <label
                     v-for="ep in episodeKeys"
                     :key="ep"
-                    class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-950/5 dark:hover:bg-white/5 cursor-pointer"
+                    class="flex items-center gap-3 px-3 py-2.5 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer"
                 >
                     <input
                         type="checkbox"
-                        class="rounded border-gray-300 dark:border-gray-600"
+                        class="rounded border-black/20 dark:border-white/20"
                         :checked="selected.has(ep)"
                         :disabled="isDownloading || !episodes[ep]?.token || downloadedSet.has(String(ep))"
                         @change="toggle(ep)"
@@ -210,7 +210,7 @@ function removeAll() {
             </div>
 
             <div v-if="isDownloading" class="space-y-1.5">
-                <div class="h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                <div class="h-2 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
                     <div
                         class="h-full bg-gray-900 dark:bg-white transition-all duration-300"
                         :style="{ width: `${Math.min(100, Math.max(0, downloadProgress))}%` }"
@@ -222,7 +222,7 @@ function removeAll() {
             <div class="flex justify-end gap-2 pt-2">
                 <button
                     type="button"
-                    class="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-white/10"
+                    class="px-4 py-2 text-sm rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15"
                     :disabled="isDownloading"
                     @click="close"
                 >
@@ -230,7 +230,7 @@ function removeAll() {
                 </button>
                 <button
                     type="button"
-                    class="px-4 py-2 text-sm rounded-lg bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="px-4 py-2 text-sm rounded-full bg-gray-900 dark:bg-white text-white dark:text-black font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                     :disabled="isDownloading || selectedPendingCount === 0"
                     @click="startDownload"
                 >

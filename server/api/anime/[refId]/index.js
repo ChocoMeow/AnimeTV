@@ -251,7 +251,7 @@ export default defineEventHandler(async (event) => {
         const scraped = await scrapeAnimeDetailByRefId(refId)
         if (!scraped) throw createError({ statusCode: 404, statusMessage: 'Anime not found' })
         meta = await upsertAnimeMeta(serviceClient, buildAnimeMetaPayload(scraped))
-    } else if (isStale(meta) && Number(meta.source_id) < 1_000_000) {
+    } else if (isStale(meta) && Number(meta.source_id) < CUSTOM_SOURCE_ID_MIN) {
         // Stale-while-revalidate: serve cached data now, refresh stats after response is sent
         event.waitUntil(
             scrapeAnimeDetailByRefId(refId)

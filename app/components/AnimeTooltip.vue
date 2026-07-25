@@ -86,14 +86,17 @@ async function toggleFavorite(event) {
                     <!-- Favourite button top right -->
                     <button
                         type="button"
-                        class="absolute top-3.5 right-3.5 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 dark:focus:ring-gray-500 disabled:opacity-50"
-                        :class="{ 'text-red-500': animeDetails.isFavorite }"
+                        class="absolute top-3.5 right-3.5 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 dark:focus:ring-offset-gray-950 dark:focus:ring-gray-500 disabled:opacity-50"
                         :disabled="favoriteLoading || !userSettings?.id"
                         :title="animeDetails.isFavorite ? '已收藏' : '收藏'"
                         aria-label="Toggle favorite"
                         @click="toggleFavorite"
                     >
-                        <span class="material-symbols-rounded text-xl text-center" v-if="!favoriteLoading">
+                        <span
+                            v-if="!favoriteLoading"
+                            class="material-symbols-rounded text-xl text-center"
+                            :class="animeDetails.isFavorite ? 'text-red-500' : 'text-gray-700 dark:text-gray-300'"
+                        >
                             {{ animeDetails.isFavorite ? 'bookmark_added' : 'bookmark_add' }}
                         </span>
                         <span v-else class="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
@@ -107,14 +110,14 @@ async function toggleFavorite(event) {
                             loading="eager"
                         />
                         <div class="flex-1 min-w-0">
-                            <h3 class="font-bold text-base sm:text-lg text-gray-900 dark:text-white mb-2 line-clamp-2">
+                            <h3 class="font-bold text-base sm:text-lg text-gray-900 dark:text-white mb-2 line-clamp-2 pr-7">
                                 {{ animeDetails.title }}
                             </h3>
                             <div class="space-y-1 text-xs sm:text-sm">
-                                <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
+                                <div v-if="animeDetails.userRating?.score" class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
                                     <span class="material-symbols-rounded text-sm text-yellow-400">star</span>
-                                    <span class="font-bold text-sm">{{ animeDetails.userRating?.score }}</span>
-                                    <span class="text-sm text-gray-300">({{ formatViews(animeDetails.userRating.votes) }})</span>
+                                    <span class="font-bold text-sm text-gray-900 dark:text-white">{{ animeDetails.userRating.score }}</span>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">({{ formatViews(animeDetails.userRating.votes) }})</span>
                                 </div>
                                 <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
                                     <span class="material-symbols-rounded text-sm">visibility</span>
@@ -183,7 +186,7 @@ async function toggleFavorite(event) {
                 }"
             >
                 <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin"></div>
+                    <div class="w-4 h-4 border-2 border-gray-300 dark:border-white/20 border-t-gray-900 dark:border-t-white rounded-full animate-spin"></div>
                     <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-300">載入詳情...</span>
                 </div>
             </div>
@@ -256,14 +259,14 @@ async function toggleFavorite(event) {
 }
 
 .tooltip-content {
-    @apply bg-white dark:bg-gray-950 rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 p-3 sm:p-4;
+    @apply bg-white dark:bg-gray-950 rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/60 border border-gray-200 dark:border-white/10 p-3 sm:p-4;
     position: relative;
 }
 
 .tag-link {
     @apply px-2 py-0.5 rounded-full text-xs font-medium transition-colors cursor-pointer;
-    @apply bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300;
-    @apply hover:bg-gray-200 dark:hover:bg-gray-700;
+    @apply bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300;
+    @apply hover:bg-black/10 dark:hover:bg-white/20;
 }
 
 .tooltip-arrow {
@@ -309,25 +312,25 @@ async function toggleFavorite(event) {
 }
 
 .dark .tooltip-top .tooltip-arrow {
-    border-top-color: rgb(3, 7, 18);
+    border-top-color: #0a0a0a;
 }
 
 .dark .tooltip-bottom .tooltip-arrow {
-    border-bottom-color: rgb(3, 7, 18);
+    border-bottom-color: #0a0a0a;
 }
 
 .dark .tooltip-left .tooltip-arrow {
-    border-left-color: rgb(3, 7, 18);
+    border-left-color: #0a0a0a;
 }
 
 .dark .tooltip-right .tooltip-arrow {
-    border-right-color: rgb(3, 7, 18);
+    border-right-color: #0a0a0a;
 }
 
 .anime-tooltip-loading {
     position: fixed;
     z-index: 9999;
-    @apply bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-2;
+    @apply bg-white dark:bg-gray-950 rounded-xl shadow-lg shadow-black/10 dark:shadow-black/60 border border-gray-200 dark:border-white/10 px-3 sm:px-4 py-2;
 }
 
 .anime-tooltip-loading.tooltip-top {
@@ -354,7 +357,7 @@ async function toggleFavorite(event) {
 .anime-tooltip-error {
     position: fixed;
     z-index: 9999;
-    @apply bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-red-300 dark:border-red-700 px-3 sm:px-4 py-2;
+    @apply bg-white dark:bg-gray-950 rounded-xl shadow-lg shadow-black/10 dark:shadow-black/60 border border-red-300 dark:border-red-700/60 px-3 sm:px-4 py-2;
 }
 
 .anime-tooltip-error.tooltip-top {

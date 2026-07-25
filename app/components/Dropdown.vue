@@ -107,7 +107,7 @@ onUnmounted(() => {
         <button
             ref="triggerRef"
             type="button"
-            class="dropdown-trigger w-full rounded-xl border border-gray-200 dark:border-white/10 bg-black/5 dark:bg-white/10 text-gray-900 dark:text-gray-100 text-sm pl-3 pr-10 py-2 text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-black/70 dark:focus:ring-white/70 focus:border-transparent transition-colors hover:border-gray-300 dark:hover:border-white/20"
+            class="dropdown-trigger w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-gray-900 dark:text-gray-100 text-sm pl-3 pr-10 py-2 text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent transition-shadow hover:bg-black/10 dark:hover:bg-white/15"
             :class="{ 'opacity-60': !modelValue && placeholder }"
             @click="onOpen"
         >
@@ -132,7 +132,7 @@ onUnmounted(() => {
                 <div
                     v-show="open"
                     ref="panelRef"
-                    class="dropdown-panel z-[10] max-h-[min(24rem,70vh)] overflow-auto rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-gray-950 shadow-lg py-1"
+                    class="dropdown-panel z-[10] max-h-[min(24rem,70vh)] overflow-auto rounded-xl ring-1 ring-black/5 dark:ring-white/10 bg-white dark:bg-gray-950 shadow-xl py-1"
                     :style="panelStyle"
                 >
                     <button

@@ -21,8 +21,7 @@ const chartLoading = ref(false)
 
 const displayName = computed(() => user.value?.user_metadata?.name || user.value?.user_metadata?.full_name || '使用者')
 const email = computed(() => user.value?.email || '')
-const avatarUrl = computed(() => user.value?.user_metadata?.avatar_url || user.value?.user_metadata?.picture || null)
-const initials = computed(() => (displayName.value || '?').trim().slice(0, 2).toUpperCase())
+const avatarUrl = computed(() => user.value?.user_metadata?.avatar_url || user.value?.user_metadata?.picture || '')
 
 const monthlyCumulative = computed(() => {
     const vals = analytics.value?.monthlyWatch?.values
@@ -115,36 +114,32 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
 </script>
 
 <template>
-    <div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8">
 
         <!-- Page header -->
-        <div class="mb-6">
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">個人資料</h1>
+        <div class="mb-6 sm:mb-8">
+            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">個人資料</h1>
             <p class="text-gray-600 dark:text-gray-400">觀看統計、習慣與趨勢</p>
         </div>
 
         <!-- Loading -->
         <div v-if="loading" class="flex items-center justify-center py-20">
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-600 border-t-transparent"></div>
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
         </div>
 
         <div v-else-if="analytics" class="space-y-6">
 
             <!-- ── 1. ACCOUNT STRIP ── -->
-            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between p-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-950/5 dark:bg-white/10">
+            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between p-5 rounded-2xl panel-card">
                 <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center min-w-0 flex-1">
-                    <div class="shrink-0">
-                        <NuxtImg
-                            v-if="avatarUrl"
-                            :src="avatarUrl"
-                            :alt="displayName"
-                            class="w-16 h-16 rounded-xl object-cover border border-gray-200 dark:border-gray-600"
-                            loading="lazy"
-                        />
-                        <div v-else class="w-16 h-16 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-lg font-bold border border-indigo-500/50">
-                            {{ initials }}
-                        </div>
-                    </div>
+                    <UserAvatar
+                        :src="avatarUrl"
+                        :name="displayName"
+                        :max-initials="2"
+                        rounded="rounded-xl"
+                        class="w-16 h-16 shrink-0 text-lg"
+                        img-class="border border-black/10 dark:border-white/10"
+                    />
                     <div class="min-w-0 flex-1">
                         <p class="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">{{ displayName }}</p>
                         <p v-if="email" class="text-sm text-gray-600 dark:text-gray-400 truncate">{{ email }}</p>
@@ -160,7 +155,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                 </div>
                 <NuxtLink
                     to="/settings"
-                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:opacity-90 shrink-0 w-full sm:w-auto justify-center"
+                    class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-gray-900 dark:bg-white text-white dark:text-black hover:opacity-90 transition-opacity shrink-0 w-full sm:w-auto justify-center"
                 >
                     <span class="material-symbols-rounded text-lg">settings</span>
                     帳號設定
@@ -169,23 +164,23 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
 
             <!-- ── 2. KEY STATS ── -->
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-                <div class="col-span-2 sm:col-span-1 lg:col-span-2 bg-gray-950/5 dark:bg-white/10 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5">
+                <div class="col-span-2 sm:col-span-1 lg:col-span-2 panel-card p-4 sm:p-5">
                     <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">累積觀看時間</p>
                     <p class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatDuration(analytics.summary.totalWatchSeconds) }}</p>
                 </div>
-                <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5">
+                <div class="panel-card p-4 sm:p-5">
                     <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">觀看集數</p>
                     <p class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">{{ analytics.summary.episodeRows.toLocaleString() }}</p>
                 </div>
-                <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5">
+                <div class="panel-card p-4 sm:p-5">
                     <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">觀看作品數</p>
                     <p class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">{{ analytics.summary.uniqueAnimeCount }}</p>
                 </div>
-                <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5">
+                <div class="panel-card p-4 sm:p-5">
                     <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">集均完成度</p>
                     <p class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">{{ analytics.summary.averageProgressPercent }}%</p>
                 </div>
-                <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5">
+                <div class="panel-card p-4 sm:p-5">
                     <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">最長 / 目前連續</p>
                     <p class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">
                         {{ analytics.summary.longestStreakDays }}
@@ -198,7 +193,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
 
                 <!-- Monthly watch time -->
-                <div class="lg:col-span-2 bg-gray-950/5 dark:bg-white/10 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <div class="lg:col-span-2 panel-card p-6">
                     <div class="flex items-center gap-3 mb-1">
                         <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">bar_chart</span>
                         <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">近 12 個月</h2>
@@ -219,7 +214,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                 <span class="text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 truncate w-full text-center">{{ analytics.monthlyWatch.labels[i].slice(5) }}月</span>
                             </div>
                         </div>
-                        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div class="mt-4 pt-4 border-t border-black/10 dark:border-white/10">
                             <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">累積觀看時間</p>
                             <div class="flex items-end gap-1 sm:gap-1.5 h-24 opacity-90">
                                 <div
@@ -240,7 +235,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                 </div>
 
                 <!-- Compact 42-day heatmap -->
-                <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <div class="panel-card p-6">
                     <div class="flex items-center gap-3 mb-1">
                         <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">calendar_month</span>
                         <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">近 42 天</h2>
@@ -269,7 +264,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
             </div>
 
             <!-- ── 4. VIEWING HABITS ── -->
-            <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <div class="panel-card p-6">
                 <div class="flex items-center justify-between mb-1 flex-wrap gap-3">
                     <div class="flex items-center gap-3">
                         <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">schedule</span>
@@ -336,7 +331,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
             </div>
 
             <!-- ── 5. ALL-TIME CONTENT DNA ── -->
-            <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-8">
+            <div class="panel-card p-6 space-y-8">
                 <div class="flex items-center gap-3">
                     <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">favorite</span>
                     <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">全時期喜好</h2>
@@ -349,7 +344,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                     <div v-if="analytics.topTagsByTime.length" class="space-y-2">
                         <div v-for="t in analytics.topTagsByTime" :key="t.label" class="flex items-center gap-3">
                             <span class="text-sm text-gray-700 dark:text-gray-300 w-24 sm:w-32 truncate" :title="t.label">{{ t.label }}</span>
-                            <div class="flex-1 h-6 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden">
+                            <div class="flex-1 h-6 bg-gray-200 dark:bg-white/10 rounded overflow-hidden">
                                 <div class="h-full rounded bg-teal-500/70 dark:bg-teal-400/80 hover:bg-teal-500 dark:hover:bg-teal-300 transition-all cursor-pointer" :style="{ width: (t.seconds / tagBarMax) * 100 + '%' }" />
                             </div>
                             <span class="text-xs text-gray-500 w-20 text-right shrink-0">{{ formatDuration(t.seconds) }}</span>
@@ -359,7 +354,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                 </div>
 
                 <!-- Top anime + Top studios side by side -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2 border-t border-black/10 dark:border-white/10">
                     <!-- Top anime (lifetime) — with cover art -->
                     <div>
                         <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">累積觀看時間最多</h3>
@@ -368,7 +363,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                             <li v-for="(a, idx) in analytics.topAnimeByTime" :key="a.anime_ref_id" class="flex items-center gap-3">
                                 <span class="text-xs font-bold text-gray-400 w-5">{{ idx + 1 }}</span>
                                 <NuxtLink :to="`/anime/${a.anime_ref_id}`" class="flex items-center gap-3 min-w-0 flex-1 group">
-                                    <div class="w-10 h-14 rounded overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+                                    <div class="w-10 h-14 rounded overflow-hidden bg-gray-200 dark:bg-white/10 flex-shrink-0">
                                         <NuxtImg v-if="a.anime_image" :src="a.anime_image" class="w-full h-full object-cover" alt="" />
                                     </div>
                                     <div class="min-w-0 flex-1">
@@ -391,7 +386,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                     <span class="text-sm text-gray-800 dark:text-gray-200 truncate">{{ s.label }}</span>
                                     <span class="text-xs text-gray-500 shrink-0">{{ formatDuration(s.seconds) }}</span>
                                 </div>
-                                <div class="h-1.5 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden">
+                                <div class="h-1.5 bg-gray-200 dark:bg-white/10 rounded overflow-hidden">
                                     <div
                                         class="h-full bg-amber-600/70 dark:bg-amber-400/80 hover:bg-amber-500 dark:hover:bg-amber-300 rounded transition-all cursor-pointer"
                                         :style="{ width: (s.seconds / analytics.topStudios[0].seconds) * 100 + '%' }"
@@ -404,7 +399,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                 </div>
 
                 <!-- Deep watch callout -->
-                <div class="pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div class="pt-2 border-t border-black/10 dark:border-white/10">
                     <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">至少一集看到結尾附近（≥95%）的作品</p>
                     <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">
                         {{ analytics.summary.deepWatchedAnimeCount }}
@@ -414,7 +409,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
             </div>
 
             <!-- ── 6. PERIOD TRENDS ── -->
-            <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div class="panel-card p-6">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-1">
                     <div class="flex items-center gap-3">
                         <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">insights</span>
@@ -427,10 +422,10 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                             type="button"
                             @click="statsPeriod = opt.value"
                             :class="[
-                                'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                                'px-4 py-2 rounded-full text-sm font-medium transition-colors',
                                 statsPeriod === opt.value
-                                    ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
-                                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600',
+                                    ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-md'
+                                    : 'bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20',
                             ]"
                         >
                             {{ opt.label }}
@@ -440,7 +435,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                 <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">選定時間範圍內的觀看分布</p>
 
                 <div v-if="chartLoading" class="flex justify-center py-12">
-                    <div class="animate-spin rounded-full h-10 w-10 border-2 border-gray-400 border-t-transparent"></div>
+                    <div class="animate-spin rounded-full h-10 w-10 border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
                 </div>
 
                 <div v-else class="space-y-8">
@@ -482,7 +477,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                             <div v-if="chartData.genreDistribution.length" class="space-y-2">
                                 <div v-for="item in chartData.genreDistribution.slice(0, 8)" :key="item.label" class="flex items-center gap-3">
                                     <span class="text-sm text-gray-700 dark:text-gray-300 w-24 sm:w-28 truncate" :title="item.label">{{ item.label }}</span>
-                                    <div class="flex-1 h-6 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden">
+                                    <div class="flex-1 h-6 bg-gray-200 dark:bg-white/10 rounded overflow-hidden">
                                         <div
                                             class="h-full bg-gray-600 dark:bg-gray-400 hover:bg-gray-800 dark:hover:bg-gray-200 rounded transition-all cursor-pointer"
                                             :style="{ width: (item.value / chartData.genreDistribution.reduce((s, g) => s + g.value, 0)) * 100 + '%' }"
@@ -505,7 +500,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                 <li v-for="(a, idx) in chartData.topAnimeByTime.slice(0, 6)" :key="String(a.anime_ref_id) + idx" class="flex items-center gap-3">
                                     <span class="text-xs font-bold text-gray-400 w-5">{{ idx + 1 }}</span>
                                     <NuxtLink :to="`/anime/${a.anime_ref_id}`" class="flex items-center gap-3 min-w-0 flex-1 group">
-                                        <div class="w-10 h-14 rounded overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+                                        <div class="w-10 h-14 rounded overflow-hidden bg-gray-200 dark:bg-white/10 flex-shrink-0">
                                             <NuxtImg v-if="a.anime_image" :src="a.anime_image" class="w-full h-full object-cover" alt="" />
                                         </div>
                                         <div class="min-w-0 flex-1">
@@ -545,7 +540,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
             </div>
 
             <!-- ── 7. DEEP ANALYSIS ── -->
-            <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <div class="panel-card p-6">
                 <div class="flex items-center gap-3 mb-1">
                     <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">analytics</span>
                     <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">觀看行為分析</h2>
@@ -596,3 +591,9 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
         </div>
     </div>
 </template>
+
+<style scoped>
+.panel-card {
+    @apply bg-black/[0.02] dark:bg-white/5 rounded-2xl ring-1 ring-black/5 dark:ring-white/10;
+}
+</style>

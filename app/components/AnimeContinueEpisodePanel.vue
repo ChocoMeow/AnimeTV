@@ -29,29 +29,29 @@ function formatTime(seconds) {
     <div class="space-y-6 min-w-0 max-w-full">
         <transition name="slide-down">
             <section v-if="showContinuePrompt && lastWatchedData" aria-label="Continue watching">
-                <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-lg overflow-hidden">
+                <div class="bg-black/[0.02] dark:bg-white/5 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 shadow-lg overflow-hidden">
                     <div class="p-4 space-y-3">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-black/70 dark:bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <div class="w-10 h-10 bg-gray-900 dark:bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
                                 <span class="material-symbols-rounded text-xl text-white">play_circle</span>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-0.5">繼續觀看</h3>
-                                <p class="text-xs text-gray-600 dark:text-white/80 truncate">第 {{ lastWatchedData.episode_number }} 集</p>
+                                <p class="text-xs text-gray-600 dark:text-white/70 truncate">第 {{ lastWatchedData.episode_number }} 集</p>
                             </div>
                         </div>
                         <div class="space-y-1.5">
-                            <div class="flex items-center justify-between text-xs text-gray-600 dark:text-white/70">
+                            <div class="flex items-center justify-between text-xs text-gray-600 dark:text-white/60">
                                 <span>{{ formatTime(lastWatchedData.playback_time) }} / {{ formatTime(lastWatchedData.video_duration) }}</span>
                                 <span>{{ lastWatchedData.progress_percentage }}%</span>
                             </div>
-                            <div class="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-                                <div class="h-full bg-black/70 dark:bg-white rounded-full transition-all"
+                            <div class="h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                                <div class="h-full bg-gray-900 dark:bg-white rounded-full transition-all"
                                     :style="{ width: `${lastWatchedData.progress_percentage}%` }" />
                             </div>
                         </div>
                         <button
-                            class="w-full px-4 py-2.5 bg-black/70 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 rounded-lg transition-all font-medium flex items-center justify-center gap-2 text-sm"
+                            class="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-black hover:opacity-90 rounded-full transition-all font-semibold flex items-center justify-center gap-2 text-sm"
                             @click="$emit('continue-last')">
                             <span class="material-symbols-rounded text-lg">play_arrow</span>
                             繼續播放
@@ -77,7 +77,7 @@ function formatTime(seconds) {
                 @update:model-value="onEpisodeSelect"
                 @select="onEpisodeSelect" />
             <div v-else-if="episodesLoading" class="flex flex-col items-center justify-center py-10 text-gray-500 dark:text-gray-400">
-                <div class="w-8 h-8 border-2 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-white rounded-full animate-spin mb-3" />
+                <div class="w-8 h-8 border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white rounded-full animate-spin mb-3" />
                 <p>載入集數中...</p>
             </div>
             <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">

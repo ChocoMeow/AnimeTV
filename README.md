@@ -1,23 +1,28 @@
 # AnimeTV
 
-<img align="right" src="https://github.com/ChocoMeow/AnimeTV/blob/main/public/icons/icon_512x512.png" width=130 alt="AnimeTV Logo">
+<img align="right" width=130 alt="AnimeTV Logo" src="https://github.com/user-attachments/assets/58b62749-f7d5-405b-93e9-6249e3d25d3f" />
 
 Welcome to **AnimeTV**, a project designed for anime enthusiasts in Taiwan and Hong Kong! This application provides an extensive collection of anime metadata and video streaming capabilities.
 
 ## Features
 
 -   **Anime Metadata**: Fetches detailed information about various anime from [ani.gamer.com.tw](https://ani.gamer.com.tw).
--   **Video Streaming**: Provides video content sourced from [anime1.me](https://anime1.me).
--   **User-Friendly Interface**: Built with Nuxt 4.1.3 for a seamless and responsive experience.
--   **Watch History**: Tracks the viewing history for each video, allowing users to resume where they left off.
--   **User Settings**: Customize user preferences for a personalized experience.
+-   **Video Streaming**: Provides video content sourced from [anime1.me](https://anime1.me) (HLS and MP4).
+-   **User-Friendly Interface**: Built with Nuxt 4 for a seamless and responsive experience, including light / dark / system themes.
+-   **Browse & Search**: Weekday schedule, spotlight, genre themes, filters, pagination, and header search with suggestions.
+-   **Custom Video Player**: Theater mode, autoplay next episode, skip OP, playback speed, scrub thumbnails, fullscreen, and customizable keyboard shortcuts.
+-   **Watch History**: Tracks viewing progress so you can resume where you left off.
 -   **Favorite List**: Save favorite anime shows for easy access.
--   **Custom Video Player**: Enjoy a tailored video playback experience.
--   **Friend List**: Connect with friends to share recommendations and watch together.
+-   **Offline Downloads**: Download episodes for offline viewing (MP4 and HLS), with pause / resume / cancel and a download manager at `/offline-downloads`.
+-   **PWA**: Installable progressive web app with offline fallback when the network is unavailable.
+-   **Friend List**: Connect with friends, manage requests, and see live watching status.
+-   **Profile Analytics**: Watch time, genre mix, top titles / studios, and an activity heatmap.
+-   **User Settings**: Themes, history preferences, data clearing, and shortcut customization.
+-   **Admin**: Role-gated metadata search and CRUD for administrators.
 
 ## Screenshot
+<img width="1920" height="960" alt="screenshot" src="https://github.com/user-attachments/assets/9d084562-24e6-4984-baa2-ff5b4c1257fe" />
 
-<img width="1920" alt="Screenshot" src="https://github.com/user-attachments/assets/3a281466-6de7-4788-bf31-5d2355058f59" />
 
 ## Getting Started
 
@@ -63,14 +68,18 @@ Make sure you have the following installed:
         ```
         > You can find your database URL in your Supabase project under **Settings → Database → Connection string**.
 
-    - Update your `.env` file with the necessary Supabase credentials:
+    - Update your `.env` file with the necessary credentials:
 
         ```plaintext
+        # Supabase (required)
         NUXT_PUBLIC_SUPABASE_URL=your_supabase_url
         NUXT_PUBLIC_SUPABASE_KEY=your_supabase_key
         NUXT_SUPABASE_SECRET_KEY=your_supabase_secret_key
+
+        # Optional: FlareSolverr for Cloudflare (https://github.com/FlareSolverr/FlareSolverr)
+        # NUXT_CF_FETCH_FLARESOLVERR=http://127.0.0.1:8191/v1
         ```
-        > Replace the values with your actual credentials from **Supabase → Settings → API**.
+        > Replace Supabase values from **Supabase → Settings → API**.
 
 4. **Run the development server**:
 
@@ -82,7 +91,7 @@ Make sure you have the following installed:
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the GPL 3.0 License. See the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 

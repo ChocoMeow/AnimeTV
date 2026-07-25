@@ -221,25 +221,25 @@ useHead({
 </script>
 
 <template>
-    <div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8">
         <!-- Header -->
-        <div class="mb-6">
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">帳號設定</h1>
+        <div class="mb-6 sm:mb-8">
+            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">帳號設定</h1>
             <p class="text-gray-600 dark:text-gray-400">管理你的帳號偏好、隱私與資料</p>
         </div>
 
         <div v-if="loading" class="flex items-center justify-center py-20">
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-600 border-t-transparent"></div>
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
         </div>
 
-        <div v-else class="space-y-6">
+        <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start">
             <!-- Appearance (Theme) -->
-            <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div class="settings-panel">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <div class="flex items-center gap-3 mb-1">
-                            <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">palette</span>
-                            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">外觀</h3>
+                            <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">palette</span>
+                            <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">外觀</h3>
                         </div>
                         <p class="text-sm text-gray-600 dark:text-gray-400">選擇淺色、深色或跟隨系統主題</p>
                     </div>
@@ -248,12 +248,7 @@ useHead({
                             v-for="opt in [{ value: 'light', label: '淺色', icon: 'light_mode' }, { value: 'dark', label: '深色', icon: 'dark_mode' }, { value: 'system', label: '跟隨系統', icon: 'settings_brightness' }]"
                             :key="opt.value"
                             @click="setTheme(opt.value)"
-                            :class="[
-                                'px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2',
-                                theme === opt.value
-                                    ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
-                                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
-                            ]"
+                            :class="['pill-tab', theme === opt.value ? 'pill-tab-active' : 'pill-tab-inactive']"
                         >
                             <span class="material-symbols-rounded text-lg">{{ opt.icon }}</span>
                             {{ opt.label }}
@@ -262,110 +257,108 @@ useHead({
                 </div>
             </div>
 
+            <!-- Keyboard Shortcuts -->
+            <div class="settings-panel">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-3 mb-1">
+                            <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">keyboard</span>
+                            <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">鍵盤快捷鍵</h3>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">調整影片播放器的鍵盤快捷鍵</p>
+                    </div>
+                    <button type="button" @click="showShortcutsModal = true" class="pill-tab pill-tab-inactive sm:justify-end">
+                        <span class="material-symbols-rounded text-lg">edit</span>
+                        自訂
+                    </button>
+                </div>
+            </div>
+
             <!-- Privacy Settings -->
-            <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <div class="flex items-center gap-3 mb-6">
-                    <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">privacy_tip</span>
-                    <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">隱私設定</h3>
+            <div class="settings-panel">
+                <div class="flex items-center gap-3 mb-5 sm:mb-6">
+                    <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">privacy_tip</span>
+                    <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">隱私設定</h3>
                 </div>
 
-                <div class="space-y-6">
-                    <div class="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
-                        <div class="flex-1">
+                <div class="divide-y divide-black/5 dark:divide-white/10">
+                    <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                        <div class="flex-1 pr-4">
                             <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1">觀看紀錄</h4>
                             <p class="text-sm text-gray-600 dark:text-gray-400">記錄你觀看的動漫和播放進度</p>
                         </div>
-                        <button @click="updateSetting('watch_history_enabled', !userSettings.watch_history_enabled)" :class="userSettings.watch_history_enabled ? 'bg-gray-900 dark:bg-gray-100' : 'bg-gray-300 dark:bg-gray-600'" class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out">
-                            <span :class="userSettings.watch_history_enabled ? 'translate-x-7' : 'translate-x-1'" class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-900 shadow ring-0 transition duration-200 ease-in-out mt-1"></span>
+                        <button
+                            @click="updateSetting('watch_history_enabled', !userSettings.watch_history_enabled)"
+                            :class="userSettings.watch_history_enabled ? 'bg-gray-900 dark:bg-white' : 'bg-black/10 dark:bg-white/15'"
+                            class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
+                        >
+                            <span
+                                :class="userSettings.watch_history_enabled ? 'translate-x-7' : 'translate-x-1'"
+                                class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-950 shadow ring-0 transition duration-200 ease-in-out mt-1"
+                            ></span>
                         </button>
                     </div>
 
-                    <div class="flex items-center justify-between py-3">
-                        <div class="flex-1">
+                    <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                        <div class="flex-1 pr-4">
                             <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1">搜尋記錄</h4>
                             <p class="text-sm text-gray-600 dark:text-gray-400">記錄你查詢的內容與探索足跡</p>
                         </div>
-                        <button @click="updateSetting('search_history_enabled', !userSettings.search_history_enabled)" :class="userSettings.search_history_enabled ? 'bg-gray-900 dark:bg-gray-100' : 'bg-gray-300 dark:bg-gray-600'" class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out">
-                            <span :class="userSettings.search_history_enabled ? 'translate-x-7' : 'translate-x-1'" class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-900 shadow ring-0 transition duration-200 ease-in-out mt-1"></span>
+                        <button
+                            @click="updateSetting('search_history_enabled', !userSettings.search_history_enabled)"
+                            :class="userSettings.search_history_enabled ? 'bg-gray-900 dark:bg-white' : 'bg-black/10 dark:bg-white/15'"
+                            class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
+                        >
+                            <span
+                                :class="userSettings.search_history_enabled ? 'translate-x-7' : 'translate-x-1'"
+                                class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-950 shadow ring-0 transition duration-200 ease-in-out mt-1"
+                            ></span>
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Keyboard Shortcuts -->
-            <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <div class="flex items-center justify-between mb-6">
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">keyboard</span>
-                        <h3 class="text-xl font-semibold text-gray-900 dark:text-white">鍵盤快捷鍵</h3>
-                    </div>
-                    <button @click="showShortcutsModal = true" class="px-4 py-2 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors font-medium flex items-center gap-2">
-                        <span class="material-symbols-rounded text-lg">edit</span>
-                        自訂快捷鍵
-                    </button>
-                </div>
-                <p class="text-sm text-gray-600 dark:text-gray-400">自訂影片播放器的鍵盤快捷鍵以符合你的使用習慣</p>
-            </div>
-
             <!-- Data Management -->
-            <div class="bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <div class="flex items-center gap-3 mb-6">
-                    <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">storage</span>
-                    <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">資料管理</h3>
+            <div class="settings-panel">
+                <div class="flex items-center gap-3 mb-5 sm:mb-6">
+                    <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">storage</span>
+                    <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">資料管理</h3>
                 </div>
 
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                <div class="divide-y divide-black/5 dark:divide-white/10">
+                    <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
                         <div>
                             <h4 class="font-medium text-gray-900 dark:text-gray-100">觀看紀錄</h4>
                             <p class="text-sm text-gray-600 dark:text-gray-400">清除所有觀看紀錄</p>
                         </div>
-                        <button @click="openClearDataModal('history')" :disabled="stats.watchHistory === 0" class="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium">清除</button>
+                        <button @click="openClearDataModal('history')" :disabled="stats.watchHistory === 0" class="btn-danger-outline">清除</button>
                     </div>
 
-                    <div class="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
                         <div>
                             <h4 class="font-medium text-gray-900 dark:text-gray-100">收藏列表</h4>
                             <p class="text-sm text-gray-600 dark:text-gray-400">清除所有收藏的動漫</p>
                         </div>
-                        <button @click="openClearDataModal('favorites')" :disabled="stats.favorites === 0" class="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium">清除</button>
+                        <button @click="openClearDataModal('favorites')" :disabled="stats.favorites === 0" class="btn-danger-outline">清除</button>
                     </div>
 
-                    <div class="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
                         <div>
                             <h4 class="font-medium text-gray-900 dark:text-gray-100">搜尋紀錄</h4>
                             <p class="text-sm text-gray-600 dark:text-gray-400">清除所有搜尋歷史</p>
                         </div>
-                        <button @click="openClearDataModal('search')" :disabled="stats.searchHistory === 0" class="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium">清除</button>
+                        <button @click="openClearDataModal('search')" :disabled="stats.searchHistory === 0" class="btn-danger-outline">清除</button>
                     </div>
 
-                    <div class="flex items-center justify-between py-3">
+                    <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
                         <div>
                             <h4 class="font-medium text-gray-900 dark:text-gray-100">所有資料</h4>
                             <p class="text-sm text-gray-600 dark:text-gray-400">清除所有個人資料</p>
                         </div>
-                        <button @click="openClearDataModal('all')" class="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors font-medium">全部清除</button>
+                        <button @click="openClearDataModal('all')" class="btn-danger-outline">全部清除</button>
                     </div>
                 </div>
             </div>
-
-            <!-- Danger Zone -->
-            <!-- <div class="bg-red-50 dark:bg-red-900/10 rounded-xl border-2 border-red-200 dark:border-red-900/30 p-6">
-                <div class="flex items-center gap-3 mb-6">
-                    <span class="material-symbols-rounded text-red-600 dark:text-red-400">warning</span>
-                    <h3 class="text-xl font-semibold text-red-900 dark:text-red-400">危險區域</h3>
-                </div>
-
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h4 class="font-medium text-red-900 dark:text-red-400">停用帳號</h4>
-                            <p class="text-sm text-red-700 dark:text-red-500">暫時停用你的帳號</p>
-                        </div>
-                        <button @click="showDisableAccountModal = true" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium">停用帳號</button>
-                    </div>
-                </div>
-            </div> -->
         </div>
     </div>
 
@@ -380,15 +373,15 @@ useHead({
         </p>
 
         <template #actions>
-            <button @click="showClearDataModal = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
-            <button @click="clearData" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">確認清除</button>
+            <button @click="showClearDataModal = false" class="btn-modal-cancel">取消</button>
+            <button @click="clearData" class="btn-modal-danger">確認清除</button>
         </template>
     </BaseModal>
 
     <!-- Shortcuts Customization Modal -->
     <BaseModal :show="showShortcutsModal" title="自訂快捷鍵" icon="keyboard" icon-color="text-gray-500" max-width="max-w-3xl" @close="showShortcutsModal = false">
         <div class="space-y-4">
-            <div v-if="waitingForKey && editingShortcut" class="mb-4 p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <div v-if="waitingForKey && editingShortcut" class="mb-4 p-4 bg-black/5 dark:bg-white/10 rounded-xl">
                 <p class="text-sm text-gray-700 dark:text-gray-300 font-medium">
                     請按下你想要設定的按鍵...
                 </p>
@@ -399,29 +392,29 @@ useHead({
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">
                 <div v-for="action in Object.keys(shortcuts)" :key="action" 
-                    class="flex items-center justify-between p-3 bg-gray-950/5 dark:bg-white/10 rounded-lg hover:bg-gray-950/10 dark:hover:bg-white/20 transition-colors"
-                    :class="{ 'ring-2 ring-gray-500 dark:ring-gray-400': editingShortcut === action }">
+                    class="flex items-center justify-between p-3 bg-black/[0.02] dark:bg-white/5 ring-1 ring-black/5 dark:ring-white/10 rounded-xl hover:ring-black/10 dark:hover:ring-white/20 transition-all"
+                    :class="{ 'ring-2 ring-gray-900 dark:ring-white': editingShortcut === action }">
                     <div class="flex-1">
                         <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ shortcuts[action]?.label || action }}</p>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                            預設: <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">{{ formatShortcutKey(defaultShortcuts[action]?.key || defaultShortcuts[action]) }}</kbd>
+                            預設: <kbd class="px-1.5 py-0.5 bg-black/5 dark:bg-white/10 rounded text-xs">{{ formatShortcutKey(defaultShortcuts[action]?.key || defaultShortcuts[action]) }}</kbd>
                         </p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">
+                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 rounded">
                             {{ formatShortcutKey(shortcuts[action]?.key || shortcuts[action]) }}
                         </kbd>
                         <button @click="editingShortcut === action ? cancelEditShortcut() : startEditShortcut(action)" 
-                            class="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded transition-colors">
+                            class="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors">
                             {{ editingShortcut === action ? '取消' : '編輯' }}
                         </button>
                     </div>
                 </div>
             </div>
 
-            <div class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between pt-4 border-t border-black/10 dark:border-white/10">
                 <button @click="resetAllShortcuts" 
-                    class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                    class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-lg transition-colors">
                     重置為預設值
                 </button>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -431,8 +424,30 @@ useHead({
         </div>
 
         <template #actions>
-            <button @click="showShortcutsModal = false" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">關閉</button>
+            <button @click="showShortcutsModal = false" class="btn-modal-cancel">關閉</button>
         </template>
     </BaseModal>
 </template>
+
+<style scoped>
+.settings-panel {
+    @apply bg-black/[0.02] dark:bg-white/5 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 p-5 sm:p-6;
+}
+
+.pill-tab {
+    @apply px-4 py-2.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2;
+}
+
+.pill-tab-inactive {
+    @apply bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20;
+}
+
+.pill-tab-active {
+    @apply bg-gray-900 dark:bg-white text-white dark:text-black shadow-md;
+}
+
+.btn-danger-outline {
+    @apply px-4 py-2 bg-red-500/10 text-red-600 dark:text-red-400 rounded-full hover:bg-red-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed font-medium;
+}
+</style>
 

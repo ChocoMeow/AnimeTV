@@ -49,7 +49,7 @@ function goToPage(page) {
 
 <template>
     <div class="flex justify-center items-center">
-        <div class="inline-flex items-center gap-2 bg-gray-950/5 dark:bg-white/10 rounded-xl shadow-lg p-2 border border-gray-200 dark:border-gray-700">
+        <div class="inline-flex items-center gap-2 bg-black/[0.02] dark:bg-white/5 rounded-xl shadow-lg p-2 ring-1 ring-black/5 dark:ring-white/10">
             <!-- First Page (Mobile Hidden) -->
             <button v-if="currentPage > 3" @click="emit('change', 1)" class="pagination-button hidden sm:flex" :disabled="currentPage === 1">
                 <span class="material-symbols-rounded text-sm">first_page</span>

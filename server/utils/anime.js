@@ -513,6 +513,19 @@ export async function fetchAnimeData() {
     return ANIME1_LIST_CACHE.fetchPromise;
 }
 
+let flareSessionId = null
+
+async function flareRequest(solver, body) {
+    const res = await fetch(solver, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    })
+    const data = await res.json()
+    if (data.status !== 'ok') throw new Error(data.message || 'FlareSolverr failed')
+    return data
+}
+
 export async function cfFetch(url) {
     try {
         const now = Date.now()
@@ -523,20 +536,48 @@ export async function cfFetch(url) {
             return cached
         }
 
-        const response = await fetch(url)
-        if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}}`) }
+        const solver = (useRuntimeConfig().cfFetchFlaresolverr || '').trim()
+        let html
 
-        const html = await response.text()
+        if (solver) {
+            if (!flareSessionId) {
+                flareSessionId = (await flareRequest(solver, { cmd: 'sessions.create' })).session
+            }
+            let data
+            try {
+                data = await flareRequest(solver, {
+                    cmd: 'request.get',
+                    url,
+                    session: flareSessionId,
+                    maxTimeout: 60000,
+                })
+            } catch {
+                flareSessionId = (await flareRequest(solver, { cmd: 'sessions.create' })).session
+                data = await flareRequest(solver, {
+                    cmd: 'request.get',
+                    url,
+                    session: flareSessionId,
+                    maxTimeout: 60000,
+                })
+            }
+            html = data.solution.response
+        } else {
+            const response = await fetch(url)
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`)
+            html = await response.text()
+        }
+
         const result = { html, timestamp: now }
 
         RESPONSE_CACHE.set(url, result)
-        if (RESPONSE_CACHE.size > 200) {
+        while (RESPONSE_CACHE.size > 200) {
             const firstKey = RESPONSE_CACHE.keys().next().value
             RESPONSE_CACHE.delete(firstKey)
         }
 
         return result
     } catch (error) {
-        return null;
+        console.error(`cfFetch failed for ${url}:`, error.message)
+        return null
     }
 }

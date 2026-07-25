@@ -76,7 +76,7 @@ async function shareNative() {
     <LazyBaseDialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)" title="分享動漫" max-width="max-w-md">
         <div class="space-y-6">
             <!-- QR Code Section -->
-            <div class="flex justify-center p-6 bg-black/10 dark:bg-white/10 rounded-xl">
+            <div class="flex justify-center p-6 bg-black/[0.02] dark:bg-white/5 rounded-xl ring-1 ring-black/5 dark:ring-white/10">
                 <div class="bg-white p-4 rounded-lg shadow-md">
                     <div class="relative w-48 h-48">
                         <div v-if="!qrCodeLoaded" class="absolute inset-0 bg-gray-200 rounded-lg animate-pulse"></div>
@@ -86,7 +86,7 @@ async function shareNative() {
             </div>
 
             <!-- Timestamp Toggle -->
-            <div v-if="hasEpisode" class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
+            <div v-if="hasEpisode" class="flex items-center justify-between p-4 bg-black/[0.02] dark:bg-white/5 rounded-xl ring-1 ring-black/5 dark:ring-white/10">
                 <div class="flex items-center gap-3">
                     <span class="material-symbols-rounded text-gray-600 dark:text-gray-400">schedule</span>
                     <div>
@@ -96,7 +96,7 @@ async function shareNative() {
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" v-model="includeTimestamp" class="sr-only peer" />
-                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 dark:peer-focus:ring-gray-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:after:bg-gray-900 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-900 dark:peer-checked:bg-gray-100"></div>
+                    <div class="w-11 h-6 bg-black/10 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-black/10 dark:peer-focus:ring-white/10 rounded-full peer dark:bg-white/15 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:after:bg-gray-950 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-white/20 peer-checked:bg-gray-900 dark:peer-checked:bg-white"></div>
                 </label>
             </div>
 
@@ -104,8 +104,8 @@ async function shareNative() {
             <div class="space-y-2">
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">分享連結</label>
                 <div class="flex gap-2 items-center">
-                    <input type="text" :value="finalUrl" readonly class="flex-1 px-4 py-3 bg-black/10 dark:bg-white/10 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-transparent" />
-                    <button @click="copyUrl" :class="['copy-btn px-4 py-3 rounded-lg transition-all flex items-center gap-2', copied ? 'bg-emerald-500 hover:bg-emerald-600 scale-105 text-white' : 'bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900']" aria-pressed="false" type="button">
+                    <input type="text" :value="finalUrl" readonly class="flex-1 px-4 py-3 bg-black/5 dark:bg-white/10 border border-transparent rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent" />
+                    <button @click="copyUrl" :class="['copy-btn px-4 py-3 rounded-full transition-all flex items-center gap-2', copied ? 'bg-emerald-500 hover:bg-emerald-600 scale-105 text-white' : 'bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black']" aria-pressed="false" type="button">
                         <span class="icon-wrap w-5 h-5 relative">
                             <span class="material-symbols-rounded icon-copy absolute inset-0 w-5 h-5" aria-hidden="true">content_copy</span>
                             <span class="material-symbols-rounded icon-check absolute inset-0 w-5 h-5" aria-hidden="true">check</span>
@@ -116,7 +116,7 @@ async function shareNative() {
 
             <!-- Native Share Button -->
             <div class="flex flex-col sm:flex-row gap-3">
-                <button @click="shareNative" class="flex-1 px-4 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-all flex items-center justify-center gap-2 font-medium">
+                <button @click="shareNative" class="flex-1 px-4 py-3 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black rounded-full transition-all flex items-center justify-center gap-2 font-semibold">
                     <span class="material-symbols-rounded">share</span>
                     <span>分享</span>
                 </button>

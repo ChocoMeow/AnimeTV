@@ -236,7 +236,7 @@ onBeforeUnmount(() => {
                 <!-- Drawer Container -->
                 <div 
                     ref="drawerRef"
-                    class="bg-white dark:bg-gray-950 rounded-t-3xl shadow-2xl w-full will-change-transform" 
+                    class="bg-white dark:bg-gray-950 rounded-t-3xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 w-full will-change-transform" 
                     :class="maxHeight"
                     @click.stop
                 >
@@ -247,7 +247,7 @@ onBeforeUnmount(() => {
                         @mousedown="startDrag"
                         @touchstart="startDrag"
                     >
-                        <div class="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+                        <div class="w-12 h-1.5 bg-black/15 dark:bg-white/20 rounded-full"></div>
                     </div>
 
                     <!-- Header -->

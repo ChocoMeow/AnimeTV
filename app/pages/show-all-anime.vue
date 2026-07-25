@@ -1,4 +1,6 @@
 <script setup>
+import { ANIME_TAGS } from '~~/shared/animeTags'
+
 const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
@@ -33,44 +35,8 @@ const {
     cleanup,
 } = useAnimeTooltip()
 
-const tags = [
-    "全部",
-    "動作",
-    "冒險",
-    "奇幻",
-    "異世界",
-    "魔法",
-    "超能力",
-    "科幻",
-    "機甲",
-    "校園",
-    "喜劇",
-    "戀愛",
-    "青春",
-    "勵志",
-    "溫馨",
-    "悠閒",
-    "料理",
-    "親情",
-    "感人",
-    "運動",
-    "競技",
-    "偶像",
-    "音樂",
-    "職場",
-    "推理",
-    "懸疑",
-    "時間穿越",
-    "歷史",
-    "戰爭",
-    "血腥暴力",
-    "靈異神怪",
-    "黑暗",
-    "特攝",
-    "BL",
-    "GL",
-]
-const categories = ["電影", "OVA", "雙語", "泡麵番", "真人演出"]
+const tags = ["全部", ...ANIME_TAGS]
+const categories = ["電影", "OVA", "雙語", "泡麵番", "真人演出", "自訂作品"]
 const sortOptions = [
     { value: "1", label: "依年份排列" },
     { value: "2", label: "依月人氣排序" },
@@ -285,33 +251,33 @@ onUnmounted(() => {
     </div>
 
     <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8">
         <!-- Results Header -->
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
-                <h1 v-if="!loading" class="text-2xl font-bold text-gray-900 dark:text-white">全部作品</h1>
-                <div v-else class="h-8 w-40 rounded-lg bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                <h1 v-if="!loading" class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">全部作品</h1>
+                <div v-else class="h-8 w-40 rounded-lg bg-gray-200 dark:bg-white/10 animate-pulse" />
                 <span v-if="!loading" class="text-sm text-gray-500 dark:text-gray-400"> 共 {{ animeList.length }} 部作品 </span>
             </div>
         </div>
 
         <!-- Skeleton grid while loading -->
-        <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
             <SkeletonAnimeCard v-for="n in 12" :key="n" />
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="!animeList.length" class="flex flex-col items-center justify-center min-h-[400px] text-center">
-            <div class="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                <span class="material-symbols-rounded text-5xl text-gray-400 dark:text-gray-600">search_off</span>
+        <div v-else-if="!animeList.length" class="flex flex-col items-center justify-center min-h-[400px] text-center rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/5 dark:border-white/5">
+            <div class="w-20 h-20 bg-black/5 dark:bg-white/5 rounded-full flex items-center justify-center mb-4">
+                <span class="material-symbols-rounded text-5xl text-gray-400 dark:text-gray-500 opacity-70">search_off</span>
             </div>
-            <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">找不到相關作品</h3>
+            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">找不到相關作品</h3>
             <p class="text-gray-500 dark:text-gray-400 mb-4">請嘗試調整篩選條件</p>
-            <button @click="clearAllFilters" class="px-6 py-2 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors">清除篩選條件</button>
+            <button @click="clearAllFilters" class="px-6 py-2.5 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black rounded-full font-medium transition-opacity">清除篩選條件</button>
         </div>
 
         <!-- Anime Grid -->
-        <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
             <LazyAnimeCard 
                 v-for="anime in animeList" 
                 :key="anime.refId" 

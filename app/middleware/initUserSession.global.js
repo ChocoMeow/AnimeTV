@@ -10,6 +10,11 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
         return
     }
 
+    if (!navigator.onLine) {
+        if (!path.startsWith('/offline')) return navigateTo('/offline')
+        return
+    }
+
     const user = useSupabaseUser()
     if (!user.value) {
         if (isLoginPage) return

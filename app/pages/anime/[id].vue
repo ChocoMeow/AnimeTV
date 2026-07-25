@@ -1,6 +1,7 @@
 <script setup>
 // ─── Composables ──────────────────────────────────────────────────────────────
 const { userSettings, getShortcuts, formatShortcutKey } = useUserSettings()
+const user = useSupabaseUser()
 const appConfig = useAppConfig()
 const route = useRoute()
 const router = useRouter()
@@ -33,6 +34,32 @@ const {
 
 const userShortcuts = computed(() => getShortcuts())
 const isMac = computed(() => /Mac|iPhone|iPod|iPad/i.test(navigator.platform ?? ''))
+
+// SEO: public API only when logged out (crawlers)
+const { data: seo } = await useFetch(`/api/public/anime/${route.params.id}/seo`, {
+    immediate: !user.value,
+    default: () => null,
+})
+const seoTitle = computed(() => (seo.value?.title ? `${seo.value.title} | ${appConfig.siteName}` : appConfig.siteName))
+const seoDesc = computed(() => {
+    const s = seo.value
+    if (!s) return appConfig.siteDescription
+    return [s.score > 0 && `★ ${s.score}`, s.views && `${formatViews(s.views)} 觀看`, s.description]
+        .filter(Boolean)
+        .join(' · ') || appConfig.siteDescription
+})
+useSeoMeta({
+    title: () => (seo.value?.title ? seoTitle.value : undefined),
+    description: () => seoDesc.value,
+    ogTitle: () => seoTitle.value,
+    ogDescription: () => seoDesc.value,
+    ogImage: () => seo.value?.image,
+    ogType: 'website',
+    twitterCard: 'summary',
+    twitterTitle: () => seoTitle.value,
+    twitterDescription: () => seoDesc.value,
+    twitterImage: () => seo.value?.image,
+})
 
 // ─── State ────────────────────────────────────────────────────────────────────
 const anime = ref(null)
@@ -81,6 +108,13 @@ let streamRecovering = false
 
 const SAVE_INTERVAL = 120_000
 let saveTimer = null
+
+// Action Toolbar
+const toolbarHeaderRef = ref(null)
+const toolbarHeaderWidth = ref(1024)
+const toolbarRowLayout = ref(true)
+let toolbarResizeObserver = null
+let disposeToolbarLayout = null
 
 // ─── Computed ─────────────────────────────────────────────────────────────────
 const sortedEpisodeKeys = computed(() => {
@@ -195,8 +229,20 @@ const animeToolbarActions = computed(() => {
     return actions
 })
 
-const toolbarPrimaryActions = computed(() => animeToolbarActions.value.slice(0, 3))
-const toolbarOverflowActions = computed(() => animeToolbarActions.value.slice(3))
+const toolbarActionsSplit = computed(() => {
+    const actions = animeToolbarActions.value
+    const visible = Math.min(toolbarMaxVisible(toolbarHeaderWidth.value, toolbarRowLayout.value), actions.length)
+    return { primary: actions.slice(0, visible), overflow: actions.slice(visible) }
+})
+
+// ─── Toolbar actions split ─────────────────────────────────────────────────────
+function toolbarMaxVisible(width, rowLayout) {
+    const [show3, show2, show1] = rowLayout ? [900, 720, 520] : [360, 280, 180]
+    if (width >= show3) return 3
+    if (width >= show2) return 2
+    if (width >= show1) return 1
+    return 0
+}
 
 // ─── Offline helpers ──────────────────────────────────────────────────────────
 function revokeOfflinePlayback() {
@@ -285,6 +331,15 @@ const formatRating = (score) => (score ? parseFloat(score).toFixed(1) : 'N/A')
 
 // ─── Toolbar overflow click-outside ──────────────────────────────────────────
 let toolbarOverflowClickHandler = null
+
+watch(toolbarHeaderRef, (el) => {
+    toolbarResizeObserver?.disconnect()
+    if (!el) return
+    toolbarResizeObserver = new ResizeObserver(([entry]) => {
+        toolbarHeaderWidth.value = entry.contentRect.width
+    })
+    toolbarResizeObserver.observe(el)
+})
 
 watch(showToolbarOverflowMenu, (open) => {
     if (!import.meta.client) return
@@ -678,12 +733,20 @@ function handleShortcutsKeydown(e) {
 onBeforeUnmount(() => handleLeave())
 
 onMounted(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const syncLayout = () => { toolbarRowLayout.value = mq.matches }
+    syncLayout()
+    mq.addEventListener('change', syncLayout)
+    disposeToolbarLayout = () => mq.removeEventListener('change', syncLayout)
+
     fetchDetail()
     window.addEventListener('beforeunload', handleLeave)
     window.addEventListener('keydown', handleShortcutsKeydown)
 })
 
 onUnmounted(() => {
+    disposeToolbarLayout?.()
+    toolbarResizeObserver?.disconnect()
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
     if (toolbarOverflowClickHandler) document.removeEventListener('click', toolbarOverflowClickHandler, true)
@@ -704,7 +767,7 @@ onUnmounted(() => {
         </div>
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">載入失敗</h2>
         <p class="text-red-600 dark:text-red-400 mb-6 max-w-md">{{ error }}</p>
-        <button @click="router.back()" class="px-6 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg shadow-lg transition-all transform hover:-translate-y-0.5">返回上一頁</button>
+        <button @click="router.back()" class="px-6 py-3 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black rounded-full font-semibold shadow-lg transition-all transform hover:-translate-y-0.5">返回上一頁</button>
     </div>
 
     <!-- Empty -->
@@ -786,30 +849,31 @@ onUnmounted(() => {
                     <!-- Anime Information -->
                     <section class="space-y-4" aria-label="Anime information">
                         <!-- Title + Actions -->
-                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">{{ anime.title }}</h1>
-                            <div class="flex items-center gap-2 flex-shrink-0">
-                                <button v-for="action in toolbarPrimaryActions" :key="action.key"
+                        <div ref="toolbarHeaderRef" class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                            <h1 class="min-w-0 md:flex-1 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">{{ anime.title }}</h1>
+                            <div v-if="animeToolbarActions.length" class="flex flex-wrap items-center gap-2 w-full md:w-auto md:flex-shrink-0 md:justify-end">
+                                <button v-for="action in toolbarActionsSplit.primary" :key="action.key"
                                     type="button"
-                                    class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
-                                    :title="action.label" :aria-label="action.label"
+                                    class="inline-flex items-center gap-1.5 h-10 px-3 bg-black/5 dark:bg-white/10 rounded-full ring-1 ring-black/5 dark:ring-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all focus:outline-none"
+                                    :aria-label="action.label"
                                     @click="action.run()">
                                     <span class="material-symbols-rounded text-xl" :class="action.iconClass">{{ action.icon }}</span>
+                                    <span class="text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">{{ action.label }}</span>
                                 </button>
-                                <div v-if="toolbarOverflowActions.length" ref="toolbarOverflowRoot" class="relative">
+                                <div v-if="toolbarActionsSplit.overflow.length" ref="toolbarOverflowRoot" class="relative">
                                     <button type="button"
-                                        class="w-10 h-10 bg-gray-950/5 dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20 hover:bg-gray-950/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
+                                        class="w-10 h-10 bg-black/5 dark:bg-white/10 rounded-full ring-1 ring-black/5 dark:ring-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all flex items-center justify-center focus:outline-none"
                                         title="更多" aria-label="更多操作"
                                         :aria-expanded="showToolbarOverflowMenu"
                                         @click.stop="showToolbarOverflowMenu = !showToolbarOverflowMenu">
                                         <span class="material-symbols-rounded text-xl text-gray-900 dark:text-white">more_vert</span>
                                     </button>
                                     <div v-show="showToolbarOverflowMenu"
-                                        class="absolute right-0 top-full mt-2 min-w-[11rem] py-1 rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-gray-950 shadow-lg z-10"
+                                        class="absolute right-0 top-full mt-2 min-w-[11rem] py-1 rounded-xl ring-1 ring-black/5 dark:ring-white/10 bg-white dark:bg-gray-950 shadow-xl z-10"
                                         role="menu" @click.stop>
-                                        <button v-for="action in toolbarOverflowActions" :key="action.key"
+                                        <button v-for="action in toolbarActionsSplit.overflow" :key="action.key"
                                             type="button"
-                                            class="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
+                                            class="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left text-gray-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10"
                                             role="menuitem"
                                             @click="action.run(); showToolbarOverflowMenu = false">
                                             <span class="material-symbols-rounded text-lg flex-shrink-0" :class="action.iconClass">{{ action.icon }}</span>
@@ -845,18 +909,18 @@ onUnmounted(() => {
                     <div v-if="anime.tags?.length" class="flex flex-wrap items-center gap-2">
                         <NuxtLink v-for="tag in anime.tags" :key="tag"
                             :to="`/show-all-anime?tags=${encodeURIComponent(tag)}`"
-                            class="px-3 py-1.5 bg-gray-950/5 dark:bg-white/10 rounded-full border border-gray-200 dark:border-white/20 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-950/10 dark:hover:bg-white/20 hover:border-gray-300 dark:hover:border-white/40 transition-all flex items-center gap-1.5 focus:outline-none">
+                            class="px-3 py-1.5 bg-black/5 dark:bg-white/10 rounded-full ring-1 ring-black/5 dark:ring-white/10 text-sm font-medium text-gray-900 dark:text-white hover:bg-black/10 dark:hover:bg-white/20 hover:ring-black/10 dark:hover:ring-white/20 transition-all flex items-center gap-1.5 focus:outline-none">
                             <span class="material-symbols-rounded text-xs">tag</span>
                             {{ tag }}
                         </NuxtLink>
                     </div>
 
                     <!-- Additional Details -->
-                    <div v-if="additionalDetails.length" class="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div v-if="additionalDetails.length" class="pt-4 border-t border-black/10 dark:border-white/10">
                         <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">詳細資訊</h3>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div v-for="detail in additionalDetails" :key="detail.label"
-                                class="bg-gray-950/5 dark:bg-white/10 rounded-xl p-4">
+                                class="bg-black/[0.02] dark:bg-white/5 rounded-xl ring-1 ring-black/5 dark:ring-white/10 p-4">
                                 <div class="flex items-start gap-3">
                                     <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="detail.iconBg">
                                         <span class="material-symbols-rounded text-xl" :class="detail.iconColor">{{ detail.icon }}</span>
@@ -935,22 +999,22 @@ onUnmounted(() => {
         <div class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="space-y-2">
-                    <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between py-2 border-b border-black/10 dark:border-white/10">
                         <span class="text-sm text-gray-600 dark:text-gray-400">{{ userShortcuts.playPause?.label || "播放/暫停" }}</span>
-                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">{{ formatShortcutKey(userShortcuts.playPause) }}</kbd>
+                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 rounded">{{ formatShortcutKey(userShortcuts.playPause) }}</kbd>
                     </div>
-                    <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between py-2 border-b border-black/10 dark:border-white/10">
                         <span class="text-sm text-gray-600 dark:text-gray-400">長按 {{ formatShortcutKey(userShortcuts.playPause) }} (2x 速度)</span>
-                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">{{ formatShortcutKey(userShortcuts.playPause) }} (長按)</kbd>
+                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 rounded">{{ formatShortcutKey(userShortcuts.playPause) }} (長按)</kbd>
                     </div>
                 </div>
                 <div class="space-y-2">
                     <div class="flex items-center justify-between py-2">
                         <span class="text-sm text-gray-600 dark:text-gray-400">顯示快捷鍵</span>
                         <div class="flex items-center gap-1">
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">{{ isMac ? '⌘' : 'Ctrl' }}</kbd>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 rounded">{{ isMac ? '⌘' : 'Ctrl' }}</kbd>
                             <span class="text-xs text-gray-400">+</span>
-                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">/</kbd>
+                            <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 rounded">/</kbd>
                         </div>
                     </div>
                 </div>
@@ -958,9 +1022,9 @@ onUnmounted(() => {
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                 <template v-for="(shortcut, action) in userShortcuts" :key="action">
                     <div v-if="action !== 'playPause' && shortcut?.label"
-                        class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                        class="flex items-center justify-between py-2 border-b border-black/10 dark:border-white/10">
                         <span class="text-sm text-gray-600 dark:text-gray-400">{{ shortcut.label }}</span>
-                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">{{ formatShortcutKey(shortcut) }}</kbd>
+                        <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 rounded">{{ formatShortcutKey(shortcut) }}</kbd>
                     </div>
                 </template>
             </div>
@@ -975,5 +1039,5 @@ onUnmounted(() => {
 .slide-down-enter-active, .slide-down-leave-active { transition: all 0.4s ease-out; }
 .slide-down-enter-from, .slide-down-leave-to { opacity: 0; transform: translateY(-20px); }
 
-*:focus-visible { @apply outline-none ring-2 ring-gray-900 dark:ring-white ring-offset-2; }
+*:focus-visible { @apply outline-none ring-2 ring-gray-900 dark:ring-white ring-offset-2 dark:ring-offset-gray-950; }
 </style>

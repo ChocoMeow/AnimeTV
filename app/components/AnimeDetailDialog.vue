@@ -43,7 +43,7 @@ watch(
     <LazyBaseDialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)" title="動漫詳情" max-width="max-w-4xl" scrollable>
         <!-- Loading State -->
         <div v-if="loading" class="flex flex-col items-center justify-center py-12">
-            <div class="inline-block w-12 h-12 border-4 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin mb-4"></div>
+            <div class="inline-block w-12 h-12 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white rounded-full animate-spin mb-4"></div>
             <p class="text-gray-600 dark:text-gray-400">載入詳情中...</p>
         </div>
 
@@ -87,6 +87,10 @@ watch(
 .wiki-content :deep(p),
 .wiki-content :deep(div) {
     @apply leading-relaxed my-2;
+}
+
+.wiki-content :deep(iframe) {
+    @apply my-4 w-full aspect-video rounded-lg border-0;
 }
 
 .dialog-enter-active,

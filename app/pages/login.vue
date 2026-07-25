@@ -240,11 +240,11 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
             <div ref="scrollContainer" class="absolute inset-0 flex flex-row gap-6">
                     <div
                     v-for="(lane, i) in animeLanes"
-                        :key="i"
-                        :class="['anime-scroll-lane', lane.class, lane.extra]"
-                    >
-                        <div :class="['anime-scroll-track', { 'animate-ready': animationsReady }]">
-                            <div
+                    :key="i"
+                    :class="['anime-scroll-lane', lane.class, lane.extra]"
+                >
+                    <div :class="['anime-scroll-track', { 'animate-ready': animationsReady }]">
+                        <div
                             v-for="(imageUrl, index) in lane.anime"
                             :key="`${lane.class}-${index}-${imageUrl}`"
                                 class="anime-scroll-item"
@@ -280,8 +280,8 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                 <!-- Verifying State -->
                 <div v-if="authStatus === 'verifying'" class="text-center space-y-6">
                     <div class="relative inline-flex items-center justify-center">
-                        <div class="absolute w-20 h-20 border-4 border-gray-300 dark:border-gray-600 border-t-gray-950 dark:border-t-gray-100 rounded-full animate-spin"></div>
-                        <div class="w-16 h-16 rounded-full bg-gray-600 dark:bg-gray-800 flex items-center justify-center shadow-lg">
+                        <div class="absolute w-20 h-20 border-4 border-black/10 dark:border-white/15 border-t-gray-950 dark:border-t-white rounded-full animate-spin"></div>
+                        <div class="w-16 h-16 rounded-full bg-gray-900 dark:bg-white/10 flex items-center justify-center shadow-lg">
                             <span class="material-symbols-rounded text-white text-3xl">security</span>
                         </div>
                     </div>
@@ -310,9 +310,9 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">歡迎回來，{{ userName }}</p>
                     </div>
 
-                    <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                    <div class="bg-black/[0.02] dark:bg-white/5 rounded-xl p-4 ring-1 ring-black/5 dark:ring-white/10">
                         <div class="flex items-center justify-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-gray-600 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
+                            <div class="w-10 h-10 rounded-full bg-gray-900 dark:bg-white/10 flex items-center justify-center overflow-hidden">
                                 <NuxtImg v-if="userAvatarUrl" :src="userAvatarUrl" alt="" class="w-full h-full object-cover" loading="lazy" />
                             </div>
                             <div class="text-left">
@@ -354,7 +354,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                 <!-- Login Form (Default) -->
                 <div v-else class="space-y-8">
                     <div class="flex justify-center lg:justify-start">
-                        <NuxtImg class="w-16 h-16" src="/icons/icon_512x512.webp" alt="" loading="lazy" />
+                        <NuxtImg class="w-24 h-24" src="/icons/icon.svg" alt="" loading="lazy" />
                     </div>
                     
                     <div class="text-center lg:text-left space-y-3">
@@ -392,14 +392,14 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                                     </svg>
                                 </template>
 
-                                <div v-if="loading" class="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 border-t-gray-950 dark:border-t-white rounded-full animate-spin"></div>
+                                <div v-if="loading" class="w-5 h-5 border-2 border-black/10 dark:border-white/20 border-t-gray-950 dark:border-t-white rounded-full animate-spin"></div>
 
                                 <span class="font-semibold text-base">{{ loading ? "登入中..." : provider.label }}</span>
                             </div>
                         </button>
                     </div>
 
-                    <div class="pt-6 border-t border-gray-200 dark:border-white/10">
+                    <div class="pt-6 border-t border-black/10 dark:border-white/10">
                         <p class="text-xs text-center text-gray-500 dark:text-gray-400">
                             登入即表示您同意我們的
                             <NuxtLink to="/terms" class="text-gray-700 dark:text-white/80 hover:text-gray-950 dark:hover:text-white hover:underline transition-colors">服務條款</NuxtLink>

@@ -78,10 +78,10 @@ function onAfterLeave() {
                 aria-busy="true"
             >
                 <img
-                    class="app-splash-logo block h-[72px] w-[72px] object-cover"
-                    src="/icons/icon_512x512.webp"
-                    width="72"
-                    height="72"
+                    class="app-splash-logo block h-36 w-36 object-contain"
+                    src="/icons/animated_icon_400x400.webp"
+                    width="144"
+                    height="144"
                     alt=""
                     fetchpriority="high"
                 />
@@ -99,7 +99,7 @@ function onAfterLeave() {
 
 .app-splash-logo {
     transform: scale(1);
-    border-radius: 0.875rem;
+    /* border-radius: 1rem; */
 }
 
 .app-splash-root.app-splash-leave-active {

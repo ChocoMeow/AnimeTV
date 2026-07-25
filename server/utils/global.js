@@ -2,6 +2,9 @@ export const GAMER_BASE_URL = "https://ani.gamer.com.tw/";
 export const ACG_GAMER_BASE_URL = "https://acg.gamer.com.tw/"
 export const ANIME1_BASE_URL = "https://anime1.me/";
 
+/** Manual / autofill source_ids start here; Bahamut anime SNs stay below this. */
+export const CUSTOM_SOURCE_ID_MIN = 1_000_000
+
 export const ANIME1_LIST_CACHE = {
     fetchPromise: null,
     timestamp: 0,

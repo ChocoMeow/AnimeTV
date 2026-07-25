@@ -40,7 +40,7 @@ const NAV_ITEMS = [
     { id: 'all', to: '/show-all-anime', label: '全部作品', icon: 'movie', match: (p) => p.startsWith('/show-all-anime') },
     { id: 'search', label: '搜尋', icon: 'search', isAction: true },
     { id: 'history', to: '/history', label: '觀看紀錄', icon: 'history', match: (p) => p.startsWith('/history') },
-    { id: 'profile', to: '/profile', label: '個人資料', match: (p) => p.startsWith('/profile') },
+    { id: 'profile', to: '/mobile-profile', label: '帳戶', match: (p) => p.startsWith('/mobile-profile') },
 ]
 
 // ─── Active state & pill position ────────────────────────────────────────────
@@ -50,7 +50,7 @@ const activeIndex = computed(() => {
     if (p === '/') return 0
     if (p.startsWith('/show-all-anime')) return 1
     if (p.startsWith('/history')) return 3
-    if (p.startsWith('/profile')) return 4
+    if (p.startsWith('/mobile-profile')) return 4
     return -1
 })
 
@@ -69,7 +69,10 @@ function onSearchClick() {
 
 // ─── Derived classes ─────────────────────────────────────────────────────────
 
-const profileInitial = computed(() => user.value?.user_metadata?.name?.[0]?.toUpperCase() ?? 'U')
+const userAvatar = computed(() => ({
+    src: user.value?.user_metadata?.avatar_url || user.value?.user_metadata?.picture || '',
+    name: user.value?.user_metadata?.name || 'User',
+}))
 
 const collapsed = computed(() => headerHiddenMobile.value)
 
@@ -129,28 +132,12 @@ function itemColorClass(active) {
                         :aria-current="isItemActive(item) ? 'page' : undefined"
                         :aria-label="item.label"
                     >
-                        <!-- Profile avatar -->
-                        <template v-if="item.id === 'profile'">
-                            <span
-                                class="relative shrink-0 overflow-hidden rounded-full transition-[width,height,box-shadow] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]"
-                                :class="[avatarBoxClass, isItemActive(item) ? 'ring-2 ring-white' : 'ring-1 ring-white/30']"
-                            >
-                                <NuxtImg
-                                    v-if="user?.user_metadata?.avatar_url"
-                                    :src="user.user_metadata.avatar_url"
-                                    :alt="user.user_metadata?.name ?? ''"
-                                    class="h-full w-full object-cover"
-                                    loading="lazy"
-                                />
-                                <div
-                                    v-else
-                                    class="flex h-full w-full items-center justify-center bg-indigo-600 font-semibold text-white transition-[font-size] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]"
-                                    :class="avatarTextClass"
-                                >
-                                    {{ profileInitial }}
-                                </div>
-                            </span>
-                        </template>
+                        <UserAvatar
+                            v-if="item.id === 'profile'"
+                            v-bind="userAvatar"
+                            :class="[avatarBoxClass, avatarTextClass, 'shrink-0 transition-[width,height,box-shadow] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]']"
+                            :img-class="isItemActive(item) ? 'ring-2 ring-white' : 'ring-1 ring-white/30'"
+                        />
 
                         <!-- Icon items -->
                         <span v-else :class="iconClass(isItemActive(item))" aria-hidden="true">

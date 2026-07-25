@@ -2,11 +2,12 @@
 const props = defineProps({
     relatedAnime: { type: Array, default: () => [] },
     tags: { type: Array, default: () => [] },
-    currentRefId: { type: String, default: "" },
+    currentRefId: { type: [String, Number], default: "" },
 })
 
 const emit = defineEmits(["tooltip-enter", "tooltip-leave"])
 
+const client = useSupabaseClient()
 const selectedTab = ref(null)
 const listItems = ref([])
 const listLoading = ref(false)
@@ -42,6 +43,38 @@ function scrollTags(direction) {
     tagScroll.value?.scrollBy({ left: direction * 140, behavior: "smooth" })
 }
 
+async function fetchByTags(tagList) {
+    const tags = tagList.map(String).map((t) => t.trim()).filter(Boolean)
+    if (!tags.length) return []
+
+    let query = client
+        .from("anime_meta")
+        .select("source_id, title, thumbnail, premiere_date, views")
+        .overlaps("tags", tags)
+        .not("video_id", "is", null)
+        .order("views", { ascending: false })
+        .limit(20)
+
+    if (props.currentRefId) {
+        query = query.neq("source_id", props.currentRefId)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+
+    return (data || []).map((row) => {
+        const premiere = row.premiere_date ? String(row.premiere_date) : ""
+        return {
+            refId: String(row.source_id),
+            title: row.title,
+            image: row.thumbnail,
+            year: premiere ? premiere.slice(0, 7).replace("-", "/") : null,
+            episodes: null,
+            views: row.views ?? null,
+        }
+    })
+}
+
 async function loadTab(tabId) {
     selectedTab.value = tabId
 
@@ -57,12 +90,8 @@ async function loadTab(tabId) {
 
     listLoading.value = true
     try {
-        const params = new URLSearchParams({ page: "1" })
-        const tagParam = tabId === "all-tags" ? props.tags.join(",") : tabId.slice(4)
-        params.set("tags", tagParam)
-
-        const res = await $fetch(`/api/animeList?${params}&sort=2`)
-        const items = (res.results || []).filter((a) => String(a.refId) !== String(props.currentRefId))
+        const tagList = tabId === "all-tags" ? props.tags : [tabId.slice(4)]
+        const items = await fetchByTags(tagList)
         listCache.value[tabId] = items
         listItems.value = items
     } catch {
@@ -113,8 +142,8 @@ onUnmounted(() => {
                     type="button"
                     class="flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors"
                     :class="selectedTab === tab.id
-                        ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-                        : 'bg-gray-950/5 dark:bg-white/10 text-gray-900 dark:text-white hover:bg-gray-950/10 dark:hover:bg-white/20'"
+                        ? 'bg-gray-900 dark:bg-white text-white dark:text-black'
+                        : 'bg-black/5 dark:bg-white/10 text-gray-900 dark:text-white hover:bg-black/10 dark:hover:bg-white/20'"
                     @click="loadTab(tab.id)">
                     {{ tab.label }}
                 </button>
@@ -129,7 +158,7 @@ onUnmounted(() => {
 
             <button
                 type="button"
-                class="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 dark:bg-gray-950/90 shadow-sm transition-all duration-200 hover:bg-gray-200 dark:hover:bg-white/25 hover:shadow-md"
+                class="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 dark:bg-gray-950/90 ring-1 ring-black/5 dark:ring-white/10 shadow-sm transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/15 hover:shadow-md"
                 :class="canScrollLeft ? 'opacity-100' : 'opacity-0 pointer-events-none'"
                 aria-label="向左捲動"
                 @click="scrollTags(-1)">
@@ -138,7 +167,7 @@ onUnmounted(() => {
 
             <button
                 type="button"
-                class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 dark:bg-gray-950/90 shadow-sm transition-all duration-200 hover:bg-gray-200 dark:hover:bg-white/25 hover:shadow-md"
+                class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 dark:bg-gray-950/90 ring-1 ring-black/5 dark:ring-white/10 shadow-sm transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/15 hover:shadow-md"
                 :class="canScrollRight ? 'opacity-100' : 'opacity-0 pointer-events-none'"
                 aria-label="向右捲動"
                 @click="scrollTags(1)">
@@ -147,7 +176,7 @@ onUnmounted(() => {
         </div>
 
         <div v-if="listLoading" class="flex justify-center py-8">
-            <div class="w-8 h-8 border-2 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-white rounded-full animate-spin" />
+            <div class="w-8 h-8 border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white rounded-full animate-spin" />
         </div>
 
         <div v-else-if="!listItems.length" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -159,12 +188,12 @@ onUnmounted(() => {
                 v-for="item in listItems"
                 :key="item.refId || item.video_url"
                 :to="`/anime/${item.refId}`"
-                class="flex gap-3 p-2 rounded-lg hover:bg-gray-950/5 dark:hover:bg-white/10 transition-colors group focus:outline-none"
+                class="flex gap-3 p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors group focus:outline-none"
                 role="listitem"
                 :aria-label="`View ${item.title}`"
                 @mouseenter="emit('tooltip-enter', item, $event)"
                 @mouseleave="emit('tooltip-leave')">
-                <div class="flex-shrink-0 w-32 aspect-video rounded overflow-hidden bg-gray-200 dark:bg-gray-700">
+                <div class="flex-shrink-0 w-32 aspect-video rounded overflow-hidden bg-gray-200 dark:bg-white/5">
                     <NuxtImg
                         :src="item.image"
                         :alt="`${item.title} thumbnail`"

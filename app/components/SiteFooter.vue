@@ -35,14 +35,14 @@ const year = new Date().getFullYear()
 </script>
 
 <template>
-    <footer class="relative mt-auto border-t border-gray-200/80 dark:border-white/10 bg-gray-50/80 dark:bg-gray-950/80 backdrop-blur-sm">
+    <footer class="relative mt-auto border-t border-black/10 dark:border-white/10 bg-gray-50/80 dark:bg-gray-950/80 backdrop-blur-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
             <!-- Main content: flex row on desktop, stacked on mobile -->
             <div class="flex flex-col gap-10 lg:flex-row lg:flex-wrap lg:justify-between lg:gap-x-12 lg:gap-y-8">
                 <!-- Brand -->
                 <div class="lg:max-w-xs">
                     <NuxtLink to="/" class="inline-flex items-center gap-2 group">
-                        <NuxtImg src="/icons/icon_64x64.webp" :alt="appConfig.siteName" class="w-10 h-10 rounded-xl" loading="lazy" />
+                        <img src="/icons/icon.svg" :alt="appConfig.siteName" class="w-8 h-8 object-contain" width="32" height="32" loading="lazy" />
                         <span class="text-lg font-bold text-gray-900 dark:text-white group-hover:opacity-90">{{ appConfig.siteName }}</span>
                     </NuxtLink>
                     <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
@@ -113,7 +113,7 @@ const year = new Date().getFullYear()
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 :aria-label="social.name"
-                                class="inline-flex w-10 h-10 rounded-xl bg-gray-200/80 dark:bg-white/10 items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-white/20 transition-all duration-200 hover:scale-105"
+                                class="inline-flex w-10 h-10 rounded-xl bg-black/5 dark:bg-white/10 items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/20 transition-all duration-200 hover:scale-105"
                             >
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path :d="social.icon" />
@@ -128,7 +128,7 @@ const year = new Date().getFullYear()
             </div>
 
             <!-- Bottom bar -->
-            <div class="mt-10 pt-8 border-t border-gray-200/80 dark:border-white/10">
+            <div class="mt-10 pt-8 border-t border-black/10 dark:border-white/10">
                 <p class="text-sm text-gray-500 dark:text-gray-400">
                     © {{ year }} {{ appConfig.siteName }}. 保留所有權利。
                 </p>
