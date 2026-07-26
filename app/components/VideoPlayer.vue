@@ -877,7 +877,7 @@ onUnmounted(() => {
         <div v-if="isLoading && src"
             class="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-10">
             <div
-                class="w-10 h-10 sm:w-12 sm:h-12 border-[6px] border-white/25 border-t-white rounded-full animate-spin mb-3" />
+                class="w-10 h-10 sm:w-12 sm:h-12 border-4 border-white/25 border-t-white rounded-full animate-spin mb-3" />
             <p class="text-white/90 text-sm">載入影片中...</p>
         </div>
 
@@ -1026,7 +1026,7 @@ onUnmounted(() => {
                                 <span class="material-symbols-rounded text-[1.35rem]">settings</span>
                             </button>
                             <button @click="toggleTheaterMode" :title="tooltipLabels.theaterMode"
-                                class="player-group-btn hidden sm:inline-flex">
+                                class="player-group-btn !hidden sm:!inline-flex">
                                 <span class="material-symbols-rounded text-[1.35rem]" :class="{ outlined: !props.theaterMode }">developer_mode_tv</span>
                             </button>
                             <button @click="toggleFullscreen" :title="tooltipLabels.fullscreen"
