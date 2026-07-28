@@ -14,7 +14,7 @@ useHead({ title: `服務條款 | ${appConfig.siteName}` })
             <section>
                 <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">一、服務說明</h2>
                 <p>
-                    AnimeTV（以下稱「本服務」）提供動畫節目之瀏覽、搜尋與觀看紀錄等相關功能。使用本服務即表示您同意遵守本服務條款。若您不同意本條款，請勿使用本服務。
+                    AnimeTV（以下稱「本服務」）提供動畫節目之瀏覽、搜尋、觀看紀錄與 AI 助手等相關功能。使用本服務即表示您同意遵守本服務條款。若您不同意本條款，請勿使用本服務。
                 </p>
             </section>
 
@@ -47,21 +47,34 @@ useHead({ title: `服務條款 | ${appConfig.siteName}` })
             </section>
 
             <section>
-                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">五、免責聲明</h2>
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">五、AI 助手</h2>
+                <p class="mb-3">
+                    本服務可能提供 AI 助手功能，協助您查詢動漫資訊、觀看紀錄、收藏與相關設定建議。使用 AI 助手前，您需於介面中另行同意相關隱私授權；未同意前不得使用該功能。
+                </p>
+                <ul class="list-disc pl-6 space-y-2">
+                    <li>AI 回覆僅供參考，可能不完整或不正確，不構成任何保證；</li>
+                    <li>涉及設定或收藏等變更時，仍須經您在介面中再次確認後才會套用；</li>
+                    <li>您不得利用 AI 助手從事違法、侵害他人權益或規避本條款之行為；</li>
+                    <li>我們得基於維運、安全或法規需求，調整、限制或暫停 AI 助手功能。</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">六、免責聲明</h2>
                 <p>
-                    本服務依「現狀」提供，我們不保證服務不中斷、無錯誤或完全符合您的預期。在法律允許之範圍內，我們對於因使用或無法使用本服務所生之任何直接、間接、衍生損害不負責任。
+                    本服務依「現狀」提供，我們不保證服務不中斷、無錯誤或完全符合您的預期。在法律允許之範圍內，我們對於因使用或無法使用本服務（含 AI 助手回覆）所生之任何直接、間接、衍生損害不負責任。
                 </p>
             </section>
 
             <section>
-                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">六、條款變更</h2>
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">七、條款變更</h2>
                 <p>
                     我們可能隨時修訂本服務條款，修訂後之條款將於本頁公布；若修訂涉及重大權益變更，我們會以適當方式通知。繼續使用本服務即視為接受修訂後之條款。
                 </p>
             </section>
 
             <section>
-                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">七、聯絡我們</h2>
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">八、聯絡我們</h2>
                 <p>
                     若您對本服務條款有任何疑問，歡迎透過本網站或應用程式內提供之管道與我們聯絡。
                 </p>

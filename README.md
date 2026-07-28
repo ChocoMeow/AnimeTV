@@ -18,6 +18,7 @@ Welcome to **AnimeTV**, a project designed for anime enthusiasts in Taiwan and H
 -   **Friend List**: Connect with friends, manage requests, and see live watching status.
 -   **Profile Analytics**: Watch time, genre mix, top titles / studios, and an activity heatmap.
 -   **User Settings**: Themes, history preferences, data clearing, and shortcut customization.
+-   **AI Assistant**: Floating chat helper for anime Q&A, recommendations, history/favorites lookup, and confirmed settings changes (requires privacy consent).
 -   **Admin**: Role-gated metadata search and CRUD for administrators.
 
 ## Screenshot
@@ -76,11 +77,16 @@ Make sure you have the following installed:
         NUXT_PUBLIC_SUPABASE_KEY=your_supabase_key
         NUXT_SUPABASE_SECRET_KEY=your_supabase_secret_key
 
+        # Optional: AI assistant
+        # NUXT_AI_API_KEY=your_ai_api_key
+        # NUXT_AI_BASE_URL=https://api.openai.com/v1
+        # NUXT_AI_MODEL=gpt-4o-mini
+        # NUXT_AI_PROXY_URL=http://127.0.0.1:8080
+
         # Optional: FlareSolverr for Cloudflare (https://github.com/FlareSolverr/FlareSolverr)
         # NUXT_CF_FETCH_FLARESOLVERR=http://127.0.0.1:8191/v1
         ```
-        > Replace Supabase values from **Supabase → Settings → API**.
-
+        > Replace Supabase values from **Supabase → Settings → API**. All app env vars use the `NUXT_` prefix.
 4. **Run the development server**:
 
     ```bash

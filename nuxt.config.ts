@@ -5,11 +5,16 @@ export default defineNuxtConfig({
     compatibilityDate: '2025-07-15',
     devtools: { enabled: true },
     runtimeConfig: {
-        supabaseSecretKey: process.env.SUPABASE_SECRET_KEY,
-        cfFetchFlaresolverr: process.env.CF_FETCH_FLARESOLVERR || '',
+        supabaseSecretKey: '',
+        cfFetchFlaresolverr: '',
+        aiApiKey: '',
+        aiBaseUrl: '',
+        aiModel: '',
+        aiProxyUrl: '',
         public: {
-            supabaseUrl: process.env.SUPABASE_URL,
-            supabaseKey: process.env.SUPABASE_KEY,
+            supabaseUrl: '',
+            supabaseKey: '',
+            aiEnabled: !!(process.env.NUXT_AI_API_KEY && process.env.NUXT_AI_BASE_URL && process.env.NUXT_AI_MODEL),
         },
     },
     $production: {
