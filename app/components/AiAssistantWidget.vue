@@ -209,11 +209,23 @@ async function readSse(res, onEvent) {
         for (const chunk of chunks) {
             const line = chunk.split('\n').find((l) => l.startsWith('data:'))
             if (!line) continue
+            let event
             try {
-                onEvent(JSON.parse(line.slice(5).trim()))
-            } catch {}
+                event = JSON.parse(line.slice(5).trim())
+            } catch {
+                continue
+            }
+            onEvent(event)
         }
     }
+}
+
+function isNetworkError(error) {
+    const msg = String(error?.message || error || '')
+    return (
+        error?.name === 'TypeError' ||
+        /load failed|failed to fetch|networkerror|network request failed|fetch failed/i.test(msg)
+    )
 }
 
 function handleChatEvent(event, idx) {
@@ -238,7 +250,10 @@ function handleChatEvent(event, idx) {
         followUpSuggestions.value = Array.isArray(event.suggestions) ? event.suggestions : []
         scrollToBottom()
     } else if (event.type === 'error') {
-        throw new Error(clientError({ message: event.message, errorId: event.errorId }))
+        throw Object.assign(new Error(clientError({ message: event.message, errorId: event.errorId })), {
+            errorId: event.errorId,
+            fromServer: true,
+        })
     }
 }
 
@@ -277,7 +292,10 @@ async function sendMessage() {
         finishAssistant(idx)
     } catch (error) {
         if (error?.name === 'AbortError') return
-        finishAssistant(idx, error?.message || '助手目前無法使用，請稍後再試。')
+        const fallback = isNetworkError(error)
+            ? '連線中斷，請稍後再試。若問題持續，可能是回應時間過長。'
+            : error?.message || '助手目前無法使用，請稍後再試。'
+        finishAssistant(idx, fallback)
         resetChatState()
     } finally {
         loading.value = false

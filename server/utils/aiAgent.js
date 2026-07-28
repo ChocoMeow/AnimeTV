@@ -604,6 +604,8 @@ export async function applyConfirmedAction(event, userId, action) {
 const CHAT_TOO_LONG_MESSAGE = '對話內容已達上限，請建立新對話後再繼續。'
 const INJECTION_REFUSAL = '我無法處理這類要求。請只詢問動漫相關問題，例如推薦、搜尋、觀看紀錄或收藏設定。'
 const MAX_AGENT_STEPS = 6
+const AI_PROVIDER_TIMEOUT_MS = 180_000
+const WEB_SEARCH_TIMEOUT_MS = 30_000
 let cachedProxy = null
 
 async function fetchWithProxy(url, init, proxyUrl) {
@@ -621,6 +623,7 @@ async function callAiProvider(config, body) {
             method: 'POST',
             headers: { Authorization: `Bearer ${config.aiApiKey}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
+            signal: AbortSignal.timeout(AI_PROVIDER_TIMEOUT_MS),
         },
         config.aiProxyUrl,
     )
@@ -655,11 +658,12 @@ async function searchWeb(query, { limit = 5, proxyUrl } = {}) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': 'Mozilla/5.0 (compatible; AnimeHubBot/1.0)',
+                'User-Agent':
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
                 Accept: 'text/html',
             },
             body: new URLSearchParams({ q }).toString(),
-            signal: AbortSignal.timeout(12_000),
+            signal: AbortSignal.timeout(WEB_SEARCH_TIMEOUT_MS),
         },
         proxyUrl,
     )
@@ -775,9 +779,21 @@ async function generateFollowUpSuggestions(config, userMessages, assistantReply)
 async function finishReply(send, config, userMessages, payload) {
     await send({ type: 'done', ...payload })
     if (payload.pendingAction) return
-    await send({ type: 'status', status: 'suggesting' })
-    const suggestions = await generateFollowUpSuggestions(config, userMessages, payload.message)
+    const suggestions = await withHeartbeat(send, 'suggesting', () =>
+        generateFollowUpSuggestions(config, userMessages, payload.message),
+    )
     if (suggestions.length) await send({ type: 'suggestions', suggestions })
+}
+
+/** Keep SSE alive through Cloudflare idle timeouts while awaiting slow work. */
+async function withHeartbeat(send, status, work) {
+    await send({ type: 'status', status })
+    const timer = setInterval(() => send({ type: 'status', status }).catch(() => {}), 8000)
+    try {
+        return await work()
+    } finally {
+        clearInterval(timer)
+    }
 }
 
 export async function runChatAgent({ event, config, userId, userMessages, send }) {
@@ -800,15 +816,17 @@ export async function runChatAgent({ event, config, userId, userMessages, send }
     let anime = []
     let links = []
 
-    await send({ type: 'status', status: 'thinking' })
-
     for (let step = 0; step < MAX_AGENT_STEPS; step++) {
-        const choice = (await callAiProvider(config, {
-            model: config.aiModel,
-            messages,
-            tools: AGENT_TOOLS,
-            tool_choice: 'auto',
-        }))?.choices?.[0]?.message
+        const choice = (
+            await withHeartbeat(send, 'thinking', () =>
+                callAiProvider(config, {
+                    model: config.aiModel,
+                    messages,
+                    tools: AGENT_TOOLS,
+                    tool_choice: 'auto',
+                }),
+            )
+        )?.choices?.[0]?.message
 
         if (!choice) throw createError({ statusCode: 502, statusMessage: 'Upstream empty response', message: 'AI 回應為空。' })
 
@@ -823,15 +841,15 @@ export async function runChatAgent({ event, config, userId, userMessages, send }
             return
         }
 
-        await send({ type: 'status', status: 'tools' })
-
         for (const call of toolCalls) {
             const toolName = call?.function?.name
-            if (toolName === 'web_search') await send({ type: 'status', status: 'searching' })
+            const status = toolName === 'web_search' ? 'searching' : 'tools'
 
             let result
             try {
-                result = await runAgentTool(event, userId, toolName, call?.function?.arguments || '{}')
+                result = await withHeartbeat(send, status, () =>
+                    runAgentTool(event, userId, toolName, call?.function?.arguments || '{}'),
+                )
             } catch (error) {
                 const safe = logAiError(error, { route: '/api/ai/chat', userId, stage: 'tool', tool: toolName })
                 result = { error: `工具暫時無法使用。（錯誤代碼：${safe.errorId}）` }
