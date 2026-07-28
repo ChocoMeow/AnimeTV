@@ -14,7 +14,7 @@ useHead({ title: `服務條款 | ${appConfig.siteName}` })
             <section>
                 <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">一、服務說明</h2>
                 <p>
-                    AnimeTV（以下稱「本服務」）提供動畫節目之瀏覽、搜尋、觀看紀錄與 AI 助手等相關功能。使用本服務即表示您同意遵守本服務條款。若您不同意本條款，請勿使用本服務。
+                    {{ appConfig.siteName }}（以下稱「本服務」）提供動畫節目之瀏覽、搜尋、觀看紀錄與 AI 助手等相關功能。使用本服務即表示您同意遵守本服務條款。若您不同意本條款，請勿使用本服務。
                 </p>
             </section>
 

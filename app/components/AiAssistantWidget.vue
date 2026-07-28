@@ -1,13 +1,14 @@
 <script setup>
 const user = useSupabaseUser()
+const route = useRoute()
 const { userSettings } = useUserSettings()
 const { showToast } = useToast()
-const route = useRoute()
+const { siteName } = useAppConfig()
 
-const WELCOME = '嗨！我是你的 AnimeTV 助手，可以回答動漫問題，也能查詢你的觀看資料與協助調整設定。'
+const WELCOME = `嗨！我是你的 ${siteName} 助手，可以回答動漫問題，也能查詢你的觀看資料與協助調整設定。`
 const CHAT_TOO_LONG = '對話內容已達上限，請建立新對話後再繼續。'
 const MAX_CHARS = 24000
-const CONSENT_KEY = (id) => `animetv.ai.privacyConsent.${id}`
+const CONSENT_KEY = (id) => `app.ai.privacyConsent.${id}`
 const CONSENT_VER = 'v1'
 const SUGGESTIONS = [
     { label: '繼續觀看', text: '有哪些還沒看完可以繼續看？' },
@@ -15,7 +16,7 @@ const SUGGESTIONS = [
     { label: '本月統計', text: '我這個月看了多久？最愛類型是什麼？' },
     { label: '我的收藏', text: '列出我的收藏' },
 ]
-const STATUS = { thinking: '正在思考中…', tools: '正在查詢資料…', replying: '正在回覆…' }
+const STATUS = { thinking: '正在思考中…', tools: '正在查詢資料…', searching: '正在搜尋網路…', suggesting: '正在產生建議…', replying: '正在回覆…' }
 const SETTING_LABELS = { watch_history_enabled: '觀看紀錄', search_history_enabled: '搜尋紀錄' }
 
 const open = useState('ai-widget-open', () => false)
@@ -28,6 +29,7 @@ const inputRef = ref(null)
 const stickToBottom = ref(true)
 const pendingAction = ref(null)
 const aiConsent = ref(false)
+const followUpSuggestions = ref([])
 const showMobilePwaNav = useState('app-show-mobile-pwa-nav', () => false)
 const messages = ref([{ role: 'assistant', content: WELCOME }])
 let abortCtrl = null
@@ -41,7 +43,11 @@ const chatAtLimit = computed(() => chatLen.value >= MAX_CHARS)
 const needsNewChat = computed(() => chatAtLimit.value || chatLen.value + input.value.trim().length > MAX_CHARS)
 const canUseAi = computed(() => !!user.value && aiConsent.value)
 const canSend = computed(() => canUseAi.value && !!input.value.trim() && !busy.value && !needsNewChat.value)
-const showSuggestions = computed(() => canUseAi.value && !loading.value && messages.value.length === 1 && !pendingAction.value)
+const activeSuggestions = computed(() => {
+    if (!canUseAi.value || loading.value || pendingAction.value) return []
+    if (messages.value.length === 1) return SUGGESTIONS
+    return followUpSuggestions.value
+})
 const canClear = computed(() => canUseAi.value && !busy.value && messages.value.length > 1)
 const pendingFavorite = computed(() => (pendingAction.value?.type === 'update_favorite' ? pendingAction.value : null))
 const pendingChanges = computed(() =>
@@ -67,9 +73,9 @@ const inputPlaceholder = computed(() =>
 const isAuthRoute = computed(() => route.path.startsWith('/login'))
 const widgetRootClass = computed(() => {
     if (showMobilePwaNav.value) {
-        return 'fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] z-[70] px-2'
+        return 'fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] z-[10000] px-2'
     }
-    return 'fixed inset-x-0 bottom-0 z-[70] px-2 pb-2 md:inset-x-auto md:left-4 md:bottom-4 md:px-0 md:pb-0'
+    return 'fixed inset-x-0 bottom-0 z-[10000] px-2 pb-2 md:inset-x-auto md:right-4 md:bottom-4 md:px-0 md:pb-0 md:flex md:flex-col md:items-end'
 })
 const panelClass = computed(() =>
     showMobilePwaNav.value
@@ -116,7 +122,25 @@ function focusInput() {
 function scrollToBottom(force = false) {
     const el = listRef.value
     if (!el || (!force && !stickToBottom.value)) return
+
+    const jump = () => {
+        el.scrollTop = el.scrollHeight
+    }
+
+    if (force) {
+        nextTick(() => {
+            jump()
+            requestAnimationFrame(jump)
+        })
+        return
+    }
+
     nextTick(() => el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }))
+}
+
+function onPanelOpen() {
+    stickToBottom.value = true
+    scrollToBottom(true)
 }
 
 function onListScroll() {
@@ -125,11 +149,16 @@ function onListScroll() {
     stickToBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight <= 56
 }
 
+function resetChatState() {
+    pendingAction.value = null
+    followUpSuggestions.value = []
+}
+
 function clearChat() {
     if (busy.value) return
     abortCtrl?.abort()
     messages.value = [{ role: 'assistant', content: WELCOME }]
-    pendingAction.value = null
+    resetChatState()
     statusText.value = ''
     input.value = ''
     nextTick(resizeInput)
@@ -187,6 +216,32 @@ async function readSse(res, onEvent) {
     }
 }
 
+function handleChatEvent(event, idx) {
+    const msg = messages.value[idx]
+    if (!msg) return
+
+    if (event.type === 'status') {
+        statusText.value = STATUS[event.status] || STATUS.thinking
+    } else if (event.type === 'delta' && event.content) {
+        statusText.value = STATUS.replying
+        msg.content += event.content
+        scrollToBottom()
+    } else if (event.type === 'done') {
+        msg.anime = event.anime || []
+        msg.links = event.links || []
+        if (event.message && !msg.content) msg.content = event.message
+        const action = event.pendingAction
+        pendingAction.value = action?.type === 'update_user_settings' || action?.type === 'update_favorite' ? action : null
+        if (pendingAction.value) followUpSuggestions.value = []
+        finishAssistant(idx)
+    } else if (event.type === 'suggestions') {
+        followUpSuggestions.value = Array.isArray(event.suggestions) ? event.suggestions : []
+        scrollToBottom()
+    } else if (event.type === 'error') {
+        throw new Error(clientError({ message: event.message, errorId: event.errorId }))
+    }
+}
+
 async function sendMessage() {
     const content = input.value.trim()
     if (!content || busy.value || !canUseAi.value) return
@@ -194,7 +249,7 @@ async function sendMessage() {
 
     abortCtrl?.abort()
     abortCtrl = new AbortController()
-    pendingAction.value = null
+    resetChatState()
     messages.value.push({ role: 'user', content })
     input.value = ''
     nextTick(resizeInput)
@@ -218,30 +273,12 @@ async function sendMessage() {
             throw Object.assign(new Error(clientError(err)), { statusCode: res.status, data: err })
         }
 
-        await readSse(res, (event) => {
-            const msg = messages.value[idx]
-            if (!msg) return
-            if (event.type === 'status') statusText.value = STATUS[event.status] || STATUS.thinking
-            else if (event.type === 'delta' && event.content) {
-                statusText.value = STATUS.replying
-                msg.content += event.content
-                scrollToBottom()
-            } else if (event.type === 'done') {
-                msg.anime = event.anime || []
-                msg.links = event.links || []
-                if (event.message && !msg.content) msg.content = event.message
-                const action = event.pendingAction
-                pendingAction.value = action?.type === 'update_user_settings' || action?.type === 'update_favorite' ? action : null
-                finishAssistant(idx)
-            } else if (event.type === 'error') {
-                throw new Error(clientError({ message: event.message, errorId: event.errorId }))
-            }
-        })
+        await readSse(res, (event) => handleChatEvent(event, idx))
         finishAssistant(idx)
     } catch (error) {
         if (error?.name === 'AbortError') return
         finishAssistant(idx, error?.message || '助手目前無法使用，請稍後再試。')
-        pendingAction.value = null
+        resetChatState()
     } finally {
         loading.value = false
         statusText.value = ''
@@ -282,7 +319,8 @@ function cancelPending() {
 
 watch(userId, loadConsent, { immediate: true })
 watch(() => [messages.value.length, loading.value, pendingAction.value, messages.value.at(-1)?.content], () => scrollToBottom())
-watch(open, (v) => v && ((stickToBottom.value = true), scrollToBottom(true)))
+watch(open, (v) => v && onPanelOpen())
+watch(aiConsent, (v) => v && open.value && onPanelOpen())
 watch(input, () => nextTick(resizeInput))
 watch(isAuthRoute, (v) => v && (open.value = false))
 
@@ -306,7 +344,7 @@ onUnmounted(() => {
 
 <template>
     <div :class="widgetRootClass">
-        <transition name="fade-up">
+        <transition name="fade-up" @after-enter="onPanelOpen">
             <div
                 v-if="open && !isAuthRoute"
                 :class="panelClass"
@@ -409,8 +447,14 @@ onUnmounted(() => {
                             </div>
                         </div>
 
-                        <div v-if="showSuggestions" class="flex flex-wrap gap-1.5 pt-1">
-                            <button v-for="item in SUGGESTIONS" :key="item.label" type="button" class="chip" @click="useSuggestion(item)">
+                        <div v-if="activeSuggestions.length" class="flex flex-wrap gap-1.5 pt-1">
+                            <button
+                                v-for="item in activeSuggestions"
+                                :key="item.label + item.text"
+                                type="button"
+                                class="chip"
+                                @click="useSuggestion(item)"
+                            >
                                 {{ item.label }}
                             </button>
                         </div>

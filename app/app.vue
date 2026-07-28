@@ -1,9 +1,3 @@
-<script setup>
-const { aiEnabled } = useRuntimeConfig().public
-const route = useRoute()
-const showAiWidget = computed(() => aiEnabled && !route.path.startsWith('/login'))
-</script>
-
 <template>
     <NuxtRouteAnnouncer />
     <NuxtPwaAssets />
@@ -12,5 +6,4 @@ const showAiWidget = computed(() => aiEnabled && !route.path.startsWith('/login'
         <NuxtLoadingIndicator :throttle="0" />
         <NuxtPage />
     </NuxtLayout>
-    <LazyAiAssistantWidget v-if="showAiWidget" />
 </template>

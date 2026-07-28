@@ -14,7 +14,7 @@ useHead({ title: `隱私政策 | ${appConfig.siteName}` })
             <section>
                 <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">一、概述</h2>
                 <p>
-                    AnimeTV（以下稱「我們」或「本服務」）重視您的隱私。本隱私政策說明我們如何蒐集、使用及保護與您使用本服務相關之資訊。使用本服務即表示您同意本政策所載之做法。
+                    {{ appConfig.siteName }}（以下稱「我們」或「本服務」）重視您的隱私。本隱私政策說明我們如何蒐集、使用及保護與您使用本服務相關之資訊。使用本服務即表示您同意本政策所載之做法。
                 </p>
             </section>
 
