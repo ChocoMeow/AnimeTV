@@ -78,6 +78,7 @@ Make sure you have the following installed:
         NUXT_SUPABASE_SECRET_KEY=your_supabase_secret_key
 
         # Optional: AI assistant
+        # NUXT_PUBLIC_AI_ENABLED=true
         # NUXT_AI_API_KEY=your_ai_api_key
         # NUXT_AI_BASE_URL=https://api.openai.com/v1
         # NUXT_AI_MODEL=gpt-4o-mini
@@ -86,7 +87,7 @@ Make sure you have the following installed:
         # Optional: FlareSolverr for Cloudflare (https://github.com/FlareSolverr/FlareSolverr)
         # NUXT_CF_FETCH_FLARESOLVERR=http://127.0.0.1:8191/v1
         ```
-        > Replace Supabase values from **Supabase → Settings → API**. All app env vars use the `NUXT_` prefix.
+        > Replace Supabase values from **Supabase → Settings → API**. Set `NUXT_PUBLIC_AI_ENABLED=true` to show the AI widget. All app env vars use the `NUXT_` prefix.
 4. **Run the development server**:
 
     ```bash

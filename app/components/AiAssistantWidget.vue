@@ -2,6 +2,7 @@
 const user = useSupabaseUser()
 const { userSettings } = useUserSettings()
 const { showToast } = useToast()
+const route = useRoute()
 
 const WELCOME = '嗨！我是你的 AnimeTV 助手，可以回答動漫問題，也能查詢你的觀看資料與協助調整設定。'
 const CHAT_TOO_LONG = '對話內容已達上限，請建立新對話後再繼續。'
@@ -17,7 +18,7 @@ const SUGGESTIONS = [
 const STATUS = { thinking: '正在思考中…', tools: '正在查詢資料…', replying: '正在回覆…' }
 const SETTING_LABELS = { watch_history_enabled: '觀看紀錄', search_history_enabled: '搜尋紀錄' }
 
-const open = ref(false)
+const open = useState('ai-widget-open', () => false)
 const loading = ref(false)
 const confirming = ref(false)
 const statusText = ref('')
@@ -27,6 +28,7 @@ const inputRef = ref(null)
 const stickToBottom = ref(true)
 const pendingAction = ref(null)
 const aiConsent = ref(false)
+const showMobilePwaNav = useState('app-show-mobile-pwa-nav', () => false)
 const messages = ref([{ role: 'assistant', content: WELCOME }])
 let abortCtrl = null
 
@@ -61,6 +63,18 @@ const headerStatus = computed(() => {
 })
 const inputPlaceholder = computed(() =>
     !user.value ? '請先登入才能使用 AI 助手' : chatAtLimit.value ? '請先建立新對話' : '輸入你想問的內容...',
+)
+const isAuthRoute = computed(() => route.path.startsWith('/login'))
+const widgetRootClass = computed(() => {
+    if (showMobilePwaNav.value) {
+        return 'fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] z-[70] px-2'
+    }
+    return 'fixed inset-x-0 bottom-0 z-[70] px-2 pb-2 md:inset-x-auto md:left-4 md:bottom-4 md:px-0 md:pb-0'
+})
+const panelClass = computed(() =>
+    showMobilePwaNav.value
+        ? 'w-full rounded-2xl ring-1 ring-black/10 dark:ring-white/15 bg-white dark:bg-gray-950 shadow-2xl overflow-hidden flex flex-col'
+        : 'w-full md:w-[min(92vw,380px)] mb-2 md:mb-3 rounded-2xl ring-1 ring-black/10 dark:ring-white/15 bg-white dark:bg-gray-950 shadow-2xl overflow-hidden flex flex-col',
 )
 
 function loadConsent() {
@@ -270,6 +284,7 @@ watch(userId, loadConsent, { immediate: true })
 watch(() => [messages.value.length, loading.value, pendingAction.value, messages.value.at(-1)?.content], () => scrollToBottom())
 watch(open, (v) => v && ((stickToBottom.value = true), scrollToBottom(true)))
 watch(input, () => nextTick(resizeInput))
+watch(isAuthRoute, (v) => v && (open.value = false))
 
 function onInputKeydown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -290,11 +305,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="fixed left-4 bottom-4 z-[70]">
+    <div :class="widgetRootClass">
         <transition name="fade-up">
             <div
-                v-if="open"
-                class="w-[min(92vw,380px)] mb-3 rounded-2xl ring-1 ring-black/10 dark:ring-white/15 bg-white dark:bg-gray-950 shadow-2xl overflow-hidden flex flex-col"
+                v-if="open && !isAuthRoute"
+                :class="panelClass"
             >
                 <div class="flex items-center justify-between px-4 py-3 border-b border-black/10 dark:border-white/10">
                     <div class="flex items-center gap-2 min-w-0">
@@ -450,7 +465,13 @@ onUnmounted(() => {
             </div>
         </transition>
 
-        <button type="button" class="h-12 w-12 rounded-full shadow-lg ring-1 ring-black/10 dark:ring-white/15 bg-gray-900 text-white dark:bg-white dark:text-black flex items-center justify-center active:scale-95" aria-label="切換 AI 助手視窗" @click="open = !open">
+        <button
+            v-if="!showMobilePwaNav && !isAuthRoute"
+            type="button"
+            class="hidden md:flex h-12 w-12 rounded-full shadow-lg ring-1 ring-black/10 dark:ring-white/15 bg-gray-900 text-white dark:bg-white dark:text-black items-center justify-center active:scale-95"
+            aria-label="切換 AI 助手視窗"
+            @click="open = !open"
+        >
             <span class="material-symbols-rounded">{{ open ? 'close' : 'smart_toy' }}</span>
         </button>
     </div>

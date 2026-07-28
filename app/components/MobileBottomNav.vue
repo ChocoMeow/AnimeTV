@@ -1,9 +1,11 @@
 <script setup>
 const { mobileSearchOpen } = useMobileSearchState()
 const { isMobile } = useMobile()
+const { aiEnabled } = useRuntimeConfig().public
 
 const route = useRoute()
 const user = useSupabaseUser()
+const aiWidgetOpen = useState('ai-widget-open', () => false)
 const headerHiddenMobile = useState('app-mobile-header-hidden', () => false)
 const showMobilePwaNav = useState('app-show-mobile-pwa-nav', () => false)
 
@@ -35,13 +37,13 @@ onUnmounted(() => {
 
 // ─── Navigation items ────────────────────────────────────────────────────────
 
-const NAV_ITEMS = [
+const NAV_ITEMS = computed(() => [
     { id: 'home', to: '/', label: '首頁', icon: 'home', match: (p) => p === '/' },
     { id: 'all', to: '/show-all-anime', label: '全部作品', icon: 'movie', match: (p) => p.startsWith('/show-all-anime') },
-    { id: 'search', label: '搜尋', icon: 'search', isAction: true },
+    { id: aiEnabled ? 'ai' : 'search', label: aiEnabled ? 'AI' : '搜尋', icon: aiEnabled ? 'smart_toy' : 'search', isAction: true },
     { id: 'history', to: '/history', label: '觀看紀錄', icon: 'history', match: (p) => p.startsWith('/history') },
     { id: 'profile', to: '/mobile-profile', label: '帳戶', match: (p) => p.startsWith('/mobile-profile') },
-]
+])
 
 // ─── Active state & pill position ────────────────────────────────────────────
 
@@ -59,11 +61,15 @@ const pillStyle = computed(() => ({
 }))
 
 function isItemActive(item) {
-    if (item.isAction) return mobileSearchOpen.value
+    if (item.isAction) return aiEnabled ? aiWidgetOpen.value : mobileSearchOpen.value
     return item.match?.(route.path) ?? false
 }
 
-function onSearchClick() {
+function onActionClick() {
+    if (aiEnabled) {
+        aiWidgetOpen.value = true
+        return
+    }
     mobileSearchOpen.value = true
 }
 
@@ -145,8 +151,8 @@ function itemColorClass(active) {
                         </span>
                     </NuxtLink>
 
-                    <!-- Action button (search) -->
-                    <button v-else type="button" :class="[ITEM_CLASS, itemColorClass(isItemActive(item))]" :aria-label="item.label" :aria-pressed="isItemActive(item)" @click="onSearchClick">
+                    <!-- Action button (search / ai) -->
+                    <button v-else type="button" :class="[ITEM_CLASS, itemColorClass(isItemActive(item))]" :aria-label="item.label" :aria-pressed="isItemActive(item)" @click="onActionClick">
                         <span :class="iconClass(isItemActive(item))" aria-hidden="true">
                             {{ item.icon }}
                         </span>

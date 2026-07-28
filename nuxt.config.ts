@@ -14,7 +14,7 @@ export default defineNuxtConfig({
         public: {
             supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
             supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY,
-            aiEnabled: !!(process.env.NUXT_AI_API_KEY && process.env.NUXT_AI_BASE_URL && process.env.NUXT_AI_MODEL),
+            aiEnabled: false,
         },
     },
     $production: {
