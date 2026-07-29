@@ -16,7 +16,7 @@ const SUGGESTIONS = [
     { label: '本月統計', text: '我這個月看了多久？最愛類型是什麼？' },
     { label: '我的收藏', text: '列出我的收藏' },
 ]
-const STATUS = { thinking: '正在思考中…', tools: '正在查詢資料…', searching: '正在搜尋網路…', suggesting: '正在產生建議…', replying: '正在回覆…' }
+const STATUS = { thinking: '正在思考中', tools: '正在查詢資料', searching: '正在搜尋網路', suggesting: '正在產生建議', replying: '正在回覆' }
 const SETTING_LABELS = { watch_history_enabled: '觀看紀錄', search_history_enabled: '搜尋紀錄' }
 
 const open = useState('ai-widget-open', () => false)
@@ -62,11 +62,11 @@ const pendingChanges = computed(() =>
 const headerStatus = computed(() => {
     if (!user.value) return '請先登入後再使用'
     if (!aiConsent.value) return '使用前需同意隱私授權'
-    if (loading.value) return statusText.value || STATUS.thinking
     if (pendingFavorite.value) return '等待你確認收藏變更'
     if (pendingAction.value) return '等待你確認設定變更'
     return '隨時幫你找動漫'
 })
+const waitStatus = computed(() => statusText.value || STATUS.thinking)
 const inputPlaceholder = computed(() =>
     !user.value ? '請先登入才能使用 AI 助手' : chatAtLimit.value ? '請先建立新對話' : '輸入你想問的內容...',
 )
@@ -122,20 +122,8 @@ function focusInput() {
 function scrollToBottom(force = false) {
     const el = listRef.value
     if (!el || (!force && !stickToBottom.value)) return
-
-    const jump = () => {
-        el.scrollTop = el.scrollHeight
-    }
-
-    if (force) {
-        nextTick(() => {
-            jump()
-            requestAnimationFrame(jump)
-        })
-        return
-    }
-
-    nextTick(() => el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }))
+    // Smooth for intentional jumps (open / new message); auto keeps streaming follow snappy.
+    nextTick(() => el.scrollTo({ top: el.scrollHeight, behavior: force ? 'smooth' : 'auto' }))
 }
 
 function onPanelOpen() {
@@ -190,6 +178,7 @@ function finishAssistant(index, content) {
 
 function formatParts(text = '') {
     return String(text)
+        .replace(/<\/?[a-zA-Z][^>]*>/g, '')
         .split(/(\*\*.+?\*\*)/g)
         .filter(Boolean)
         .map((part) => (part.startsWith('**') && part.endsWith('**') ? { bold: true, text: part.slice(2, -2) } : { bold: false, text: part }))
@@ -337,7 +326,6 @@ function cancelPending() {
 
 watch(userId, loadConsent, { immediate: true })
 watch(() => [messages.value.length, loading.value, pendingAction.value, messages.value.at(-1)?.content], () => scrollToBottom())
-watch(open, (v) => v && onPanelOpen())
 watch(aiConsent, (v) => v && open.value && onPanelOpen())
 watch(input, () => nextTick(resizeInput))
 watch(isAuthRoute, (v) => v && (open.value = false))
@@ -431,7 +419,10 @@ onUnmounted(() => {
                                         </template>
                                         <span v-if="msg.streaming" class="stream-caret" aria-hidden="true" />
                                     </template>
-                                    <div v-else class="thinking-dots" aria-label="正在思考"><span /><span /><span /></div>
+                                    <div v-else class="flex items-center gap-2 text-gray-500 dark:text-gray-400" :aria-label="waitStatus">
+                                        <div class="thinking-dots" aria-hidden="true"><span /><span /><span /></div>
+                                        <span class="text-xs">{{ waitStatus }}</span>
+                                    </div>
                                 </div>
 
                                 <div v-if="msg.anime?.length" class="w-full space-y-1.5">
