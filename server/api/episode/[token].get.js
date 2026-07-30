@@ -1,3 +1,5 @@
+import { getRequestLogger, logError } from '~~/server/utils/logger'
+
 // import { cfFetch } from "~~/server/utils/anime"
 
 // export default defineEventHandler(async (event) => {
@@ -10,7 +12,6 @@
 //             postData: encodedBody
 //         })
 
-//         console.log(html, cookies)
 //         // Extract JSON from the HTML response
 //         let jsonText = html
 //         const preMatch = html.match(/<pre>(.*?)<\/pre>/s)
@@ -23,7 +24,6 @@
 //         try {
 //             result = JSON.parse(jsonText)
 //         } catch (parseError) {
-//             console.error("Failed to parse response:", jsonText)
 //             throw new Error("Invalid JSON response from server")
 //         }
 
@@ -31,10 +31,8 @@
 //             ...result,
 //             videoCookie: cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ').replace(/;\s*$/, "")
 //         }
-//         console.log(data)
 //         return data
 //     } catch (err) {
-//         console.error("Error fetching video data:", err)
 //         return { error: err.message || "Failed to fetch video" }
 //     }
 // })
@@ -78,7 +76,8 @@ function videoCookieC(rawSetCookieHeader) {
 }
 
 export default defineEventHandler(async (event) => {
-    const user = await authUser(event)
+    await authUser(event)
+    const log = getRequestLogger(event)
 
     const { token } = event.context.params;
     const encodedBody = `d=${token}`;
@@ -102,7 +101,7 @@ export default defineEventHandler(async (event) => {
 
         // Get the Set-Cookie header from the response
         const setCookieHeader = response.headers.get('set-cookie');
-        console.debug("Video Cookie:", videoCookieC(setCookieHeader));
+        log.debug({ hasVideoCookie: Boolean(setCookieHeader) }, 'Video cookie received')
 
         const result = await response.json();
         return {
@@ -111,7 +110,7 @@ export default defineEventHandler(async (event) => {
         }
 
     } catch (err) {
-        console.error("Error fetching video data:", err);
+        logError(event, err, { module: 'episode' });
         return { error: err.message || "Failed to fetch video" };
     }
 });

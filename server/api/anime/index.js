@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio"
 import { serverSupabaseClient } from "#supabase/server"
+import { createLoggedError } from "~~/server/utils/logger"
 
 // NOTE: ANIME_CACHE, CHINESE_WEEKDAY_MAP, GAMER_BASE_URL, cfFetch, authUser,
 // and parseViews are assumed to be auto-imported from server/utils/*, same
@@ -322,7 +323,11 @@ export default defineEventHandler(async (event) => {
     try {
         return await scrapeAllAnime(client, user?.id ?? user?.sub ?? null)
     } catch (error) {
-        console.error("API error:", error)
-        throw createError({ statusCode: 500, statusMessage: "Internal Server Error" })
+        throw createLoggedError(event, {
+            statusCode: 500,
+            statusMessage: "Internal Server Error",
+            err: error,
+            context: { module: "anime-index" },
+        })
     }
 })

@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
     try {
         requireAiConfig(config)
     } catch (error) {
-        const safe = logAiError(error, { route: '/api/ai/chat', stage: 'config' })
+        const safe = logAiError(error, { path: '/api/ai/chat', stage: 'config' })
         throw createError({
             statusCode: 500,
             statusMessage: 'AI config error',
@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
         try {
             await runChatAgent({ event, config, userId, userMessages, send })
         } catch (error) {
-            const safe = logAiError(error, { route: '/api/ai/chat', userId, stage: 'agent' })
+            const safe = logAiError(error, { path: '/api/ai/chat', userId, stage: 'agent' })
             await send({ type: 'error', message: safe.message, errorId: safe.errorId })
         } finally {
             await stream.close()

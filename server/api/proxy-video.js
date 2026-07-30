@@ -1,5 +1,7 @@
 // server/api/proxy-video.js
 
+import { createLoggedError } from '~~/server/utils/logger'
+
 const DEFAULT_CHUNK_SIZE = 1 * 1024 * 1024 // 1 MB initial chunk
 const MAX_PASSTHROUGH_SIZE = 2 * 1024 * 1024 // 2 MB per response, hard cap
 const METADATA_CACHE_MAX = 500
@@ -76,31 +78,45 @@ async function fetchWithRetry(url, opts, attempt = 1) {
 // ─── Main Handler ────────────────────────────────────────────────────────────
 
 export default defineEventHandler(async (event) => {
-    const { url: videoUrl, cookie, redirect: wantsRedirect } = getQuery(event)
-    if (!videoUrl || !cookie) {
-        throw createError({ statusCode: 400, statusMessage: 'Missing parameters' })
-    }
-
-    // Tied directly to the client connection — the instant the browser cancels
-    // (seek, tab close, skip to next episode) this fires, and every upstream
-    // fetch below aborts in the same tick instead of finishing pointlessly.
-    const clientAbort = new AbortController()
-    event.node.req.on('close', () => clientAbort.abort())
-    event.node.req.on('error', () => clientAbort.abort())
-
-    if (wantsRedirect === 'true') return handleRedirect(videoUrl, cookie, clientAbort.signal)
-
-    let parsedUrl
     try {
-        parsedUrl = new URL(videoUrl)
-    } catch {
-        throw createError({ statusCode: 400, statusMessage: 'Invalid URL' })
+        await authUser(event)
+
+        const { url: videoUrl, cookie, redirect: wantsRedirect } = getQuery(event)
+        if (!videoUrl || !cookie) {
+            throw createError({ statusCode: 400, statusMessage: 'Missing parameters' })
+        }
+
+        // Tied directly to the client connection — the instant the browser cancels
+        // (seek, tab close, skip to next episode) this fires, and every upstream
+        // fetch below aborts in the same tick instead of finishing pointlessly.
+        const clientAbort = new AbortController()
+        event.node.req.on('close', () => clientAbort.abort())
+        event.node.req.on('error', () => clientAbort.abort())
+
+        if (wantsRedirect === 'true') return await handleRedirect(event, videoUrl, cookie, clientAbort.signal)
+
+        let parsedUrl
+        try {
+            parsedUrl = new URL(videoUrl)
+        } catch {
+            throw createError({ statusCode: 400, statusMessage: 'Invalid URL' })
+        }
+
+        if (isM3u8(videoUrl)) return await handleM3u8(videoUrl, cookie, clientAbort.signal, event)
+        if (isSegment(videoUrl, parsedUrl)) return await handleSegment(videoUrl, cookie, clientAbort.signal, event)
+
+        return await handleProgressive(videoUrl, cookie, clientAbort.signal, event)
+    } catch (err) {
+        if (err?.statusCode && err.statusCode < 500) throw err
+        if (err?.data?.errorId) throw err
+        if (err?.name === 'AbortError') throw err
+        throw createLoggedError(event, {
+            statusCode: err?.statusCode || 502,
+            statusMessage: err?.statusMessage || 'Video proxy error',
+            err,
+            context: { module: 'proxy-video' },
+        })
     }
-
-    if (isM3u8(videoUrl)) return handleM3u8(videoUrl, cookie, clientAbort.signal, event)
-    if (isSegment(videoUrl, parsedUrl)) return handleSegment(videoUrl, cookie, clientAbort.signal, event)
-
-    return handleProgressive(videoUrl, cookie, clientAbort.signal, event)
 })
 
 // ─── Progressive MP4 / byte-range streaming ─────────────────────────────────
@@ -118,9 +134,13 @@ async function handleProgressive(videoUrl, cookie, signal, event) {
         }
     }
 
-    if (!headInfo.success) {
-        throw createError({ statusCode: headInfo.statusCode || 502, statusMessage: headInfo.error })
-    }
+        if (!headInfo.success) {
+            throw createLoggedError(event, {
+                statusCode: headInfo.statusCode || 502,
+                statusMessage: headInfo.error || 'Video metadata failed',
+                context: { module: 'proxy-video', stage: 'head' },
+            })
+        }
 
     const { contentLength: totalSize, acceptsRanges: supportsRange, directUrl, contentType } = headInfo
 
@@ -240,7 +260,13 @@ function resilientRangeStream(url, cookie, start, end, signal) {
 
 async function handleM3u8(playlistUrl, cookie, signal, event) {
     const res = await fetchWithRetry(playlistUrl, { cookie, signal })
-    if (!res.ok) throw createError({ statusCode: 502, statusMessage: 'Failed to fetch m3u8' })
+    if (!res.ok) {
+        throw createLoggedError(event, {
+            statusCode: 502,
+            statusMessage: 'Failed to fetch m3u8',
+            context: { module: 'proxy-video', stage: 'm3u8', status: res.status },
+        })
+    }
     const body = await res.text()
 
     const baseUrl = new URL(playlistUrl)
@@ -276,8 +302,20 @@ async function handleSegment(segmentUrl, cookie, signal, event) {
         headers: { Accept: '*/*', Referer: referer },
     })
 
-    if (!res.ok) throw createError({ statusCode: res.status, statusMessage: 'Segment failed' })
-    if (!res.body) throw createError({ statusCode: 502, statusMessage: 'Empty segment body' })
+    if (!res.ok) {
+        throw createLoggedError(event, {
+            statusCode: res.status >= 400 ? res.status : 502,
+            statusMessage: 'Segment failed',
+            context: { module: 'proxy-video', stage: 'segment', status: res.status },
+        })
+    }
+    if (!res.body) {
+        throw createLoggedError(event, {
+            statusCode: 502,
+            statusMessage: 'Empty segment body',
+            context: { module: 'proxy-video', stage: 'segment' },
+        })
+    }
 
     setResponseStatus(event, res.status)
     setResponseHeader(event, 'Content-Type', res.headers.get('content-type') || 'video/mp2t')
@@ -293,13 +331,25 @@ async function handleSegment(segmentUrl, cookie, signal, event) {
 
 // ─── Redirect resolver ───────────────────────────────────────────────────────
 
-async function handleRedirect(videoUrl, cookie, signal) {
+async function handleRedirect(event, videoUrl, cookie, signal) {
     try {
         const res = await fetchWithRetry(videoUrl, { cookie, signal, method: 'HEAD' })
-        if (!res.ok) throw createError({ statusCode: 502, statusMessage: 'Could not resolve video URL' })
+        if (!res.ok) {
+            throw createLoggedError(event, {
+                statusCode: 502,
+                statusMessage: 'Could not resolve video URL',
+                context: { module: 'proxy-video', stage: 'redirect', status: res.status },
+            })
+        }
         return { success: true, url: res.url || videoUrl, message: 'Use this URL to stream directly and save bandwidth' }
     } catch (err) {
-        throw createError({ statusCode: err.statusCode || 502, statusMessage: err.statusMessage || 'Could not resolve video URL' })
+        if (err?.data?.errorId) throw err
+        throw createLoggedError(event, {
+            statusCode: err.statusCode || 502,
+            statusMessage: err.statusMessage || 'Could not resolve video URL',
+            err,
+            context: { module: 'proxy-video', stage: 'redirect' },
+        })
     }
 }
 

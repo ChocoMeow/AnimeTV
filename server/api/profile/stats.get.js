@@ -1,4 +1,5 @@
 import { serverSupabaseClient } from '#supabase/server'
+import { createLoggedError } from '~~/server/utils/logger'
 
 export default defineEventHandler(async (event) => {
     const user = await authUser(event)
@@ -205,7 +206,11 @@ export default defineEventHandler(async (event) => {
             period,
         }
     } catch (err) {
-        console.error('Profile stats error:', err)
-        throw createError({ statusCode: 500, statusMessage: 'Failed to load profile stats' })
+        throw createLoggedError(event, {
+            statusCode: 500,
+            statusMessage: 'Failed to load profile stats',
+            err,
+            context: { module: 'profile-stats' },
+        })
     }
 })

@@ -86,6 +86,11 @@ Make sure you have the following installed:
 
         # Optional: FlareSolverr for Cloudflare (https://github.com/FlareSolverr/FlareSolverr)
         # NUXT_CF_FETCH_FLARESOLVERR=http://127.0.0.1:8191/v1
+
+        # Optional: server logging
+        # NUXT_LOG_LEVEL=info
+        # NUXT_LOG_MAX_DAYS=30
+        # NUXT_LOG_TO_FILE=true
         ```
         > Replace Supabase values from **Supabase → Settings → API**. Set `NUXT_PUBLIC_AI_ENABLED=true` to show the AI widget. All app env vars use the `NUXT_` prefix.
 4. **Run the development server**:

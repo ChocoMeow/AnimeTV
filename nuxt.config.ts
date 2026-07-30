@@ -11,6 +11,9 @@ export default defineNuxtConfig({
         aiBaseUrl: process.env.NUXT_AI_BASE_URL,
         aiModel: process.env.NUXT_AI_MODEL,
         aiProxyUrl: process.env.NUXT_AI_PROXY_URL,
+        logLevel: process.env.NUXT_LOG_LEVEL,
+        logMaxDays: process.env.NUXT_LOG_MAX_DAYS,
+        logToFile: process.env.NUXT_LOG_TO_FILE,
         public: {
             supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
             supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY,

@@ -1,4 +1,5 @@
 import { serverSupabaseClient } from '#supabase/server'
+import { createLoggedError } from '~~/server/utils/logger'
 
 export default defineEventHandler(async (event) => {
     await authAdmin(event)
@@ -21,10 +22,11 @@ export default defineEventHandler(async (event) => {
     const { data, error } = await client.from('anime_meta').insert(convertedBody).select('*').single()
 
     if (error) {
-        console.error('Failed to insert anime_meta record:', error)
-        throw createError({
+        throw createLoggedError(event, {
             statusCode: 500,
             statusMessage: 'Failed to create anime meta record',
+            err: error,
+            context: { module: 'admin-anime-meta' },
         })
     }
 

@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
         if (error?.statusCode === 401 || error?.statusCode === 400 || error?.statusCode === 404) {
             throw error
         }
-        const safe = logAiError(error, { route: '/api/ai/confirm', userId: event.context?.user?.id })
+        const safe = logAiError(error, { path: '/api/ai/confirm', userId: event.context?.user?.id })
         throw createError({
             statusCode: 500,
             statusMessage: 'AI confirm failed',

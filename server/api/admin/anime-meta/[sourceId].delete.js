@@ -1,4 +1,5 @@
 import { serverSupabaseClient } from '#supabase/server'
+import { createLoggedError } from '~~/server/utils/logger'
 
 export default defineEventHandler(async (event) => {
     await authAdmin(event)
@@ -16,10 +17,11 @@ export default defineEventHandler(async (event) => {
     const { error } = await client.from('anime_meta').delete().eq('source_id', sourceId)
 
     if (error) {
-        console.error('Failed to delete anime_meta record:', error)
-        throw createError({
+        throw createLoggedError(event, {
             statusCode: 500,
             statusMessage: 'Failed to delete anime meta record',
+            err: error,
+            context: { module: 'admin-anime-meta' },
         })
     }
 

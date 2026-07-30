@@ -1,4 +1,7 @@
 import * as cheerio from 'cheerio'
+import { moduleLogger } from '~~/server/utils/logger'
+
+const scrapeLog = moduleLogger('scrapeAnimeMeta')
 
 export const normalizeUserRating = (userRating) => {
     if (!userRating) return { score: '0.0', votes: 0 }
@@ -32,7 +35,7 @@ export async function scrapeAnimeDetailByRefId(refId) {
 
         const title = get('.data-file img', 'alt')
         if (!title) {
-            console.error('No title found for refId:', refId)
+            scrapeLog.error({ refId }, 'No title found for refId')
             return null
         }
 
@@ -78,7 +81,7 @@ export async function scrapeAnimeDetailByRefId(refId) {
             season: mainMatchRow?.matchedVideo?.season ?? null,
         }
     } catch (err) {
-        console.error('Error scraping anime detail:', err.message)
+        scrapeLog.error({ err, refId }, 'Error scraping anime detail')
         return null
     }
 }

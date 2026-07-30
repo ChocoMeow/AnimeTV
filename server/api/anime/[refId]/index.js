@@ -1,6 +1,8 @@
 import * as cheerio from 'cheerio'
 import { serverSupabaseClient, serverSupabaseServiceRole } from '#supabase/server'
+import { getRequestLogger, moduleLogger } from '~~/server/utils/logger'
 
+const log = moduleLogger('anime-detail')
 const ONE_MONTH_MS = 1000 * 60 * 60 * 24 * 30
 
 // ============================================================================
@@ -48,7 +50,7 @@ async function scrapeAnimeDetailByRefId(refId) {
 
         const title = get('.data-file img', 'alt')
         if (!title) {
-            console.error('No title found for refId:', refId)
+            log.error({ refId }, 'No title found for refId')
             return null
         }
 
@@ -94,7 +96,7 @@ async function scrapeAnimeDetailByRefId(refId) {
             season: mainMatchRow?.matchedVideo?.season ?? null,
         }
     } catch (err) {
-        console.error('Error scraping anime detail:', err.message)
+        log.error({ err, refId }, 'Error scraping anime detail')
         return null
     }
 }
@@ -123,7 +125,7 @@ const upsertAnimeMeta = async (serviceClient, payload) => {
         .select('*')
         .single()
     if (error) {
-        console.error('Error upserting anime_meta:', error)
+        log.error({ err: error }, 'Error upserting anime_meta')
         throw error
     }
     return data
@@ -147,7 +149,7 @@ const refreshAnimeStats = async (serviceClient, sourceId, scraped, existingRelat
         .eq('source_id', sourceId)
         .select('*')
         .single()
-    if (error) console.error('Error refreshing anime stats:', error)
+    if (error) log.error({ err: error, sourceId }, 'Error refreshing anime stats')
     return data
 }
 
@@ -184,6 +186,7 @@ const fetchRelatedAnime = async (client, serviceClient, ids, event) => {
     const missing = ids.filter((id) => !foundIds.has(String(id)))
 
     if (missing.length) {
+        const reqLog = getRequestLogger(event)
         event.waitUntil(
             Promise.allSettled(
                 missing.map(async (refId) => {
@@ -191,7 +194,7 @@ const fetchRelatedAnime = async (client, serviceClient, ids, event) => {
                         await upsertAnimeMeta(serviceClient, buildAnimeMetaPayload(await scrapeAnimeDetailByRefId(refId)))
                     } catch (err) {
                         if (!err.code?.includes('23505') && !err.message?.includes('duplicate')) {
-                            console.error(`Background scrape failed for related anime ${refId}:`, err)
+                            reqLog.error({ err, refId }, 'Background scrape failed for related anime')
                         }
                     }
                 }),
@@ -242,6 +245,7 @@ export default defineEventHandler(async (event) => {
     const refId = getRouterParam(event, 'refId')
     const query = getQuery(event)
     const withRelated = query.withRelated === 'true'
+    const reqLog = getRequestLogger(event)
 
     // 1. Fetch cached meta — only blocks here on a true first-ever miss
     let meta = await fetchMeta(client, refId, user.sub)
@@ -256,7 +260,7 @@ export default defineEventHandler(async (event) => {
         event.waitUntil(
             scrapeAnimeDetailByRefId(refId)
                 .then((scraped) => scraped && refreshAnimeStats(serviceClient, refId, scraped, meta.related_anime_source_ids))
-                .catch((err) => console.error(`Background refresh failed for ${refId}:`, err))
+                .catch((err) => reqLog.error({ err, refId }, 'Background refresh failed'))
         )
     }
 

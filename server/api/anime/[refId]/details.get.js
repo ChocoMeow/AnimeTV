@@ -1,3 +1,5 @@
+import { createLoggedError } from '~~/server/utils/logger'
+
 export default defineEventHandler(async (event) => {
     await authUser(event)
 
@@ -12,6 +14,11 @@ export default defineEventHandler(async (event) => {
         return { wikiContentHtml: scraped.wikiContentHtml }
     } catch (error) {
         if (error?.statusCode) throw error
-        throw createError({ statusCode: 500, statusMessage: 'Internal Server Error' })
+        throw createLoggedError(event, {
+            statusCode: 500,
+            statusMessage: 'Internal Server Error',
+            err: error,
+            context: { module: 'anime-details', refId },
+        })
     }
 })

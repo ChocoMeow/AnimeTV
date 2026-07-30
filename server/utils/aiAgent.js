@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio'
 import { serverSupabaseClient } from '#supabase/server'
+import { moduleLogger, createErrorId } from '~~/server/utils/logger'
 
 export const AI_CHAT_LIMITS = {
     maxMessageChars: 3000,
@@ -136,21 +137,18 @@ export function sanitizeSettingsUpdates(args = {}) {
     return updates
 }
 
-export function createAiErrorId() {
-    return `AI-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase()
-}
-
 export function logAiError(error, context = {}) {
-    const errorId = createAiErrorId()
-    const detail = {
-        errorId,
-        ...context,
-        message: error?.message || String(error),
-        statusCode: error?.statusCode || error?.status,
-        data: error?.data,
-        stack: error?.stack,
-    }
-    console.error(`[AI ${errorId}]`, detail)
+    const errorId = createErrorId()
+    moduleLogger('ai').error(
+        {
+            errorId,
+            ...context,
+            err: error,
+            statusCode: error?.statusCode || error?.status,
+            data: error?.data,
+        },
+        error?.message || String(error) || 'AI error'
+    )
     return {
         errorId,
         message: `助手目前無法使用，請稍後再試。（錯誤代碼：${errorId}）`,
@@ -877,7 +875,7 @@ async function generateFollowUpSuggestions(config, userMessages, assistantReply)
         })
         return parseFollowUpSuggestions(data?.choices?.[0]?.message?.content)
     } catch (error) {
-        logAiError(error, { route: '/api/ai/chat', stage: 'follow_up_suggestions' })
+        logAiError(error, { path: '/api/ai/chat', stage: 'follow_up_suggestions' })
         return []
     }
 }
@@ -935,7 +933,7 @@ export async function runChatAgent({ event, config, userId, userMessages, send }
     const latestUser = [...userMessages].reverse().find((m) => m.role === 'user')
     if (looksLikePromptInjection(latestUser?.content || '')) {
         logAiError(new Error('Prompt injection blocked'), {
-            route: '/api/ai/chat',
+            path: '/api/ai/chat',
             userId,
             stage: 'prompt_injection',
             preview: String(latestUser?.content || '').slice(0, 200),
@@ -1002,7 +1000,7 @@ export async function runChatAgent({ event, config, userId, userMessages, send }
                     runAgentTool(event, userId, toolName, call?.function?.arguments || '{}'),
                 )
             } catch (error) {
-                const safe = logAiError(error, { route: '/api/ai/chat', userId, stage: 'tool', tool: toolName })
+                const safe = logAiError(error, { path: '/api/ai/chat', userId, stage: 'tool', tool: toolName })
                 result = { error: `工具暫時無法使用。（錯誤代碼：${safe.errorId}）` }
             }
 

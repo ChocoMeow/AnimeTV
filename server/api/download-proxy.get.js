@@ -1,6 +1,7 @@
 import http from "node:http"
 import https from "node:https"
 import { URL } from "node:url"
+import { createLoggedError, logError } from "~~/server/utils/logger"
 
 const httpAgent = new http.Agent({ keepAlive: true, timeout: 30000 })
 const httpsAgent = new https.Agent({ keepAlive: true, timeout: 30000 })
@@ -48,7 +49,11 @@ export default defineEventHandler(async (event) => {
                     if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
                         res.destroy()
                         if (redirects >= maxRedirects) {
-                            reject(createError({ statusCode: 508, statusMessage: "Too many redirects" }))
+                            reject(createLoggedError(event, {
+                                statusCode: 508,
+                                statusMessage: "Too many redirects",
+                                context: { module: "download-proxy", stage: "redirect" },
+                            }))
                             return
                         }
                         const next = new URL(res.headers.location, target).toString()
@@ -58,7 +63,11 @@ export default defineEventHandler(async (event) => {
 
                     if (res.statusCode >= 400) {
                         res.destroy()
-                        reject(createError({ statusCode: res.statusCode, statusMessage: "Upstream download failed" }))
+                        reject(createLoggedError(event, {
+                            statusCode: res.statusCode,
+                            statusMessage: "Upstream download failed",
+                            context: { module: "download-proxy", stage: "upstream", status: res.statusCode },
+                        }))
                         return
                     }
 
@@ -88,7 +97,20 @@ export default defineEventHandler(async (event) => {
         await streamFile(String(url))
     } catch (err) {
         if (!event.node.res.headersSent) {
-            return sendError(event, err?.statusCode ? err : createError({ statusCode: 502, statusMessage: err?.message || "Proxy error" }))
+            if (err?.data?.errorId) {
+                return sendError(event, err)
+            }
+            if (err?.statusCode && err.statusCode < 500) {
+                return sendError(event, err)
+            }
+            const logged = createLoggedError(event, {
+                statusCode: err?.statusCode || 502,
+                statusMessage: err?.message || "Proxy error",
+                err,
+                context: { module: "download-proxy" },
+            })
+            return sendError(event, logged)
         }
+        logError(event, err, { module: "download-proxy", stage: "after_headers" })
     }
 })

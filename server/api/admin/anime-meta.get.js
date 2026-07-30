@@ -1,6 +1,9 @@
 import { serverSupabaseClient } from '#supabase/server'
 
 import { getFieldTypesFromData } from '../../utils/fieldTypes'
+import { createLoggedError, moduleLogger } from '~~/server/utils/logger'
+
+const log = moduleLogger('admin-anime-meta')
 
 // Get field names from database by querying actual data
 async function getFieldsFromDatabase(client) {
@@ -19,7 +22,7 @@ async function getFieldsFromDatabase(client) {
         
         return []
     } catch (error) {
-        console.error('Error fetching fields from database:', error)
+        log.error({ err: error }, 'Error fetching fields from database')
         return []
     }
 }
@@ -87,10 +90,11 @@ export default defineEventHandler(async (event) => {
     const { data, error, count } = await dbQuery
 
     if (error) {
-        console.error('Failed to fetch anime_meta for admin:', error)
-        throw createError({
+        throw createLoggedError(event, {
             statusCode: 500,
             statusMessage: 'Failed to load anime meta records',
+            err: error,
+            context: { module: 'admin-anime-meta' },
         })
     }
 

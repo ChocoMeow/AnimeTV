@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio'
 import { serverSupabaseClient } from '#supabase/server'
+import { getRequestLogger } from '~~/server/utils/logger'
 
 const extractEpisodeIdentifier = (fullTitle) => {
     const matches = fullTitle.match(/\[([^\]]+)\]/g)
@@ -8,9 +9,10 @@ const extractEpisodeIdentifier = (fullTitle) => {
 
 const normalizeEpisodeId = (id) => (/^\d+$/.test(id) ? String(Number(id)) : id)
 
-async function fetchEpisodeTokens(categoryId) {
+async function fetchEpisodeTokens(event, categoryId) {
     const episodes = {}
     let nextPageUrl = `${ANIME1_BASE_URL}?cat=${categoryId}`
+    const log = getRequestLogger(event)
 
     try {
         while (nextPageUrl) {
@@ -45,7 +47,7 @@ async function fetchEpisodeTokens(categoryId) {
             nextPageUrl = $('.nav-previous a').attr('href') || null
         }
     } catch (err) {
-        console.error(`Error fetching episodes for category ${categoryId}:`, err)
+        log.error({ err, categoryId }, 'Error fetching episodes')
     }
 
     return episodes
@@ -61,13 +63,16 @@ const fetchVideoId = async (client, sourceId) => {
 }
 
 export default defineEventHandler(async (event) => {
+    await authUser(event)
     const client = await serverSupabaseClient(event)
     const refId = getRouterParam(event, 'refId')
 
     const videoId = await fetchVideoId(client, refId)
-    if (!videoId) throw createError({ statusCode: 404, statusMessage: 'Anime video_id not found' })
+    if (!videoId) {
+        throw createError({ statusCode: 404, statusMessage: 'Anime video_id not found' })
+    }
 
-    const episodes = await fetchEpisodeTokens(videoId)
+    const episodes = await fetchEpisodeTokens(event, videoId)
     setHeader(event, 'Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
     return { episodes }
 })

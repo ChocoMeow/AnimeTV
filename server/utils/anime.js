@@ -1,3 +1,7 @@
+import { moduleLogger } from '~~/server/utils/logger'
+
+const animeLog = moduleLogger('anime')
+
 function toArabicNumber(chineseNum) {
     const map = {
         "零": 0, "一": 1, "二": 2, "三": 3, "四": 4,
@@ -398,7 +402,7 @@ export async function searchAnimeTitle(query, threshold = 0.70) {
         const candidates = await getParsedCandidates();
         return findMatchesForParsedQuery(parseTitle(query), candidates, threshold);
     } catch (error) {
-        console.error("Error searching anime title:", error);
+        animeLog.error({ err: error }, 'Error searching anime title')
         return [];
     }
 }
@@ -414,7 +418,7 @@ export async function matchAnimeWithDb(client, animeList) {
             .from("anime_meta")
             .select("source_id")
             .in("source_id", uniqueIds);
-        if (error) console.error("matchAnimeWithDb:", error);
+        if (error) animeLog.error({ err: error }, 'matchAnimeWithDb failed')
         else data?.forEach(r => knownIds.add(r.source_id));
     }
 
@@ -484,7 +488,7 @@ export async function fetchAnimeData() {
     // Start a new fetch and cache the promise
     ANIME1_LIST_CACHE.fetchPromise = (async () => {
         try {
-            console.log("Fetching anime data from source...");
+            animeLog.info('Fetching anime data from source')
             const response = await fetch("https://d1zquzjgwo9yb.cloudfront.net/");
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -504,7 +508,7 @@ export async function fetchAnimeData() {
             ANIME1_LIST_CACHE.fetchPromise = null;
             return ANIME1_LIST_CACHE.data;
         } catch (error) {
-            console.error("Error fetching anime data:", error);
+            animeLog.error({ err: error }, 'Error fetching anime data')
             ANIME1_LIST_CACHE.fetchPromise = null; // Reset on error to allow retries
             throw error;
         }
@@ -532,7 +536,7 @@ export async function cfFetch(url) {
 
         const cached = RESPONSE_CACHE.get(url)
         if (cached && now - cached.timestamp < CACHE_LIFETIME) {
-            console.log(`Cache hit for: ${url} (${cached.html.length} bytes)`)
+            animeLog.debug({ url, bytes: cached.html.length }, 'cfFetch cache hit')
             return cached
         }
 
@@ -577,7 +581,7 @@ export async function cfFetch(url) {
 
         return result
     } catch (error) {
-        console.error(`cfFetch failed for ${url}:`, error.message)
+        animeLog.error({ err: error, url }, 'cfFetch failed')
         return null
     }
 }

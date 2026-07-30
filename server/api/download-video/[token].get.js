@@ -1,3 +1,5 @@
+import { logError } from "~~/server/utils/logger"
+
 function videoCookieC(rawSetCookieHeader) {
     if (!rawSetCookieHeader) return ""
     let finalCookie = ""
@@ -52,7 +54,7 @@ export default defineEventHandler(async (event) => {
             downloadUrl: `/api/download-proxy?url=${encodeURIComponent(finalUrl)}&cookie=${encodeURIComponent(videoCookie)}`,
         }
     } catch (err) {
-        console.error("download-video source resolve failed:", err)
+        logError(event, err, { module: "download-video" })
         return {
             error: err?.statusMessage || err?.message || "Failed to resolve download source",
         }

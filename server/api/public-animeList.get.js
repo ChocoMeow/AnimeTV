@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio"
+import { logError } from "~~/server/utils/logger"
 
 // Cache for public anime list (first page only)
 const PUBLIC_ANIME_LIST_CACHE = {
@@ -48,7 +49,7 @@ export default defineEventHandler(async (event) => {
 
             return response
         } catch (err) {
-            console.error("Error scraping anime list (public):", err.message)
+            logError(event, err, { module: "public-animeList" })
             PUBLIC_ANIME_LIST_CACHE.fetchPromise = null // Reset on error to allow retries
             return []
         }
