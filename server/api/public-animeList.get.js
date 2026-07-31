@@ -8,8 +8,6 @@ const PUBLIC_ANIME_LIST_CACHE = {
     data: null
 }
 
-const CACHE_LIFETIME = 1000 * 60 * 12 // 12 hours
-
 // Public API handler - no authentication required
 // Limited to first page only, no query parameters allowed
 export default defineEventHandler(async (event) => {

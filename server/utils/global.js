@@ -11,7 +11,7 @@ export const ANIME1_LIST_CACHE = {
     data: null
 }
 
-export const CACHE_LIFETIME = 1000 * 60 * 12 // 12 hours
+export const CACHE_LIFETIME = 1000 * 60 * 60 * 12 // 12 hours
 export const RESPONSE_CACHE = new Map()
 
 export const CHINESE_WEEKDAY_MAP = {
