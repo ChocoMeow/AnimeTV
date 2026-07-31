@@ -24,10 +24,12 @@ const loading = ref(false)
 const mobileMenuOpen = ref(false)
 const showDropdown = ref(false)
 const showUserMenu = ref(false)
+const micError = ref('')
 
 let hideDropdownTimeout = null
 let hideUserMenuTimeout = null
 let searchDebounceTimeout = null
+let micErrorTimeout = null
 
 // User dropdown menu items (shared by desktop dropdown and mobile nav)
 const menuItems = [
@@ -39,21 +41,40 @@ const menuItems = [
     { to: '/admin', icon: 'admin_panel_settings', label: '管理後台', adminOnly: true },
     { icon: 'logout', label: '登出', action: signOut, variant: 'danger', dividerBefore: true },
 ]
+
+const { isSupported: speechSupported, isListening, toggle: toggleSpeech, stop: stopSpeech } = useSpeechRecognition({
+    onResult: (transcript) => {
+        clearMicError()
+        searchQuery.value = transcript
+        showDropdown.value = true
+    },
+    onError: (message) => {
+        clearMicError()
+        micError.value = message
+        showDropdown.value = false
+        micErrorTimeout = setTimeout(clearMicError, 2000)
+    },
+})
+
 const mobileNavItems = computed(() => [{ to: '/show-all-anime', icon: 'movie', label: '全部作品' }, ...menuItems.filter((i) => !i.adminOnly || isAdmin.value)])
 const desktopDropdownItems = computed(() => menuItems.filter((i) => !i.adminOnly || isAdmin.value))
+
+function onMicToggle() {
+    if (hideDropdownTimeout) clearTimeout(hideDropdownTimeout)
+    toggleSpeech()
+}
+
+function clearMicError() {
+    if (micErrorTimeout) {
+        clearTimeout(micErrorTimeout)
+        micErrorTimeout = null
+    }
+    micError.value = ''
+}
 
 function closeUserMenu() {
     showUserMenu.value = false
 }
-
-// Watch for mobile changes to close mobile menus when switching to desktop
-watch(isMobile, (newValue) => {
-    if (!newValue) {
-        mobileSearchOpen.value = false
-        mobileMenuOpen.value = false
-        headerHiddenMobile.value = false
-    }
-})
 
 function debouncedSearch() {
     if (searchDebounceTimeout) {
@@ -91,6 +112,8 @@ function selectResult(result) {
 }
 
 function closeMobileSearch() {
+    stopSpeech()
+    clearMicError()
     mobileSearchOpen.value = false
     searchQuery.value = ''
     searchResults.value = []
@@ -239,6 +262,7 @@ onMounted(() => {
 
 onUnmounted(() => {
     window.removeEventListener('scroll', onScroll)
+    clearMicError()
     if (searchDebounceTimeout) {
         clearTimeout(searchDebounceTimeout)
     }
@@ -247,6 +271,15 @@ onUnmounted(() => {
     }
     if (hideUserMenuTimeout) {
         clearTimeout(hideUserMenuTimeout)
+    }
+})
+
+// Watch for mobile changes to close mobile menus when switching to desktop
+watch(isMobile, (newValue) => {
+    if (!newValue) {
+        mobileSearchOpen.value = false
+        mobileMenuOpen.value = false
+        headerHiddenMobile.value = false
     }
 })
 
@@ -269,6 +302,8 @@ watch(mobileSearchOpen, (open) => {
             mobileSearchRef.value?.focus()
         })
     } else {
+        stopSpeech()
+        clearMicError()
         unlockScroll()
     }
 })
@@ -288,6 +323,8 @@ watch(
         mobileMenuOpen.value = false
         showUserMenu.value = false
         headerHiddenMobile.value = false
+        stopSpeech()
+        clearMicError()
     },
 )
 </script>
@@ -308,25 +345,29 @@ watch(
 
             <!-- Desktop search -->
             <div class="hidden md:flex flex-1 justify-center max-w-xl px-4 relative">
-                <input
-                    ref="searchRef"
-                    v-model="searchQuery"
-                    @keyup.enter="handleEnter"
-                    @focus="showDropdown = true"
-                    @blur="hideDropdownDelayed"
-                    type="search"
-                    placeholder="搜尋動漫..."
-                    class="w-full bg-black/5 dark:bg-white/10 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 outline-none"
-                />
-                <!-- Loading Spinner -->
-                <div v-if="loading" class="absolute right-8 top-1/2 -translate-y-1/2">
-                    <div class="h-4 w-4 rounded-full animate-spin border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
+                <div class="relative w-full overflow-visible">
+                    <input
+                        ref="searchRef"
+                        v-model="searchQuery"
+                        @keyup.enter="handleEnter"
+                        @focus="showDropdown = true"
+                        @blur="hideDropdownDelayed"
+                        type="search"
+                        placeholder="搜尋動漫..."
+                        class="w-full bg-black/5 dark:bg-white/10 rounded-full px-4 py-2 pr-14 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 outline-none"
+                        :class="{ 'search-is-loading': loading }"
+                    />
+                    <!-- Loading Spinner -->
+                    <div v-if="loading" class="absolute right-14 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <div class="h-4 w-4 rounded-full animate-spin border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
+                    </div>
+                    <SearchMicButton :listening="isListening" :supported="speechSupported" :error="micError" @toggle="onMicToggle" />
                 </div>
                 <!-- Modern Dropdown -->
                 <transition name="dropdown">
                     <div
                         v-if="(searchResults.length || searchHistory.length || (searchQuery && !loading)) && showDropdown"
-                        class="absolute top-full mt-2 w-full bg-white dark:bg-gray-950 rounded-xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 z-50 max-h-96 overflow-y-auto"
+                        class="absolute top-full mt-2 left-4 right-4 bg-white dark:bg-gray-950 rounded-xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 z-50 max-h-96 overflow-y-auto"
                     >
                         <!-- Search History (shown when no query) -->
                         <div v-if="!searchQuery && searchHistory.length" class="py-2">
@@ -496,20 +537,24 @@ watch(
             <div v-if="mobileSearchOpen" class="md:hidden fixed inset-0 bg-white dark:bg-gray-950 flex flex-col z-[60]">
                 <!-- Fixed Search Bar at Top -->
                 <div class="px-4 py-3 flex-shrink-0 border-b border-black/10 dark:border-white/10">
-                    <div class="flex items-center relative">
-                        <input
-                            ref="mobileSearchRef"
-                            v-model="searchQuery"
-                            @keyup.enter="handleEnter"
-                            type="search"
-                            placeholder="搜尋動漫..."
-                            class="flex-1 bg-black/5 dark:bg-white/10 rounded-full px-4 py-2 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 outline-none"
-                        />
-                        <!-- Mobile Loading Spinner -->
-                        <div v-if="loading" class="absolute right-14 top-1/2 -translate-y-1/2">
-                            <div class="h-4 w-4 rounded-full animate-spin border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
+                    <div class="flex items-center gap-2">
+                        <div class="relative flex-1 min-w-0 overflow-visible">
+                            <input
+                                ref="mobileSearchRef"
+                                v-model="searchQuery"
+                                @keyup.enter="handleEnter"
+                                type="search"
+                                placeholder="搜尋動漫..."
+                                class="w-full bg-black/5 dark:bg-white/10 rounded-full px-4 py-2 pr-14 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 outline-none"
+                                :class="{ 'search-is-loading': loading }"
+                            />
+                            <!-- Mobile Loading Spinner -->
+                            <div v-if="loading" class="absolute right-14 top-1/2 -translate-y-1/2 pointer-events-none">
+                                <div class="h-4 w-4 rounded-full animate-spin border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
+                            </div>
+                            <SearchMicButton :listening="isListening" :supported="speechSupported" :error="micError" @toggle="onMicToggle" />
                         </div>
-                        <button @click="closeMobileSearch" class="ml-2 p-2 flex items-center justify-center">
+                        <button @click="closeMobileSearch" class="p-2 flex items-center justify-center shrink-0">
                             <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">close</span>
                         </button>
                     </div>
@@ -651,6 +696,10 @@ input[type="search"]::-webkit-search-cancel-button {
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E") center / contain no-repeat;
     -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E") center / contain no-repeat;
     cursor: pointer;
+}
+input[type="search"].search-is-loading::-webkit-search-cancel-button {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .fade-enter-active,

@@ -37,7 +37,7 @@ const selectedLabel = computed(() => {
 
 function updatePanelPosition() {
     if (!triggerRef.value || !open.value) return
-    
+
     const rect = triggerRef.value.getBoundingClientRect()
     panelStyle.value = {
         position: 'fixed',
@@ -66,7 +66,6 @@ function onClickOutside(event) {
 function onOpen() {
     open.value = !open.value
     if (open.value) {
-        // Wait for panel to be rendered in DOM (teleported to body)
         nextTick(() => {
             requestAnimationFrame(() => {
                 updatePanelPosition()
@@ -77,7 +76,6 @@ function onOpen() {
 
 watch(open, (isOpen) => {
     if (isOpen) {
-        // Wait for panel to be rendered in DOM (teleported to body)
         nextTick(() => {
             requestAnimationFrame(() => {
                 updatePanelPosition()
@@ -107,13 +105,13 @@ onUnmounted(() => {
         <button
             ref="triggerRef"
             type="button"
-            class="dropdown-trigger w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-gray-900 dark:text-gray-100 text-sm pl-3 pr-10 py-2 text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent transition-shadow hover:bg-black/10 dark:hover:bg-white/15"
+            class="dropdown-trigger w-full rounded-full border border-transparent bg-black/5 dark:bg-white/10 text-gray-900 dark:text-gray-100 text-sm font-medium pl-4 pr-10 py-2.5 text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent transition-colors hover:bg-black/10 dark:hover:bg-white/15"
             :class="{ 'opacity-60': !modelValue && placeholder }"
             @click="onOpen"
         >
             <span class="truncate">{{ selectedLabel }}</span>
             <span
-                class="dropdown-arrow absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-400 transition-transform"
+                class="dropdown-arrow absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-400 transition-transform"
                 :class="{ 'rotate-180': open }"
             >
                 <span class="material-symbols-rounded text-xl">expand_more</span>
@@ -132,22 +130,22 @@ onUnmounted(() => {
                 <div
                     v-show="open"
                     ref="panelRef"
-                    class="dropdown-panel z-[10] max-h-[min(24rem,70vh)] overflow-auto rounded-xl ring-1 ring-black/5 dark:ring-white/10 bg-white dark:bg-gray-950 shadow-xl py-1"
+                    class="dropdown-panel z-[60] max-h-[min(24rem,70vh)] overflow-auto rounded-2xl ring-1 ring-black/5 dark:ring-white/10 bg-white dark:bg-gray-950 shadow-xl py-1.5"
                     :style="panelStyle"
                 >
                     <button
                         v-for="opt in normalizedOptions"
                         :key="opt.value"
                         type="button"
-                        class="dropdown-option w-full px-3 py-2 text-left text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 focus:bg-gray-100 dark:focus:bg-white/10 focus:outline-none transition-colors"
-                        :class="{ 'bg-gray-100 dark:bg-white/10': modelValue === opt.value }"
+                        class="dropdown-option w-full px-4 py-2.5 text-left text-sm text-gray-900 dark:text-gray-100 hover:bg-black/5 dark:hover:bg-white/10 focus:bg-black/5 dark:focus:bg-white/10 focus:outline-none transition-colors"
+                        :class="{ 'bg-black/5 dark:bg-white/10 font-medium': modelValue === opt.value }"
                         @click="select(opt)"
                     >
                         {{ opt.label }}
                     </button>
                     <p
                         v-if="normalizedOptions.length === 0"
-                        class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400"
+                        class="px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400"
                     >
                         暫無選項
                     </p>

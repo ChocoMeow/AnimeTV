@@ -2,8 +2,15 @@
 const { showToast } = useToast()
 const { searchHistory, userSettings, updateSetting, getDefaultShortcuts, getShortcuts, resetShortcuts, formatShortcutKey } = useUserSettings()
 const { theme, setTheme } = useTheme()
+const { speechLang, setSpeechLang, options: speechLangOptions } = useSpeechLang()
 const appConfig = useAppConfig()
 const client = useSupabaseClient()
+
+function onSpeechLangChange(value) {
+    if (value === speechLang.value) return
+    setSpeechLang(value)
+    showToast('語音語言已更新', 'success')
+}
 
 const loading = ref(false)
 const showClearDataModal = ref(false)
@@ -233,129 +240,154 @@ useHead({
         </div>
 
         <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start">
-            <!-- Appearance (Theme) -->
-            <div class="settings-panel">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <div class="flex items-center gap-3 mb-1">
-                            <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">palette</span>
-                            <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">外觀</h3>
+            <!-- contents on mobile so order matches desktop zigzag; columns on lg keep independent heights -->
+            <div class="contents gap-4 sm:gap-5 lg:flex lg:flex-col">
+                <!-- Appearance (Theme) -->
+                <div class="settings-panel order-1">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-3 mb-1">
+                                <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">palette</span>
+                                <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">外觀</h3>
+                            </div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">選擇淺色、深色或跟隨系統主題</p>
                         </div>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">選擇淺色、深色或跟隨系統主題</p>
+                        <div class="flex flex-wrap gap-2 sm:justify-end">
+                            <button
+                                v-for="opt in [{ value: 'light', label: '淺色', icon: 'light_mode' }, { value: 'dark', label: '深色', icon: 'dark_mode' }, { value: 'system', label: '跟隨系統', icon: 'settings_brightness' }]"
+                                :key="opt.value"
+                                @click="setTheme(opt.value)"
+                                :class="['pill-tab', theme === opt.value ? 'pill-tab-active' : 'pill-tab-inactive']"
+                            >
+                                <span class="material-symbols-rounded text-lg">{{ opt.icon }}</span>
+                                {{ opt.label }}
+                            </button>
+                        </div>
                     </div>
-                    <div class="flex flex-wrap gap-2 sm:justify-end">
-                        <button
-                            v-for="opt in [{ value: 'light', label: '淺色', icon: 'light_mode' }, { value: 'dark', label: '深色', icon: 'dark_mode' }, { value: 'system', label: '跟隨系統', icon: 'settings_brightness' }]"
-                            :key="opt.value"
-                            @click="setTheme(opt.value)"
-                            :class="['pill-tab', theme === opt.value ? 'pill-tab-active' : 'pill-tab-inactive']"
-                        >
-                            <span class="material-symbols-rounded text-lg">{{ opt.icon }}</span>
-                            {{ opt.label }}
+                </div>
+
+                <!-- Keyboard Shortcuts -->
+                <div class="settings-panel order-3">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-3 mb-1">
+                                <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">keyboard</span>
+                                <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">鍵盤快捷鍵</h3>
+                            </div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">調整影片播放器的鍵盤快捷鍵</p>
+                        </div>
+                        <button type="button" @click="showShortcutsModal = true" class="pill-tab pill-tab-inactive sm:justify-end">
+                            <span class="material-symbols-rounded text-lg">edit</span>
+                            自訂
                         </button>
+                    </div>
+                </div>
+
+                <!-- Data Management -->
+                <div class="settings-panel order-5">
+                    <div class="flex items-center gap-3 mb-5 sm:mb-6">
+                        <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">storage</span>
+                        <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">資料管理</h3>
+                    </div>
+
+                    <div class="divide-y divide-black/5 dark:divide-white/10">
+                        <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                            <div>
+                                <h4 class="font-medium text-gray-900 dark:text-gray-100">觀看紀錄</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">清除所有觀看紀錄</p>
+                            </div>
+                            <button @click="openClearDataModal('history')" :disabled="stats.watchHistory === 0" class="btn-danger-outline">清除</button>
+                        </div>
+
+                        <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                            <div>
+                                <h4 class="font-medium text-gray-900 dark:text-gray-100">收藏列表</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">清除所有收藏的動漫</p>
+                            </div>
+                            <button @click="openClearDataModal('favorites')" :disabled="stats.favorites === 0" class="btn-danger-outline">清除</button>
+                        </div>
+
+                        <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                            <div>
+                                <h4 class="font-medium text-gray-900 dark:text-gray-100">搜尋紀錄</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">清除所有搜尋歷史</p>
+                            </div>
+                            <button @click="openClearDataModal('search')" :disabled="stats.searchHistory === 0" class="btn-danger-outline">清除</button>
+                        </div>
+
+                        <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                            <div>
+                                <h4 class="font-medium text-gray-900 dark:text-gray-100">所有資料</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">清除所有個人資料</p>
+                            </div>
+                            <button @click="openClearDataModal('all')" class="btn-danger-outline">全部清除</button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Keyboard Shortcuts -->
-            <div class="settings-panel">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <div class="flex items-center gap-3 mb-1">
-                            <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">keyboard</span>
-                            <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">鍵盤快捷鍵</h3>
+            <div class="contents gap-4 sm:gap-5 lg:flex lg:flex-col">
+                <!-- Speech recognition language -->
+                <div class="settings-panel order-2">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-3 mb-1">
+                                <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">mic</span>
+                                <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">語音輸入語言</h3>
+                            </div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">搜尋列與 AI 助手語音辨識使用的語言</p>
                         </div>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">調整影片播放器的鍵盤快捷鍵</p>
+                        <div class="w-full sm:w-56 shrink-0">
+                            <Dropdown
+                                :model-value="speechLang"
+                                :options="speechLangOptions"
+                                @update:model-value="onSpeechLangChange"
+                            />
+                        </div>
                     </div>
-                    <button type="button" @click="showShortcutsModal = true" class="pill-tab pill-tab-inactive sm:justify-end">
-                        <span class="material-symbols-rounded text-lg">edit</span>
-                        自訂
-                    </button>
-                </div>
-            </div>
-
-            <!-- Privacy Settings -->
-            <div class="settings-panel">
-                <div class="flex items-center gap-3 mb-5 sm:mb-6">
-                    <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">privacy_tip</span>
-                    <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">隱私設定</h3>
                 </div>
 
-                <div class="divide-y divide-black/5 dark:divide-white/10">
-                    <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                        <div class="flex-1 pr-4">
-                            <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1">觀看紀錄</h4>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">記錄你觀看的動漫和播放進度</p>
-                        </div>
-                        <button
-                            @click="updateSetting('watch_history_enabled', !userSettings.watch_history_enabled)"
-                            :class="userSettings.watch_history_enabled ? 'bg-gray-900 dark:bg-white' : 'bg-black/10 dark:bg-white/15'"
-                            class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
-                        >
-                            <span
-                                :class="userSettings.watch_history_enabled ? 'translate-x-7' : 'translate-x-1'"
-                                class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-950 shadow ring-0 transition duration-200 ease-in-out mt-1"
-                            ></span>
-                        </button>
+                <!-- Privacy Settings -->
+                <div class="settings-panel order-4">
+                    <div class="flex items-center gap-3 mb-5 sm:mb-6">
+                        <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">privacy_tip</span>
+                        <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">隱私設定</h3>
                     </div>
 
-                    <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                        <div class="flex-1 pr-4">
-                            <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1">搜尋記錄</h4>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">記錄你查詢的內容與探索足跡</p>
+                    <div class="divide-y divide-black/5 dark:divide-white/10">
+                        <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                            <div class="flex-1 pr-4">
+                                <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1">觀看紀錄</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">記錄你觀看的動漫和播放進度</p>
+                            </div>
+                            <button
+                                @click="updateSetting('watch_history_enabled', !userSettings.watch_history_enabled)"
+                                :class="userSettings.watch_history_enabled ? 'bg-gray-900 dark:bg-white' : 'bg-black/10 dark:bg-white/15'"
+                                class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
+                            >
+                                <span
+                                    :class="userSettings.watch_history_enabled ? 'translate-x-7' : 'translate-x-1'"
+                                    class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-950 shadow ring-0 transition duration-200 ease-in-out mt-1"
+                                ></span>
+                            </button>
                         </div>
-                        <button
-                            @click="updateSetting('search_history_enabled', !userSettings.search_history_enabled)"
-                            :class="userSettings.search_history_enabled ? 'bg-gray-900 dark:bg-white' : 'bg-black/10 dark:bg-white/15'"
-                            class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
-                        >
-                            <span
-                                :class="userSettings.search_history_enabled ? 'translate-x-7' : 'translate-x-1'"
-                                class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-950 shadow ring-0 transition duration-200 ease-in-out mt-1"
-                            ></span>
-                        </button>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Data Management -->
-            <div class="settings-panel">
-                <div class="flex items-center gap-3 mb-5 sm:mb-6">
-                    <span class="material-symbols-rounded text-gray-500 dark:text-gray-400">storage</span>
-                    <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">資料管理</h3>
-                </div>
-
-                <div class="divide-y divide-black/5 dark:divide-white/10">
-                    <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                        <div>
-                            <h4 class="font-medium text-gray-900 dark:text-gray-100">觀看紀錄</h4>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">清除所有觀看紀錄</p>
+                        <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                            <div class="flex-1 pr-4">
+                                <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1">搜尋記錄</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">記錄你查詢的內容與探索足跡</p>
+                            </div>
+                            <button
+                                @click="updateSetting('search_history_enabled', !userSettings.search_history_enabled)"
+                                :class="userSettings.search_history_enabled ? 'bg-gray-900 dark:bg-white' : 'bg-black/10 dark:bg-white/15'"
+                                class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
+                            >
+                                <span
+                                    :class="userSettings.search_history_enabled ? 'translate-x-7' : 'translate-x-1'"
+                                    class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-950 shadow ring-0 transition duration-200 ease-in-out mt-1"
+                                ></span>
+                            </button>
                         </div>
-                        <button @click="openClearDataModal('history')" :disabled="stats.watchHistory === 0" class="btn-danger-outline">清除</button>
-                    </div>
-
-                    <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                        <div>
-                            <h4 class="font-medium text-gray-900 dark:text-gray-100">收藏列表</h4>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">清除所有收藏的動漫</p>
-                        </div>
-                        <button @click="openClearDataModal('favorites')" :disabled="stats.favorites === 0" class="btn-danger-outline">清除</button>
-                    </div>
-
-                    <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                        <div>
-                            <h4 class="font-medium text-gray-900 dark:text-gray-100">搜尋紀錄</h4>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">清除所有搜尋歷史</p>
-                        </div>
-                        <button @click="openClearDataModal('search')" :disabled="stats.searchHistory === 0" class="btn-danger-outline">清除</button>
-                    </div>
-
-                    <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                        <div>
-                            <h4 class="font-medium text-gray-900 dark:text-gray-100">所有資料</h4>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">清除所有個人資料</p>
-                        </div>
-                        <button @click="openClearDataModal('all')" class="btn-danger-outline">全部清除</button>
                     </div>
                 </div>
             </div>

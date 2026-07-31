@@ -43,6 +43,7 @@ const chatAtLimit = computed(() => chatLen.value >= MAX_CHARS)
 const needsNewChat = computed(() => chatAtLimit.value || chatLen.value + input.value.trim().length > MAX_CHARS)
 const canUseAi = computed(() => !!user.value && aiConsent.value)
 const canSend = computed(() => canUseAi.value && !!input.value.trim() && !busy.value && !needsNewChat.value)
+const showSend = computed(() => !!input.value.trim() || loading.value)
 const activeSuggestions = computed(() => {
     if (!canUseAi.value || loading.value || pendingAction.value) return []
     if (messages.value.length === 1) return SUGGESTIONS
@@ -82,6 +83,35 @@ const panelClass = computed(() =>
         ? 'w-full rounded-2xl ring-1 ring-black/10 dark:ring-white/15 bg-white dark:bg-gray-950 shadow-2xl overflow-hidden flex flex-col'
         : 'w-full md:w-[min(92vw,380px)] mb-2 md:mb-3 rounded-2xl ring-1 ring-black/10 dark:ring-white/15 bg-white dark:bg-gray-950 shadow-2xl overflow-hidden flex flex-col',
 )
+
+const micError = ref('')
+let micErrorTimeout = null
+
+function clearMicError() {
+    if (micErrorTimeout) {
+        clearTimeout(micErrorTimeout)
+        micErrorTimeout = null
+    }
+    micError.value = ''
+}
+
+const { isSupported: speechSupported, isListening, toggle: toggleSpeech, stop: stopSpeech } = useSpeechRecognition({
+    onResult: (transcript) => {
+        clearMicError()
+        input.value = transcript
+        nextTick(resizeInput)
+    },
+    onError: (message) => {
+        clearMicError()
+        micError.value = message
+        micErrorTimeout = setTimeout(clearMicError, 2000)
+    },
+})
+
+function onMicToggle() {
+    if (!canUseAi.value || busy.value || chatAtLimit.value) return
+    toggleSpeech()
+}
 
 function loadConsent() {
     try {
@@ -129,6 +159,7 @@ function scrollToBottom(force = false) {
 function onPanelOpen() {
     stickToBottom.value = true
     scrollToBottom(true)
+    focusInput()
 }
 
 function onListScroll() {
@@ -145,6 +176,8 @@ function resetChatState() {
 function clearChat() {
     if (busy.value) return
     abortCtrl?.abort()
+    stopSpeech()
+    clearMicError()
     messages.value = [{ role: 'assistant', content: WELCOME }]
     resetChatState()
     statusText.value = ''
@@ -251,6 +284,8 @@ async function sendMessage() {
     if (!content || busy.value || !canUseAi.value) return
     if (chatLen.value + content.length > MAX_CHARS) return pushMeta(CHAT_TOO_LONG)
 
+    stopSpeech()
+    clearMicError()
     abortCtrl?.abort()
     abortCtrl = new AbortController()
     resetChatState()
@@ -329,6 +364,15 @@ watch(() => [messages.value.length, loading.value, pendingAction.value, messages
 watch(aiConsent, (v) => v && open.value && onPanelOpen())
 watch(input, () => nextTick(resizeInput))
 watch(isAuthRoute, (v) => v && (open.value = false))
+watch(open, (v) => {
+    if (!v) {
+        stopSpeech()
+        clearMicError()
+        return
+    }
+    // Fallback if transition after-enter already ran or is skipped
+    nextTick(() => focusInput())
+})
 
 function onInputKeydown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -345,6 +389,8 @@ onMounted(() => window.addEventListener('keydown', onEsc))
 onUnmounted(() => {
     window.removeEventListener('keydown', onEsc)
     abortCtrl?.abort()
+    stopSpeech()
+    clearMicError()
 })
 </script>
 
@@ -509,8 +555,23 @@ onUnmounted(() => {
                                 @keydown="onInputKeydown"
                                 @input="resizeInput"
                             />
-                            <button type="submit" class="btn-solid h-9 w-9 shrink-0 rounded-full flex items-center justify-center" :disabled="!canSend" aria-label="送出">
-                                <span class="material-symbols-rounded text-[18px]">{{ loading ? 'hourglass_empty' : 'send' }}</span>
+                            <SearchMicButton
+                                variant="inline"
+                                idle-title="語音輸入"
+                                :listening="isListening"
+                                :supported="speechSupported"
+                                :error="micError"
+                                :disabled="!canUseAi || busy || chatAtLimit"
+                                @toggle="onMicToggle"
+                            />
+                            <button
+                                v-if="showSend"
+                                type="submit"
+                                class="btn-solid h-9 w-9 shrink-0 rounded-full flex items-center justify-center hover:bg-gray-800 dark:hover:bg-gray-100"
+                                :disabled="!canSend"
+                                aria-label="送出"
+                            >
+                                <span class="material-symbols-rounded text-[18px]">{{ loading ? 'hourglass_empty' : 'arrow_upward' }}</span>
                             </button>
                         </div>
                     </form>
