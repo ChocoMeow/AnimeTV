@@ -709,7 +709,7 @@ onMounted(() => {
                                             v-model="editableRecord[field.name]"
                                             :readonly="field.readOnly"
                                             type="text"
-                                            class="min-w-0 flex-1 rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60"
+                                            class="admin-input min-w-0 flex-1"
                                         />
                                         <button
                                             type="button"
@@ -734,7 +734,7 @@ onMounted(() => {
                                             :readonly="field.readOnly"
                                             type="number"
                                             step="1"
-                                            class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                            class="admin-input [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                         />
                                     </div>
 
@@ -746,7 +746,7 @@ onMounted(() => {
                                             :readonly="field.readOnly"
                                             type="number"
                                             step="0.1"
-                                            class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                            class="admin-input [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                         />
                                     </div>
 
@@ -756,7 +756,7 @@ onMounted(() => {
                                             v-model="editableRecord[field.name]"
                                             :readonly="field.readOnly"
                                             type="date"
-                                            class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
+                                            class="admin-input [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
                                         />
                                     </div>
 
@@ -766,7 +766,7 @@ onMounted(() => {
                                             v-model="editableRecord[field.name]"
                                             :readonly="field.readOnly"
                                             type="datetime-local"
-                                            class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
+                                            class="admin-input [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
                                         />
                                     </div>
 
@@ -790,7 +790,7 @@ onMounted(() => {
                                         v-model="editableRecord[field.name]"
                                         :readonly="field.readOnly"
                                         rows="4"
-                                        class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 resize-y"
+                                        class="admin-textarea"
                                     />
 
                                     <!-- JSONB fields (editable JSON textarea, saved as object) -->
@@ -800,7 +800,7 @@ onMounted(() => {
                                         :readonly="field.readOnly"
                                         rows="8"
                                         placeholder="{}"
-                                        class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 font-mono focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 resize-y"
+                                        class="admin-textarea font-mono"
                                     />
 
                                     <!-- Text fields (default) -->
@@ -809,7 +809,7 @@ onMounted(() => {
                                         v-model="editableRecord[field.name]"
                                         :readonly="field.readOnly"
                                         type="text"
-                                        class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60"
+                                        class="admin-input"
                                     />
                                 </div>
                             </div>
@@ -866,9 +866,17 @@ onMounted(() => {
 }
 
 .admin-input {
-    @apply w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2
+    @apply w-full rounded-full border border-transparent bg-black/5 dark:bg-white/10 text-sm px-4 py-2.5
            text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500
-           focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent transition-shadow;
+           focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent
+           transition-shadow disabled:opacity-60 disabled:cursor-not-allowed;
+}
+
+.admin-textarea {
+    @apply w-full rounded-2xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-4 py-2.5
+           text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500
+           focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent
+           transition-shadow disabled:opacity-60 resize-y;
 }
 
 .btn-admin-primary {

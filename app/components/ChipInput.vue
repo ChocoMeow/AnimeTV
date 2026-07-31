@@ -68,7 +68,7 @@ function removeChip(value) {
 <template>
     <div class="space-y-2">
         <div
-            class="w-full min-h-[80px] rounded-xl border border-transparent bg-black/5 dark:bg-white/10 px-2 py-2 flex flex-wrap items-start gap-2"
+            class="w-full min-h-[80px] rounded-2xl border border-transparent bg-black/5 dark:bg-white/10 px-3 py-2.5 flex flex-wrap items-start gap-2"
         >
             <span
                 v-for="chip in modelValue"
