@@ -361,7 +361,14 @@ watch(
                     <div v-if="loading" class="absolute right-14 top-1/2 -translate-y-1/2 pointer-events-none">
                         <div class="h-4 w-4 rounded-full animate-spin border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
                     </div>
-                    <SearchMicButton :listening="isListening" :supported="speechSupported" :error="micError" @toggle="onMicToggle" />
+                    <SearchMicButton
+                        idle-class="bg-white text-gray-900 dark:bg-gray-950 dark:text-white"
+                        hover-class="hover:bg-black/10 dark:hover:bg-white/20"
+                        :listening="isListening"
+                        :supported="speechSupported"
+                        :error="micError"
+                        @toggle="onMicToggle"
+                    />
                 </div>
                 <!-- Modern Dropdown -->
                 <transition name="dropdown">
@@ -552,7 +559,14 @@ watch(
                             <div v-if="loading" class="absolute right-14 top-1/2 -translate-y-1/2 pointer-events-none">
                                 <div class="h-4 w-4 rounded-full animate-spin border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
                             </div>
-                            <SearchMicButton :listening="isListening" :supported="speechSupported" :error="micError" @toggle="onMicToggle" />
+                            <SearchMicButton
+                                idle-class="bg-white text-gray-900 dark:bg-gray-950 dark:text-white"
+                                hover-class="hover:bg-black/10 dark:hover:bg-white/20"
+                                :listening="isListening"
+                                :supported="speechSupported"
+                                :error="micError"
+                                @toggle="onMicToggle"
+                            />
                         </div>
                         <button @click="closeMobileSearch" class="p-2 flex items-center justify-center shrink-0">
                             <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">close</span>

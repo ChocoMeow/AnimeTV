@@ -7,12 +7,23 @@ const props = defineProps({
     /** inset = absolute inside a search field; inline = flex action button */
     variant: { type: String, default: 'inset' },
     idleTitle: { type: String, default: '語音搜尋' },
+    /** Tailwind classes for idle pill surface (bg / text / ring). Passed by parent. */
+    idleClass: {
+        type: String,
+        default: 'bg-black/10 text-gray-900 dark:bg-white/15 dark:text-white',
+    },
+    /** Tailwind hover classes for idle pill. Passed by parent. */
+    hoverClass: {
+        type: String,
+        default: 'hover:bg-black/20 dark:hover:bg-white/30',
+    },
 })
 
 defineEmits(['toggle'])
 
 const shaking = ref(false)
 const isInline = computed(() => props.variant === 'inline')
+const isIdle = computed(() => !props.listening && !props.error)
 const micIcon = computed(() => (props.supported ? 'mic' : 'mic_alert'))
 const idleLabel = computed(() => (props.supported ? props.idleTitle : '此瀏覽器不支援語音輸入'))
 
@@ -33,11 +44,17 @@ watch(
         <button
             type="button"
             class="search-mic-pill"
-            :class="{
-                'is-inline': isInline,
-                'is-listening': listening && !error,
-                'is-error': !!error,
-            }"
+            :class="[
+                isInline ? 'is-inline' : '',
+                listening && !error
+                    ? 'is-listening bg-gray-900 text-white shadow-[0_0_0_1px_rgba(0,0,0,0.08)] dark:bg-white dark:text-gray-950 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.14)]'
+                    : '',
+                error
+                    ? 'is-error bg-red-500 text-white shadow-none hover:bg-red-600'
+                    : '',
+                isIdle ? idleClass : '',
+                isIdle ? hoverClass : '',
+            ]"
             :disabled="disabled"
             :title="error ? undefined : listening ? '停止語音輸入' : idleLabel"
             :aria-pressed="listening"
@@ -47,7 +64,14 @@ watch(
             <span v-else class="search-mic-wave" aria-hidden="true"><i /><i /><i /><i /></span>
         </button>
         <transition name="mic-tip">
-            <div v-if="error" class="search-mic-tooltip" :class="{ 'is-inline': isInline }" role="alert">{{ error }}</div>
+            <div
+                v-if="error"
+                class="search-mic-tooltip bg-gray-950 text-white shadow-[0_8px_24px_rgba(0,0,0,0.28)] dark:bg-white dark:text-gray-950 dark:shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+                :class="{ 'is-inline': isInline }"
+                role="alert"
+            >
+                {{ error }}
+            </div>
         </transition>
     </div>
 </template>
@@ -72,8 +96,6 @@ watch(
     border-radius: 9999px;
     cursor: pointer;
     outline: none;
-    color: #fff;
-    background: rgba(0, 0, 0, 0.55);
     transition:
         background-color 0.15s ease,
         color 0.15s ease,
@@ -91,42 +113,6 @@ watch(
 .search-mic-pill:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-}
-.search-mic-pill.is-listening {
-    color: #0a0a0a;
-    background: #fff;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
-}
-.search-mic-pill.is-error,
-.search-mic-pill.is-error:hover {
-    color: #fff;
-    background: #ef4444;
-    box-shadow: none;
-}
-:global(html:not(.dark)) .search-mic-pill:not(.is-listening):not(.is-error) {
-    color: #0a0a0a;
-    background: rgba(0, 0, 0, 0.1);
-}
-
-/* Clear hover feedback (skip on coarse touch where :hover sticks) */
-@media (hover: hover) and (pointer: fine) {
-    .search-mic-pill:not(:disabled):not(.is-listening):not(.is-error):hover {
-        background: rgba(255, 255, 255, 0.32);
-        color: #fff;
-        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
-    }
-    :global(html:not(.dark)) .search-mic-pill:not(:disabled):not(.is-listening):not(.is-error):hover {
-        background: rgba(0, 0, 0, 0.28);
-        color: #0a0a0a;
-        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
-    }
-    .search-mic-pill.is-listening:not(:disabled):not(.is-error):hover {
-        background: #e5e5e5;
-        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
-    }
-    .search-mic-pill.is-error:not(:disabled):hover {
-        background: #dc2626;
-    }
 }
 
 .search-mic-shake {
@@ -161,11 +147,8 @@ watch(
     max-width: min(16rem, 70vw);
     padding: 0.45rem 0.75rem;
     border-radius: 9999px;
-    background: #0a0a0a;
-    color: #fff;
     font-size: 0.75rem;
     line-height: 1.35;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
     pointer-events: none;
     white-space: normal;
     text-align: left;
@@ -187,7 +170,7 @@ watch(
     right: 1rem;
     width: 8px;
     height: 8px;
-    background: #0a0a0a;
+    background: inherit;
     transform: rotate(45deg);
 }
 .search-mic-tooltip.is-inline::before {

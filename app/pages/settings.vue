@@ -467,7 +467,7 @@ useHead({
 }
 
 .pill-tab {
-    @apply px-4 py-2.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2;
+    @apply h-10 px-4 rounded-full text-sm font-medium leading-none transition-colors inline-flex items-center justify-center gap-2 shrink-0;
 }
 
 .pill-tab-inactive {
@@ -479,7 +479,7 @@ useHead({
 }
 
 .btn-danger-outline {
-    @apply px-4 py-2 bg-red-500/10 text-red-600 dark:text-red-400 rounded-full hover:bg-red-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed font-medium;
+    @apply h-10 px-4 inline-flex items-center justify-center shrink-0 bg-red-500/10 text-red-600 dark:text-red-400 rounded-full text-sm font-medium leading-none hover:bg-red-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed;
 }
 </style>
 
