@@ -1,6 +1,6 @@
 <template>
     <div
-        class="toast-viewport fixed z-50 pointer-events-none inset-x-3 bottom-[calc(4.25rem+(env(safe-area-inset-bottom,0px)/2))] md:inset-x-auto md:right-5 md:bottom-5 md:w-[380px]">
+        class="toast-viewport fixed z-[11000] pointer-events-none inset-x-3 bottom-[calc(4.25rem+(env(safe-area-inset-bottom,0px)/2))] md:inset-x-auto md:left-1/2 md:bottom-6 md:w-[min(24rem,calc(100vw-2.5rem))] md:-translate-x-1/2">
         <TransitionGroup name="toast" tag="div" class="toast-stack"
             :class="{ 'has-toasts': toasts.length, 'is-expanded': expanded }" @mouseenter="expanded = toasts.length > 0"
             @mouseleave="expanded = false">
