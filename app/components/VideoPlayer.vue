@@ -74,6 +74,11 @@ let lastAutoplaySecond = null
 let isUnmounted = false
 let spaceBoostActive = false
 let hlsInstance = null
+/** @type {import('vue').Ref<Array<{ index: number, label: string, height: number, bitrate: number }>>} */
+const qualityLevels = ref([])
+/** -1 = auto (abr), otherwise hls.levels index */
+const selectedQuality = ref(-1)
+const activeQualityIndex = ref(-1)
 let isHoveringVolume = false
 let isSpaceHeld = false
 let originalPlaybackRate = 1
@@ -108,6 +113,8 @@ const normalizedVideoId = computed(() => {
 
 const thumbnailJpgUrl = computed(() => props.animeMeta?.thumbnailJpgUrl || null)
 
+const activeThumbnailSrc = computed(() => activeThumbnail.value?.src || thumbnailJpgUrl.value || null)
+
 const thumbnailCrop = computed(() => activeThumbnail.value?.xywh ?? null)
 
 const thumbnailPreviewHeight = computed(() => {
@@ -118,7 +125,13 @@ const thumbnailPreviewHeight = computed(() => {
 
 const thumbnailImageStyle = computed(() => {
     const crop = thumbnailCrop.value
-    if (!crop?.w || !crop?.h) return {}
+    if (!crop?.w || !crop?.h) {
+        // Full-frame URL thumbs without crop
+        if (activeThumbnail.value?.src) {
+            return { width: "100%", height: "100%", objectFit: "cover" }
+        }
+        return {}
+    }
     const scale = THUMB_PREVIEW_W / crop.w
     return {
         transformOrigin: "top left",
@@ -166,6 +179,14 @@ const tooltipLabels = computed(() => {
 })
 
 const playbackSpeeds = PLAYBACK_SPEEDS
+
+const qualityLabel = computed(() => {
+    if (selectedQuality.value === -1) {
+        const active = qualityLevels.value.find((l) => l.index === activeQualityIndex.value)
+        return active?.label ? `自動 · ${active.label}` : "自動"
+    }
+    return qualityLevels.value.find((l) => l.index === selectedQuality.value)?.label || "自動"
+})
 
 /** Hide cursor over the chrome while playback is active and chrome auto-hides */
 const hidePlaybackCursor = computed(
@@ -361,6 +382,62 @@ function openSpeedSettings() {
     resetControlsTimeout()
 }
 
+function openQualitySettings() {
+    settingsPage.value = "quality"
+    resetControlsTimeout()
+}
+
+function formatQualityLabel(level, index) {
+    if (level?.height) return `${level.height}p`
+    const res = level?.attrs?.RESOLUTION || level?.attrs?.resolution
+    if (typeof res === "string" && res.includes("x")) {
+        const h = Number(res.split("x")[1])
+        return h > 0 ? `${h}p` : res
+    }
+    if (level?.bitrate) return `${Math.round(level.bitrate / 1000)} kbps`
+    return `來源 ${index + 1}`
+}
+
+function resetQualityState() {
+    qualityLevels.value = []
+    selectedQuality.value = -1
+    activeQualityIndex.value = -1
+}
+
+function syncQualityLevelsFromHls(hls) {
+    const levels = hls?.levels
+    if (!levels?.length) {
+        resetQualityState()
+        return
+    }
+    qualityLevels.value = levels
+        .map((level, index) => ({
+            index,
+            label: formatQualityLabel(level, index),
+            height: Number(level.height) || 0,
+            bitrate: Number(level.bitrate) || 0,
+        }))
+        .sort((a, b) => b.height - a.height || b.bitrate - a.bitrate)
+
+    if (selectedQuality.value !== -1 && !qualityLevels.value.some((l) => l.index === selectedQuality.value)) {
+        selectedQuality.value = -1
+        hls.currentLevel = -1
+    }
+}
+
+function setQuality(levelIndex) {
+    if (!hlsInstance) return
+    selectedQuality.value = levelIndex
+    hlsInstance.currentLevel = levelIndex
+    if (levelIndex >= 0) activeQualityIndex.value = levelIndex
+    settingsPage.value = "main"
+    resetControlsTimeout()
+    const label = levelIndex === -1
+        ? "自動"
+        : qualityLevels.value.find((l) => l.index === levelIndex)?.label
+    if (label) showNotification(`畫質 ${label}`, "high_quality")
+}
+
 function handleDocumentPointerDown(e) {
     if (!showSettings.value) return
     const clickedInside = e.composedPath?.().includes(settingsRef.value)
@@ -448,21 +525,30 @@ function parseVttTimeToSeconds(timeStr) {
     return +mm * 60 + +ss + +(ms || 0) / 1000
 }
 
+function parseXywh(text) {
+    const m = String(text).match(/#xywh=(\d+),(\d+),(\d+),(\d+)/)
+    return m ? { x: +m[1], y: +m[2], w: +m[3], h: +m[4] } : null
+}
+
+/** Supports anime1 (#xywh on shared jpg) and twxgct (per-cue https URL + optional #xywh). */
 function parseThumbnailsVtt(vttText) {
     const segments = []
     for (const block of String(vttText || "").replace(/\r/g, "").split(/\n\s*\n/)) {
         const timeMatch = block.match(/((?:\d{2}:)?\d{2}:\d{2}\.\d{3})\s*-->\s*((?:\d{2}:)?\d{2}:\d{2}\.\d{3})/)
-        const xywhMatch = block.match(/#xywh=(\d+),(\d+),(\d+),(\d+)/)
-        if (!timeMatch || !xywhMatch) continue
-        const [, x, y, w, h] = xywhMatch
-        segments.push({
+        if (!timeMatch) continue
+        const src = block.match(/(https?:\/\/[^\s#]+)/i)?.[1]
+        const xywh = parseXywh(block)
+        if (!src && !xywh) continue
+        const seg = {
             start: parseVttTimeToSeconds(timeMatch[1]),
             end: parseVttTimeToSeconds(timeMatch[2]),
-            xywh: { x: +x, y: +y, w: +w, h: +h },
-        })
+        }
+        if (src) seg.src = src
+        if (xywh) seg.xywh = xywh
+        segments.push(seg)
     }
     return segments
-        .filter(s => Number.isFinite(s.start) && Number.isFinite(s.end) && s.end >= s.start)
+        .filter((s) => Number.isFinite(s.start) && Number.isFinite(s.end) && s.end >= s.start)
         .sort((a, b) => a.start - b.start)
 }
 
@@ -481,8 +567,7 @@ function findThumbnailSegmentAtTime(t) {
 }
 
 function updateActiveThumbnailForTime(t) {
-    activeThumbnail.value = (normalizedVideoId.value && thumbnailsSegments.value?.length)
-        ? findThumbnailSegmentAtTime(t) : null
+    activeThumbnail.value = thumbnailsSegments.value?.length ? findThumbnailSegmentAtTime(t) : null
 }
 
 async function loadThumbnailsForVideoId(videoId) {
@@ -491,13 +576,15 @@ async function loadThumbnailsForVideoId(videoId) {
     thumbnailsAbortController = null
     activeThumbnail.value = null
     thumbnailsSegments.value = []
-    if (!videoId || typeof window === "undefined") return
+    if (typeof window === "undefined") return
 
     const vttText = props.animeMeta?.thumbnailVttText
     if (vttText) {
         thumbnailsSegments.value = parseThumbnailsVtt(vttText)
         return
     }
+
+    if (!videoId) return
 
     const vttFetchUrl = props.animeMeta?.thumbnailsVttUrl
     if (!vttFetchUrl) return
@@ -692,6 +779,7 @@ function requestStreamRecovery() {
 function destroyHls() {
     hlsInstance?.destroy()
     hlsInstance = null
+    resetQualityState()
 }
 
 function resetRecoveryAttempts() {
@@ -753,6 +841,15 @@ async function applyVideoSource(src, isHls, video) {
             levelLoadingMaxRetry: 4,
         })
         hlsInstance = hls
+        selectedQuality.value = -1
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            if (hlsInstance !== hls || generation !== sourceGeneration) return
+            syncQualityLevelsFromHls(hls)
+        })
+        hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
+            if (hlsInstance !== hls || generation !== sourceGeneration) return
+            activeQualityIndex.value = data.level
+        })
         hls.on(Hls.Events.ERROR, (_, data) => {
             if (!data.fatal || hlsInstance !== hls || generation !== sourceGeneration) return
             if (data.type === Hls.ErrorTypes.NETWORK_ERROR && streamRecoveryAttempts.network < 2) {
@@ -886,7 +983,7 @@ onUnmounted(() => {
             <div v-show="!isLoading && showControls && src"
                 class="absolute inset-0 flex items-center justify-center pointer-events-none z-[2]">
                 <button @click="togglePlay"
-                    class="w-14 h-14 sm:w-[4.25rem] sm:h-[4.25rem] rounded-full bg-black/55 backdrop-blur-md text-white flex items-center justify-center cursor-pointer pointer-events-auto transition-all duration-200 hover:bg-black/70 active:scale-95 focus:outline-none">
+                    class="w-14 h-14 sm:w-[4.25rem] sm:h-[4.25rem] rounded-full bg-black/55 backdrop-blur-md text-white flex items-center justify-center cursor-pointer pointer-events-auto transition-colors duration-200 hover:bg-black/70 focus:outline-none">
                     <span class="material-symbols-rounded text-3xl sm:text-[2.5rem]">{{ isPlaying ? 'pause' :
                         'play_arrow' }}</span>
                 </button>
@@ -957,11 +1054,11 @@ onUnmounted(() => {
                                 <div v-if="isHoveringProgress && !isDraggingProgress && duration > 0"
                                     class="absolute bottom-full mb-2.5 -translate-x-1/2 pointer-events-none z-[9]"
                                     :style="{ left: `${hoverPreviewPosition}%` }">
-                                    <div v-if="activeThumbnail && thumbnailJpgUrl" class="flex flex-col items-center"
+                                    <div v-if="activeThumbnail && activeThumbnailSrc" class="flex flex-col items-center"
                                         :style="{ width: `${THUMB_PREVIEW_W}px` }">
                                         <div class="thumb-preview-frame relative overflow-hidden rounded-lg shadow-xl"
                                             :style="{ width: `${THUMB_PREVIEW_W}px`, height: `${thumbnailPreviewHeight}px` }">
-                                            <img :src="thumbnailJpgUrl"
+                                            <img :src="activeThumbnailSrc"
                                                 class="absolute top-0 left-0 block w-auto h-auto"
                                                 :style="thumbnailImageStyle" alt="Thumbnail preview" />
                                         </div>
@@ -1063,8 +1160,18 @@ onUnmounted(() => {
                                                     class="material-symbols-rounded text-base leading-none">chevron_right</span>
                                             </span>
                                         </button>
+                                        <button @click.stop="openQualitySettings"
+                                            class="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-sm text-left text-white hover:bg-white/10 transition-colors">
+                                            <span>畫質</span>
+                                            <span
+                                                class="inline-flex items-center gap-0.5 text-xs text-white/55 leading-none">
+                                                {{ qualityLabel }}
+                                                <span
+                                                    class="material-symbols-rounded text-base leading-none">chevron_right</span>
+                                            </span>
+                                        </button>
                                     </template>
-                                    <template v-else>
+                                    <template v-else-if="settingsPage === 'speed'">
                                         <button @click="settingsPage = 'main'"
                                             class="w-full flex items-center gap-1 px-3.5 py-2.5 text-sm text-left text-white hover:bg-white/10 transition-colors">
                                             <span class="material-symbols-rounded text-lg">chevron_left</span>
@@ -1076,6 +1183,28 @@ onUnmounted(() => {
                                             :class="{ 'bg-white/10 font-medium': playbackRate === speed }">
                                             <span>{{ speed }}x</span>
                                             <span v-if="playbackRate === speed"
+                                                class="material-symbols-rounded text-base">check</span>
+                                        </button>
+                                    </template>
+                                    <template v-else-if="settingsPage === 'quality'">
+                                        <button @click="settingsPage = 'main'"
+                                            class="w-full flex items-center gap-1 px-3.5 py-2.5 text-sm text-left text-white hover:bg-white/10 transition-colors">
+                                            <span class="material-symbols-rounded text-lg">chevron_left</span>
+                                            <span>畫質</span>
+                                        </button>
+                                        <button @click="setQuality(-1)"
+                                            class="w-full flex items-center justify-between px-3.5 py-2.5 text-sm text-left text-white hover:bg-white/10 transition-colors"
+                                            :class="{ 'bg-white/10 font-medium': selectedQuality === -1 }">
+                                            <span>自動</span>
+                                            <span v-if="selectedQuality === -1"
+                                                class="material-symbols-rounded text-base">check</span>
+                                        </button>
+                                        <button v-for="level in qualityLevels" :key="level.index"
+                                            @click="setQuality(level.index)"
+                                            class="w-full flex items-center justify-between px-3.5 py-2.5 text-sm text-left text-white hover:bg-white/10 transition-colors"
+                                            :class="{ 'bg-white/10 font-medium': selectedQuality === level.index }">
+                                            <span>{{ level.label }}</span>
+                                            <span v-if="selectedQuality === level.index"
                                                 class="material-symbols-rounded text-base">check</span>
                                         </button>
                                     </template>
@@ -1120,10 +1249,9 @@ onUnmounted(() => {
     width: 3rem; height: 2rem; display: inline-flex;
     align-items: center; justify-content: center; border-radius: 9999px;
     color: white; border: 0; cursor: pointer; outline: none;
-    transition: background-color 0.2s ease, transform 0.2s ease;
+    transition: background-color 0.2s ease;
 }
 .player-group-btn:hover { background: rgba(255, 255, 255, 0.15); }
-.player-group-btn:active { transform: scale(0.95); }
 .player-group-btn--time { width: auto; padding: 0 0.625rem; }
 .player-volume-group { position: relative; align-items: center; }
 .player-volume-hover {

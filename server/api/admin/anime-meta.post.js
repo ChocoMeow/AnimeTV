@@ -1,5 +1,6 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { isValidVideoSource, DEFAULT_VIDEO_SOURCE, VIDEO_SOURCES } from '~~/server/lib/videoProviders'
 import { createLoggedError } from '~~/server/utils/logger'
+import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
     await authAdmin(event)
@@ -12,6 +13,16 @@ export default defineEventHandler(async (event) => {
             statusCode: 400,
             statusMessage: 'Invalid request body',
         })
+    }
+
+    if (body.video_source != null && body.video_source !== '' && !isValidVideoSource(body.video_source)) {
+        throw createError({
+            statusCode: 400,
+            statusMessage: `video_source must be one of: ${VIDEO_SOURCES.join(', ')}`,
+        })
+    }
+    if (!body.video_source) {
+        body.video_source = DEFAULT_VIDEO_SOURCE
     }
 
     // Get field types dynamically and convert body

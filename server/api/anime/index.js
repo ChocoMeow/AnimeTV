@@ -1,10 +1,8 @@
 import * as cheerio from "cheerio"
 import { serverSupabaseClient } from "#supabase/server"
+import { CHINESE_WEEKDAY_MAP, GAMER_BASE_URL } from "~~/shared/global"
+import { ANIME_CACHE } from "~~/server/utils/cache"
 import { createLoggedError } from "~~/server/utils/logger"
-
-// NOTE: ANIME_CACHE, CHINESE_WEEKDAY_MAP, GAMER_BASE_URL, cfFetch, authUser,
-// and parseViews are assumed to be auto-imported from server/utils/*, same
-// as in the original file. SPOTLIGHT_CACHE is new — declared below.
 
 const TWO_HOURS = 1000 * 60 * 60 * 2
 const CONTINUE_WATCHING_TITLE = "繼續觀看"

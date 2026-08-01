@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio'
 import { serverSupabaseClient, serverSupabaseServiceRole } from '#supabase/server'
+import { CUSTOM_SOURCE_ID_MIN, GAMER_BASE_URL } from '~~/shared/global'
 import { getRequestLogger, moduleLogger } from '~~/server/utils/logger'
 
 const log = moduleLogger('anime-detail')

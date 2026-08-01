@@ -1,116 +1,106 @@
-import http from "node:http"
-import https from "node:https"
-import { URL } from "node:url"
-import { createLoggedError, logError } from "~~/server/utils/logger"
+import { createLoggedError, logError } from '~~/server/utils/logger'
+import {
+    VIDEO_UPSTREAM,
+    bindClientAbort,
+    combinedSignal,
+    videoUpstreamHeaders,
+} from '~~/server/utils/videoUpstream'
 
-const httpAgent = new http.Agent({ keepAlive: true, timeout: 30000 })
-const httpsAgent = new https.Agent({ keepAlive: true, timeout: 30000 })
+const { timeoutMs, maxRedirects } = VIDEO_UPSTREAM
 
 export default defineEventHandler(async (event) => {
     await authUser(event)
 
     const { url, cookie } = getQuery(event)
-    if (!url || !cookie) {
-        return sendError(event, createError({ statusCode: 400, statusMessage: "Missing parameters" }))
+    if (!url) {
+        return sendError(event, createError({ statusCode: 400, statusMessage: 'Missing parameters' }))
     }
 
-    const maxRedirects = 5
-
-    const streamFile = async (target, redirects = 0) => {
-        let u
-        try {
-            u = new URL(target)
-        } catch {
-            throw createError({ statusCode: 400, statusMessage: "Invalid URL" })
-        }
-
-        const client = u.protocol === "https:" ? https : http
-        const agent = u.protocol === "https:" ? httpsAgent : httpAgent
-        const referer = u.hostname.includes("anime1.me") ? "https://anime1.me/" : `${u.origin}/`
-
-        await new Promise((resolve, reject) => {
-            const req = client.request(
-                {
-                    hostname: u.hostname,
-                    port: u.port || (u.protocol === "https:" ? 443 : 80),
-                    path: u.pathname + u.search,
-                    method: "GET",
-                    agent,
-                    timeout: 30000,
-                    headers: {
-                        Cookie: cookie,
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                        Accept: "*/*",
-                        Connection: "keep-alive",
-                        Referer: referer,
-                    },
-                },
-                (res) => {
-                    if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                        res.destroy()
-                        if (redirects >= maxRedirects) {
-                            reject(createLoggedError(event, {
-                                statusCode: 508,
-                                statusMessage: "Too many redirects",
-                                context: { module: "download-proxy", stage: "redirect" },
-                            }))
-                            return
-                        }
-                        const next = new URL(res.headers.location, target).toString()
-                        streamFile(next, redirects + 1).then(resolve).catch(reject)
-                        return
-                    }
-
-                    if (res.statusCode >= 400) {
-                        res.destroy()
-                        reject(createLoggedError(event, {
-                            statusCode: res.statusCode,
-                            statusMessage: "Upstream download failed",
-                            context: { module: "download-proxy", stage: "upstream", status: res.statusCode },
-                        }))
-                        return
-                    }
-
-                    if (!event.node.res.headersSent) {
-                        setResponseStatus(event, 200)
-                        setResponseHeader(event, "Content-Type", res.headers["content-type"] || "video/mp4")
-                        if (res.headers["content-length"]) {
-                            setResponseHeader(event, "Content-Length", res.headers["content-length"])
-                        }
-                        setResponseHeader(event, "Cache-Control", "no-store")
-                        setResponseHeader(event, "Access-Control-Allow-Origin", "*")
-                    }
-
-                    res.on("error", reject)
-                    res.on("end", resolve)
-                    res.pipe(event.node.res, { end: true })
-                }
-            )
-
-            req.setTimeout(30000, () => req.destroy(new Error("Request timeout")))
-            req.on("error", reject)
-            req.end()
-        })
-    }
+    const cookieHeader = cookie == null ? '' : String(cookie)
+    const clientAbort = bindClientAbort(event)
 
     try {
-        await streamFile(String(url))
-    } catch (err) {
-        if (!event.node.res.headersSent) {
-            if (err?.data?.errorId) {
-                return sendError(event, err)
+        let current = String(url)
+        for (let hop = 0; hop <= maxRedirects; hop++) {
+            if (clientAbort.signal.aborted) return
+
+            let parsed
+            try {
+                parsed = new URL(current)
+            } catch {
+                throw createError({ statusCode: 400, statusMessage: 'Invalid URL' })
             }
-            if (err?.statusCode && err.statusCode < 500) {
-                return sendError(event, err)
-            }
-            const logged = createLoggedError(event, {
-                statusCode: err?.statusCode || 502,
-                statusMessage: err?.message || "Proxy error",
-                err,
-                context: { module: "download-proxy" },
+
+            const res = await fetch(current, {
+                method: 'GET',
+                redirect: 'manual',
+                signal: combinedSignal(clientAbort.signal, timeoutMs),
+                headers: videoUpstreamHeaders(parsed, { cookie: cookieHeader, accept: '*/*' }),
             })
-            return sendError(event, logged)
+
+            if (res.status >= 300 && res.status < 400) {
+                const loc = res.headers.get('location')
+                if (!loc) break
+                // Drain/cancel unused body so sockets free quickly.
+                res.body?.cancel?.().catch(() => {})
+                if (hop === maxRedirects) {
+                    throw createLoggedError(event, {
+                        statusCode: 508,
+                        statusMessage: 'Too many redirects',
+                        context: { module: 'download-proxy', stage: 'redirect' },
+                    })
+                }
+                current = new URL(loc, current).toString()
+                continue
+            }
+
+            if (!res.ok) {
+                res.body?.cancel?.().catch(() => {})
+                throw createLoggedError(event, {
+                    statusCode: res.status >= 400 ? res.status : 502,
+                    statusMessage: 'Upstream download failed',
+                    context: { module: 'download-proxy', stage: 'upstream', status: res.status },
+                })
+            }
+
+            if (!res.body) {
+                throw createLoggedError(event, {
+                    statusCode: 502,
+                    statusMessage: 'Empty upstream body',
+                    context: { module: 'download-proxy', stage: 'upstream' },
+                })
+            }
+
+            setResponseStatus(event, 200)
+            setResponseHeader(event, 'Content-Type', res.headers.get('content-type') || 'video/mp4')
+            const len = res.headers.get('content-length')
+            if (len) setResponseHeader(event, 'Content-Length', len)
+            setResponseHeader(event, 'Cache-Control', 'no-store')
+            setResponseHeader(event, 'Access-Control-Allow-Origin', '*')
+
+            return sendStream(event, res.body)
         }
-        logError(event, err, { module: "download-proxy", stage: "after_headers" })
+
+        throw createLoggedError(event, {
+            statusCode: 508,
+            statusMessage: 'Too many redirects',
+            context: { module: 'download-proxy', stage: 'redirect' },
+        })
+    } catch (err) {
+        if (err?.name === 'AbortError' || clientAbort.signal.aborted) return
+        if (!event.node.res.headersSent) {
+            if (err?.data?.errorId) return sendError(event, err)
+            if (err?.statusCode && err.statusCode < 500) return sendError(event, err)
+            return sendError(
+                event,
+                createLoggedError(event, {
+                    statusCode: err?.statusCode || 502,
+                    statusMessage: err?.message || 'Proxy error',
+                    err,
+                    context: { module: 'download-proxy' },
+                }),
+            )
+        }
+        logError(event, err, { module: 'download-proxy', stage: 'after_headers' })
     }
 })

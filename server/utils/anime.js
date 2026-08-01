@@ -1,4 +1,7 @@
 import { moduleLogger } from '~~/server/utils/logger'
+import { ANIME1 } from '~~/server/lib/videoProviders/constants'
+import { CACHE_LIFETIME } from '~~/shared/global'
+import { ANIME1_LIST_CACHE, RESPONSE_CACHE } from '~~/server/utils/cache'
 
 const animeLog = moduleLogger('anime')
 
@@ -489,7 +492,7 @@ export async function fetchAnimeData() {
     ANIME1_LIST_CACHE.fetchPromise = (async () => {
         try {
             animeLog.info('Fetching anime data from source')
-            const response = await fetch("https://d1zquzjgwo9yb.cloudfront.net/");
+            const response = await fetch(ANIME1.catalogUrl);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -519,6 +522,13 @@ export async function fetchAnimeData() {
 
 let flareSessionId = null
 
+const DEFAULT_FETCH_HEADERS = Object.freeze({
+    'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8',
+})
+
 async function flareRequest(solver, body) {
     const res = await fetch(solver, {
         method: 'POST',
@@ -530,17 +540,25 @@ async function flareRequest(solver, body) {
     return data
 }
 
-export async function cfFetch(url) {
+/**
+ * Cached HTML fetch. Uses FlareSolverr when configured; otherwise plain fetch
+ * with browser-like headers (override via opts.headers).
+ * @param {string} url
+ * @param {{ headers?: Record<string, string>, timeoutMs?: number }} [opts]
+ */
+export async function cfFetch(url, opts = {}) {
     try {
         const now = Date.now()
-
-        const cached = RESPONSE_CACHE.get(url)
+        const cacheKey = url
+        const cached = RESPONSE_CACHE.get(cacheKey)
         if (cached && now - cached.timestamp < CACHE_LIFETIME) {
             animeLog.debug({ url, bytes: cached.html.length }, 'cfFetch cache hit')
             return cached
         }
 
         const solver = (useRuntimeConfig().cfFetchFlaresolverr || '').trim()
+        const headers = { ...DEFAULT_FETCH_HEADERS, ...opts.headers }
+        const timeoutMs = opts.timeoutMs ?? 20_000
         let html
 
         if (solver) {
@@ -566,14 +584,18 @@ export async function cfFetch(url) {
             }
             html = data.solution.response
         } else {
-            const response = await fetch(url)
+            const response = await fetch(url, {
+                headers,
+                redirect: 'follow',
+                signal: AbortSignal.timeout(timeoutMs),
+            })
             if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`)
             html = await response.text()
         }
 
         const result = { html, timestamp: now }
 
-        RESPONSE_CACHE.set(url, result)
+        RESPONSE_CACHE.set(cacheKey, result)
         while (RESPONSE_CACHE.size > 200) {
             const firstKey = RESPONSE_CACHE.keys().next().value
             RESPONSE_CACHE.delete(firstKey)

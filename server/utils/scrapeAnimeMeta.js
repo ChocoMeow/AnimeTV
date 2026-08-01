@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio'
+import { GAMER_BASE_URL } from '~~/shared/global'
 import { moduleLogger } from '~~/server/utils/logger'
 
 const scrapeLog = moduleLogger('scrapeAnimeMeta')

@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio"
 import { serverSupabaseClient } from "#supabase/server"
+import { GAMER_BASE_URL } from "~~/shared/global"
 
 function toResult(row) {
     return {

@@ -1,4 +1,6 @@
 <script setup>
+import { DEFAULT_VIDEO_SOURCE, VIDEO_SOURCES } from '~~/shared/videoSources'
+
 const appConfig = useAppConfig()
 const route = useRoute()
 
@@ -9,6 +11,7 @@ const errorMessage = ref('')
 
 const records = ref([])
 const fields = ref([])
+const formSections = ref([])
 
 const selectedRecord = ref(null)
 const editableRecord = ref(null)
@@ -185,6 +188,7 @@ async function loadRecords() {
 
         records.value = res.items || []
         fields.value = res.fields || []
+        formSections.value = res.formSections || []
         total.value = res.total || records.value.length
 
         // Initialize default search field, but
@@ -567,7 +571,7 @@ onMounted(() => {
                                         外部編號：{{ record.source_id || record.id || '—' }}
                                     </p>
                                     <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                        站內片源：{{ record.video_id || '未綁定' }} · 季數：{{ record.season || '—' }}
+                                        片源：{{ record.video_source || DEFAULT_VIDEO_SOURCE }} · ID：{{ record.video_id || '未綁定' }} · 季數：{{ record.season || '—' }}
                                     </p>
                                 </div>
                             </li>
@@ -669,15 +673,24 @@ onMounted(() => {
                         </div>
 
                         <form
-                            class="space-y-4"
+                            class="space-y-8"
                             @submit.prevent="handleSave"
                         >
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div
-                                    v-for="field in fields"
-                                    :key="field.name"
-                                    class="space-y-1.5"
-                                >
+                            <section
+                                v-for="section in formSections"
+                                :key="section.id"
+                                class="space-y-3"
+                            >
+                                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100 border-b border-black/5 dark:border-white/10 pb-2">
+                                    {{ section.title }}
+                                </h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div
+                                        v-for="field in section.fields"
+                                        :key="field.name"
+                                        class="space-y-1.5"
+                                        :class="{ 'md:col-span-2': field.wide }"
+                                    >
                                     <label class="text-xs font-medium text-gray-700 dark:text-gray-200 flex items-center gap-1">
                                         <span>{{ field.label }}</span>
                                         <span
@@ -727,6 +740,15 @@ onMounted(() => {
                                         </button>
                                     </div>
 
+                                    <!-- video_source enum -->
+                                    <div v-else-if="field.name === 'video_source'">
+                                        <Dropdown
+                                            v-model="editableRecord[field.name]"
+                                            :options="VIDEO_SOURCES"
+                                            placeholder="選擇片源"
+                                        />
+                                    </div>
+
                                     <!-- Number fields -->
                                     <div v-else-if="field.type === 'number'" class="relative">
                                         <input
@@ -750,7 +772,7 @@ onMounted(() => {
                                         />
                                     </div>
 
-                                    <!-- Datetime fields -->
+                                    <!-- Date fields -->
                                     <div v-else-if="field.type === 'date'" class="relative">
                                         <input
                                             v-model="editableRecord[field.name]"
@@ -789,7 +811,7 @@ onMounted(() => {
                                         v-else-if="field.type === 'textbox'"
                                         v-model="editableRecord[field.name]"
                                         :readonly="field.readOnly"
-                                        rows="4"
+                                        rows="2"
                                         class="admin-textarea"
                                     />
 
@@ -798,7 +820,7 @@ onMounted(() => {
                                         v-else-if="field.type === 'jsonb'"
                                         v-model="editableRecord[field.name]"
                                         :readonly="field.readOnly"
-                                        rows="8"
+                                        rows="2"
                                         placeholder="{}"
                                         class="admin-textarea font-mono"
                                     />
@@ -811,8 +833,9 @@ onMounted(() => {
                                         type="text"
                                         class="admin-input"
                                     />
+                                    </div>
                                 </div>
-                            </div>
+                            </section>
                         </form>
 
                         <!-- Action Buttons at Bottom -->
@@ -876,7 +899,11 @@ onMounted(() => {
     @apply w-full rounded-2xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-4 py-2.5
            text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500
            focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent
-           transition-shadow disabled:opacity-60 resize-y;
+           transition-shadow disabled:opacity-60 overflow-y-auto;
+    field-sizing: content;
+    min-height: 4.5rem;
+    max-height: 16rem;
+    resize: none;
 }
 
 .btn-admin-primary {

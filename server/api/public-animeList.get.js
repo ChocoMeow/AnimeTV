@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio"
+import { CACHE_LIFETIME, GAMER_BASE_URL } from "~~/shared/global"
 import { logError } from "~~/server/utils/logger"
 
 // Cache for public anime list (first page only)

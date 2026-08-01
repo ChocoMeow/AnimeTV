@@ -139,22 +139,18 @@ const hasNextEpisode = computed(() => {
 
 const currentEpisodeData = computed(() => {
     if (!anime.value?.episodes || selectedEpisode.value == null) return null
-    return anime.value.episodes[String(selectedEpisode.value)] ?? null
-})
-
-const currentVideoId = computed(() => {
-    const ep = currentEpisodeData.value
-    return typeof ep === 'string' ? null : (ep?.video_id ?? null)
+    const ep = anime.value.episodes[String(selectedEpisode.value)]
+    return ep && typeof ep === 'object' ? ep : null
 })
 
 const videoPlayerMeta = computed(() => {
-    const ep = typeof currentEpisodeData.value === 'string' ? null : currentEpisodeData.value
+    const ep = currentEpisodeData.value
     return {
         title: anime.value?.title ?? null,
         episode: selectedEpisode.value ?? null,
-        videoId: currentVideoId.value,
+        videoId: ep?.video_id ?? null,
         thumbnailJpgUrl: offlineThumbnailJpgUrl.value || ep?.thumbnails_jpg_url || null,
-        thumbnailVttText: offlineThumbnailVttText.value,
+        thumbnailVttText: offlineThumbnailVttText.value || ep?.thumbnail_vtt_text || null,
         thumbnailsVttUrl: ep?.thumbnails_vtt_url || null,
     }
 })
@@ -548,6 +544,16 @@ function applyEpisodeQueryFromRoute() {
     return false
 }
 
+/** Merge resolve-time fields (video_id / seek VTT) into the episode list entry. */
+function mergeEpisodePlaybackMeta(epKey, res) {
+    const ep = anime.value?.episodes?.[epKey]
+    if (!ep || typeof ep !== 'object') return
+    const patch = {}
+    if (res.video_id) patch.video_id = res.video_id
+    if (res.thumbnail_vtt_text) patch.thumbnail_vtt_text = res.thumbnail_vtt_text
+    if (Object.keys(patch).length) anime.value.episodes[epKey] = { ...ep, ...patch }
+}
+
 async function fetchOnlineVideoUrl(epNum) {
     const token = anime.value?.episodes[String(epNum)]?.token
     if (!token) {
@@ -565,8 +571,9 @@ async function fetchOnlineVideoUrl(epNum) {
             return false
         }
         const finalUrl = raw.startsWith('http') ? raw : `https:${raw}`
-        videoUrl.value = `/api/proxy-video?url=${encodeURIComponent(finalUrl)}&cookie=${encodeURIComponent(res.videoCookie)}`
+        videoUrl.value = `/api/proxy-video?url=${encodeURIComponent(finalUrl)}&cookie=${encodeURIComponent(res.videoCookie || '')}`
         videoIsHls.value = /\.m3u8(\?|$)/i.test(finalUrl) || finalUrl.includes('m3u8')
+        mergeEpisodePlaybackMeta(String(epNum), res)
         return true
     } catch (err) {
         console.error('Episode fetch failed:', err)

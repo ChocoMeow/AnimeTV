@@ -7,10 +7,10 @@ Welcome to **AnimeTV**, a project designed for anime enthusiasts in Taiwan and H
 ## Features
 
 -   **Anime Metadata**: Fetches detailed information about various anime from [ani.gamer.com.tw](https://ani.gamer.com.tw).
--   **Video Streaming**: Provides video content sourced from [anime1.me](https://anime1.me) (HLS and MP4).
+-   **Video Streaming**: Streams from configurable sources — [anime1.me](https://anime1.me) (MP4) and [twxgct.com](https://www.twxgct.com) (HLS).
 -   **User-Friendly Interface**: Built with Nuxt 4 for a seamless and responsive experience, including light / dark / system themes.
 -   **Browse & Search**: Weekday schedule, spotlight, genre themes, filters, pagination, and header search with suggestions.
--   **Custom Video Player**: Theater mode, autoplay next episode, skip OP, playback speed, scrub thumbnails, fullscreen, and customizable keyboard shortcuts.
+-   **Custom Video Player**: Theater mode, autoplay next episode, skip OP, playback speed, HLS quality picker, scrub thumbnails, fullscreen, and customizable keyboard shortcuts.
 -   **Watch History**: Tracks viewing progress so you can resume where you left off.
 -   **Favorite List**: Save favorite anime shows for easy access.
 -   **Offline Downloads**: Download episodes for offline viewing (MP4 and HLS), with pause / resume / cancel and a download manager at `/offline-downloads`.
@@ -87,6 +87,13 @@ Make sure you have the following installed:
         # Optional: FlareSolverr for Cloudflare (https://github.com/FlareSolverr/FlareSolverr)
         # NUXT_CF_FETCH_FLARESOLVERR=http://127.0.0.1:8191/v1
 
+        # Optional: video proxy (low-RAM-friendly defaults)
+        # NUXT_VIDEO_PROXY_CHUNK=524288          # initial progressive Range size (bytes), default 512 KiB
+        # NUXT_VIDEO_PROXY_MAX_CHUNK=1048576     # max bytes per progressive response, default 1 MiB
+        # NUXT_VIDEO_PROXY_META_CACHE=128        # HEAD metadata cache entries
+        # NUXT_VIDEO_PROXY_TIMEOUT_MS=25000      # upstream fetch timeout
+        # NUXT_VIDEO_PROXY_RETRIES=2             # retry count on transient upstream errors
+
         # Optional: server logging
         # NUXT_LOG_LEVEL=info
         # NUXT_LOG_MAX_DAYS=30
@@ -111,6 +118,7 @@ This project is licensed under the GPL 3.0 License. See the [LICENSE](LICENSE) f
 -   [Supabase](https://supabase.io) for the backend database services.
 -   [ani.gamer.com.tw](https://ani.gamer.com.tw) for anime metadata.
 -   [anime1.me](https://anime1.me) for video content.
+-   [twxgct.com](https://www.twxgct.com) for alternate HLS video content.
 
 ## Disclaimer
 

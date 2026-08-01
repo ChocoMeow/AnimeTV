@@ -1,4 +1,5 @@
 import { serverSupabaseClient } from '#supabase/server'
+import { CUSTOM_SOURCE_ID_MIN } from '~~/shared/global'
 import { createLoggedError, moduleLogger } from '~~/server/utils/logger'
 
 const log = moduleLogger('admin-anime-meta-autofill')
@@ -34,7 +35,7 @@ export default defineEventHandler(async (event) => {
     }
 
     try {
-        // Skip wiki sanitize — largest CPU cost on Pi
+        // Skip wiki sanitize — largest CPU cost when scraping.
         const scraped = await scrapeAcgDetail(detailId, { includeWiki: false })
         if (!scraped?.title) {
             throw createError({ statusCode: 404, statusMessage: 'Anime details not found' })

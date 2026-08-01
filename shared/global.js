@@ -1,0 +1,19 @@
+/** Shared site URLs and constants (client + server). */
+
+export const GAMER_BASE_URL = 'https://ani.gamer.com.tw/'
+export const ACG_GAMER_BASE_URL = 'https://acg.gamer.com.tw/'
+
+/** Manual / autofill source_ids start here; Bahamut anime SNs stay below this. */
+export const CUSTOM_SOURCE_ID_MIN = 1_000_000
+
+export const CACHE_LIFETIME = 1000 * 60 * 60 * 12 // 12 hours
+
+export const CHINESE_WEEKDAY_MAP = Object.freeze({
+    一: '1',
+    二: '2',
+    三: '3',
+    四: '4',
+    五: '5',
+    六: '6',
+    日: '7',
+})
