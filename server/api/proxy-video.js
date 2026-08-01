@@ -48,10 +48,18 @@ function upstreamFetch(url, { method = 'GET', cookie, range, accept, signal, tim
     })
 }
 
+function isAbortError(err) {
+    return (
+        err?.name === 'AbortError' ||
+        err?.code === 'ABORT_ERR' ||
+        (typeof DOMException !== 'undefined' && err instanceof DOMException && err.name === 'AbortError') ||
+        /operation was aborted/i.test(err?.message || '')
+    )
+}
+
 function isRetryableError(err, clientSignal) {
-    if (clientSignal?.aborted || !err) return false
+    if (clientSignal?.aborted || !err || isAbortError(err)) return false
     if (err.name === 'TimeoutError') return true
-    if (err.name === 'AbortError') return false
     const haystack = `${err.code || ''} ${err.message || ''}`
     return /ECONNRESET|ECONNREFUSED|EHOSTUNREACH|EPIPE|ConnectionRefused|ConnectionReset|ConnectionClosed/i.test(
         haystack,
@@ -107,9 +115,10 @@ export default defineEventHandler(async (event) => {
         }
         return await handleProgressive(videoUrl, cookie, clientAbort.signal, event)
     } catch (err) {
+        // Client seek / skip / tab close cancels in-flight HLS segments — not a server fault.
+        if (isAbortError(err)) return
         if (err?.statusCode && err.statusCode < 500) throw err
         if (err?.data?.errorId) throw err
-        if (err?.name === 'AbortError') throw err
         throw createLoggedError(event, {
             statusCode: err?.statusCode || 502,
             statusMessage: err?.statusMessage || 'Video proxy error',

@@ -32,5 +32,5 @@ export const TWXGCT = Object.freeze({
     videoInfoUrl: (guid) => `${TWXGCT_CDN}/${guid}/video_info.json`,
     seekThumbUrl: (guid, i) => `${TWXGCT_CDN}/${guid}/seek/_${i}.jpg`,
     seekGrid: Object.freeze({ cols: 6, rows: 6 }),
-    seekSheetSize: Object.freeze({ width: 1800, height: 1002 }),
+    seekSheetSize: Object.freeze({ width: 1800, height: 1008 }),
 })

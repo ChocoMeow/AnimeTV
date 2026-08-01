@@ -69,8 +69,13 @@ export function sleep(ms) {
 
 export function bindClientAbort(event) {
     const ac = new AbortController()
-    const abort = () => ac.abort()
-    event.node.req.on('close', abort)
+    const abort = () => {
+        if (!ac.signal.aborted) ac.abort()
+    }
+    // Only abort upstream when the client drops before the response finishes.
+    event.node.res.on('close', () => {
+        if (!event.node.res.writableFinished) abort()
+    })
     event.node.req.on('error', abort)
     return ac
 }
