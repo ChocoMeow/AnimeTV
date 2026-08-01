@@ -31,10 +31,10 @@ const FIELD_LABELS = {
 const FORM_SECTIONS = [
     { id: 'basic', title: '基本資料', keys: ['title', 'description', 'thumbnail', 'season', 'premiere_date'] },
     { id: 'video', title: '片源設定', keys: ['video_source', 'video_id'] },
-    { id: 'ids', title: '編號與關聯', keys: ['source_id', 'source_details_id', 'related_anime_source_ids', 'id'] },
+    { id: 'ids', title: '編號與關聯', keys: ['source_id', 'source_details_id', 'related_anime_source_ids'] },
     { id: 'credits', title: '製作資訊', keys: ['director', 'distributor', 'production_company'] },
     { id: 'stats', title: '標籤與數據', keys: ['tags', 'views', 'score', 'votes'] },
-    { id: 'system', title: '系統', keys: ['created_at', 'updated_at'] },
+    { id: 'system', title: '系統', keys: [ 'id', 'created_at', 'updated_at'] },
 ]
 
 const READ_ONLY = new Set(['id', 'created_at', 'updated_at'])

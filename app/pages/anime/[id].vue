@@ -152,6 +152,7 @@ const videoPlayerMeta = computed(() => {
         thumbnailJpgUrl: offlineThumbnailJpgUrl.value || ep?.thumbnails_jpg_url || null,
         thumbnailVttText: offlineThumbnailVttText.value || ep?.thumbnail_vtt_text || null,
         thumbnailsVttUrl: ep?.thumbnails_vtt_url || null,
+        captions: Array.isArray(ep?.captions) ? ep.captions : [],
     }
 })
 
@@ -544,13 +545,14 @@ function applyEpisodeQueryFromRoute() {
     return false
 }
 
-/** Merge resolve-time fields (video_id / seek VTT) into the episode list entry. */
+/** Merge resolve-time fields (video_id / seek VTT / captions) into the episode list entry. */
 function mergeEpisodePlaybackMeta(epKey, res) {
     const ep = anime.value?.episodes?.[epKey]
     if (!ep || typeof ep !== 'object') return
     const patch = {}
     if (res.video_id) patch.video_id = res.video_id
     if (res.thumbnail_vtt_text) patch.thumbnail_vtt_text = res.thumbnail_vtt_text
+    if (Array.isArray(res.captions)) patch.captions = res.captions
     if (Object.keys(patch).length) anime.value.episodes[epKey] = { ...ep, ...patch }
 }
 

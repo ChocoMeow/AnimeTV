@@ -84,8 +84,43 @@ function buildSeekVtt(guid, durationSec, sheetStart, sheetCount, thumbCount) {
     return lines.join('\n')
 }
 
+function parseCaptions(guid, info) {
+    if (!Array.isArray(info?.captions)) return []
+    return info.captions
+        .filter((c) => c?.srclang)
+        .map((c) => {
+            const srclang = String(c.srclang)
+            return {
+                srclang,
+                label: String(c.label || srclang),
+                src: TWXGCT.captionUrl(guid, srclang),
+            }
+        })
+}
+
 async function cdnFetch(url, init = {}) {
     return fetch(url, { ...init, headers: { ...CDN_HEADERS, ...init.headers } })
+}
+
+async function fetchVideoInfo(guid) {
+    const res = await cdnFetch(TWXGCT.videoInfoUrl(guid), { headers: { Accept: 'application/json' } })
+    if (!res.ok) return null
+    return JSON.parse((await res.text()).replace(/^\uFEFF/, ''))
+}
+
+async function buildSeekPreview(guid, info) {
+    const duration = Number(info?.length) || 0
+    const thumbs = seekThumbCount(duration, info)
+    if (thumbs <= 0) return null
+
+    const head0 = await cdnFetch(TWXGCT.seekThumbUrl(guid, 0), { method: 'HEAD' })
+    const start = head0.ok ? 0 : 1
+    if (!head0.ok && !(await cdnFetch(TWXGCT.seekThumbUrl(guid, start), { method: 'HEAD' })).ok) {
+        return null
+    }
+
+    const sheets = Math.ceil(thumbs / (TWXGCT.seekGrid.cols * TWXGCT.seekGrid.rows))
+    return buildSeekVtt(guid, duration, start, sheets, thumbs)
 }
 
 async function listEpisodes(event, cartoonId) {
@@ -123,21 +158,13 @@ async function resolvePlayback({ cartoonId, chapterId }) {
     if (!guid) throw new Error(`${TWXGCT.id} video GUID not found`)
 
     let thumbnail_vtt_text = null
+    let captions = []
     try {
-        const [infoRes, head0] = await Promise.all([
-            cdnFetch(TWXGCT.videoInfoUrl(guid), { headers: { Accept: 'application/json' } }),
-            cdnFetch(TWXGCT.seekThumbUrl(guid, 0), { method: 'HEAD' }),
-        ])
-        const info = infoRes.ok ? JSON.parse((await infoRes.text()).replace(/^\uFEFF/, '')) : null
-        const duration = Number(info?.length) || 0
-        const thumbs = seekThumbCount(duration, info)
-        const start = head0.ok ? 0 : 1
-        if (thumbs > 0 && (head0.ok || (await cdnFetch(TWXGCT.seekThumbUrl(guid, start), { method: 'HEAD' })).ok)) {
-            const sheets = Math.ceil(thumbs / (TWXGCT.seekGrid.cols * TWXGCT.seekGrid.rows))
-            thumbnail_vtt_text = buildSeekVtt(guid, duration, start, sheets, thumbs)
-        }
+        const info = await fetchVideoInfo(guid)
+        captions = parseCaptions(guid, info)
+        thumbnail_vtt_text = await buildSeekPreview(guid, info)
     } catch {
-        /* playback works without seek previews */
+        /* playback works without seek previews / captions */
     }
 
     return {
@@ -145,6 +172,7 @@ async function resolvePlayback({ cartoonId, chapterId }) {
         videoCookie: '',
         video_id: guid,
         thumbnail_vtt_text,
+        captions,
     }
 }
 

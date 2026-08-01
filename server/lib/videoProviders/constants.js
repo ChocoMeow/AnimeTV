@@ -30,6 +30,7 @@ export const TWXGCT = Object.freeze({
         `${TWXGCT_SITE}/user/page_direct?cartoon_id=${encodeURIComponent(cartoonId)}&chapter_id=${encodeURIComponent(chapterId)}`,
     playlistUrl: (guid) => `${TWXGCT_CDN}/${guid}/playlist.m3u8`,
     videoInfoUrl: (guid) => `${TWXGCT_CDN}/${guid}/video_info.json`,
+    captionUrl: (guid, srclang) => `${TWXGCT_CDN}/${guid}/captions/${encodeURIComponent(srclang)}.vtt`,
     seekThumbUrl: (guid, i) => `${TWXGCT_CDN}/${guid}/seek/_${i}.jpg`,
     seekGrid: Object.freeze({ cols: 6, rows: 6 }),
     seekSheetSize: Object.freeze({ width: 1800, height: 1008 }),

@@ -53,6 +53,25 @@ function markClean() {
     baselineSnapshot.value = editableRecord.value ? JSON.stringify(editableRecord.value) : ''
 }
 
+/** Broadcast season (春/夏/秋/冬) from premiere_date — matches anime1 values. */
+function seasonFromPremiereDate(dateStr) {
+    if (!dateStr) return ''
+    const match = String(dateStr).match(/^\d{4}-(\d{1,2})/)
+    if (!match) return ''
+    const month = Number(match[1])
+    if (month >= 1 && month <= 3) return '冬'
+    if (month >= 4 && month <= 6) return '春'
+    if (month >= 7 && month <= 9) return '夏'
+    if (month >= 10 && month <= 12) return '秋'
+    return ''
+}
+
+function syncSeasonFromPremiereDate() {
+    if (!editableRecord.value) return
+    const season = seasonFromPremiereDate(editableRecord.value.premiere_date)
+    if (season) editableRecord.value.season = season
+}
+
 function guard(action) {
     if (!isEdited.value) return action()
     pendingAction = action
@@ -265,6 +284,7 @@ async function handleAutofill() {
             if (key === 'source_id' && editableRecord.value.source_id && !isCreating.value) continue
             editableRecord.value[key] = formatValueForInput(value, field.type)
         }
+        syncSeasonFromPremiereDate()
     } catch (err) {
         console.error('Failed to autofill anime_meta:', err)
         errorMessage.value = '自動填入失敗，請確認 source_details_id 是否正確。'
@@ -779,6 +799,7 @@ onMounted(() => {
                                             :readonly="field.readOnly"
                                             type="date"
                                             class="admin-input [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
+                                            @change="field.name === 'premiere_date' && syncSeasonFromPremiereDate()"
                                         />
                                     </div>
 
