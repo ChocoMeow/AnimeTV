@@ -41,8 +41,29 @@ const total = ref(0)
 
 const isCreating = ref(false)
 const showUnsavedModal = ref(false)
+const showFieldSettings = ref(false)
 const baselineSnapshot = ref('')
 let pendingAction = null
+
+/** Field names currently hidden from the editor form (session only). */
+const hiddenFields = reactive(new Set())
+
+function toggleFieldHidden(name) {
+    if (hiddenFields.has(name)) hiddenFields.delete(name)
+    else hiddenFields.add(name)
+}
+
+function hideAllFields() {
+    for (const s of formSections.value) {
+        for (const f of s.fields) hiddenFields.add(f.name)
+    }
+}
+
+const visibleFormSections = computed(() =>
+    formSections.value
+        .map((s) => ({ ...s, fields: s.fields.filter((f) => !hiddenFields.has(f.name)) }))
+        .filter((s) => s.fields.length),
+)
 
 const isEdited = computed(() => {
     if (!editableRecord.value || !baselineSnapshot.value) return false
@@ -639,6 +660,15 @@ onMounted(() => {
                         <button
                             type="button"
                             class="btn-admin-ghost inline-flex items-center gap-2"
+                            title="欄位設定"
+                            @click="showFieldSettings = true"
+                        >
+                            <span class="material-symbols-rounded text-base">settings</span>
+                            <span class="hidden sm:inline">欄位設定</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="btn-admin-ghost inline-flex items-center gap-2"
                             @click="handleCreateNew"
                         >
                             <span class="material-symbols-rounded text-base">add</span>
@@ -697,7 +727,7 @@ onMounted(() => {
                             @submit.prevent="handleSave"
                         >
                             <section
-                                v-for="section in formSections"
+                                v-for="section in visibleFormSections"
                                 :key="section.id"
                                 class="space-y-3"
                             >
@@ -900,6 +930,50 @@ onMounted(() => {
         <template #actions>
             <button type="button" class="btn-modal-cancel" @click="showUnsavedModal = false; pendingAction = null">取消</button>
             <button type="button" class="btn-modal-danger" @click="discardAndProceed">放棄變更</button>
+        </template>
+    </BaseModal>
+
+    <BaseModal
+        :show="showFieldSettings"
+        title="欄位設定"
+        icon="settings"
+        max-width="max-w-lg"
+        @close="showFieldSettings = false"
+    >
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">取消勾選即可隱藏欄位。</p>
+        <div class="max-h-[min(60vh,28rem)] overflow-y-auto space-y-3">
+            <section v-for="section in formSections" :key="section.id" class="space-y-1">
+                <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ section.title }}</h4>
+                <label
+                    v-for="field in section.fields"
+                    :key="field.name"
+                    class="flex items-center gap-3 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                >
+                    <input
+                        type="checkbox"
+                        class="peer sr-only"
+                        :checked="!hiddenFields.has(field.name)"
+                        @change="toggleFieldHidden(field.name)"
+                    />
+                    <span
+                        class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-black/15 dark:border-white/20 bg-black/[0.04] dark:bg-white/10 text-transparent transition-colors
+                               peer-checked:border-gray-900 peer-checked:bg-gray-900 peer-checked:text-white
+                               dark:peer-checked:border-white dark:peer-checked:bg-white dark:peer-checked:text-black
+                               peer-focus-visible:ring-2 peer-focus-visible:ring-black/20 dark:peer-focus-visible:ring-white/20"
+                        aria-hidden="true"
+                    >
+                        <span class="material-symbols-rounded text-[16px] leading-none">check</span>
+                    </span>
+                    <span class="text-sm text-gray-400 dark:text-gray-500 peer-checked:text-gray-800 dark:peer-checked:text-gray-100 truncate transition-colors">
+                        {{ field.label }}
+                    </span>
+                </label>
+            </section>
+        </div>
+        <template #actions>
+            <button type="button" class="btn-modal-cancel" @click="hideAllFields">全部隱藏</button>
+            <button type="button" class="btn-modal-cancel" @click="hiddenFields.clear()">全部顯示</button>
+            <button type="button" class="btn-admin-primary" @click="showFieldSettings = false">完成</button>
         </template>
     </BaseModal>
 </template>
