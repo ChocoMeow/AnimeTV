@@ -1,4 +1,5 @@
-const THUMB_CACHE_LIMIT = 20
+const VTT_CACHE_LIMIT = 20
+const SHEET_LIMIT = 48
 const THUMB_PREVIEW_W = 280
 
 function parseVttTimeToSeconds(timeStr) {
@@ -18,7 +19,7 @@ function parseXywh(text) {
     return m ? { x: +m[1], y: +m[2], w: +m[3], h: +m[4] } : null
 }
 
-/** Supports anime1 (#xywh on shared jpg) and twxgct (per-cue https URL + optional #xywh). */
+/** anime1: shared jpg + #xywh · twxgct: per-cue sheet URL + #xywh */
 function parseThumbnailsVtt(vttText) {
     const segments = []
     for (const block of String(vttText || '').replace(/\r/g, '').split(/\n\s*\n/)) {
@@ -41,51 +42,50 @@ function parseThumbnailsVtt(vttText) {
 }
 
 /**
- * Seek-bar thumbnail strip for VideoPlayer.
+ * Seek-bar thumbnails. Sheet images are cached (never aborted on hover).
  * @param {{ animeMeta: import('vue').Ref|import('vue').ComputedRef }} options
  */
 export function usePlayerThumbnails({ animeMeta }) {
     const segments = ref([])
     const activeThumbnail = ref(null)
-    let abortController = null
+    let wantSrc = null
     let loadId = 0
-    const cache = new Map()
+    const vttCache = new Map()
+    /** @type {Map<string, Promise<boolean>>} */
+    const sheets = new Map()
 
     const meta = computed(() => toValue(animeMeta) || {})
     const videoId = computed(() => {
         const id = meta.value.videoId
         return id != null ? String(id).trim() || null : null
     })
-    const thumbnailJpgUrl = computed(() => meta.value.thumbnailJpgUrl || null)
+    const jpgUrl = computed(() => meta.value.thumbnailJpgUrl || null)
 
-    const activeThumbnailSrc = computed(() => activeThumbnail.value?.src || thumbnailJpgUrl.value || null)
+    const activeThumbnailSrc = computed(() => activeThumbnail.value?.src || jpgUrl.value || null)
     const thumbnailCrop = computed(() => activeThumbnail.value?.xywh ?? null)
 
     const thumbnailPreviewHeight = computed(() => {
-        const crop = thumbnailCrop.value
-        if (!crop?.w || !crop?.h) return Math.round(THUMB_PREVIEW_W * 9 / 16)
-        return Math.max(1, Math.round(crop.h * (THUMB_PREVIEW_W / crop.w)))
+        const c = thumbnailCrop.value
+        if (!c?.w || !c?.h) return Math.round(THUMB_PREVIEW_W * 9 / 16)
+        return Math.max(1, Math.round(c.h * (THUMB_PREVIEW_W / c.w)))
     })
 
     const thumbnailImageStyle = computed(() => {
-        const crop = thumbnailCrop.value
-        if (!crop?.w || !crop?.h) {
-            if (activeThumbnail.value?.src) {
-                return { width: '100%', height: '100%', objectFit: 'cover' }
-            }
-            return {}
+        const c = thumbnailCrop.value
+        if (!c?.w || !c?.h) {
+            return activeThumbnail.value?.src ? { width: '100%', height: '100%', objectFit: 'cover' } : {}
         }
-        const scale = THUMB_PREVIEW_W / crop.w
+        const s = THUMB_PREVIEW_W / c.w
         return {
             transformOrigin: 'top left',
-            transform: `translate(${-crop.x * scale}px, ${-crop.y * scale}px) scale(${scale})`,
+            transform: `translate(${-c.x * s}px, ${-c.y * s}px) scale(${s})`,
             maxWidth: 'none',
         }
     })
 
     function findAtTime(t) {
         const list = segments.value
-        if (!list?.length) return null
+        if (!list.length) return null
         let lo = 0
         let hi = list.length - 1
         let ans = -1
@@ -94,78 +94,96 @@ export function usePlayerThumbnails({ animeMeta }) {
             if (list[mid].start <= t) {
                 ans = mid
                 lo = mid + 1
-            } else {
-                hi = mid - 1
-            }
+            } else hi = mid - 1
         }
-        if (ans === -1) return null
+        if (ans < 0) return null
         const seg = list[ans]
         return t >= seg.start && t <= seg.end ? seg : null
     }
 
+    function preload(url) {
+        if (!url) return null
+        let p = sheets.get(url)
+        if (p) return p
+        p = new Promise((resolve) => {
+            const img = new Image()
+            img.onload = () => resolve(true)
+            img.onerror = () => resolve(false)
+            img.src = url
+        })
+        sheets.set(url, p)
+        while (sheets.size > SHEET_LIMIT) sheets.delete(sheets.keys().next().value)
+        return p
+    }
+
     function updateActiveThumbnailForTime(t) {
-        activeThumbnail.value = segments.value?.length ? findAtTime(t) : null
+        const seg = findAtTime(t)
+        if (!seg) return
+        const src = seg.src || jpgUrl.value
+        if (!src) {
+            activeThumbnail.value = seg.xywh ? seg : null
+            return
+        }
+        wantSrc = src
+        // Warm current + nearby cues (same sheet is a cache hit).
+        const i = segments.value.indexOf(seg)
+        for (const j of [i - 1, i, i + 1]) {
+            const u = segments.value[j]?.src || jpgUrl.value
+            if (u) preload(u)
+        }
+        preload(src)?.then((ok) => {
+            if (ok && wantSrc === src) activeThumbnail.value = { ...seg, src }
+        })
+    }
+
+    function clearActiveThumbnail() {
+        wantSrc = null
+        activeThumbnail.value = null
     }
 
     async function load() {
         const id = ++loadId
-        abortController?.abort()
-        abortController = null
-        activeThumbnail.value = null
+        clearActiveThumbnail()
         segments.value = []
         if (typeof window === 'undefined') return
 
-        const vttText = meta.value.thumbnailVttText
-        if (vttText) {
-            segments.value = parseThumbnailsVtt(vttText)
+        const inline = meta.value.thumbnailVttText
+        if (inline) {
+            segments.value = parseThumbnailsVtt(inline)
             return
         }
 
-        const currentVideoId = videoId.value
-        const vttFetchUrl = meta.value.thumbnailsVttUrl
-        if (!currentVideoId || !vttFetchUrl) return
+        const url = meta.value.thumbnailsVttUrl
+        if (!videoId.value || !url) return
 
-        if (cache.has(vttFetchUrl)) {
-            const cached = cache.get(vttFetchUrl)
-            cache.delete(vttFetchUrl)
-            cache.set(vttFetchUrl, cached)
-            segments.value = cached
+        if (vttCache.has(url)) {
+            segments.value = vttCache.get(url)
             return
         }
 
         try {
-            const controller = new AbortController()
-            abortController = controller
-            const res = await fetch(vttFetchUrl, { signal: controller.signal })
+            const res = await fetch(url)
             if (!res.ok) throw new Error(String(res.status))
             const parsed = parseThumbnailsVtt(await res.text())
             if (id !== loadId) return
             segments.value = parsed
-            cache.set(vttFetchUrl, parsed)
-            if (cache.size > THUMB_CACHE_LIMIT) cache.delete(cache.keys().next().value)
-            if (parsed.length && thumbnailJpgUrl.value) {
-                const img = new Image()
-                img.crossOrigin = 'anonymous'
-                img.src = thumbnailJpgUrl.value
-            }
-        } catch (error) {
-            if (error?.name === 'AbortError' || id !== loadId) return
-            segments.value = []
-            activeThumbnail.value = null
-        } finally {
-            if (id === loadId) abortController = null
+            vttCache.set(url, parsed)
+            while (vttCache.size > VTT_CACHE_LIMIT) vttCache.delete(vttCache.keys().next().value)
+            if (parsed.length && jpgUrl.value) preload(jpgUrl.value)
+        } catch {
+            if (id === loadId) segments.value = []
         }
     }
 
     watch(
         [videoId, () => meta.value.thumbnailVttText, () => meta.value.thumbnailsVttUrl],
-        () => { load() },
+        load,
         { immediate: true },
     )
 
     onScopeDispose(() => {
         loadId++
-        abortController?.abort()
+        wantSrc = null
     })
 
     return {
@@ -176,6 +194,6 @@ export function usePlayerThumbnails({ animeMeta }) {
         thumbnailPreviewHeight,
         thumbnailImageStyle,
         updateActiveThumbnailForTime,
-        clearActiveThumbnail: () => { activeThumbnail.value = null },
+        clearActiveThumbnail,
     }
 }

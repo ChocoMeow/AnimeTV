@@ -32,59 +32,49 @@ function cueText(cue) {
     return String(cue?.text || '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/?[^>]+>/g, '').trim()
 }
 
-/**
- * twxgct / external WebVTT captions. Native tracks stay `hidden`; UI reads active cues.
- */
+/** External WebVTT captions — fetch only the selected language. */
 export function useVideoCaptions({ videoRef, captions, notify }) {
     const available = computed(() => normalizeList(toValue(captions)))
     const hasCaptions = computed(() => available.value.length > 0)
     const tracks = ref([])
     const selectedLang = ref(null)
     const activeCaptionText = ref('')
-
     const captionLabel = computed(() => {
         if (!selectedLang.value) return '關閉'
         return available.value.find((c) => c.srclang === selectedLang.value)?.label || selectedLang.value
     })
 
-    let blobUrls = []
-    let loadId = 0
+    const cache = new Map()
+    let gen = 0
     let onCueChange = null
 
-    function clearBlobs() {
-        for (const url of blobUrls) {
+    function revokeCache() {
+        for (const url of cache.values()) {
             try { URL.revokeObjectURL(url) } catch { /* ignore */ }
         }
-        blobUrls = []
+        cache.clear()
     }
 
     function syncCues() {
         const video = videoRef.value
         const lang = selectedLang.value
-        if (!video?.textTracks || !lang) {
-            activeCaptionText.value = ''
-            return
-        }
+        activeCaptionText.value = ''
+        if (!video?.textTracks || !lang) return
         for (const track of video.textTracks) {
             if (track.language !== lang) continue
             const cues = track.activeCues
-            activeCaptionText.value = cues?.length
-                ? Array.from(cues).map(cueText).filter(Boolean).join('\n')
-                : ''
+            if (cues?.length) activeCaptionText.value = Array.from(cues).map(cueText).filter(Boolean).join('\n')
             return
         }
-        activeCaptionText.value = ''
     }
 
     function applyModes() {
         const video = videoRef.value
         if (!video?.textTracks) return
-
         if (onCueChange) {
-            for (const track of video.textTracks) track.removeEventListener('cuechange', onCueChange)
+            for (const t of video.textTracks) t.removeEventListener('cuechange', onCueChange)
         }
         onCueChange = syncCues
-
         const lang = selectedLang.value
         for (const track of video.textTracks) {
             if (track.kind !== 'subtitles' && track.kind !== 'captions') continue
@@ -94,73 +84,67 @@ export function useVideoCaptions({ videoRef, captions, notify }) {
         syncCues()
     }
 
-    async function loadTracks(list) {
-        const id = ++loadId
-        clearBlobs()
-        tracks.value = []
-        activeCaptionText.value = ''
-        if (!list.length) {
-            selectedLang.value = null
-            return
-        }
+    async function ensure(lang) {
+        if (!lang || cache.has(lang)) return
+        const meta = available.value.find((t) => t.srclang === lang)
+        if (!meta) return
+        const g = gen
+        try {
+            const res = await fetch(meta.src)
+            if (!res.ok || g !== gen) return
+            const url = URL.createObjectURL(await res.blob())
+            if (g !== gen) return URL.revokeObjectURL(url)
+            cache.set(lang, url)
+        } catch { /* skip */ }
+    }
 
-        const loaded = []
-        await Promise.all(list.map(async (item) => {
-            try {
-                const res = await fetch(item.src)
-                if (!res.ok) return
-                const blob = await res.blob()
-                if (id !== loadId) return
-                const src = URL.createObjectURL(blob)
-                blobUrls.push(src)
-                loaded.push({ ...item, src })
-            } catch { /* skip */ }
-        }))
-        if (id !== loadId) return
-
-        const order = new Map(list.map((t, i) => [t.srclang, i]))
-        loaded.sort((a, b) => (order.get(a.srclang) ?? 0) - (order.get(b.srclang) ?? 0))
-        tracks.value = loaded
-
-        if (!(selectedLang.value && loaded.some((t) => t.srclang === selectedLang.value))) {
-            selectedLang.value = pickLang(loaded)
+    async function show(lang) {
+        selectedLang.value = lang || null
+        if (!lang) {
+            tracks.value = []
+            activeCaptionText.value = ''
+        } else {
+            await ensure(lang)
+            const src = cache.get(lang)
+            const meta = available.value.find((t) => t.srclang === lang)
+            tracks.value = src && meta ? [{ ...meta, src }] : []
         }
         await nextTick()
         applyModes()
     }
 
     function setCaptionLang(lang) {
-        selectedLang.value = lang || null
         if (lang) {
             storageSet(LANG_KEY, lang)
             storageSet(LAST_KEY, lang)
         } else {
             storageSet(LANG_KEY, OFF)
-            activeCaptionText.value = ''
         }
-        applyModes()
-        const label = lang
-            ? (available.value.find((c) => c.srclang === lang)?.label || lang)
-            : '關閉'
-        notify?.(`字幕 ${label}`, lang ? 'closed_caption' : 'closed_caption_disabled')
+        show(lang || null)
+        notify?.(
+            `字幕 ${lang ? (available.value.find((c) => c.srclang === lang)?.label || lang) : '關閉'}`,
+            lang ? 'closed_caption' : 'closed_caption_disabled',
+        )
     }
 
     function toggleCaptions() {
-        const list = tracks.value.length ? tracks.value : available.value
-        if (!list.length) return
-        if (selectedLang.value) setCaptionLang(null)
-        else setCaptionLang(pickLang(list, false))
+        if (!available.value.length) return
+        setCaptionLang(selectedLang.value ? null : pickLang(available.value, false))
     }
 
-    watch(available, loadTracks, { immediate: true })
+    watch(available, (list) => {
+        gen++
+        revokeCache()
+        show(pickLang(list))
+    }, { immediate: true })
 
     onScopeDispose(() => {
-        loadId++
+        gen++
         const video = videoRef.value
         if (onCueChange && video?.textTracks) {
-            for (const track of video.textTracks) track.removeEventListener('cuechange', onCueChange)
+            for (const t of video.textTracks) t.removeEventListener('cuechange', onCueChange)
         }
-        clearBlobs()
+        revokeCache()
     })
 
     return {

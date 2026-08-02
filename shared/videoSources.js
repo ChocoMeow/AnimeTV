@@ -8,6 +8,9 @@ export const VIDEO_SOURCES = Object.freeze(Object.values(VIDEO_SOURCE))
 
 export const DEFAULT_VIDEO_SOURCE = VIDEO_SOURCE.ANIME1
 
+/** HLS CDNs with CORS * — browser may fetch segments directly (skip proxy hop). */
+export const DIRECT_HLS_HOST = /(?:^|\.)bzcdn\.net$/i
+
 export function isValidVideoSource(value) {
     return VIDEO_SOURCES.includes(value)
 }

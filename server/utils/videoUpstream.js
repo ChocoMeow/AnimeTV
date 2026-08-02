@@ -80,6 +80,24 @@ export function bindClientAbort(event) {
     return ac
 }
 
+/**
+ * Client abort + connect-budget timer.
+ * Call `clearTimer()` after response headers so the body is not killed mid-stream.
+ */
 export function combinedSignal(clientSignal, timeoutMs = VIDEO_UPSTREAM.timeoutMs) {
-    return AbortSignal.any([clientSignal, AbortSignal.timeout(timeoutMs)])
+    const ac = new AbortController()
+    const timer = setTimeout(() => {
+        ac.abort(Object.assign(new Error('Upstream timeout'), { name: 'TimeoutError' }))
+    }, timeoutMs)
+    const onClient = () => ac.abort(clientSignal.reason)
+    clientSignal?.addEventListener('abort', onClient)
+
+    return {
+        signal: ac.signal,
+        clearTimer: () => clearTimeout(timer),
+        dispose: () => {
+            clearTimeout(timer)
+            clientSignal?.removeEventListener('abort', onClient)
+        },
+    }
 }

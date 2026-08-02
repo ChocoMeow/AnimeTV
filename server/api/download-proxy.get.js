@@ -31,12 +31,20 @@ export default defineEventHandler(async (event) => {
                 throw createError({ statusCode: 400, statusMessage: 'Invalid URL' })
             }
 
-            const res = await fetch(current, {
-                method: 'GET',
-                redirect: 'manual',
-                signal: combinedSignal(clientAbort.signal, timeoutMs),
-                headers: videoUpstreamHeaders(parsed, { cookie: cookieHeader, accept: '*/*' }),
-            })
+            const upstream = combinedSignal(clientAbort.signal, timeoutMs)
+            let res
+            try {
+                res = await fetch(current, {
+                    method: 'GET',
+                    redirect: 'manual',
+                    signal: upstream.signal,
+                    headers: videoUpstreamHeaders(parsed, { cookie: cookieHeader, accept: '*/*' }),
+                })
+                upstream.clearTimer()
+            } catch (err) {
+                upstream.dispose()
+                throw err
+            }
 
             if (res.status >= 300 && res.status < 400) {
                 const loc = res.headers.get('location')

@@ -1,3 +1,4 @@
+import { DIRECT_HLS_HOST } from '~~/shared/videoSources'
 import { createLoggedError } from '~~/server/utils/logger'
 import {
     VIDEO_UPSTREAM,
@@ -8,6 +9,36 @@ import {
     sleep,
     videoUpstreamHeaders,
 } from '~~/server/utils/videoUpstream'
+
+/** Cookie / non-CORS → proxy URLs; CORS CDN with no cookie → absolute upstream. */
+function rewriteHlsPlaylist(body, playlistUrl, { proxyBase, cookie = '' } = {}) {
+    const baseUrl = new URL(playlistUrl)
+    const viaProxy = Boolean(cookie) || !DIRECT_HLS_HOST.test(baseUrl.hostname)
+    const mapUri = (raw) => {
+        const abs = new URL(raw, baseUrl).toString()
+        if (!viaProxy) return abs
+        const q = cookie ? `&cookie=${encodeURIComponent(cookie)}` : ''
+        return `${proxyBase}?url=${encodeURIComponent(abs)}${q}`
+    }
+    return body.split(/\r?\n/).map((line) => {
+        const t = line.trim()
+        if (!t) return line
+        if (t.startsWith('#')) {
+            return line.replace(/URI="([^"]+)"/gi, (_, u) => {
+                try {
+                    return `URI="${mapUri(u)}"`
+                } catch {
+                    return `URI="${u}"`
+                }
+            })
+        }
+        try {
+            return mapUri(t)
+        } catch {
+            return line
+        }
+    }).join('\n')
+}
 
 const {
     chunkSize: DEFAULT_CHUNK_SIZE,
@@ -39,13 +70,22 @@ function setHeaders(event, headers) {
     for (const [k, v] of Object.entries(headers)) setResponseHeader(event, k, v)
 }
 
-function upstreamFetch(url, { method = 'GET', cookie, range, accept, signal, timeout = UPSTREAM_TIMEOUT }) {
-    return fetch(url, {
-        method,
-        redirect: 'follow',
-        signal: combinedSignal(signal, timeout),
-        headers: videoUpstreamHeaders(url, { cookie, accept, range }),
-    })
+async function upstreamFetch(url, { method = 'GET', cookie, range, accept, signal, timeout = UPSTREAM_TIMEOUT }) {
+    const upstream = combinedSignal(signal, timeout)
+    try {
+        const res = await fetch(url, {
+            method,
+            redirect: 'follow',
+            signal: upstream.signal,
+            headers: videoUpstreamHeaders(url, { cookie, accept, range }),
+        })
+        // Headers arrived — keep client abort, drop connect wall-clock so large bodies can finish.
+        upstream.clearTimer()
+        return res
+    } catch (err) {
+        upstream.dispose()
+        throw err
+    }
 }
 
 function isAbortError(err) {
@@ -258,25 +298,15 @@ async function handleM3u8(playlistUrl, cookie, signal, event) {
     }
 
     const body = await res.text()
-    const baseUrl = new URL(playlistUrl)
-    const proxyBase = `${getRequestURL(event).origin}/api/proxy-video`
-    const qCookie = cookie ? `&cookie=${encodeURIComponent(cookie)}` : ''
-
-    const out = body.split(/\r?\n/).map((line) => {
-        const t = line.trim()
-        if (!t || t.startsWith('#')) return line
-        try {
-            const abs = new URL(t, baseUrl).toString()
-            return `${proxyBase}?url=${encodeURIComponent(abs)}${qCookie}`
-        } catch {
-            return line
-        }
+    const out = rewriteHlsPlaylist(body, playlistUrl, {
+        proxyBase: `${getRequestURL(event).origin}/api/proxy-video`,
+        cookie,
     })
 
     setResponseHeader(event, 'Content-Type', 'application/vnd.apple.mpegurl')
     setResponseHeader(event, 'Cache-Control', 'public, max-age=30, stale-while-revalidate=30')
     setResponseHeader(event, 'Access-Control-Allow-Origin', '*')
-    return out.join('\n')
+    return out
 }
 
 async function handleSegment(segmentUrl, cookie, signal, event) {
@@ -298,7 +328,7 @@ async function handleSegment(segmentUrl, cookie, signal, event) {
 
     setResponseStatus(event, res.status)
     setResponseHeader(event, 'Content-Type', res.headers.get('content-type') || 'video/mp2t')
-    setResponseHeader(event, 'Cache-Control', 'public, max-age=31536000, immutable')
+    setHeaders(event, IMMUTABLE_CACHE)
     setResponseHeader(event, 'Access-Control-Allow-Origin', '*')
     const len = res.headers.get('content-length')
     if (len) setResponseHeader(event, 'Content-Length', len)
