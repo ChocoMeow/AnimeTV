@@ -7,15 +7,6 @@ import { decodePrefixedToken, encodePrefixedToken, episodeRecord, normalizeEpiso
 const TOKEN_PREFIX = `${TWXGCT.id}.`
 const FETCH_OPTS = Object.freeze({ headers: { Referer: TWXGCT.referer } })
 const CDN_HEADERS = Object.freeze({ Referer: TWXGCT.referer, 'User-Agent': 'Mozilla/5.0' })
-/** video_id `slug@2` → season 2 volume only; bare slug → season 1 (or all if no volumes). */
-const SEASON_REF_RE = /^(.+?)@(\d+)$/
-
-function parseCartoonRef(raw) {
-    const s = String(raw || '').trim()
-    const m = s.match(SEASON_REF_RE)
-    if (m) return { cartoonId: m[1], season: Number(m[2]) }
-    return { cartoonId: s, season: 1 }
-}
 
 function episodeKeyFromTitle(title) {
     const m = String(title || '').match(/第\s*0*(\d+)\s*[话話集]/)
@@ -132,52 +123,47 @@ async function buildSeekPreview(guid, info) {
     return buildSeekVtt(guid, duration, start, sheets, thumbs)
 }
 
-/** Pick chapter links for one 第N季 block (via .volume-title). null = no volumes on page. */
-function chapterLinksForSeason($, season) {
-    const titles = $('.volume-title').toArray()
-    if (!titles.length) return null
-
-    let active = false
-    const links = []
-    $('.volume-title, a[href*="chapter_id="]').each((_, el) => {
-        const node = $(el)
-        if (node.is('.volume-title')) {
-            const m = node.text().match(/第\s*(\d+)\s*季/)
-            active = !!(m && Number(m[1]) === season)
-            return
-        }
-        if (active) links.push(el)
-    })
-    return links
-}
-
 async function listEpisodes(event, videoId) {
     const log = getRequestLogger(event)
-    const { cartoonId, season } = parseCartoonRef(videoId)
+    const raw = String(videoId || '').trim()
+    const at = raw.match(/^(.+?)@(\d+)$/)
+    const cartoonId = at ? at[1] : raw
+    const volume = at ? Math.max(1, Number(at[2]) || 1) : 1 // bare / @1 = 1st .volume-title
     const episodes = {}
     const seen = new Set()
 
     try {
         const fetched = await cfFetch(TWXGCT.detailUrl(cartoonId), FETCH_OPTS)
         if (!fetched?.html) {
-            log.error({ cartoonId, season, source: TWXGCT.id }, 'detail fetch empty')
+            log.error({ cartoonId, source: TWXGCT.id }, 'detail fetch empty')
             return episodes
         }
 
         const $ = cheerio.load(fetched.html)
-        const scoped = chapterLinksForSeason($, season)
-        const nodes = scoped ?? $('a[href*="chapter_id="]').toArray()
+        const titles = $('.volume-title').toArray()
+        let nodes = $('a[href*="chapter_id="]').toArray()
+        if (titles.length) {
+            const target = titles[volume - 1]
+            nodes = []
+            let on = false
+            $('.volume-title, a[href*="chapter_id="]').each((_, el) => {
+                if ($(el).is('.volume-title')) {
+                    on = el === target
+                    return
+                }
+                if (on) nodes.push(el)
+            })
+        }
 
         for (const el of nodes) {
             const chapterId = extractChapterId($(el).attr('href'))
             const epKey = episodeKeyFromTitle($(el).text().trim())
             if (!chapterId || !epKey || seen.has(chapterId)) continue
             seen.add(chapterId)
-            // Token always uses bare cartoon id (playback URLs reject @season).
             episodes[epKey] = episodeRecord(encodePrefixedToken(TOKEN_PREFIX, [cartoonId, chapterId]))
         }
     } catch (err) {
-        log.error({ err, cartoonId, season, source: TWXGCT.id }, 'listEpisodes failed')
+        log.error({ err, cartoonId, source: TWXGCT.id }, 'listEpisodes failed')
     }
 
     return episodes
