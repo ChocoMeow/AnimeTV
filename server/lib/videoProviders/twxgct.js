@@ -108,19 +108,12 @@ async function fetchVideoInfo(guid) {
     return JSON.parse((await res.text()).replace(/^\uFEFF/, ''))
 }
 
-async function buildSeekPreview(guid, info) {
+function buildSeekPreview(guid, info) {
     const duration = Number(info?.length) || 0
     const thumbs = seekThumbCount(duration, info)
     if (thumbs <= 0) return null
-
-    const head0 = await cdnFetch(TWXGCT.seekThumbUrl(guid, 0), { method: 'HEAD' })
-    const start = head0.ok ? 0 : 1
-    if (!head0.ok && !(await cdnFetch(TWXGCT.seekThumbUrl(guid, start), { method: 'HEAD' })).ok) {
-        return null
-    }
-
-    const sheets = Math.ceil(thumbs / (TWXGCT.seekGrid.cols * TWXGCT.seekGrid.rows))
-    return buildSeekVtt(guid, duration, start, sheets, thumbs)
+    const perSheet = TWXGCT.seekGrid.cols * TWXGCT.seekGrid.rows
+    return buildSeekVtt(guid, duration, 0, Math.ceil(thumbs / perSheet), thumbs)
 }
 
 async function listEpisodes(event, videoId) {
@@ -181,7 +174,7 @@ async function resolvePlayback({ cartoonId, chapterId }) {
     try {
         const info = await fetchVideoInfo(guid)
         captions = parseCaptions(guid, info)
-        thumbnail_vtt_text = await buildSeekPreview(guid, info)
+        thumbnail_vtt_text = buildSeekPreview(guid, info)
     } catch {
         /* playback works without seek previews / captions */
     }

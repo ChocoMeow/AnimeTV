@@ -5,7 +5,7 @@
 const { formatShortcutKey } = useUserSettings()
 
 const props = defineProps({
-    src: { type: String, required: true },
+    src: { type: String, default: '' },
     isHls: { type: Boolean, default: false },
     autoplay: { type: Boolean, default: false },
     preload: { type: String, default: 'metadata' },
@@ -13,6 +13,7 @@ const props = defineProps({
     theaterMode: { type: Boolean, default: false },
     shortcuts: { type: Object, default: () => null },
     animeMeta: { type: Object, default: () => ({}) },
+    loading: { type: Boolean, default: false },
 })
 
 const emit = defineEmits([
@@ -39,6 +40,7 @@ const isFullscreen = ref(false)
 const buffered = ref(0)
 const showVolumeSlider = ref(false)
 const isLoading = ref(false)
+const showLoading = computed(() => props.loading || isLoading.value)
 const isDraggingProgress = ref(false)
 const dragPreviewTime = ref(0)
 const isHoveringProgress = ref(false)
@@ -665,6 +667,9 @@ async function applyVideoSource(src, isHls, video) {
             fragLoadingMaxRetry: 4,
             manifestLoadingMaxRetry: 4,
             levelLoadingMaxRetry: 4,
+            startLevel: 0,
+            abrEwmaDefaultEstimate: 500_000,
+            maxBufferLength: 30,
         })
         hlsInstance = hls
         selectedQuality.value = -1
@@ -823,7 +828,7 @@ onUnmounted(() => {
 
         <PlayerOverlays
             :src="src"
-            :is-loading="isLoading"
+            :is-loading="showLoading"
             :is-playing="isPlaying"
             :show-controls="showControls"
             :is-fullscreen="isFullscreen"
@@ -841,7 +846,7 @@ onUnmounted(() => {
 
         <transition name="slide-up">
             <PlayerControls
-                v-show="!isLoading && showControls && src"
+                v-show="!showLoading && showControls && src"
                 ref="controlsRef"
                 :progress="progress"
                 :buffered="buffered"
