@@ -20,7 +20,7 @@ const FIELD_LABELS = {
     votes: '評分人數（votes）',
     related_anime_source_ids: '相關作品編號（related_anime_source_ids）',
     source_details_id: '詳細資料編號（source_details_id）',
-    video_id: '片源 ID（anime1 cat / twxgct cartoon slug）',
+    video_id: '片源 ID（anime1 cat / twxgct slug 或 slug@2 指定季）',
     video_source: '片源站（anime1 | twxgct）',
     season: '季數（season）',
     created_at: '建立時間',
