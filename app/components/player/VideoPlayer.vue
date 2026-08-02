@@ -2,6 +2,8 @@
 /**
  * Video player orchestrator — UI lives in sibling player/* components.
  */
+import { createParallelFragLoader } from '~/utils/hlsParallelFragLoader'
+
 const { formatShortcutKey } = useUserSettings()
 
 const props = defineProps({
@@ -72,6 +74,7 @@ let lastAutoplaySecond = null
 let isUnmounted = false
 let spaceBoostActive = false
 let hlsInstance = null
+let hlsPrefetchReset = null
 let isHoveringVolume = false
 let isSpaceHeld = false
 let originalPlaybackRate = 1
@@ -605,6 +608,8 @@ function requestStreamRecovery() {
 }
 
 function destroyHls() {
+    hlsPrefetchReset?.()
+    hlsPrefetchReset = null
     hlsInstance?.destroy()
     hlsInstance = null
     resetQualityState()
@@ -663,6 +668,9 @@ async function applyVideoSource(src, isHls, video) {
     }
 
     try {
+        const { FragLoader, warmAhead, clear, reset } = createParallelFragLoader(Hls)
+        hlsPrefetchReset = reset
+
         const hls = new Hls({
             fragLoadingMaxRetry: 4,
             manifestLoadingMaxRetry: 4,
@@ -670,12 +678,25 @@ async function applyVideoSource(src, isHls, video) {
             startLevel: 0,
             abrEwmaDefaultEstimate: 500_000,
             maxBufferLength: 30,
+            startFragPrefetch: true,
+            fLoader: FragLoader,
         })
         hlsInstance = hls
         selectedQuality.value = -1
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
             if (hlsInstance !== hls || generation !== sourceGeneration) return
             syncQualityLevelsFromHls(hls)
+        })
+        hls.on(Hls.Events.LEVEL_LOADED, (_, { details }) => {
+            if (hlsInstance !== hls || generation !== sourceGeneration) return
+            clear()
+            warmAhead(details?.fragments, 0)
+        })
+        hls.on(Hls.Events.FRAG_LOADED, (_, { frag }) => {
+            if (hlsInstance !== hls || generation !== sourceGeneration || frag?.type !== 'main') return
+            const details = hls.levels[frag.level]?.details
+            if (!details) return
+            warmAhead(details.fragments, frag.sn - details.startSN + 1)
         })
         hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
             if (hlsInstance !== hls || generation !== sourceGeneration) return
