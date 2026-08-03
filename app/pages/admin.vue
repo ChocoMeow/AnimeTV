@@ -362,17 +362,13 @@ async function handleSave() {
             })
         }
 
-        await loadRecords()
-
         if (result) {
-            const match = records.value.find((r) => r.source_id === result.source_id)
-            if (match) {
-                selectedRecord.value = match
-                editableRecord.value = toEditableRecord(match)
-                isCreating.value = false
-            }
+            selectedRecord.value = result
+            editableRecord.value = toEditableRecord(result)
+            isCreating.value = false
         }
         markClean()
+        await loadRecords()
     } catch (err) {
         console.error('Failed to save anime_meta record:', err)
         errorMessage.value = '儲存資料時發生錯誤，請確認欄位內容是否正確。'
