@@ -229,6 +229,7 @@ const buildAnimeResponse = (meta, relatedAnime, isFavorite) => ({
         image: a.thumbnail,
         year: a.premiere_date?.split('-')[0] || null,
         views: a.views,
+        score: a.score != null && Number(a.score) > 0 ? Number(a.score) : null,
     })),
     videoId: meta.video_id,
     season: meta.season,

@@ -11,6 +11,61 @@
     .btn-modal-danger {
         @apply px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors;
     }
+
+    /* Shared YouTube-style chip scroller (ChipScrollBar) */
+    .scrollbar-none {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .scrollbar-none::-webkit-scrollbar {
+        display: none;
+    }
+
+    .chip-pill {
+        @apply flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
+               transition-colors border-0;
+    }
+    .chip-pill--sm {
+        @apply px-3 py-1.5 text-xs;
+    }
+    .chip-pill--active {
+        @apply bg-gray-900 dark:bg-white text-white dark:text-black;
+    }
+    .chip-pill--idle {
+        @apply bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300
+               hover:bg-black/10 dark:hover:bg-white/20;
+    }
+
+    .chip-scroll-edge {
+        @apply absolute inset-y-0 z-10 flex items-center transition-opacity duration-200;
+        width: 2.5rem;
+    }
+    .chip-scroll-edge--wide {
+        width: 3.25rem;
+    }
+    .chip-scroll-edge--left {
+        @apply left-0 justify-start;
+        background: linear-gradient(to right, rgb(255 255 255) 40%, transparent);
+    }
+    .dark .chip-scroll-edge--left {
+        background: linear-gradient(to right, rgb(3 7 18) 40%, transparent);
+    }
+    .chip-scroll-edge--right {
+        @apply right-0 justify-end;
+        background: linear-gradient(to left, rgb(255 255 255) 40%, transparent);
+    }
+    .dark .chip-scroll-edge--right {
+        background: linear-gradient(to left, rgb(3 7 18) 40%, transparent);
+    }
+
+    .chip-scroll-btn {
+        @apply w-8 h-8 flex items-center justify-center rounded-full
+               text-gray-900 dark:text-white
+               hover:bg-black/5 dark:hover:bg-white/10 transition-colors;
+    }
+    .chip-scroll-btn--lg {
+        @apply w-10 h-10;
+    }
 }
 
 @media (hover: none) {
