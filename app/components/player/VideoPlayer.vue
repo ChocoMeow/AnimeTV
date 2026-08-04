@@ -63,6 +63,8 @@ const settingsPage = ref('main')
 const qualityLevels = ref([])
 const selectedQuality = ref(-1)
 const activeQualityIndex = ref(-1)
+/** Preferred height in px, or -1 for auto. Kept across source changes. */
+let preferredQualityHeight = -1
 
 let controlsTimeout = null
 let notificationTimeout = null
@@ -379,17 +381,35 @@ function syncQualityLevelsFromHls(hls) {
         }))
         .sort((a, b) => b.height - a.height || b.bitrate - a.bitrate)
 
-    if (selectedQuality.value !== -1 && !qualityLevels.value.some((l) => l.index === selectedQuality.value)) {
-        selectedQuality.value = -1
-        hls.currentLevel = -1
+    let levelIndex = -1
+    if (preferredQualityHeight > 0) {
+        const exact = qualityLevels.value.find((l) => l.height === preferredQualityHeight)
+        const withHeight = qualityLevels.value.filter((l) => l.height > 0)
+        if (exact) levelIndex = exact.index
+        else if (withHeight.length) {
+            levelIndex = withHeight.reduce((best, l) =>
+                Math.abs(l.height - preferredQualityHeight) < Math.abs(best.height - preferredQualityHeight) ? l : best
+            ).index
+        }
     }
+    selectedQuality.value = levelIndex
+    hls.currentLevel = levelIndex
+    if (levelIndex >= 0) activeQualityIndex.value = levelIndex
 }
 
 function setQuality(levelIndex) {
     if (!hlsInstance) return
     selectedQuality.value = levelIndex
     hlsInstance.currentLevel = levelIndex
-    if (levelIndex >= 0) activeQualityIndex.value = levelIndex
+    if (levelIndex >= 0) {
+        activeQualityIndex.value = levelIndex
+        preferredQualityHeight = qualityLevels.value.find((l) => l.index === levelIndex)?.height || -1
+    } else {
+        preferredQualityHeight = -1
+    }
+    try {
+        localStorage.setItem('videoQualityHeight', preferredQualityHeight === -1 ? 'auto' : String(preferredQualityHeight))
+    } catch { /* ignore */ }
     settingsPage.value = 'main'
     resetControlsTimeout()
     const label = levelIndex === -1
@@ -682,7 +702,6 @@ async function applyVideoSource(src, isHls, video) {
             fLoader: FragLoader,
         })
         hlsInstance = hls
-        selectedQuality.value = -1
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
             if (hlsInstance !== hls || generation !== sourceGeneration) return
             syncQualityLevelsFromHls(hls)
@@ -768,6 +787,9 @@ onMounted(() => {
     if (savedVolume !== null && Number.isFinite(Number(savedVolume))) setVolume(Number(savedVolume), false)
     const savedAutoplay = localStorage.getItem('autoplayEnabled')
     if (savedAutoplay !== null) autoplayEnabled.value = savedAutoplay !== 'false'
+    const savedQuality = localStorage.getItem('videoQualityHeight')
+    if (savedQuality === 'auto') preferredQualityHeight = -1
+    else if (savedQuality != null && Number(savedQuality) > 0) preferredQualityHeight = Number(savedQuality)
     document.addEventListener('fullscreenchange', handleFullscreenChange)
     document.addEventListener('pointerdown', handleDocumentPointerDown)
     window.addEventListener('keydown', handleKeydown)
