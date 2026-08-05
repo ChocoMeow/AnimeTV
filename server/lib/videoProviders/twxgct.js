@@ -2,18 +2,14 @@ import * as cheerio from 'cheerio'
 import { cfFetch } from '~~/server/utils/anime'
 import { getRequestLogger } from '~~/server/utils/logger'
 import { TWXGCT } from './constants'
-import { decodePrefixedToken, encodePrefixedToken, episodeRecord, normalizeEpisodeId } from './helpers'
+import { decodePrefixedToken, encodePrefixedToken, episodeRecord } from './helpers'
 
 const TOKEN_PREFIX = `${TWXGCT.id}.`
 const FETCH_OPTS = Object.freeze({ headers: { Referer: TWXGCT.referer } })
 const CDN_HEADERS = Object.freeze({ Referer: TWXGCT.referer, 'User-Agent': 'Mozilla/5.0' })
-
-function episodeKeyFromTitle(title) {
-    const m = String(title || '').match(/第\s*0*(\d+)\s*[话話集]/)
-    if (m) return normalizeEpisodeId(m[1])
-    const digits = String(title || '').match(/(\d+)/)
-    return digits ? normalizeEpisodeId(digits[1]) : null
-}
+/** Real episode tiles; excludes header 播放/收藏 links that also carry chapter_id. */
+const CHAPTER_LINK_SEL = 'a.chapter-box[href*="chapter_id="], a.goto-chapter[href*="chapter_id="]'
+const CHAPTER_LINK_FALLBACK_SEL = 'a[href*="chapter_id="]'
 
 function extractChapterId(href) {
     if (!href) return null
@@ -134,12 +130,13 @@ async function listEpisodes(event, videoId) {
 
         const $ = cheerio.load(fetched.html)
         const titles = $('.volume-title').toArray()
-        let nodes = $('a[href*="chapter_id="]').toArray()
+        const linkSel = $(CHAPTER_LINK_SEL).length ? CHAPTER_LINK_SEL : CHAPTER_LINK_FALLBACK_SEL
+        let nodes = $(linkSel).toArray()
         if (titles.length) {
             const target = titles[volume - 1]
             nodes = []
             let on = false
-            $('.volume-title, a[href*="chapter_id="]').each((_, el) => {
+            $(`.volume-title, ${linkSel}`).each((_, el) => {
                 if ($(el).is('.volume-title')) {
                     on = el === target
                     return
@@ -148,12 +145,13 @@ async function listEpisodes(event, videoId) {
             })
         }
 
+        let ep = 0
         for (const el of nodes) {
             const chapterId = extractChapterId($(el).attr('href'))
-            const epKey = episodeKeyFromTitle($(el).text().trim())
-            if (!chapterId || !epKey || seen.has(chapterId)) continue
+            if (!chapterId || seen.has(chapterId)) continue
             seen.add(chapterId)
-            episodes[epKey] = episodeRecord(encodePrefixedToken(TOKEN_PREFIX, [cartoonId, chapterId]))
+            ep += 1
+            episodes[String(ep)] = episodeRecord(encodePrefixedToken(TOKEN_PREFIX, [cartoonId, chapterId]))
         }
     } catch (err) {
         log.error({ err, cartoonId, source: TWXGCT.id }, 'listEpisodes failed')
