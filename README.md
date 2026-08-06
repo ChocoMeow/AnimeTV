@@ -98,8 +98,17 @@ Make sure you have the following installed:
         # NUXT_LOG_LEVEL=info
         # NUXT_LOG_MAX_DAYS=30
         # NUXT_LOG_TO_FILE=true
+
+        # Database backup / restore (Postgres connection — not the API service role key)
+        # Prefer the Session pooler URL from Supabase → Connect
+        # SUPABASE_DB_URL=postgresql://postgres.[REF]:[PASSWORD]@aws-0-....pooler.supabase.com:5432/postgres
+        # Or password only (uses a linked project: bunx supabase link)
+        # SUPABASE_DB_PASSWORD=your_db_password
+        # Optional CLI auth (Dashboard → Account → Access Tokens)
+        # SUPABASE_ACCESS_TOKEN=your_personal_access_token
         ```
         > Replace Supabase values from **Supabase → Settings → API**. Set `NUXT_PUBLIC_AI_ENABLED=true` to show the AI widget. All app env vars use the `NUXT_` prefix.
+
 4. **Run the development server**:
 
     ```bash
@@ -107,6 +116,68 @@ Make sure you have the following installed:
     ```
 
     Your application will be running at `http://localhost:3000`.
+
+### Production
+
+Build and run locally with Bun:
+
+```bash
+bun run build
+bun run preview
+```
+
+Or run the production Nitro server directly after build:
+
+```bash
+bun --bun run .output/server/index.mjs
+```
+
+**Docker** (image is also published to GHCR on `main` / `beta`):
+
+```bash
+docker build -t animetv .
+docker run --rm -p 3000:3000 --env-file .env -v animetv-logs:/app/logs animetv
+```
+
+Pass the same `NUXT_*` variables as in development. Mount `/app/logs` if you want daily log files persisted (`NUXT_LOG_TO_FILE=true`).
+
+### Database backup & restore
+
+Logical backups follow the [Supabase backup / restore guide](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore): `roles.sql`, `schema.sql`, and `data.sql` in one dated folder.
+
+**Requirements**
+
+- Docker Desktop running (`supabase db dump` uses a container for `pg_dump`)
+- `SUPABASE_DB_URL` or `SUPABASE_DB_PASSWORD` in `.env` (see Setup above)
+- Linked project if using password only: `bunx supabase link`
+- Restore needs `psql` on PATH, or Docker (falls back to `postgres:17`)
+
+**Backup**
+
+```bash
+bun run db:backup
+# or a custom folder name:
+bun scripts/db-backup.js --out backups/pre-migrate
+```
+
+Creates:
+
+```text
+backups/YYYY-MM-DD_HH-mm-ss/
+  roles.sql
+  schema.sql
+  data.sql
+```
+
+**Restore**
+
+```bash
+bun run db:restore -- backups/YYYY-MM-DD_HH-mm-ss
+# skip the confirmation prompt:
+bun run db:restore -- backups/YYYY-MM-DD_HH-mm-ss --yes
+```
+
+> Restore applies SQL against your database and can overwrite existing state. Keep a fresh backup before restoring.
 
 ## License
 
