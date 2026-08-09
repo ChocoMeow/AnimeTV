@@ -42,7 +42,9 @@ const isFullscreen = ref(false)
 const buffered = ref(0)
 const showVolumeSlider = ref(false)
 const isLoading = ref(false)
-const showLoading = computed(() => props.loading || isLoading.value)
+const isBuffering = ref(false)
+const showLoading = computed(() => props.loading || isLoading.value || isBuffering.value) /** Spinner for both initial load and mid-playback stalls */
+const isInitialLoading = computed(() => props.loading || isLoading.value) /** Hide controls only while the source is first loading (not while buffering) */
 const isDraggingProgress = ref(false)
 const dragPreviewTime = ref(0)
 const isHoveringProgress = ref(false)
@@ -508,10 +510,10 @@ function onLoadedMetadata() {
     duration.value = Number.isFinite(nextDuration) ? nextDuration : 0
     applyCaptionTracks()
 }
-function onLoadedData() { isLoading.value = false; emit('loadeddata') }
+function onLoadedData() { isLoading.value = false; isBuffering.value = false; emit('loadeddata') }
 function onLoadStart() { isLoading.value = true; emit('loadstart') }
-function onWaiting() { if (isPlaying.value) isLoading.value = true }
-function onCanPlay() { isLoading.value = false }
+function onWaiting() { if (isPlaying.value) isBuffering.value = true }
+function onCanPlay() { isLoading.value = false; isBuffering.value = false }
 
 function onTimeUpdate() {
     const video = videoRef.value
@@ -654,6 +656,7 @@ function resetPlayerForSource() {
     buffered.value = 0
     isPlaying.value = false
     isLoading.value = !!props.src
+    isBuffering.value = false
     showControls.value = true
     showVolumeSlider.value = false
     closeSettings()
@@ -872,6 +875,7 @@ onUnmounted(() => {
         <PlayerOverlays
             :src="src"
             :is-loading="showLoading"
+            :is-buffering="isBuffering && !isInitialLoading"
             :is-playing="isPlaying"
             :show-controls="showControls"
             :is-fullscreen="isFullscreen"
@@ -889,7 +893,7 @@ onUnmounted(() => {
 
         <transition name="slide-up">
             <PlayerControls
-                v-show="!showLoading && showControls && src"
+                v-show="!isInitialLoading && showControls && src"
                 ref="controlsRef"
                 :progress="progress"
                 :buffered="buffered"

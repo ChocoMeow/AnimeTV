@@ -2,6 +2,7 @@
 defineProps({
     src: { type: String, default: '' },
     isLoading: { type: Boolean, default: false },
+    isBuffering: { type: Boolean, default: false }, /** Mid-playback stall: keep spinner, but don't dim/block controls */
     isPlaying: { type: Boolean, default: false },
     showControls: { type: Boolean, default: false },
     isFullscreen: { type: Boolean, default: false },
@@ -24,13 +25,14 @@ const emit = defineEmits(['toggle-play', 'next-episode', 'dismiss-autoplay'])
         <p class="text-base sm:text-lg">無可用影片</p>
     </div>
 
-    <!-- Loading -->
+    <!-- Loading / buffering -->
     <div
         v-if="isLoading"
-        class="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-10"
+        class="absolute inset-0 flex flex-col items-center justify-center z-10"
+        :class="isBuffering ? 'pointer-events-none' : 'bg-black/50'"
     >
         <div class="w-10 h-10 sm:w-12 sm:h-12 border-4 border-white/25 border-t-white rounded-full animate-spin mb-3" />
-        <p class="text-white/90 text-sm">載入影片中...</p>
+        <p v-if="!isBuffering" class="text-white/90 text-sm">載入影片中...</p>
     </div>
 
     <!-- Center play/pause -->
