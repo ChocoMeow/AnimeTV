@@ -7,8 +7,16 @@ const globalState = {
     currentUserId: ref(null),
     friendsChannel: null,
     statusChannel: null,
+    statusFriendIds: null, // last friend-id set the status channel was built for (dedupe key)
     initialized: false,
+    /** Set by useFriends — resume realtime after tab sleep / network drop. */
+    recover: null,
+    resumeBound: false,
+    recovering: false,
 }
+
+const errorMessage = (err, fallback) => (err instanceof Error ? err.message : fallback)
+const sortedPair = (a, b) => [a, b].sort()
 
 export const useFriends = (userId) => {
     const supabase = useSupabaseClient()
@@ -54,72 +62,57 @@ export const useFriends = (userId) => {
                 friendsSince: item.friends_since,
             }))
         } catch (err) {
-            error.value = err instanceof Error ? err.message : "Failed to fetch friends"
+            error.value = errorMessage(err, "Failed to fetch friends")
             console.error("Error fetching friends:", err)
         } finally {
             loading.value = false
         }
     }
 
-    // Fetch blocked users
+    // Fetch blocked users (batched — single lookup for all blocked IDs instead of one query per user)
     const fetchBlockedUsers = async () => {
-        if (!userIdRef.value) {
-            return []
-        }
+        if (!userIdRef.value) return []
 
         try {
             const { data, error: fetchError } = await supabase
                 .from("friends")
-                .select(
-                    `
-                    id,
-                    user_id,
-                    friend_id,
-                    requester_id,
-                    created_at
-                `
-                )
+                .select("id, user_id, friend_id, created_at")
                 .eq("status", "blocked")
-                .or(`user_id.eq.${userIdRef.value},friend_id.eq.${userIdRef.value}`)
                 .eq("requester_id", userIdRef.value) // Only show users YOU blocked
 
             if (fetchError) throw fetchError
+            if (!data?.length) return []
 
-            // Fetch user info for each blocked user
-            const blockedUsersWithInfo = await Promise.all(
-                (data || []).map(async (block) => {
-                    const blockedUserId = block.user_id === userIdRef.value ? block.friend_id : block.user_id
+            const blockedUserIds = data.map((b) => (b.user_id === userIdRef.value ? b.friend_id : b.user_id))
 
-                    const { data: userData } = await supabase.from("users").select("id, name, avatar").eq("id", blockedUserId).single()
+            const { data: users } = await supabase.from("users").select("id, name, avatar").in("id", blockedUserIds)
+            const userById = new Map((users || []).map((u) => [u.id, u]))
 
-                    // Fallback: get from auth.users if not in users table
-                    if (!userData) {
-                        const { data: authUser } = await supabase.rpc("get_user_info", { user_id: blockedUserId })
-                        if (authUser && authUser.length > 0) {
-                            return {
-                                id: authUser[0].id,
-                                name: authUser[0].name,
-                                avatar: authUser[0].avatar,
-                                friendshipId: block.id,
-                                blockedAt: block.created_at,
-                            }
-                        }
-                    }
+            // Fallback to auth.users (via RPC) only for the ones missing from `users`
+            const missingIds = blockedUserIds.filter((id) => !userById.has(id))
+            if (missingIds.length) {
+                await Promise.all(
+                    missingIds.map(async (id) => {
+                        const { data: authUser } = await supabase.rpc("get_user_info", { user_id: id })
+                        if (authUser?.[0]) userById.set(id, authUser[0])
+                    })
+                )
+            }
 
-                    return {
-                        id: blockedUserId,
-                        name: userData?.name || "Unknown User",
-                        avatar: userData?.avatar || null,
-                        friendshipId: block.id,
-                        blockedAt: block.created_at,
-                    }
-                })
-            )
-
-            return blockedUsersWithInfo
+            return data.map((block) => {
+                const blockedUserId = block.user_id === userIdRef.value ? block.friend_id : block.user_id
+                const user = userById.get(blockedUserId)
+                return {
+                    id: blockedUserId,
+                    name: user?.name || "Unknown User",
+                    avatar: user?.avatar || null,
+                    friendshipId: block.id,
+                    blockedAt: block.created_at,
+                }
+            })
         } catch (err) {
             console.error("Error fetching blocked users:", err)
-            error.value = err instanceof Error ? err.message : "Failed to fetch blocked users"
+            error.value = errorMessage(err, "Failed to fetch blocked users")
             return []
         }
     }
@@ -133,23 +126,13 @@ export const useFriends = (userId) => {
 
         try {
             const { data, error: fetchError } = await supabase.rpc("get_pending_requests")
-
             if (fetchError) throw fetchError
 
-            pendingRequests.value = (data || []).map((req) => ({
-                id: req.id,
-                user_id: req.user_id,
-                friend_id: req.friend_id,
-                requester_id: req.requester_id,
-                created_at: req.created_at,
-                sender_name: req.sender_name,
-                sender_avatar: req.sender_avatar,
-                receiver_name: req.receiver_name,
-                receiver_avatar: req.receiver_avatar,
-            }))
+            // RPC fields already match the shape we need — no transform necessary
+            pendingRequests.value = data || []
         } catch (err) {
             console.error("Error fetching pending requests:", err)
-            error.value = err instanceof Error ? err.message : "Failed to fetch pending requests"
+            error.value = errorMessage(err, "Failed to fetch pending requests")
         }
     }
 
@@ -169,7 +152,7 @@ export const useFriends = (userId) => {
             return data || []
         } catch (err) {
             console.error("Error searching users:", err)
-            error.value = err instanceof Error ? err.message : "Failed to search users"
+            error.value = errorMessage(err, "Failed to search users")
             return []
         }
     }
@@ -183,7 +166,7 @@ export const useFriends = (userId) => {
 
         try {
             error.value = null
-            const [id1, id2] = [userIdRef.value, targetUserId].sort()
+            const [id1, id2] = sortedPair(userIdRef.value, targetUserId)
 
             const { error: insertError } = await supabase.from("friends").insert({
                 user_id: id1,
@@ -197,7 +180,7 @@ export const useFriends = (userId) => {
             await fetchFriends()
             return true
         } catch (err) {
-            error.value = err instanceof Error ? err.message : "Failed to send friend request"
+            error.value = errorMessage(err, "Failed to send friend request")
             console.error("Error sending friend request:", err)
             return false
         }
@@ -221,7 +204,7 @@ export const useFriends = (userId) => {
             await Promise.all([fetchPendingRequests(), fetchFriends()])
             return true
         } catch (err) {
-            error.value = err instanceof Error ? err.message : "Failed to accept friend request"
+            error.value = errorMessage(err, "Failed to accept friend request")
             console.error("Error accepting friend request:", err)
             return false
         }
@@ -240,7 +223,7 @@ export const useFriends = (userId) => {
             await fetchPendingRequests()
             return true
         } catch (err) {
-            error.value = err instanceof Error ? err.message : "Failed to reject friend request"
+            error.value = errorMessage(err, "Failed to reject friend request")
             console.error("Error rejecting friend request:", err)
             return false
         }
@@ -252,7 +235,7 @@ export const useFriends = (userId) => {
 
         try {
             error.value = null
-            const [id1, id2] = [userIdRef.value, targetUserId].sort()
+            const [id1, id2] = sortedPair(userIdRef.value, targetUserId)
 
             const { data: existing } = await supabase.from("friends").select("id").eq("user_id", id1).eq("friend_id", id2).maybeSingle()
 
@@ -280,7 +263,7 @@ export const useFriends = (userId) => {
             await fetchFriends()
             return true
         } catch (err) {
-            error.value = err instanceof Error ? err.message : "Failed to block user"
+            error.value = errorMessage(err, "Failed to block user")
             console.error("Error blocking user:", err)
             return false
         }
@@ -292,7 +275,7 @@ export const useFriends = (userId) => {
 
         try {
             error.value = null
-            const [id1, id2] = [userIdRef.value, targetUserId].sort()
+            const [id1, id2] = sortedPair(userIdRef.value, targetUserId)
 
             const { error: deleteError } = await supabase.from("friends").delete().eq("user_id", id1).eq("friend_id", id2).eq("status", "blocked")
 
@@ -301,7 +284,7 @@ export const useFriends = (userId) => {
             await fetchFriends()
             return true
         } catch (err) {
-            error.value = err instanceof Error ? err.message : "Failed to unblock user"
+            error.value = errorMessage(err, "Failed to unblock user")
             console.error("Error unblocking user:", err)
             return false
         }
@@ -319,103 +302,79 @@ export const useFriends = (userId) => {
             await fetchFriends()
             return true
         } catch (err) {
-            error.value = err instanceof Error ? err.message : "Failed to remove friend"
+            error.value = errorMessage(err, "Failed to remove friend")
             console.error("Error removing friend:", err)
             return false
         }
     }
 
-    // Subscribe to real-time friend updates
+    // Subscribe to real-time friend updates.
+    // Realtime's postgres_changes filter can't express OR across two columns
+    // (user_id=eq.X OR friend_id=eq.X isn't valid filter syntax), so instead
+    // we register two filtered subscriptions on the same channel — each one
+    // narrows server-side on its own, so we're not asking the client to
+    // silently re-filter every friendship row in the whole table.
     const subscribeToFriendUpdates = () => {
         if (!userIdRef.value) return
 
-        // Clean up existing subscription
         if (globalState.friendsChannel) {
             supabase.removeChannel(globalState.friendsChannel)
         }
 
+        const onChange = () => Promise.all([fetchFriends(), fetchPendingRequests()])
+
         globalState.friendsChannel = supabase
             .channel(`friends:${userIdRef.value}`)
-            .on(
-                "postgres_changes",
-                {
-                    event: "*",
-                    schema: "public",
-                    table: "friends",
-                    filter: `or(user_id.eq.${userIdRef.value},friend_id.eq.${userIdRef.value})`,
-                },
-                async (payload) => {
-                    await Promise.all([fetchFriends(), fetchPendingRequests()])
-                }
-            )
+            .on("postgres_changes", { event: "*", schema: "public", table: "friends", filter: `user_id=eq.${userIdRef.value}` }, onChange)
+            .on("postgres_changes", { event: "*", schema: "public", table: "friends", filter: `friend_id=eq.${userIdRef.value}` }, onChange)
             .subscribe()
     }
 
-    // Subscribe to user status changes
+    // Subscribe to user status changes, scoped server-side to just your friends
+    // via the `in` filter (Realtime caps this at 100 values).
     const subscribeToStatusUpdates = () => {
         if (!userIdRef.value) return
 
-        // Clean up existing subscription
+        const friendIds = friends.value.map((f) => f.id).sort()
+        const idsKey = friendIds.join(",")
+
+        // Every component using this composable runs its own copy of the
+        // friends-list watcher below; skip rebuilding the channel if the
+        // friend set hasn't actually changed since we last built it.
+        if (idsKey === globalState.statusFriendIds) return
+        globalState.statusFriendIds = idsKey
+
         if (globalState.statusChannel) {
             supabase.removeChannel(globalState.statusChannel)
+            globalState.statusChannel = null
         }
-
-        // Get list of friend IDs to filter subscriptions
-        const friendIds = friends.value.map((f) => f.id)
 
         if (friendIds.length === 0) return
 
         const handleStatusUpdate = (payload) => {
             const updatedStatus = payload.new
 
-            // Double-check it's not the user themselves (shouldn't happen with filter, but just in case)
-            if (updatedStatus.user_id === userIdRef.value) {
-                return
-            }
-            // Update specific friend status without refetching all
             const friendIndex = friends.value.findIndex((f) => f.id === updatedStatus.user_id)
+            if (friendIndex === -1) return
 
-            if (friendIndex !== -1) {
-                // Create a new object to trigger reactivity
-                const updatedFriend = {
-                    ...friends.value[friendIndex],
-                    status: updatedStatus.status || "offline",
-                    currentAnime: updatedStatus.anime_title || null,
-                    currentEpisode: updatedStatus.episode_number || null,
-                    animeId: updatedStatus.anime_ref_id || null,
-                    animeBackground: updatedStatus.anime_image || null,
-                    lastSeen: updatedStatus.last_seen || new Date().toISOString(),
-                }
-
-                // Use splice to trigger reactivity
-                friends.value.splice(friendIndex, 1, updatedFriend)
-            }
+            // Create a new object (and use splice) to trigger reactivity
+            friends.value.splice(friendIndex, 1, {
+                ...friends.value[friendIndex],
+                status: updatedStatus.status || "offline",
+                currentAnime: updatedStatus.anime_title || null,
+                currentEpisode: updatedStatus.episode_number || null,
+                animeId: updatedStatus.anime_ref_id || null,
+                animeBackground: updatedStatus.anime_image || null,
+                lastSeen: updatedStatus.last_seen || new Date().toISOString(),
+            })
         }
 
-        const filterString = friendIds.map((id) => `user_id.eq.${id}`).join(",")
+        const filter = `user_id=in.(${friendIds.slice(0, 100).join(",")})`
 
         globalState.statusChannel = supabase
-            .channel("user_status_updates")
-            .on(
-                "postgres_changes",
-                {
-                    event: "UPDATE",
-                    schema: "public",
-                    table: "user_status",
-                    // filter: `or(${filterString})`
-                },
-                handleStatusUpdate
-            )
-            .on(
-                "postgres_changes",
-                {
-                    event: "INSERT",
-                    schema: "public",
-                    table: "user_status",
-                    // filter: `or(${filterString})`
-                },
-                handleStatusUpdate
-            )
+            .channel(`friend_status:${userIdRef.value}`)
+            .on("postgres_changes", { event: "INSERT", schema: "public", table: "user_status", filter }, handleStatusUpdate)
+            .on("postgres_changes", { event: "UPDATE", schema: "public", table: "user_status", filter }, handleStatusUpdate)
             .subscribe((status) => {
                 if (status === "CHANNEL_ERROR") {
                     console.error("Error subscribing to user_status table")
@@ -433,6 +392,38 @@ export const useFriends = (userId) => {
             supabase.removeChannel(globalState.statusChannel)
             globalState.statusChannel = null
         }
+        globalState.statusFriendIds = null
+    }
+
+    // Supabase may restore the socket after tab sleep but not re-join channels —
+    // remove + subscribe again, then refetch so FriendList catches missed status.
+    const recoverRealtime = async () => {
+        if (!globalState.initialized || !userIdRef.value || globalState.recovering) return
+        globalState.recovering = true
+        try {
+            unsubscribe()
+            await Promise.all([fetchFriends(), fetchPendingRequests()])
+            subscribeToFriendUpdates()
+            subscribeToStatusUpdates()
+        } catch (err) {
+            console.error('Error recovering friends realtime:', err)
+        } finally {
+            globalState.recovering = false
+        }
+    }
+    globalState.recover = recoverRealtime
+
+    if (import.meta.client && !globalState.resumeBound) {
+        globalState.resumeBound = true
+        let resumeTimer = null
+        const scheduleRecover = () => {
+            clearTimeout(resumeTimer)
+            resumeTimer = setTimeout(() => globalState.recover?.(), 300)
+        }
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') scheduleRecover()
+        })
+        window.addEventListener('online', scheduleRecover)
     }
 
     // Watch for userId changes - only initialize once per user
@@ -454,6 +445,7 @@ export const useFriends = (userId) => {
                 pendingRequests.value = []
                 globalState.initialized = false
                 globalState.currentUserId.value = null
+                globalState.recover = null
             }
         },
         { immediate: true }
