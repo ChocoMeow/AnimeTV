@@ -1,7 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
     css: ['~/assets/css/tailwind.css'],
-    modules: ['@nuxtjs/tailwindcss', '@nuxtjs/supabase', '@vite-pwa/nuxt', '@nuxt/image'],
+    modules: ['@nuxtjs/tailwindcss', '@nuxtjs/supabase', '@vite-pwa/nuxt', '@nuxt/image', 'nuxt-security'],
     compatibilityDate: '2025-07-15',
     devtools: { enabled: true },
     runtimeConfig: {
@@ -216,5 +216,18 @@ export default defineNuxtConfig({
             saveRedirectToCookie: true,
         },
         types: false,
+    },
+    security: {
+        headers: {
+            crossOriginEmbedderPolicy: 'unsafe-none',
+            crossOriginOpenerPolicy: 'same-origin-allow-popups',
+            contentSecurityPolicy: {
+                'connect-src': ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co'],
+                'frame-src': ["'self'", 'https://www.youtube.com', 'https://www.youtube-nocookie.com'],
+                'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+                'media-src': ["'self'", 'blob:', 'https:'],
+                'worker-src': ["'self'", 'blob:'],
+            },
+        },
     },
 })
