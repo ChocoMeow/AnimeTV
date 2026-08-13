@@ -160,11 +160,13 @@ async function listEpisodes(event, videoId) {
     return episodes
 }
 
-async function resolvePlayback({ cartoonId, chapterId }) {
-    const fetched = await cfFetch(TWXGCT.pageDirectUrl(cartoonId, chapterId), FETCH_OPTS)
-    if (!fetched?.html) throw new Error(`Failed to fetch ${TWXGCT.id} episode page`)
+async function resolvePlayback({ chapterId }) {
+    const fetched = await cfFetch(TWXGCT.pframeApiUrl(chapterId), FETCH_OPTS)
+    if (!fetched?.html) throw new Error(`Failed to fetch ${TWXGCT.id} playback URL`)
 
-    const guid = extractVideoGuid(fetched.html)
+    const playerUrl = JSON.parse(fetched.html.replace(/^\uFEFF/, ''))?.data
+
+    const guid = extractVideoGuid(playerUrl)
     if (!guid) throw new Error(`${TWXGCT.id} video GUID not found`)
 
     let thumbnail_vtt_text = null

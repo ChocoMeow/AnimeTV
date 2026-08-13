@@ -26,8 +26,8 @@ export const TWXGCT = Object.freeze({
     referer: `${TWXGCT_SITE}/`,
     hostMatchers: Object.freeze(['bzcdn.net', 'xgcartoon', TWXGCT_HOST]),
     detailUrl: (id) => `${TWXGCT_SITE}/detail/${encodeURIComponent(id)}`,
-    pageDirectUrl: (cartoonId, chapterId) =>
-        `${TWXGCT_SITE}/user/page_direct?cartoon_id=${encodeURIComponent(cartoonId)}&chapter_id=${encodeURIComponent(chapterId)}`,
+    pframeApiUrl: (chapterId) =>
+        `${TWXGCT_SITE}/user/amp/content_pframe_url?chapter_id=${encodeURIComponent(chapterId)}&level=middle&expires=3600`,
     playlistUrl: (guid) => `${TWXGCT_CDN}/${guid}/playlist.m3u8`,
     videoInfoUrl: (guid) => `${TWXGCT_CDN}/${guid}/video_info.json`,
     captionUrl: (guid, srclang) => `${TWXGCT_CDN}/${guid}/captions/${encodeURIComponent(srclang)}.vtt`,
