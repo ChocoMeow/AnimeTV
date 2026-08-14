@@ -45,6 +45,11 @@ export default defineNuxtConfig({
             '/apple-touch-icon.png': { redirect: '/icons/icon_512x512.png' },
             '/apple-touch-icon-precomposed.png': { redirect: '/icons/icon_512x512.png' },
             '/apple-touch-icon-120x120-precomposed.png': { redirect: '/icons/icon_512x512.png' },
+            // High-volume streaming / WS must not hit the global rate limiter
+            '/api/proxy-video': { security: { rateLimiter: false } },
+            '/api/download-proxy': { security: { rateLimiter: false } },
+            '/api/download-video/**': { security: { rateLimiter: false } },
+            '/api/user-status-ws': { security: { rateLimiter: false } },
         },
         experimental: {
             websocket: true,
@@ -219,14 +224,52 @@ export default defineNuxtConfig({
     },
     security: {
         headers: {
+            // Default is credentialless — breaks wiki YouTube iframes / CDNs without CORP
             crossOriginEmbedderPolicy: 'unsafe-none',
-            crossOriginOpenerPolicy: 'same-origin-allow-popups',
+            xFrameOptions: 'DENY',
+            strictTransportSecurity: {
+                maxAge: 63072000,
+                includeSubdomains: true,
+                preload: true,
+            },
+            permissionsPolicy: {
+                // Default fullscreen: [] blocks the video player
+                autoplay: ['self'],
+                'clipboard-write': ['self'],
+                fullscreen: ['self'],
+                'picture-in-picture': ['self'],
+                'web-share': ['self'],
+                accelerometer: [],
+                'clipboard-read': [],
+                gyroscope: [],
+                magnetometer: [],
+                midi: [],
+                payment: [],
+                'publickey-credentials-get': [],
+                'screen-wake-lock': [],
+                'sync-xhr': [],
+                usb: [],
+                'xr-spatial-tracking': [],
+            },
             contentSecurityPolicy: {
-                'connect-src': ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co'],
-                'frame-src': ["'self'", 'https://www.youtube.com', 'https://www.youtube-nocookie.com'],
+                'frame-ancestors': ["'none'"],
+                'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
                 'img-src': ["'self'", 'data:', 'blob:', 'https:'],
-                'media-src': ["'self'", 'blob:', 'https:'],
+                'media-src': ["'self'", 'blob:', 'https://*.bzcdn.net'],
+                'connect-src': [
+                    "'self'",
+                    'https://*.supabase.co',
+                    'wss://*.supabase.co',
+                    'https://*.bzcdn.net',
+                ],
+                'frame-src': [
+                    "'self'",
+                    'https://www.youtube.com',
+                    'https://www.youtube-nocookie.com',
+                    'https://youtube.com',
+                ],
                 'worker-src': ["'self'", 'blob:'],
+                'manifest-src': ["'self'"],
             },
         },
     },
