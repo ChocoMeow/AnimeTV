@@ -40,12 +40,11 @@ watch(
 </script>
 
 <template>
-    <div :class="isInline ? 'relative shrink-0 self-end' : 'contents'">
+    <div class="search-mic-root" :class="isInline ? 'is-inline' : 'is-inset'">
         <button
             type="button"
             class="search-mic-pill"
             :class="[
-                isInline ? 'is-inline' : '',
                 listening && !error
                     ? 'is-listening bg-gray-900 text-white shadow-[0_0_0_1px_rgba(0,0,0,0.08)] dark:bg-white dark:text-gray-950 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.14)]'
                     : '',
@@ -60,7 +59,7 @@ watch(
             :aria-pressed="listening"
             @pointerdown.prevent.stop="!disabled && $emit('toggle')"
         >
-            <span v-if="!listening" class="material-symbols-rounded text-[1.15rem]" :class="{ 'search-mic-shake': shaking }">{{ micIcon }}</span>
+            <span v-if="!listening" class="material-symbols-rounded text-[1.25rem] leading-none" :class="{ 'search-mic-shake': shaking }">{{ micIcon }}</span>
             <span v-else class="search-mic-wave" aria-hidden="true"><i /><i /><i /><i /></span>
         </button>
         <transition name="mic-tip">
@@ -77,17 +76,25 @@ watch(
 </template>
 
 <style scoped>
-.contents {
-    display: contents;
+.search-mic-root {
+    position: relative;
+    z-index: 10;
+}
+.search-mic-root.is-inset {
+    position: absolute;
+    top: 50%;
+    right: 0.15rem;
+    transform: translateY(-50%);
+}
+.search-mic-root.is-inline {
+    flex-shrink: 0;
+    align-self: flex-end;
 }
 
 .search-mic-pill {
-    position: absolute;
-    top: 0.25rem;
-    right: 0.25rem;
-    bottom: 0.25rem;
-    z-index: 10;
-    width: 2.75rem;
+    position: relative;
+    width: 2rem;
+    height: 2rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -99,20 +106,19 @@ watch(
     transition:
         background-color 0.15s ease,
         color 0.15s ease,
-        box-shadow 0.15s ease;
+        box-shadow 0.15s ease,
+        transform 0.15s ease;
 }
-.search-mic-pill.is-inline {
-    position: relative;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    z-index: auto;
+.search-mic-root.is-inline .search-mic-pill {
     width: 2.25rem;
     height: 2.25rem;
 }
 .search-mic-pill:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+.search-mic-pill:not(:disabled):active {
+    transform: scale(0.94);
 }
 
 .search-mic-shake {
@@ -138,13 +144,15 @@ watch(
     }
 }
 
+/* Grow left from the mic so the tip stays inside overflow-hidden parents */
 .search-mic-tooltip {
     position: absolute;
     top: calc(100% + 0.35rem);
-    right: 0.25rem;
+    right: 0;
+    left: auto;
     z-index: 80;
     width: max-content;
-    max-width: min(16rem, 70vw);
+    max-width: min(16rem, calc(100vw - 2rem));
     padding: 0.45rem 0.75rem;
     border-radius: 9999px;
     font-size: 0.75rem;
@@ -154,29 +162,28 @@ watch(
     text-align: left;
     box-sizing: border-box;
 }
-/* Inline (AI chat): parent is only as wide as the mic — force horizontal tip above it */
+/* Inline (AI chat): tip above the mic */
 .search-mic-tooltip.is-inline {
     top: auto;
-    right: 0;
     bottom: calc(100% + 0.4rem);
-    left: auto;
-    width: max-content;
-    max-width: min(14rem, 70vw);
+    max-width: min(14rem, calc(100vw - 2rem));
 }
+/* Arrow centered on the mic (half of 2rem / 2.25rem button) */
 .search-mic-tooltip::before {
     content: '';
     position: absolute;
     top: -4px;
     right: 1rem;
+    left: auto;
     width: 8px;
     height: 8px;
     background: inherit;
-    transform: rotate(45deg);
+    transform: translateX(50%) rotate(45deg);
 }
 .search-mic-tooltip.is-inline::before {
     top: auto;
     bottom: -4px;
-    right: 0.85rem;
+    right: 1.125rem;
 }
 
 .mic-tip-enter-active,
@@ -187,6 +194,10 @@ watch(
 .mic-tip-leave-to {
     opacity: 0;
     transform: translateY(-4px);
+}
+.search-mic-tooltip.is-inline.mic-tip-enter-from,
+.search-mic-tooltip.is-inline.mic-tip-leave-to {
+    transform: translateY(4px);
 }
 
 .search-mic-wave {

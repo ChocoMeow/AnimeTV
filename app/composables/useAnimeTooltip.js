@@ -1,5 +1,5 @@
 export function useAnimeTooltip() {
-    const { isMobile } = useMobile()
+    const { isNarrow } = useMobile()
     
     const hoveredAnime = ref(null)
     const animeDetails = ref(null)
@@ -13,8 +13,9 @@ export function useAnimeTooltip() {
     const anchorElement = ref(null)
     
     const animeCache = ref(new Map())
-    
-    function calculatePositionFromRect(rect) {
+    let lastPreferredPlacement = null
+
+    function calculatePositionFromRect(rect, preferredPlacement = null, forcePreferred = false) {
         const tooltipWidth = 360
         const tooltipHeight = 400
         const padding = 16
@@ -30,29 +31,46 @@ export function useAnimeTooltip() {
         const spaceBottom = viewportHeight - rect.bottom
         const spaceLeft = rect.left
         const spaceRight = viewportWidth - rect.right
-        
-        // Determine best placement based on available space
-        if (spaceTop >= tooltipHeight + padding) {
-            placement = "top"
-            y = rect.top
-            x = rect.left + rect.width / 2
-        } else if (spaceBottom >= tooltipHeight + padding) {
-            placement = "bottom"
-            y = rect.bottom
-            x = rect.left + rect.width / 2
-        } else if (spaceRight >= tooltipWidth + padding) {
-            placement = "right"
-            x = rect.right
-            y = rect.top + rect.height / 2
-        } else if (spaceLeft >= tooltipWidth + padding) {
-            placement = "left"
-            x = rect.left
-            y = rect.top + rect.height / 2
+
+        const applyPlacement = (next) => {
+            if (next === "top") {
+                placement = "top"
+                y = rect.top
+                x = rect.left + rect.width / 2
+            } else if (next === "bottom") {
+                placement = "bottom"
+                y = rect.bottom
+                x = rect.left + rect.width / 2
+            } else if (next === "right") {
+                placement = "right"
+                x = rect.right
+                y = rect.top + rect.height / 2
+            } else if (next === "left") {
+                placement = "left"
+                x = rect.left
+                y = rect.top + rect.height / 2
+            }
+        }
+
+        const canPlace = {
+            top: spaceTop >= tooltipHeight + padding,
+            bottom: spaceBottom >= tooltipHeight + padding,
+            right: spaceRight >= tooltipWidth + padding,
+            left: spaceLeft >= tooltipWidth + padding,
+        }
+
+        if (preferredPlacement && (forcePreferred || canPlace[preferredPlacement])) {
+            applyPlacement(preferredPlacement)
+        } else if (canPlace.top) {
+            applyPlacement("top")
+        } else if (canPlace.bottom) {
+            applyPlacement("bottom")
+        } else if (canPlace.right) {
+            applyPlacement("right")
+        } else if (canPlace.left) {
+            applyPlacement("left")
         } else {
-            // Default to top if no good space
-            placement = "top"
-            y = rect.top
-            x = rect.left + rect.width / 2
+            applyPlacement("top")
         }
         
         // Adjust horizontal position for top/bottom placements
@@ -77,20 +95,26 @@ export function useAnimeTooltip() {
         
         return { x, y, placement }
     }
-    
-    function calculateTooltipPosition(event) {
-        const rect = event.currentTarget.getBoundingClientRect()
-        return calculatePositionFromRect(rect)
+
+    function resolveAnchorEl(eventOrEl) {
+        if (!eventOrEl) return null
+        if (typeof eventOrEl.getBoundingClientRect === 'function' && !eventOrEl.currentTarget) {
+            return eventOrEl
+        }
+        return eventOrEl.currentTarget || eventOrEl.target || null
     }
     
     function updatePositionFromAnchor() {
         if (!anchorElement.value?.getBoundingClientRect || !hoveredAnime.value) return
         const rect = anchorElement.value.getBoundingClientRect()
-        tooltipPosition.value = calculatePositionFromRect(rect)
+        tooltipPosition.value = calculatePositionFromRect(rect, lastPreferredPlacement, true)
     }
     
-    async function handleMouseEnter(item, event) {
-        if (isMobile.value) return
+    async function handleMouseEnter(item, eventOrEl, options = {}) {
+        if (isNarrow.value) return
+
+        const anchorEl = resolveAnchorEl(eventOrEl)
+        if (!anchorEl?.getBoundingClientRect) return
         
         if (leaveTimer) {
             clearTimeout(leaveTimer)
@@ -101,24 +125,32 @@ export function useAnimeTooltip() {
             hoverTimer = null
         }
         
+        const preferredPlacement = options.preferredPlacement || null
+        const forcePreferred = !!options.forcePreferred
+        lastPreferredPlacement = preferredPlacement
         const refId = item.refId || item.id
         const episodeCount = item.episode ?? item.episodes ?? null
         const previousRefId = hoveredAnime.value
         hoveredAnime.value = refId
-        anchorElement.value = event.currentTarget
-        tooltipPosition.value = calculateTooltipPosition(event)
+        anchorElement.value = anchorEl
+        tooltipPosition.value = calculatePositionFromRect(
+            anchorEl.getBoundingClientRect(),
+            preferredPlacement,
+            forcePreferred,
+        )
         tooltipError.value = null
         
         if (animeCache.value.has(refId)) {
             const cached = animeCache.value.get(refId)
             animeDetails.value = { ...cached, episodeCount: cached.episodeCount ?? episodeCount ?? null }
+            tooltipLoading.value = false
             return
         }
         if (previousRefId !== refId) {
             animeDetails.value = null
-            tooltipLoading.value = true
         }
-        const delay = previousRefId !== refId ? 100 : 500
+        tooltipLoading.value = true
+        const delay = options.delay ?? (previousRefId !== refId ? 100 : 500)
         hoverTimer = setTimeout(async () => {
             if (hoveredAnime.value !== refId) return
             tooltipLoading.value = true
@@ -151,6 +183,7 @@ export function useAnimeTooltip() {
         tooltipError.value = null
         anchorElement.value = null
         tooltipHovered.value = false
+        lastPreferredPlacement = null
     }
     
     function handleMouseLeave() {
@@ -223,6 +256,7 @@ export function useAnimeTooltip() {
         handleTooltipEnter,
         handleTooltipLeave,
         setFavoriteStatus,
+        clearTooltip,
         cleanup,
     }
 }

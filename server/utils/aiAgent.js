@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio'
 import { serverSupabaseClient } from '#supabase/server'
+import { searchAnimeMeta } from '~~/server/utils/pgroongaSearch'
 import { moduleLogger, createErrorId } from '~~/server/utils/logger'
 
 export const AI_CHAT_LIMITS = {
@@ -546,7 +547,7 @@ const handlers = {
     },
 
     async search_anime({ client, args }) {
-        const title = escapeIlike(args.title || args.query)
+        const rawTitle = scrubText(args.title || args.query, 200)
         const tags = normalizeSearchTags(args)
         const studio = escapeIlike(args.studio)
         const { from: premiereFrom, to: premiereTo } = premiereRange(args)
@@ -554,8 +555,13 @@ const handlers = {
         const sort = ['views', 'premiere_date', 'score'].includes(args.sort) ? args.sort : 'views'
         const limit = clamp(args.limit, 1, 12, 8)
 
-        if (!title && !tags.length && !studio && !premiereFrom && !premiereTo && minScore == null) {
+        if (!rawTitle && !tags.length && !studio && !premiereFrom && !premiereTo && minScore == null) {
             return { items: [], message: '請至少提供標題、標籤、首播日期、製作公司或評分其中一項條件。' }
+        }
+
+        if (rawTitle && !tags.length && !studio && !premiereFrom && !premiereTo && minScore == null) {
+            const data = await searchAnimeMeta(client, rawTitle, { limit, requireVideo: true })
+            return { items: data || [] }
         }
 
         let dbQuery = client
@@ -563,7 +569,7 @@ const handlers = {
             .select('source_id, title, thumbnail, premiere_date, views, score, tags, production_company')
             .not('video_id', 'is', null)
 
-        if (title) dbQuery = dbQuery.ilike('title', `%${title}%`)
+        if (rawTitle) dbQuery = dbQuery.ilike('title', `%${escapeIlike(rawTitle)}%`)
         if (tags.length) dbQuery = dbQuery.overlaps('tags', tags)
         if (studio) dbQuery = dbQuery.ilike('production_company', `%${studio}%`)
         if (premiereFrom) dbQuery = dbQuery.gte('premiere_date', premiereFrom)

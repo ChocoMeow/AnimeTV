@@ -1,5 +1,4 @@
 <script setup>
-const { aiEnabled } = useRuntimeConfig().public
 const showMobilePwaNav = useState("app-show-mobile-pwa-nav", () => false)
 </script>
 
@@ -27,8 +26,6 @@ const showMobilePwaNav = useState("app-show-mobile-pwa-nav", () => false)
         <SiteFooter />
 
         <LazyMobileBottomNav />
-
-        <LazyAiAssistantWidget v-if="aiEnabled" />
     </div>
 </template>
 

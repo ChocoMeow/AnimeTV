@@ -1,11 +1,9 @@
 <script setup>
-const { mobileSearchOpen } = useMobileSearchState()
+const { searchModalOpen, openSearchModal } = useMobileSearchState()
 const { isMobile } = useMobile()
-const { aiEnabled } = useRuntimeConfig().public
 
 const route = useRoute()
 const user = useSupabaseUser()
-const aiWidgetOpen = useState('ai-widget-open', () => false)
 const headerHiddenMobile = useState('app-mobile-header-hidden', () => false)
 const showMobilePwaNav = useState('app-show-mobile-pwa-nav', () => false)
 
@@ -40,7 +38,7 @@ onUnmounted(() => {
 const NAV_ITEMS = computed(() => [
     { id: 'home', to: '/', label: '首頁', icon: 'home', match: (p) => p === '/' },
     { id: 'all', to: '/show-all-anime', label: '全部作品', icon: 'movie', match: (p) => p.startsWith('/show-all-anime') },
-    { id: aiEnabled ? 'ai' : 'search', label: aiEnabled ? 'AI' : '搜尋', icon: aiEnabled ? 'smart_toy' : 'search', isAction: true },
+    { id: 'search', label: '搜尋', icon: 'search', isAction: true },
     { id: 'history', to: '/history', label: '觀看紀錄', icon: 'history', match: (p) => p.startsWith('/history') },
     { id: 'profile', to: '/mobile-profile', label: '帳戶', match: (p) => p.startsWith('/mobile-profile') },
 ])
@@ -61,16 +59,12 @@ const pillStyle = computed(() => ({
 }))
 
 function isItemActive(item) {
-    if (item.isAction) return aiEnabled ? aiWidgetOpen.value : mobileSearchOpen.value
+    if (item.isAction) return searchModalOpen.value
     return item.match?.(route.path) ?? false
 }
 
 function onActionClick() {
-    if (aiEnabled) {
-        aiWidgetOpen.value = true
-        return
-    }
-    mobileSearchOpen.value = true
+    openSearchModal('search')
 }
 
 // ─── Derived classes ─────────────────────────────────────────────────────────
@@ -115,7 +109,7 @@ function itemColorClass(active) {
 <template>
     <nav
         v-if="showMobilePwaNav"
-        v-show="!mobileSearchOpen"
+        v-show="!searchModalOpen"
         class="mobile-nav-safe-area md:hidden fixed inset-x-0 bottom-0 z-[45] flex justify-center pointer-events-none px-3 sm:px-4 pt-0 transition-[padding-bottom] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]"
         aria-label="主要導覽"
     >

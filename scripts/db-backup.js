@@ -12,7 +12,7 @@
  *   bun run db:backup
  *   bun scripts/db-backup.js --out backups/custom-name
  */
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import {
     FILES,
     ROOT,
@@ -25,6 +25,13 @@ import {
     run,
     stamp,
 } from './db-common.js'
+
+/** Collapse runs of blank lines to a single empty line (supabase dump leaves gaps where statements were stripped). */
+async function tidySql(file) {
+    const raw = await readFile(file, 'utf8')
+    const tidy = raw.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '').replace(/\n*$/, '\n')
+    if (tidy !== raw.replace(/\r\n/g, '\n')) await writeFile(file, tidy, 'utf8')
+}
 
 // Match Supabase backup-restore guide; exclude vector storage internals from data dump
 const DUMPS = [
@@ -55,7 +62,9 @@ async function main() {
 
     for (const [name, extra] of DUMPS) {
         log.step(name)
-        await run('bunx', dumpCmd({ url, password, file: join(outDir, name), extra }), env)
+        const file = join(outDir, name)
+        await run('bunx', dumpCmd({ url, password, file, extra }), env)
+        await tidySql(file)
     }
 
     log.ok('Backup complete')
