@@ -45,7 +45,7 @@ const {
 const TOOLTIP_SPACE = 360 + 16
 const SHELL_HEIGHT = {
     mobile: { expanded: 'h-[92vh]', compact: 'h-[min(72vh,34rem)]' },
-    desktop: { expanded: 'h-[min(80vh,640px)]', compact: 'h-[min(70vh,32rem)]' },
+    desktop: { expanded: 'h-[min(88vh,800px)]', compact: 'h-[min(70vh,32rem)]' },
 }
 
 const inputRef = ref(null)

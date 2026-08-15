@@ -38,7 +38,7 @@ async function loadTrending() {
     loading.value = true
     try {
         const res = await $fetch('/api/animeList', { query: { page: 1, sort: '2' } })
-        trending.value = (res.results || []).filter((r) => r.refId && r.title).slice(0, 12)
+        trending.value = (res.results || []).filter((r) => r.refId && r.title)
         loaded = true
     } catch (err) {
         console.error('Failed to load trending anime:', err)
@@ -71,7 +71,7 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
     <!-- Tabs stay outside the scroll area so they pin with the search header -->
     <div class="flex h-full min-h-0 flex-col sm:flex-row">
         <nav
-            class="flex shrink-0 gap-1 overflow-x-auto border-b border-black/5 bg-white px-2 py-2 dark:border-white/10 dark:bg-gray-950 sm:h-fit sm:w-48 sm:flex-col sm:gap-0.5 sm:overflow-visible sm:border-b-0 sm:border-r sm:px-1.5 sm:py-2"
+            class="flex shrink-0 gap-1 overflow-x-auto bg-white px-2 py-2 dark:bg-gray-950 sm:h-fit sm:w-48 sm:flex-col sm:gap-0.5 sm:overflow-visible sm:px-1.5 sm:py-2"
         >
             <button
                 v-for="t in tabs"
@@ -135,39 +135,56 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
 
             <!-- Trending -->
             <template v-else-if="tab === 'trending'">
-                <h3 class="mb-2 text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400">熱門動漫</h3>
+                <h3 class="mb-3 text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400">熱門排行</h3>
 
-                <div v-if="loading" class="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                    <div v-for="n in 8" :key="n" class="overflow-hidden rounded-lg bg-black/5 dark:bg-white/10">
-                        <div class="aspect-[2/3] animate-pulse bg-black/10 dark:bg-white/10" />
+                <div v-if="loading" class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <div
+                        v-for="n in 9"
+                        :key="n"
+                        class="aspect-[2/3] overflow-hidden rounded-2xl bg-black/5 dark:bg-white/10"
+                    >
+                        <div class="h-full w-full animate-pulse bg-black/10 dark:bg-white/10" />
                     </div>
                 </div>
 
-                <div v-else-if="trending.length" class="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                <div v-else-if="trending.length" class="grid grid-cols-2 gap-3 pb-2 sm:grid-cols-3">
                     <button
-                        v-for="anime in trending"
+                        v-for="(anime, i) in trending"
                         :key="anime.refId"
                         type="button"
-                        class="group overflow-hidden rounded-lg text-left outline-none ring-offset-2 transition hover:ring-2 hover:ring-black/20 focus-visible:ring-2 focus-visible:ring-gray-900 dark:ring-offset-gray-950 dark:hover:ring-white/30 dark:focus-visible:ring-white"
+                        class="group relative aspect-[2/3] w-full overflow-hidden rounded-2xl bg-black/5 text-left outline-none ring-1 ring-black/5 transition-shadow duration-300 hover:shadow-md hover:shadow-black/10 focus-visible:ring-2 focus-visible:ring-gray-900 dark:bg-white/10 dark:ring-white/10 dark:hover:shadow-black/40 dark:focus-visible:ring-white"
                         @mouseenter="emit('hover-anime', anime, $event.currentTarget)"
                         @mouseleave="emit('leave-anime')"
                         @click="emit('select-anime', anime)"
                     >
-                        <div class="aspect-[2/3] overflow-hidden bg-black/5 dark:bg-white/10">
-                            <NuxtImg
-                                v-if="anime.image"
-                                :src="anime.image"
-                                :alt="anime.title"
-                                class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
-                                loading="lazy"
-                            />
-                            <div v-else class="flex h-full w-full items-center justify-center text-gray-400">
-                                <span class="material-symbols-rounded">image</span>
-                            </div>
+                        <NuxtImg
+                            v-if="anime.image"
+                            :src="anime.image"
+                            :alt="anime.title"
+                            class="absolute inset-0 h-full w-full object-cover [backface-visibility:hidden] transform-gpu transition-transform duration-700 ease-out will-change-transform group-hover:scale-[1.06]"
+                            loading="lazy"
+                        />
+                        <div v-else class="absolute inset-0 flex items-center justify-center text-gray-400">
+                            <span class="material-symbols-rounded">image</span>
                         </div>
-                        <p class="mt-1 line-clamp-2 px-0.5 text-[11px] leading-snug text-gray-800 dark:text-gray-200 sm:text-xs">
-                            {{ anime.title }}
-                        </p>
+
+                        <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                        <span
+                            class="absolute left-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full px-1.5 text-xs font-semibold tabular-nums backdrop-blur-md"
+                            :class="i < 3 ? 'bg-white text-gray-900 shadow-sm' : 'bg-black/45 text-white'"
+                        >
+                            {{ i + 1 }}
+                        </span>
+
+                        <div class="absolute inset-x-0 bottom-0 p-2.5 sm:p-3">
+                            <p class="line-clamp-2 text-sm font-medium leading-snug text-white">
+                                {{ anime.title }}
+                            </p>
+                            <p v-if="anime.views != null" class="mt-0.5 text-[11px] text-white/70">
+                                {{ formatViews(anime.views) }} 觀看
+                            </p>
+                        </div>
                     </button>
                 </div>
 
