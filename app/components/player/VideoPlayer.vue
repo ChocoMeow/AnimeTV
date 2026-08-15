@@ -752,6 +752,9 @@ watch([() => props.src, () => props.isHls, videoRef], ([src, isHls, video]) => {
         resetPlayerForSource()
     }
     if (video) {
+        video.playsInline = true
+        video.setAttribute('playsinline', '')
+        video.setAttribute('webkit-playsinline', '')
         video.volume = volume.value
         video.muted = isMuted.value
         video.playbackRate = playbackRate.value
@@ -836,6 +839,8 @@ onUnmounted(() => {
         <video
             v-if="src"
             ref="videoRef"
+            playsinline
+            webkit-playsinline
             :src="effectiveVideoSrc || undefined"
             :autoplay="autoplay"
             :preload="preload"

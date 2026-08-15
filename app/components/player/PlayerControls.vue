@@ -100,9 +100,9 @@ defineExpose({
             @pointerleave="emit('progress-pointerleave')"
         />
 
-        <div class="flex items-center justify-between px-3 sm:px-4 gap-2 mt-1">
+            <div class="flex items-center justify-between px-3 sm:px-4 gap-2 mt-1">
             <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                <div :class="pillClass">
+                <div :class="[pillClass, 'hidden sm:flex']">
                     <button type="button" :class="btnClass" :title="tooltipLabels.playPause" @click="emit('toggle-play')">
                         <span class="material-symbols-rounded text-[1.35rem]">{{ isPlaying ? 'pause' : 'play_arrow' }}</span>
                     </button>
@@ -112,7 +112,7 @@ defineExpose({
                 </div>
 
                 <div
-                    class="player-volume-group relative"
+                    class="player-volume-group relative hidden sm:flex"
                     :class="[pillClass, { 'is-expanded': showVolumeSlider }]"
                     @mouseenter="emit('volume-enter')"
                     @mouseleave="emit('volume-leave')"
