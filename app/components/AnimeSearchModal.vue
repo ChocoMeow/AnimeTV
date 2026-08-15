@@ -398,7 +398,6 @@ onUnmounted(() => {
                                     type="search"
                                     :placeholder="inputPlaceholder"
                                     class="h-full w-full appearance-none bg-transparent py-0 pr-12 text-base leading-none text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500 sm:text-sm"
-                                    :class="{ 'search-is-loading': loading && !isAskIntent }"
                                     autocomplete="off"
                                     @keydown.stop="onInputKeydown"
                                 />
@@ -671,22 +670,11 @@ onUnmounted(() => {
     transform: translateY(6px);
 }
 
-input[type='search']::-webkit-search-cancel-button {
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-decoration {
     -webkit-appearance: none;
-    display: block;
-    height: 1rem;
-    width: 1rem;
-    margin: 0;
-    background: currentColor;
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E")
-        center / contain no-repeat;
-    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E")
-        center / contain no-repeat;
-    cursor: pointer;
-}
-input[type='search'].search-is-loading::-webkit-search-cancel-button {
-    visibility: hidden;
-    pointer-events: none;
+    appearance: none;
+    display: none;
 }
 
 .search-modal-enter-active,
