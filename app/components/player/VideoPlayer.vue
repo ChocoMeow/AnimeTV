@@ -248,7 +248,12 @@ function adjustPlaybackRate(direction) {
 }
 
 async function toggleFullscreen() {
+    const video = videoRef.value
     try {
+        if (typeof video?.webkitEnterFullscreen === 'function' && !document.fullscreenEnabled) {
+            video.webkitEnterFullscreen()
+            return
+        }
         if (!document.fullscreenElement) await containerRef.value?.requestFullscreen()
         else await document.exitFullscreen()
     } catch { /* ignore */ }
