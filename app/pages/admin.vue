@@ -45,8 +45,26 @@ const showFieldSettings = ref(false)
 const baselineSnapshot = ref('')
 let pendingAction = null
 
-/** Field names currently hidden from the editor form (session only). */
+const HIDDEN_FIELDS_KEY = 'admin-anime-meta-hidden-fields'
+const SECTION_ORDER_KEY = 'admin-anime-meta-section-order'
+
+/** Field names currently hidden from the editor form (persisted in localStorage). */
 const hiddenFields = reactive(new Set())
+const sectionOrder = ref([])
+if (import.meta.client) {
+    try {
+        for (const name of JSON.parse(localStorage.getItem(HIDDEN_FIELDS_KEY) || '[]')) {
+            hiddenFields.add(name)
+        }
+        sectionOrder.value = JSON.parse(localStorage.getItem(SECTION_ORDER_KEY) || '[]')
+    } catch { /* ignore */ }
+}
+watch(() => [...hiddenFields], (names) => {
+    localStorage.setItem(HIDDEN_FIELDS_KEY, JSON.stringify(names))
+})
+watch(sectionOrder, (ids) => {
+    localStorage.setItem(SECTION_ORDER_KEY, JSON.stringify(ids))
+}, { deep: true })
 
 function toggleFieldHidden(name) {
     if (hiddenFields.has(name)) hiddenFields.delete(name)
@@ -59,8 +77,33 @@ function hideAllFields() {
     }
 }
 
+function orderedFormSections(sections) {
+    if (!sectionOrder.value.length) return sections
+    const map = new Map(sections.map((s) => [s.id, s]))
+    const ordered = []
+    for (const id of sectionOrder.value) {
+        const s = map.get(id)
+        if (s) {
+            ordered.push(s)
+            map.delete(id)
+        }
+    }
+    return [...ordered, ...map.values()]
+}
+
+function moveSection(id, delta) {
+    const ids = orderedFormSections(formSections.value).map((s) => s.id)
+    const i = ids.indexOf(id)
+    const j = i + delta
+    if (i < 0 || j < 0 || j >= ids.length) return
+    ;[ids[i], ids[j]] = [ids[j], ids[i]]
+    sectionOrder.value = ids
+}
+
+const settingsFormSections = computed(() => orderedFormSections(formSections.value))
+
 const visibleFormSections = computed(() =>
-    formSections.value
+    settingsFormSections.value
         .map((s) => ({ ...s, fields: s.fields.filter((f) => !hiddenFields.has(f.name)) }))
         .filter((s) => s.fields.length),
 )
@@ -936,10 +979,32 @@ onMounted(() => {
         max-width="max-w-lg"
         @close="showFieldSettings = false"
     >
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">取消勾選即可隱藏欄位。</p>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">取消勾選即可隱藏欄位，使用箭頭調整區段順序。</p>
         <div class="max-h-[min(60vh,28rem)] overflow-y-auto space-y-3">
-            <section v-for="section in formSections" :key="section.id" class="space-y-1">
-                <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ section.title }}</h4>
+            <section v-for="(section, index) in settingsFormSections" :key="section.id" class="space-y-1">
+                <div class="flex items-center justify-between gap-2">
+                    <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ section.title }}</h4>
+                    <div class="flex items-center gap-0.5">
+                        <button
+                            type="button"
+                            class="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
+                            title="上移"
+                            :disabled="index === 0"
+                            @click="moveSection(section.id, -1)"
+                        >
+                            <span class="material-symbols-rounded text-base leading-none">keyboard_arrow_up</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
+                            title="下移"
+                            :disabled="index === settingsFormSections.length - 1"
+                            @click="moveSection(section.id, 1)"
+                        >
+                            <span class="material-symbols-rounded text-base leading-none">keyboard_arrow_down</span>
+                        </button>
+                    </div>
+                </div>
                 <label
                     v-for="field in section.fields"
                     :key="field.name"
