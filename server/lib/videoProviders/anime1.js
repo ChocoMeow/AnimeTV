@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio'
 import { cfFetch } from '~~/server/utils/anime'
 import { getRequestLogger } from '~~/server/utils/logger'
+import { EPISODE_LIST_CACHE_LIFETIME } from '~~/shared/global'
 import { ANIME1 } from './constants'
 import { episodeRecord, normalizeEpisodeId } from './helpers'
 
@@ -25,7 +26,7 @@ async function listEpisodes(event, categoryId) {
     const log = getRequestLogger(event)
     const episodes = {}
     let nextPageUrl = `${ANIME1.baseUrl}?cat=${categoryId}`
-    const fetchOpts = { headers: { Referer: ANIME1.referer } }
+    const fetchOpts = { headers: { Referer: ANIME1.referer }, cacheTtlMs: EPISODE_LIST_CACHE_LIFETIME }
 
     try {
         while (nextPageUrl) {

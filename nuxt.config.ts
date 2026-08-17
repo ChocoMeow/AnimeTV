@@ -149,6 +149,10 @@ export default defineNuxtConfig({
                     },
                 },
                 {
+                    urlPattern: /^\/api\/anime\/[^/]+\/episodes$/i,
+                    handler: 'NetworkOnly',
+                },
+                {
                     urlPattern: /^\/api\/(anime|search|public-animeList).*/i,
                     handler: 'NetworkFirst',
                     options: {

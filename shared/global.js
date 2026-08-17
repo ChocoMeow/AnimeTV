@@ -8,6 +8,8 @@ export const CUSTOM_SOURCE_ID_MIN = 1_000_000
 
 export const CACHE_LIFETIME = 1000 * 60 * 60 * 12 // 12 hours
 
+export const EPISODE_LIST_CACHE_LIFETIME = 0
+
 export const CHINESE_WEEKDAY_MAP = Object.freeze({
     一: '1',
     二: '2',

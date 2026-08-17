@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio'
 import { cfFetch } from '~~/server/utils/anime'
 import { getRequestLogger } from '~~/server/utils/logger'
+import { EPISODE_LIST_CACHE_LIFETIME } from '~~/shared/global'
 import { TWXGCT } from './constants'
 import { decodePrefixedToken, encodePrefixedToken, episodeRecord } from './helpers'
 
@@ -122,7 +123,10 @@ async function listEpisodes(event, videoId) {
     const seen = new Set()
 
     try {
-        const fetched = await cfFetch(TWXGCT.detailUrl(cartoonId), FETCH_OPTS)
+        const fetched = await cfFetch(TWXGCT.detailUrl(cartoonId), {
+            ...FETCH_OPTS,
+            cacheTtlMs: EPISODE_LIST_CACHE_LIFETIME,
+        })
         if (!fetched?.html) {
             log.error({ cartoonId, source: TWXGCT.id }, 'detail fetch empty')
             return episodes

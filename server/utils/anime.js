@@ -550,8 +550,9 @@ export async function cfFetch(url, opts = {}) {
     try {
         const now = Date.now()
         const cacheKey = url
+        const cacheTtlMs = opts.cacheTtlMs ?? CACHE_LIFETIME
         const cached = RESPONSE_CACHE.get(cacheKey)
-        if (cached && now - cached.timestamp < CACHE_LIFETIME) {
+        if (cached && now - cached.timestamp < cacheTtlMs) {
             animeLog.debug({ url, bytes: cached.html.length }, 'cfFetch cache hit')
             return cached
         }
@@ -595,10 +596,12 @@ export async function cfFetch(url, opts = {}) {
 
         const result = { html, timestamp: now }
 
-        RESPONSE_CACHE.set(cacheKey, result)
-        while (RESPONSE_CACHE.size > 200) {
-            const firstKey = RESPONSE_CACHE.keys().next().value
-            RESPONSE_CACHE.delete(firstKey)
+        if (cacheTtlMs > 0) {
+            RESPONSE_CACHE.set(cacheKey, result)
+            while (RESPONSE_CACHE.size > 200) {
+                const firstKey = RESPONSE_CACHE.keys().next().value
+                RESPONSE_CACHE.delete(firstKey)
+            }
         }
 
         return result
