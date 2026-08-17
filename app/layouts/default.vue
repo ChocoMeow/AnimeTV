@@ -14,7 +14,7 @@ const showMobilePwaNav = useState("app-show-mobile-pwa-nav", () => false)
         <SiteHeader />
 
         <main
-            class="page-main flex-1 w-full transition-all duration-300 ease-in-out max-md:transition-[margin-top,padding] max-md:duration-300"
+            class="flex-1 w-full transition-all duration-300 ease-in-out max-md:transition-[margin-top,padding] max-md:duration-300"
             :class="'max-md:pt-14'"
         >
             <slot />

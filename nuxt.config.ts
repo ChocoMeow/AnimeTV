@@ -65,10 +65,8 @@ export default defineNuxtConfig({
     experimental: {
         emitRouteChunkError: 'automatic-immediate',
         entryImportMap: false,
-        viewTransition: true,
     },
     app: {
-        pageTransition: { name: 'page', mode: 'out-in' },
         head: {
             title: 'AnimeTV',
             script: [
