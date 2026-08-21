@@ -99,7 +99,7 @@ async function toggleFavorite(event) {
                         >
                             {{ animeDetails.isFavorite ? 'bookmark_added' : 'bookmark_add' }}
                         </span>
-                        <span v-else class="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                        <LoadingSpinner v-else size="xs" />
                     </button>
                     <!-- Header with Image -->
                     <div class="flex gap-3 mb-3">
@@ -186,7 +186,7 @@ async function toggleFavorite(event) {
                 }"
             >
                 <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 border-2 border-gray-300 dark:border-white/20 border-t-gray-900 dark:border-t-white rounded-full animate-spin"></div>
+                    <LoadingSpinner size="xs" />
                     <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-300">載入詳情...</span>
                 </div>
             </div>

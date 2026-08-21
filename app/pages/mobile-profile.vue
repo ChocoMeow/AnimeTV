@@ -101,7 +101,7 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
 <template>
     <div class="max-w-7xl mx-auto px-4 py-6 md:hidden">
         <div v-if="loading" class="flex items-center justify-center py-20">
-            <div class="h-10 w-10 animate-spin rounded-full border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white" />
+            <LoadingSpinner size="lg" />
         </div>
 
         <div v-else class="space-y-7">

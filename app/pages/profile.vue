@@ -124,7 +124,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
 
         <!-- Loading -->
         <div v-if="loading" class="flex items-center justify-center py-20">
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
+            <LoadingSpinner size="xl" />
         </div>
 
         <div v-else-if="analytics" class="space-y-6">
@@ -435,7 +435,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                 <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">選定時間範圍內的觀看分布</p>
 
                 <div v-if="chartLoading" class="flex justify-center py-12">
-                    <div class="animate-spin rounded-full h-10 w-10 border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
+                    <LoadingSpinner size="lg" />
                 </div>
 
                 <div v-else class="space-y-8">

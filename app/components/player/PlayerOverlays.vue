@@ -31,7 +31,7 @@ const emit = defineEmits(['toggle-play', 'next-episode', 'dismiss-autoplay'])
         class="absolute inset-0 flex flex-col items-center justify-center z-10"
         :class="isBuffering ? 'pointer-events-none' : 'bg-black/50'"
     >
-        <div class="w-10 h-10 sm:w-12 sm:h-12 border-4 border-white/25 border-t-white rounded-full animate-spin mb-3" />
+        <LoadingSpinner size="xl" variant="on-dark" class="mb-3" />
         <p v-if="!isBuffering" class="text-white/90 text-sm">載入影片中...</p>
     </div>
 

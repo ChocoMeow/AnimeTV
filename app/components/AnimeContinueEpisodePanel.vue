@@ -77,7 +77,7 @@ function formatTime(seconds) {
                 @update:model-value="onEpisodeSelect"
                 @select="onEpisodeSelect" />
             <div v-else-if="episodesLoading" class="flex flex-col items-center justify-center py-10 text-gray-500 dark:text-gray-400">
-                <div class="w-8 h-8 border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white rounded-full animate-spin mb-3" />
+                <LoadingSpinner size="md" class="mb-3" />
                 <p>載入集數中...</p>
             </div>
             <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">

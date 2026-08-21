@@ -606,7 +606,7 @@ onMounted(() => {
                     </div>
                     <div class="flex-1 overflow-auto">
                         <div v-if="loading" class="flex items-center justify-center py-10">
-                            <div class="animate-spin rounded-full h-10 w-10 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
+                            <LoadingSpinner size="lg" />
                         </div>
 
                         <div v-else-if="!records.length" class="py-8 px-4 text-center text-sm text-gray-500 dark:text-gray-400">

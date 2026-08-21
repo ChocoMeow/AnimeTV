@@ -280,7 +280,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                 <!-- Verifying State -->
                 <div v-if="authStatus === 'verifying'" class="text-center space-y-6">
                     <div class="relative inline-flex items-center justify-center">
-                        <div class="absolute w-20 h-20 border-4 border-black/10 dark:border-white/15 border-t-gray-950 dark:border-t-white rounded-full animate-spin"></div>
+                        <LoadingSpinner size="2xl" class="absolute" />
                         <div class="w-16 h-16 rounded-full bg-gray-900 dark:bg-white/10 flex items-center justify-center shadow-lg">
                             <span class="material-symbols-rounded text-white text-3xl">security</span>
                         </div>
@@ -392,7 +392,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                                     </svg>
                                 </template>
 
-                                <div v-if="loading" class="w-5 h-5 border-2 border-black/10 dark:border-white/20 border-t-gray-950 dark:border-t-white rounded-full animate-spin"></div>
+                                <LoadingSpinner v-if="loading" size="sm" />
 
                                 <span class="font-semibold text-base">{{ loading ? "登入中..." : provider.label }}</span>
                             </div>

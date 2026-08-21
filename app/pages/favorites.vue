@@ -336,7 +336,7 @@ useHead({
 
         <!-- Loading State -->
         <div v-if="loading" class="flex items-center justify-center py-20">
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
+            <LoadingSpinner size="xl" />
         </div>
 
         <!-- No Search Results -->
@@ -462,7 +462,7 @@ useHead({
 
     <!-- Loading More Spinner -->
     <div v-if="loadingMore" class="flex justify-center py-6">
-        <div class="animate-spin rounded-full h-8 w-8 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
+        <LoadingSpinner size="md" />
     </div>
 
     <!-- Delete Confirmation Modal -->

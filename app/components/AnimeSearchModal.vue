@@ -401,11 +401,11 @@ onUnmounted(() => {
                                     autocomplete="off"
                                     @keydown.stop="onInputKeydown"
                                 />
-                                <div v-if="loading && !isAskIntent" class="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2">
-                                    <div
-                                        class="h-4 w-4 animate-spin rounded-full border-2 border-black/10 border-t-gray-900 dark:border-white/15 dark:border-t-white"
-                                    />
-                                </div>
+                                <LoadingSpinner
+                                    v-if="loading && !isAskIntent"
+                                    size="xs"
+                                    class="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2"
+                                />
                                 <SearchMicButton
                                     idle-class="bg-transparent text-gray-400 dark:text-gray-500"
                                     hover-class="hover:bg-black/5 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-gray-200"

@@ -117,7 +117,7 @@ onMounted(resetAndLoad)
         </ChipScrollBar>
 
         <div v-if="listLoading" class="flex justify-center py-8">
-            <div class="w-8 h-8 border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white rounded-full animate-spin" />
+            <LoadingSpinner size="md" />
         </div>
 
         <div v-else-if="!listItems.length" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">

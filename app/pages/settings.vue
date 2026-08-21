@@ -236,7 +236,7 @@ useHead({
         </div>
 
         <div v-if="loading" class="flex items-center justify-center py-20">
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
+            <LoadingSpinner size="xl" />
         </div>
 
         <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start">
