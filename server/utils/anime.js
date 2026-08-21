@@ -1,3 +1,10 @@
+import { moduleLogger } from '~~/server/utils/logger'
+import { ANIME1 } from '~~/server/lib/videoProviders/constants'
+import { CACHE_LIFETIME } from '~~/shared/global'
+import { ANIME1_LIST_CACHE, RESPONSE_CACHE } from '~~/server/utils/cache'
+
+const animeLog = moduleLogger('anime')
+
 function toArabicNumber(chineseNum) {
     const map = {
         "零": 0, "一": 1, "二": 2, "三": 3, "四": 4,
@@ -358,18 +365,24 @@ function calculateMatchScore(parsed1, parsed2) {
     return { score: finalScore, titleScore, seasonScore, seasonPenalty, partScore, partPenalty };
 }
 
-// Pre-parsed candidates cache (avoids re-parsing ~3000 titles per batch)
-let _parsedCandidates = null;
-let _parsedCandidatesTs = 0;
+// Catalog by year + lazy parseTitle (avoid parsing the full list on every match)
+let _catalogIndex = null;
 
-async function getParsedCandidates() {
+async function getCatalogIndex() {
     const candidates = await fetchAnimeData();
-    if (_parsedCandidates && _parsedCandidatesTs === ANIME1_LIST_CACHE.timestamp) {
-        return _parsedCandidates;
+    if (_catalogIndex && _catalogIndex.ts === ANIME1_LIST_CACHE.timestamp) {
+        return _catalogIndex;
     }
-    _parsedCandidates = candidates.map(c => ({ ...c, _parsed: parseTitle(c.title) }));
-    _parsedCandidatesTs = ANIME1_LIST_CACHE.timestamp;
-    return _parsedCandidates;
+
+    const byYear = new Map();
+    for (const c of candidates) {
+        const y = String(c.year ?? '');
+        if (!byYear.has(y)) byYear.set(y, []);
+        byYear.get(y).push(c);
+    }
+
+    _catalogIndex = { ts: ANIME1_LIST_CACHE.timestamp, all: candidates, byYear };
+    return _catalogIndex;
 }
 
 function sortMatches(matches) {
@@ -380,9 +393,10 @@ function sortMatches(matches) {
     return matches;
 }
 
-function findMatchesForParsedQuery(parsedQuery, parsedCandidates, threshold = 0.6, topN = 5) {
+function findMatchesForParsedQuery(parsedQuery, candidates, threshold = 0.6, topN = 5) {
     const matches = [];
-    for (const candidate of parsedCandidates) {
+    for (const candidate of candidates) {
+        if (!candidate._parsed) candidate._parsed = parseTitle(candidate.title);
         const { score, titleScore, seasonScore, seasonPenalty, partScore, partPenalty } =
             calculateMatchScore(parsedQuery, candidate._parsed);
         if (score >= threshold) {
@@ -395,10 +409,10 @@ function findMatchesForParsedQuery(parsedQuery, parsedCandidates, threshold = 0.
 
 export async function searchAnimeTitle(query, threshold = 0.70) {
     try {
-        const candidates = await getParsedCandidates();
-        return findMatchesForParsedQuery(parseTitle(query), candidates, threshold);
+        const { all } = await getCatalogIndex();
+        return findMatchesForParsedQuery(parseTitle(query), all, threshold);
     } catch (error) {
-        console.error("Error searching anime title:", error);
+        animeLog.error({ err: error }, 'Error searching anime title');
         return [];
     }
 }
@@ -414,7 +428,7 @@ export async function matchAnimeWithDb(client, animeList) {
             .from("anime_meta")
             .select("source_id")
             .in("source_id", uniqueIds);
-        if (error) console.error("matchAnimeWithDb:", error);
+        if (error) animeLog.error({ err: error }, 'matchAnimeWithDb failed');
         else data?.forEach(r => knownIds.add(r.source_id));
     }
 
@@ -441,18 +455,20 @@ export async function matchAnimeWithDb(client, animeList) {
 export async function matchAnime(animeList, matchThreshold = 0.70) {
     if (!animeList?.length) return [];
 
-    const candidates = await getParsedCandidates();
-    if (!candidates?.length) return [];
+    const index = await getCatalogIndex().catch((err) => (animeLog.error({ err }, 'Error loading anime catalog for matching'), null));
+    if (!index?.all?.length) return [];
 
     return animeList.map(anime => {
         if (!anime.title || !anime.refId) return null;
 
-        const matches = findMatchesForParsedQuery(parseTitle(anime.title), candidates, matchThreshold);
+        const premiereYear = anime.year?.split('/')?.[0]?.trim();
+        const pool = premiereYear ? (index.byYear.get(premiereYear) || []) : index.all;
+        if (!pool.length) return null;
+
+        const matches = findMatchesForParsedQuery(parseTitle(anime.title), pool, matchThreshold);
         if (!matches.length) return null;
 
-        const premiereYear = anime.year?.split("/")?.[0]?.trim();
-        const bestMatch = (premiereYear && matches.find(m => String(m.year) === premiereYear && m.score >= 0.70)) || matches[0];
-
+        const bestMatch = matches[0];
         return {
             ...anime,
             matchedVideo: {
@@ -484,8 +500,8 @@ export async function fetchAnimeData() {
     // Start a new fetch and cache the promise
     ANIME1_LIST_CACHE.fetchPromise = (async () => {
         try {
-            console.log("Fetching anime data from source...");
-            const response = await fetch("https://d1zquzjgwo9yb.cloudfront.net/");
+            animeLog.info('Fetching anime data from source')
+            const response = await fetch(ANIME1.catalogUrl);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -504,7 +520,7 @@ export async function fetchAnimeData() {
             ANIME1_LIST_CACHE.fetchPromise = null;
             return ANIME1_LIST_CACHE.data;
         } catch (error) {
-            console.error("Error fetching anime data:", error);
+            animeLog.error({ err: error }, 'Error fetching anime data')
             ANIME1_LIST_CACHE.fetchPromise = null; // Reset on error to allow retries
             throw error;
         }
@@ -514,6 +530,13 @@ export async function fetchAnimeData() {
 }
 
 let flareSessionId = null
+
+const DEFAULT_FETCH_HEADERS = Object.freeze({
+    'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8',
+})
 
 async function flareRequest(solver, body) {
     const res = await fetch(solver, {
@@ -526,17 +549,26 @@ async function flareRequest(solver, body) {
     return data
 }
 
-export async function cfFetch(url) {
+/**
+ * Cached HTML fetch. Uses FlareSolverr when configured; otherwise plain fetch
+ * with browser-like headers (override via opts.headers).
+ * @param {string} url
+ * @param {{ headers?: Record<string, string>, timeoutMs?: number }} [opts]
+ */
+export async function cfFetch(url, opts = {}) {
     try {
         const now = Date.now()
-
-        const cached = RESPONSE_CACHE.get(url)
-        if (cached && now - cached.timestamp < CACHE_LIFETIME) {
-            console.log(`Cache hit for: ${url} (${cached.html.length} bytes)`)
+        const cacheKey = url
+        const cacheTtlMs = opts.cacheTtlMs ?? CACHE_LIFETIME
+        const cached = RESPONSE_CACHE.get(cacheKey)
+        if (cached && now - cached.timestamp < cacheTtlMs) {
+            animeLog.debug({ url, bytes: cached.html.length }, 'cfFetch cache hit')
             return cached
         }
 
         const solver = (useRuntimeConfig().cfFetchFlaresolverr || '').trim()
+        const headers = { ...DEFAULT_FETCH_HEADERS, ...opts.headers }
+        const timeoutMs = opts.timeoutMs ?? 20_000
         let html
 
         if (solver) {
@@ -562,22 +594,28 @@ export async function cfFetch(url) {
             }
             html = data.solution.response
         } else {
-            const response = await fetch(url)
+            const response = await fetch(url, {
+                headers,
+                redirect: 'follow',
+                signal: AbortSignal.timeout(timeoutMs),
+            })
             if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`)
             html = await response.text()
         }
 
         const result = { html, timestamp: now }
 
-        RESPONSE_CACHE.set(url, result)
-        while (RESPONSE_CACHE.size > 200) {
-            const firstKey = RESPONSE_CACHE.keys().next().value
-            RESPONSE_CACHE.delete(firstKey)
+        if (cacheTtlMs > 0) {
+            RESPONSE_CACHE.set(cacheKey, result)
+            while (RESPONSE_CACHE.size > 200) {
+                const firstKey = RESPONSE_CACHE.keys().next().value
+                RESPONSE_CACHE.delete(firstKey)
+            }
         }
 
         return result
     } catch (error) {
-        console.error(`cfFetch failed for ${url}:`, error.message)
+        animeLog.error({ err: error, url }, 'cfFetch failed')
         return null
     }
 }

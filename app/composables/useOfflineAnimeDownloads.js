@@ -3,7 +3,7 @@
  * Progressive MP4: fetched via Range requests. HLS: segments stored and replayed via blob m3u8 + hls.js.
  */
 
-const DB_NAME = 'AnimeTVOffline'
+const DB_NAME = 'OfflineAnime'
 const DB_VERSION = 1
 const EP_STORE = 'episodes'
 const META_STORE = 'animeMeta'

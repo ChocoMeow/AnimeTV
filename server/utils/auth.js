@@ -1,4 +1,5 @@
 import { serverSupabaseUser, serverSupabaseClient } from '#supabase/server'
+import { createLoggedError, getRequestLogger } from '~~/server/utils/logger'
 
 export async function authUser(event) {
     const user = await serverSupabaseUser(event)
@@ -10,6 +11,7 @@ export async function authUser(event) {
         })
     }
 
+    event.context.user = user
     return user
 }
 
@@ -22,14 +24,16 @@ export async function authAdmin(event) {
     const { data, error } = await client.from('user_roles').select('role').eq('id', userId).maybeSingle()
 
     if (error) {
-        console.error('Failed to check admin role:', error)
-        throw createError({
+        throw createLoggedError(event, {
             statusCode: 403,
             statusMessage: 'Failed to verify admin role',
+            err: error,
+            context: { module: 'auth', stage: 'admin_role_check', userId },
         })
     }
 
     if (!data || data.role !== 'admin') {
+        getRequestLogger(event).warn({ userId, module: 'auth' }, 'Non-admin attempted admin route')
         throw createError({
             statusCode: 403,
             statusMessage: 'Forbidden - Admins only',

@@ -1,15 +1,23 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
     css: ['~/assets/css/tailwind.css'],
-    modules: ['@nuxtjs/tailwindcss', '@nuxtjs/supabase', '@vite-pwa/nuxt', '@nuxt/image'],
+    modules: ['@nuxtjs/tailwindcss', '@nuxtjs/supabase', '@vite-pwa/nuxt', '@nuxt/image', 'nuxt-security'],
     compatibilityDate: '2025-07-15',
     devtools: { enabled: true },
     runtimeConfig: {
-        supabaseSecretKey: process.env.SUPABASE_SECRET_KEY,
-        cfFetchFlaresolverr: process.env.CF_FETCH_FLARESOLVERR || '',
+        supabaseSecretKey: process.env.NUXT_SUPABASE_SECRET_KEY,
+        cfFetchFlaresolverr: process.env.NUXT_CF_FETCH_FLARESOLVERR,
+        aiApiKey: process.env.NUXT_AI_API_KEY,
+        aiBaseUrl: process.env.NUXT_AI_BASE_URL,
+        aiModel: process.env.NUXT_AI_MODEL,
+        aiProxyUrl: process.env.NUXT_AI_PROXY_URL,
+        logLevel: process.env.NUXT_LOG_LEVEL,
+        logMaxDays: process.env.NUXT_LOG_MAX_DAYS,
+        logToFile: process.env.NUXT_LOG_TO_FILE,
         public: {
-            supabaseUrl: process.env.SUPABASE_URL,
-            supabaseKey: process.env.SUPABASE_KEY,
+            supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
+            supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY,
+            aiEnabled: false,
         },
     },
     $production: {
@@ -37,6 +45,11 @@ export default defineNuxtConfig({
             '/apple-touch-icon.png': { redirect: '/icons/icon_512x512.png' },
             '/apple-touch-icon-precomposed.png': { redirect: '/icons/icon_512x512.png' },
             '/apple-touch-icon-120x120-precomposed.png': { redirect: '/icons/icon_512x512.png' },
+            // High-volume streaming / WS must not hit the global rate limiter
+            '/api/proxy-video': { security: { rateLimiter: false } },
+            '/api/download-proxy': { security: { rateLimiter: false } },
+            '/api/download-video/**': { security: { rateLimiter: false } },
+            '/api/user-status-ws': { security: { rateLimiter: false } },
         },
         experimental: {
             websocket: true,
@@ -136,6 +149,10 @@ export default defineNuxtConfig({
                     },
                 },
                 {
+                    urlPattern: /^\/api\/anime\/[^/]+\/episodes$/i,
+                    handler: 'NetworkOnly',
+                },
+                {
                     urlPattern: /^\/api\/(anime|search|public-animeList).*/i,
                     handler: 'NetworkFirst',
                     options: {
@@ -208,5 +225,57 @@ export default defineNuxtConfig({
             saveRedirectToCookie: true,
         },
         types: false,
+    },
+    security: {
+        headers: {
+            // Default is credentialless — breaks wiki YouTube iframes / CDNs without CORP
+            crossOriginEmbedderPolicy: 'unsafe-none',
+            xFrameOptions: 'DENY',
+            strictTransportSecurity: {
+                maxAge: 63072000,
+                includeSubdomains: true,
+                preload: true,
+            },
+            permissionsPolicy: {
+                // Default fullscreen: [] blocks the video player
+                autoplay: ['self'],
+                'clipboard-write': ['self'],
+                fullscreen: ['self'],
+                'picture-in-picture': ['self'],
+                'web-share': ['self'],
+                accelerometer: [],
+                'clipboard-read': [],
+                gyroscope: [],
+                magnetometer: [],
+                midi: [],
+                payment: [],
+                'publickey-credentials-get': [],
+                'screen-wake-lock': [],
+                'sync-xhr': [],
+                usb: [],
+                'xr-spatial-tracking': [],
+            },
+            contentSecurityPolicy: {
+                'frame-ancestors': ["'none'"],
+                'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
+                'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+                'media-src': ["'self'", 'blob:', 'https://*.bzcdn.net'],
+                'connect-src': [
+                    "'self'",
+                    'https://*.supabase.co',
+                    'wss://*.supabase.co',
+                    'https://*.bzcdn.net',
+                    'https://*.anime1.me',
+                ],
+                'frame-src': [
+                    "'self'",
+                    'https://www.youtube.com',
+                    'https://www.youtube-nocookie.com',
+                    'https://youtube.com',
+                ],
+                'worker-src': ["'self'", 'blob:'],
+                'manifest-src': ["'self'"],
+            },
+        },
     },
 })

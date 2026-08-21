@@ -1,4 +1,6 @@
 <script setup>
+import { DEFAULT_VIDEO_SOURCE, VIDEO_SOURCES } from '~~/shared/videoSources'
+
 const appConfig = useAppConfig()
 const route = useRoute()
 
@@ -9,6 +11,7 @@ const errorMessage = ref('')
 
 const records = ref([])
 const fields = ref([])
+const formSections = ref([])
 
 const selectedRecord = ref(null)
 const editableRecord = ref(null)
@@ -38,8 +41,72 @@ const total = ref(0)
 
 const isCreating = ref(false)
 const showUnsavedModal = ref(false)
+const showFieldSettings = ref(false)
 const baselineSnapshot = ref('')
 let pendingAction = null
+
+const HIDDEN_FIELDS_KEY = 'admin-anime-meta-hidden-fields'
+const SECTION_ORDER_KEY = 'admin-anime-meta-section-order'
+
+/** Field names currently hidden from the editor form (persisted in localStorage). */
+const hiddenFields = reactive(new Set())
+const sectionOrder = ref([])
+if (import.meta.client) {
+    try {
+        for (const name of JSON.parse(localStorage.getItem(HIDDEN_FIELDS_KEY) || '[]')) {
+            hiddenFields.add(name)
+        }
+        sectionOrder.value = JSON.parse(localStorage.getItem(SECTION_ORDER_KEY) || '[]')
+    } catch { /* ignore */ }
+}
+watch(() => [...hiddenFields], (names) => {
+    localStorage.setItem(HIDDEN_FIELDS_KEY, JSON.stringify(names))
+})
+watch(sectionOrder, (ids) => {
+    localStorage.setItem(SECTION_ORDER_KEY, JSON.stringify(ids))
+}, { deep: true })
+
+function toggleFieldHidden(name) {
+    if (hiddenFields.has(name)) hiddenFields.delete(name)
+    else hiddenFields.add(name)
+}
+
+function hideAllFields() {
+    for (const s of formSections.value) {
+        for (const f of s.fields) hiddenFields.add(f.name)
+    }
+}
+
+function orderedFormSections(sections) {
+    if (!sectionOrder.value.length) return sections
+    const map = new Map(sections.map((s) => [s.id, s]))
+    const ordered = []
+    for (const id of sectionOrder.value) {
+        const s = map.get(id)
+        if (s) {
+            ordered.push(s)
+            map.delete(id)
+        }
+    }
+    return [...ordered, ...map.values()]
+}
+
+function moveSection(id, delta) {
+    const ids = orderedFormSections(formSections.value).map((s) => s.id)
+    const i = ids.indexOf(id)
+    const j = i + delta
+    if (i < 0 || j < 0 || j >= ids.length) return
+    ;[ids[i], ids[j]] = [ids[j], ids[i]]
+    sectionOrder.value = ids
+}
+
+const settingsFormSections = computed(() => orderedFormSections(formSections.value))
+
+const visibleFormSections = computed(() =>
+    settingsFormSections.value
+        .map((s) => ({ ...s, fields: s.fields.filter((f) => !hiddenFields.has(f.name)) }))
+        .filter((s) => s.fields.length),
+)
 
 const isEdited = computed(() => {
     if (!editableRecord.value || !baselineSnapshot.value) return false
@@ -48,6 +115,25 @@ const isEdited = computed(() => {
 
 function markClean() {
     baselineSnapshot.value = editableRecord.value ? JSON.stringify(editableRecord.value) : ''
+}
+
+/** Broadcast season (春/夏/秋/冬) from premiere_date — matches anime1 values. */
+function seasonFromPremiereDate(dateStr) {
+    if (!dateStr) return ''
+    const match = String(dateStr).match(/^\d{4}-(\d{1,2})/)
+    if (!match) return ''
+    const month = Number(match[1])
+    if (month >= 1 && month <= 3) return '冬'
+    if (month >= 4 && month <= 6) return '春'
+    if (month >= 7 && month <= 9) return '夏'
+    if (month >= 10 && month <= 12) return '秋'
+    return ''
+}
+
+function syncSeasonFromPremiereDate() {
+    if (!editableRecord.value) return
+    const season = seasonFromPremiereDate(editableRecord.value.premiere_date)
+    if (season) editableRecord.value.season = season
 }
 
 function guard(action) {
@@ -185,6 +271,7 @@ async function loadRecords() {
 
         records.value = res.items || []
         fields.value = res.fields || []
+        formSections.value = res.formSections || []
         total.value = res.total || records.value.length
 
         // Initialize default search field, but
@@ -261,6 +348,7 @@ async function handleAutofill() {
             if (key === 'source_id' && editableRecord.value.source_id && !isCreating.value) continue
             editableRecord.value[key] = formatValueForInput(value, field.type)
         }
+        syncSeasonFromPremiereDate()
     } catch (err) {
         console.error('Failed to autofill anime_meta:', err)
         errorMessage.value = '自動填入失敗，請確認 source_details_id 是否正確。'
@@ -317,17 +405,13 @@ async function handleSave() {
             })
         }
 
-        await loadRecords()
-
         if (result) {
-            const match = records.value.find((r) => r.source_id === result.source_id)
-            if (match) {
-                selectedRecord.value = match
-                editableRecord.value = toEditableRecord(match)
-                isCreating.value = false
-            }
+            selectedRecord.value = result
+            editableRecord.value = toEditableRecord(result)
+            isCreating.value = false
         }
         markClean()
+        await loadRecords()
     } catch (err) {
         console.error('Failed to save anime_meta record:', err)
         errorMessage.value = '儲存資料時發生錯誤，請確認欄位內容是否正確。'
@@ -522,7 +606,7 @@ onMounted(() => {
                     </div>
                     <div class="flex-1 overflow-auto">
                         <div v-if="loading" class="flex items-center justify-center py-10">
-                            <div class="animate-spin rounded-full h-10 w-10 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
+                            <LoadingSpinner size="lg" />
                         </div>
 
                         <div v-else-if="!records.length" class="py-8 px-4 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -567,7 +651,7 @@ onMounted(() => {
                                         外部編號：{{ record.source_id || record.id || '—' }}
                                     </p>
                                     <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                        站內片源：{{ record.video_id || '未綁定' }} · 季數：{{ record.season || '—' }}
+                                        片源：{{ record.video_source || DEFAULT_VIDEO_SOURCE }} · ID：{{ record.video_id || '未綁定' }} · 季數：{{ record.season || '—' }}
                                     </p>
                                 </div>
                             </li>
@@ -612,6 +696,15 @@ onMounted(() => {
                         </h2>
                     </div>
                     <div class="flex items-center gap-2">
+                        <button
+                            type="button"
+                            class="btn-admin-ghost inline-flex items-center gap-2"
+                            title="欄位設定"
+                            @click="showFieldSettings = true"
+                        >
+                            <span class="material-symbols-rounded text-base">settings</span>
+                            <span class="hidden sm:inline">欄位設定</span>
+                        </button>
                         <button
                             type="button"
                             class="btn-admin-ghost inline-flex items-center gap-2"
@@ -669,15 +762,24 @@ onMounted(() => {
                         </div>
 
                         <form
-                            class="space-y-4"
+                            class="space-y-8"
                             @submit.prevent="handleSave"
                         >
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div
-                                    v-for="field in fields"
-                                    :key="field.name"
-                                    class="space-y-1.5"
-                                >
+                            <section
+                                v-for="section in visibleFormSections"
+                                :key="section.id"
+                                class="space-y-3"
+                            >
+                                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100 border-b border-black/5 dark:border-white/10 pb-2">
+                                    {{ section.title }}
+                                </h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div
+                                        v-for="field in section.fields"
+                                        :key="field.name"
+                                        class="space-y-1.5"
+                                        :class="{ 'md:col-span-2': field.wide }"
+                                    >
                                     <label class="text-xs font-medium text-gray-700 dark:text-gray-200 flex items-center gap-1">
                                         <span>{{ field.label }}</span>
                                         <span
@@ -709,7 +811,7 @@ onMounted(() => {
                                             v-model="editableRecord[field.name]"
                                             :readonly="field.readOnly"
                                             type="text"
-                                            class="min-w-0 flex-1 rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60"
+                                            class="admin-input min-w-0 flex-1"
                                         />
                                         <button
                                             type="button"
@@ -727,6 +829,15 @@ onMounted(() => {
                                         </button>
                                     </div>
 
+                                    <!-- video_source enum -->
+                                    <div v-else-if="field.name === 'video_source'">
+                                        <Dropdown
+                                            v-model="editableRecord[field.name]"
+                                            :options="VIDEO_SOURCES"
+                                            placeholder="選擇片源"
+                                        />
+                                    </div>
+
                                     <!-- Number fields -->
                                     <div v-else-if="field.type === 'number'" class="relative">
                                         <input
@@ -734,7 +845,7 @@ onMounted(() => {
                                             :readonly="field.readOnly"
                                             type="number"
                                             step="1"
-                                            class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                            class="admin-input [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                         />
                                     </div>
 
@@ -746,17 +857,18 @@ onMounted(() => {
                                             :readonly="field.readOnly"
                                             type="number"
                                             step="0.1"
-                                            class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                            class="admin-input [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                         />
                                     </div>
 
-                                    <!-- Datetime fields -->
+                                    <!-- Date fields -->
                                     <div v-else-if="field.type === 'date'" class="relative">
                                         <input
                                             v-model="editableRecord[field.name]"
                                             :readonly="field.readOnly"
                                             type="date"
-                                            class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
+                                            class="admin-input [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
+                                            @change="field.name === 'premiere_date' && syncSeasonFromPremiereDate()"
                                         />
                                     </div>
 
@@ -766,7 +878,7 @@ onMounted(() => {
                                             v-model="editableRecord[field.name]"
                                             :readonly="field.readOnly"
                                             type="datetime-local"
-                                            class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
+                                            class="admin-input [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
                                         />
                                     </div>
 
@@ -789,8 +901,8 @@ onMounted(() => {
                                         v-else-if="field.type === 'textbox'"
                                         v-model="editableRecord[field.name]"
                                         :readonly="field.readOnly"
-                                        rows="4"
-                                        class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 resize-y"
+                                        rows="2"
+                                        class="admin-textarea"
                                     />
 
                                     <!-- JSONB fields (editable JSON textarea, saved as object) -->
@@ -798,9 +910,9 @@ onMounted(() => {
                                         v-else-if="field.type === 'jsonb'"
                                         v-model="editableRecord[field.name]"
                                         :readonly="field.readOnly"
-                                        rows="8"
+                                        rows="2"
                                         placeholder="{}"
-                                        class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 font-mono focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60 resize-y"
+                                        class="admin-textarea font-mono"
                                     />
 
                                     <!-- Text fields (default) -->
@@ -809,10 +921,11 @@ onMounted(() => {
                                         v-model="editableRecord[field.name]"
                                         :readonly="field.readOnly"
                                         type="text"
-                                        class="w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent disabled:opacity-60"
+                                        class="admin-input"
                                     />
+                                    </div>
                                 </div>
-                            </div>
+                            </section>
                         </form>
 
                         <!-- Action Buttons at Bottom -->
@@ -858,6 +971,72 @@ onMounted(() => {
             <button type="button" class="btn-modal-danger" @click="discardAndProceed">放棄變更</button>
         </template>
     </BaseModal>
+
+    <BaseModal
+        :show="showFieldSettings"
+        title="欄位設定"
+        icon="settings"
+        max-width="max-w-lg"
+        @close="showFieldSettings = false"
+    >
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">取消勾選即可隱藏欄位，使用箭頭調整區段順序。</p>
+        <div class="max-h-[min(60vh,28rem)] overflow-y-auto space-y-3">
+            <section v-for="(section, index) in settingsFormSections" :key="section.id" class="space-y-1">
+                <div class="flex items-center justify-between gap-2">
+                    <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ section.title }}</h4>
+                    <div class="flex items-center gap-0.5">
+                        <button
+                            type="button"
+                            class="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
+                            title="上移"
+                            :disabled="index === 0"
+                            @click="moveSection(section.id, -1)"
+                        >
+                            <span class="material-symbols-rounded text-base leading-none">keyboard_arrow_up</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
+                            title="下移"
+                            :disabled="index === settingsFormSections.length - 1"
+                            @click="moveSection(section.id, 1)"
+                        >
+                            <span class="material-symbols-rounded text-base leading-none">keyboard_arrow_down</span>
+                        </button>
+                    </div>
+                </div>
+                <label
+                    v-for="field in section.fields"
+                    :key="field.name"
+                    class="flex items-center gap-3 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                >
+                    <input
+                        type="checkbox"
+                        class="peer sr-only"
+                        :checked="!hiddenFields.has(field.name)"
+                        @change="toggleFieldHidden(field.name)"
+                    />
+                    <span
+                        class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-black/15 dark:border-white/20 bg-black/[0.04] dark:bg-white/10 text-transparent transition-colors
+                               peer-checked:border-gray-900 peer-checked:bg-gray-900 peer-checked:text-white
+                               dark:peer-checked:border-white dark:peer-checked:bg-white dark:peer-checked:text-black
+                               peer-focus-visible:ring-2 peer-focus-visible:ring-black/20 dark:peer-focus-visible:ring-white/20"
+                        aria-hidden="true"
+                    >
+                        <span class="material-symbols-rounded text-[16px] leading-none">check</span>
+                    </span>
+                    <span class="text-sm text-gray-400 dark:text-gray-500 peer-checked:text-gray-800 dark:peer-checked:text-gray-100 truncate transition-colors">
+                        {{ field.label }}
+                    </span>
+                </label>
+            </section>
+        </div>
+        <template #actions>
+            <button type="button" class="btn-modal-cancel" @click="hideAllFields">全部隱藏</button>
+            <button type="button" class="btn-modal-cancel" @click="hiddenFields.clear()">全部顯示</button>
+            <button type="button" class="btn-admin-primary" @click="showFieldSettings = false">完成</button>
+        </template>
+    </BaseModal>
 </template>
 
 <style scoped>
@@ -866,9 +1045,21 @@ onMounted(() => {
 }
 
 .admin-input {
-    @apply w-full rounded-xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-3 py-2
+    @apply w-full rounded-full border border-transparent bg-black/5 dark:bg-white/10 text-sm px-4 py-2.5
            text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500
-           focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent transition-shadow;
+           focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent
+           transition-shadow disabled:opacity-60 disabled:cursor-not-allowed;
+}
+
+.admin-textarea {
+    @apply w-full rounded-2xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-4 py-2.5
+           text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500
+           focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent
+           transition-shadow disabled:opacity-60 overflow-y-auto;
+    field-sizing: content;
+    min-height: 4.5rem;
+    max-height: 16rem;
+    resize: none;
 }
 
 .btn-admin-primary {

@@ -102,9 +102,11 @@ const hasSetInitialTime = ref(false)
 const isTheaterMode = ref(false)
 const streamResumeTime = ref(null)
 const streamResumePlaying = ref(false)
-let streamRecoveryAttempts = 0
 const MAX_STREAM_RECOVERY = 3
+const episodeLoading = ref(false)
+let streamRecoveryAttempts = 0
 let streamRecovering = false
+let episodeFetchId = 0
 
 const SAVE_INTERVAL = 120_000
 let saveTimer = null
@@ -139,23 +141,20 @@ const hasNextEpisode = computed(() => {
 
 const currentEpisodeData = computed(() => {
     if (!anime.value?.episodes || selectedEpisode.value == null) return null
-    return anime.value.episodes[String(selectedEpisode.value)] ?? null
-})
-
-const currentVideoId = computed(() => {
-    const ep = currentEpisodeData.value
-    return typeof ep === 'string' ? null : (ep?.video_id ?? null)
+    const ep = anime.value.episodes[String(selectedEpisode.value)]
+    return ep && typeof ep === 'object' ? ep : null
 })
 
 const videoPlayerMeta = computed(() => {
-    const ep = typeof currentEpisodeData.value === 'string' ? null : currentEpisodeData.value
+    const ep = currentEpisodeData.value
     return {
         title: anime.value?.title ?? null,
         episode: selectedEpisode.value ?? null,
-        videoId: currentVideoId.value,
+        videoId: ep?.video_id ?? null,
         thumbnailJpgUrl: offlineThumbnailJpgUrl.value || ep?.thumbnails_jpg_url || null,
-        thumbnailVttText: offlineThumbnailVttText.value,
+        thumbnailVttText: offlineThumbnailVttText.value || ep?.thumbnail_vtt_text || null,
         thumbnailsVttUrl: ep?.thumbnails_vtt_url || null,
+        captions: Array.isArray(ep?.captions) ? ep.captions : [],
     }
 })
 
@@ -446,14 +445,15 @@ function continueLast() {
     router.replace({ path: route.path, query: { e: lastWatchedData.value.episode_number, t: lastWatchedData.value.playback_time } })
 }
 
-async function handleNextEpisode() {
+function handleNextEpisode() {
+    if (episodeLoading.value) return
     const { keys, currentIndex } = episodeInfo.value
     if (currentIndex === -1 || currentIndex >= keys.length - 1) return
-    if (selectedEpisode.value) await saveWatchHistory(selectedEpisode.value)
     selectedEpisode.value = keys[currentIndex + 1]
 }
 
 function handlePreviousEpisode() {
+    if (episodeLoading.value) return
     const { keys, currentIndex } = episodeInfo.value
     if (currentIndex > 0) selectedEpisode.value = keys[currentIndex - 1]
 }
@@ -548,6 +548,17 @@ function applyEpisodeQueryFromRoute() {
     return false
 }
 
+/** Merge resolve-time fields (video_id / seek VTT / captions) into the episode list entry. */
+function mergeEpisodePlaybackMeta(epKey, res) {
+    const ep = anime.value?.episodes?.[epKey]
+    if (!ep || typeof ep !== 'object') return
+    const patch = {}
+    if (res.video_id) patch.video_id = res.video_id
+    if (res.thumbnail_vtt_text) patch.thumbnail_vtt_text = res.thumbnail_vtt_text
+    if (Array.isArray(res.captions)) patch.captions = res.captions
+    if (Object.keys(patch).length) anime.value.episodes[epKey] = { ...ep, ...patch }
+}
+
 async function fetchOnlineVideoUrl(epNum) {
     const token = anime.value?.episodes[String(epNum)]?.token
     if (!token) {
@@ -565,8 +576,9 @@ async function fetchOnlineVideoUrl(epNum) {
             return false
         }
         const finalUrl = raw.startsWith('http') ? raw : `https:${raw}`
-        videoUrl.value = `/api/proxy-video?url=${encodeURIComponent(finalUrl)}&cookie=${encodeURIComponent(res.videoCookie)}`
+        videoUrl.value = `/api/proxy-video?url=${encodeURIComponent(finalUrl)}&cookie=${encodeURIComponent(res.videoCookie || '')}`
         videoIsHls.value = /\.m3u8(\?|$)/i.test(finalUrl) || finalUrl.includes('m3u8')
+        mergeEpisodePlaybackMeta(String(epNum), res)
         return true
     } catch (err) {
         console.error('Episode fetch failed:', err)
@@ -600,9 +612,13 @@ async function handleStreamError() {
 watch(selectedEpisode, async (epNum, oldEpNum) => {
     if (!epNum || !anime.value?.episodes) return
 
+    const fetchId = ++episodeFetchId
+
+    // Save progress while the current player is still mounted, then clear immediately
+    // so the UI reacts at once (avoids "did my click register?" double-taps).
     if (oldEpNum && oldEpNum !== epNum) {
         streamRecoveryAttempts = 0
-        if (videoPlayer.value) await saveWatchHistory(oldEpNum)
+        if (videoPlayer.value) saveWatchHistory(oldEpNum)
         hasSetInitialTime.value = false
         if (route.query.t || route.query.e) {
             const q = { ...route.query }
@@ -612,42 +628,54 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
         }
     }
 
+    videoUrl.value = null
+    videoIsHls.value = false
+    episodeLoading.value = true
+
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
 
     const { refId, title, image } = anime.value
     setWatching({ refId, title, image, episode: epNum })
 
-    if (import.meta.client && refId) {
-        const thumb = await getOfflineThumbnailAssets(refId, epNum)
-        if (thumb) {
-            offlineThumbnailJpgUrl.value = thumb.jpgUrl || null
-            offlineThumbnailVttText.value = thumb.vttText || null
-            offlineThumbRevoke.value = thumb.revoke
+    try {
+        if (import.meta.client && refId) {
+            const thumb = await getOfflineThumbnailAssets(refId, epNum)
+            if (fetchId !== episodeFetchId) return
+            if (thumb) {
+                offlineThumbnailJpgUrl.value = thumb.jpgUrl || null
+                offlineThumbnailVttText.value = thumb.vttText || null
+                offlineThumbRevoke.value = thumb.revoke
+            }
+
+            const playback = await getOfflinePlayback(refId, epNum)
+            if (fetchId !== episodeFetchId) return
+            if (playback) {
+                offlinePlaybackRevoke.value = playback.revoke
+                videoUrl.value = playback.url
+                videoIsHls.value = playback.isHls
+                return
+            }
         }
 
-        const playback = await getOfflinePlayback(refId, epNum)
-        if (playback) {
-            offlinePlaybackRevoke.value = playback.revoke
-            videoUrl.value = playback.url
-            videoIsHls.value = playback.isHls
-            return
+        showContinuePrompt.value = false
+        const ok = await fetchOnlineVideoUrl(epNum)
+        if (fetchId !== episodeFetchId) return
+        if (!ok) {
+            const playback = import.meta.client && refId ? await getOfflinePlayback(refId, epNum) : null
+            if (fetchId !== episodeFetchId) return
+            if (playback) {
+                offlinePlaybackRevoke.value = playback.revoke
+                videoUrl.value = playback.url
+                videoIsHls.value = playback.isHls
+                showToast('使用離線影片播放', 'info', 2500)
+            } else {
+                videoUrl.value = null
+                videoIsHls.value = false
+            }
         }
-    }
-
-    showContinuePrompt.value = false
-    const ok = await fetchOnlineVideoUrl(epNum)
-    if (!ok) {
-        const playback = import.meta.client && refId ? await getOfflinePlayback(refId, epNum) : null
-        if (playback) {
-            offlinePlaybackRevoke.value = playback.revoke
-            videoUrl.value = playback.url
-            videoIsHls.value = playback.isHls
-            showToast('使用離線影片播放', 'info', 2500)
-        } else {
-            videoUrl.value = null
-            videoIsHls.value = false
-        }
+    } finally {
+        if (fetchId === episodeFetchId) episodeLoading.value = false
     }
 })
 
@@ -671,6 +699,8 @@ async function fetchDetail() {
     videoUrl.value = null
     videoIsHls.value = false
     selectedEpisode.value = null
+    episodeLoading.value = false
+    episodeFetchId++
     offlineModeBanner.value = false
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
@@ -786,8 +816,8 @@ onUnmounted(() => {
                 <div :class="isTheaterMode ? 'space-y-4 min-w-0 lg:contents' : 'flex-1 min-w-0 lg:w-[75%] space-y-4'">
                     <!-- Video Player -->
                     <section aria-label="Video player" :class="isTheaterMode ? 'lg:col-span-2' : ''">
-                        <!-- Thumbnail placeholder (no video selected) -->
-                        <div v-if="!videoUrl && anime?.image"
+                        <!-- Thumbnail placeholder (no episode selected) -->
+                        <div v-if="!selectedEpisode && anime?.image"
                             class="aspect-video relative rounded-lg overflow-hidden bg-gray-900 dark:bg-gray-950">
                             <div class="absolute inset-0">
                                 <NuxtImg :src="anime.image" alt="Anime thumbnail" loading="eager"
@@ -804,15 +834,15 @@ onUnmounted(() => {
                             </div>
                         </div>
 
-                        <!-- Video Player -->
                         <VideoPlayer
-                            v-if="videoUrl"
+                            v-else-if="selectedEpisode"
                             ref="videoPlayer"
-                            :src="videoUrl"
+                            :src="videoUrl || ''"
                             :is-hls="videoIsHls"
+                            :loading="episodeLoading"
                             :anime-meta="videoPlayerMeta"
                             preload="metadata"
-                            :has-next-episode="hasNextEpisode"
+                            :has-next-episode="hasNextEpisode && !episodeLoading"
                             :shortcuts="userShortcuts"
                             :theater-mode="isTheaterMode"
                             autoplay

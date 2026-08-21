@@ -34,7 +34,7 @@ const props = defineProps({
     },
 })
 
-const { isMobile } = useMobile()
+const { isNarrow } = useMobile()
 const { userSettings } = useUserSettings()
 const client = useSupabaseClient()
 const favoriteLoading = ref(false)
@@ -73,7 +73,7 @@ async function toggleFavorite(event) {
         <!-- Main Tooltip with Anime Details -->
         <Transition name="tooltip-fade">
             <div
-                v-if="hoveredAnime && animeDetails && !isMobile"
+                v-if="hoveredAnime && animeDetails && !isNarrow"
                 :class="['anime-tooltip', `tooltip-${tooltipPosition.placement}`]"
                 :style="{
                     left: tooltipPosition.x + 'px',
@@ -99,14 +99,14 @@ async function toggleFavorite(event) {
                         >
                             {{ animeDetails.isFavorite ? 'bookmark_added' : 'bookmark_add' }}
                         </span>
-                        <span v-else class="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                        <LoadingSpinner v-else size="xs" />
                     </button>
                     <!-- Header with Image -->
                     <div class="flex gap-3 mb-3">
                         <NuxtImg
                             :src="animeDetails.image" 
                             :alt="animeDetails.title" 
-                            class="w-20 sm:w-24 h-28 sm:h-32 object-cover rounded-lg shadow-lg flex-shrink-0" 
+                            class="w-20 sm:w-24 aspect-[2/3] object-cover rounded-lg shadow-lg flex-shrink-0" 
                             loading="eager"
                         />
                         <div class="flex-1 min-w-0">
@@ -178,7 +178,7 @@ async function toggleFavorite(event) {
         <!-- Loading Tooltip -->
         <Transition name="tooltip-fade">
             <div
-                v-if="hoveredAnime && tooltipLoading && !animeDetails && !isMobile"
+                v-if="hoveredAnime && tooltipLoading && !animeDetails && !isNarrow"
                 :class="['anime-tooltip-loading', `tooltip-${tooltipPosition.placement}`]"
                 :style="{
                     left: tooltipPosition.x + 'px',
@@ -186,7 +186,7 @@ async function toggleFavorite(event) {
                 }"
             >
                 <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 border-2 border-gray-300 dark:border-white/20 border-t-gray-900 dark:border-t-white rounded-full animate-spin"></div>
+                    <LoadingSpinner size="xs" />
                     <span class="text-xs sm:text-sm text-gray-600 dark:text-gray-300">載入詳情...</span>
                 </div>
             </div>
@@ -195,7 +195,7 @@ async function toggleFavorite(event) {
         <!-- Error Tooltip -->
         <Transition name="tooltip-fade">
             <div
-                v-if="hoveredAnime && tooltipError && !animeDetails && !isMobile"
+                v-if="hoveredAnime && tooltipError && !animeDetails && !isNarrow"
                 :class="['anime-tooltip-error', `tooltip-${tooltipPosition.placement}`]"
                 :style="{
                     left: tooltipPosition.x + 'px',
@@ -215,7 +215,7 @@ async function toggleFavorite(event) {
 /* Anime Tooltip Styles */
 .anime-tooltip {
     position: fixed;
-    z-index: 9999;
+    z-index: 10050;
     max-width: min(360px, calc(100vw - 32px));
     width: max-content;
 }
@@ -329,7 +329,7 @@ async function toggleFavorite(event) {
 
 .anime-tooltip-loading {
     position: fixed;
-    z-index: 9999;
+    z-index: 10050;
     @apply bg-white dark:bg-gray-950 rounded-xl shadow-lg shadow-black/10 dark:shadow-black/60 border border-gray-200 dark:border-white/10 px-3 sm:px-4 py-2;
 }
 
@@ -356,7 +356,7 @@ async function toggleFavorite(event) {
 /* Error Tooltip */
 .anime-tooltip-error {
     position: fixed;
-    z-index: 9999;
+    z-index: 10050;
     @apply bg-white dark:bg-gray-950 rounded-xl shadow-lg shadow-black/10 dark:shadow-black/60 border border-red-300 dark:border-red-700/60 px-3 sm:px-4 py-2;
 }
 

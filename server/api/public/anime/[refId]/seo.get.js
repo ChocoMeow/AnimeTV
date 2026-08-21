@@ -1,4 +1,5 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
+import { createLoggedError } from '~~/server/utils/logger'
 
 const DESC_MAX = 200
 const TITLE_MAX = 70
@@ -19,8 +20,12 @@ export default defineCachedEventHandler(
             .maybeSingle()
 
         if (error) {
-            console.error('[seo] supabase error:', error.message)
-            throw createError({ statusCode: 500, statusMessage: 'Failed to load anime' })
+            throw createLoggedError(event, {
+                statusCode: 500,
+                statusMessage: 'Failed to load anime',
+                err: error,
+                context: { module: 'public-anime-seo' },
+            })
         }
         if (!data) throw createError({ statusCode: 404, statusMessage: 'Anime not found' })
 

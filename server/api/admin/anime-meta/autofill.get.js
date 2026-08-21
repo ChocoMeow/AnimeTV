@@ -1,4 +1,8 @@
 import { serverSupabaseClient } from '#supabase/server'
+import { CUSTOM_SOURCE_ID_MIN } from '~~/shared/global'
+import { createLoggedError, moduleLogger } from '~~/server/utils/logger'
+
+const log = moduleLogger('admin-anime-meta-autofill')
 
 /** Next custom source_id (>= CUSTOM_SOURCE_ID_MIN). Avoids full-table scan of Bahamut SNs. */
 async function nextSourceId(client) {
@@ -8,7 +12,7 @@ async function nextSourceId(client) {
         .gte('source_id', CUSTOM_SOURCE_ID_MIN)
 
     if (error) {
-        console.error('Failed to fetch max source_id:', error)
+        log.error({ err: error }, 'Failed to fetch max source_id')
         return String(CUSTOM_SOURCE_ID_MIN)
     }
 
@@ -31,7 +35,7 @@ export default defineEventHandler(async (event) => {
     }
 
     try {
-        // Skip wiki sanitize — largest CPU cost on Pi
+        // Skip wiki sanitize — largest CPU cost when scraping.
         const scraped = await scrapeAcgDetail(detailId, { includeWiki: false })
         if (!scraped?.title) {
             throw createError({ statusCode: 404, statusMessage: 'Anime details not found' })
@@ -56,7 +60,11 @@ export default defineEventHandler(async (event) => {
         return data
     } catch (err) {
         if (err?.statusCode) throw err
-        console.error('Failed to autofill from acgDetail:', err)
-        throw createError({ statusCode: 500, statusMessage: 'Failed to scrape anime details' })
+        throw createLoggedError(event, {
+            statusCode: 500,
+            statusMessage: 'Failed to scrape anime details',
+            err,
+            context: { module: 'admin-anime-meta-autofill' },
+        })
     }
 })

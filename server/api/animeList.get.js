@@ -1,5 +1,7 @@
 import * as cheerio from "cheerio"
 import { serverSupabaseClient } from "#supabase/server"
+import { CUSTOM_SOURCE_ID_MIN, GAMER_BASE_URL } from "~~/shared/global"
+import { logError } from "~~/server/utils/logger"
 
 async function fetchManualAnime(event, { page, tags, sort }) {
     const pageNum = Math.max(1, Number(page) || 1)
@@ -81,7 +83,7 @@ export default defineEventHandler(async (event) => {
 
         return { results: animeList, totalPage }
     } catch (err) {
-        console.error("Error scraping anime list:", err.message)
+        logError(event, err, { module: "animeList" })
         return { results: [], totalPage: "0" }
     }
 })

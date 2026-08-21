@@ -1,5 +1,4 @@
 <script setup>
-const headerHiddenMobile = useState("app-mobile-header-hidden", () => false)
 const showMobilePwaNav = useState("app-show-mobile-pwa-nav", () => false)
 </script>
 

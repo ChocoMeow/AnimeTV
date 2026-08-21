@@ -28,3 +28,17 @@ export function formatClockTime(dateInput) {
     const minutes = date.getMinutes().toString().padStart(2, "0")
     return `${hours}:${minutes}`
 }
+
+/**
+ * Format a date/datetime value as relative date string.
+ * @param {string|Date|number} dateInput - ISO date string, Date instance, or timestamp
+ * @returns {string} e.g. "今天" or "昨天" or "5 天前" or "2 週前" or "1 個月前"
+ */
+export function formatRelativeDate(dateString) {
+    const days = Math.ceil(Math.abs(Date.now() - new Date(dateString)) / 86400000)
+    if (days === 0) return '今天'
+    if (days === 1) return '昨天'
+    if (days < 7) return `${days} 天前`
+    if (days < 30) return `${Math.floor(days / 7)} 週前`
+    return `${Math.floor(days / 30)} 個月前`
+}

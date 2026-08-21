@@ -1,9 +1,8 @@
 import * as cheerio from "cheerio"
 import { serverSupabaseClient } from "#supabase/server"
-
-// NOTE: ANIME_CACHE, CHINESE_WEEKDAY_MAP, GAMER_BASE_URL, cfFetch, authUser,
-// and parseViews are assumed to be auto-imported from server/utils/*, same
-// as in the original file. SPOTLIGHT_CACHE is new — declared below.
+import { CHINESE_WEEKDAY_MAP, GAMER_BASE_URL } from "~~/shared/global"
+import { ANIME_CACHE } from "~~/server/utils/cache"
+import { createLoggedError } from "~~/server/utils/logger"
 
 const TWO_HOURS = 1000 * 60 * 60 * 2
 const CONTINUE_WATCHING_TITLE = "繼續觀看"
@@ -322,7 +321,11 @@ export default defineEventHandler(async (event) => {
     try {
         return await scrapeAllAnime(client, user?.id ?? user?.sub ?? null)
     } catch (error) {
-        console.error("API error:", error)
-        throw createError({ statusCode: 500, statusMessage: "Internal Server Error" })
+        throw createLoggedError(event, {
+            statusCode: 500,
+            statusMessage: "Internal Server Error",
+            err: error,
+            context: { module: "anime-index" },
+        })
     }
 })

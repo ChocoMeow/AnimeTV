@@ -1,4 +1,7 @@
 // Shared utility for field type inference and conversion
+import { moduleLogger } from '~~/server/utils/logger'
+
+const log = moduleLogger('fieldTypes')
 
 // Infer field types from actual data samples
 export async function getFieldTypesFromData(client, tableName, fields) {
@@ -13,7 +16,7 @@ export async function getFieldTypesFromData(client, tableName, fields) {
             .limit(10)
         sampleRows = data || []
     } catch (error) {
-        console.error('Error fetching sample rows for type inference:', error)
+        log.error({ err: error, tableName }, 'Error fetching sample rows for type inference')
         sampleRows = []
     }
 

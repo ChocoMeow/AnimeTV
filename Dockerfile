@@ -20,6 +20,9 @@ WORKDIR /app
 # Only `.output` folder is needed from the build stage
 COPY --from=build /app/.output /app
 
+# Persist daily JSON logs: mount a volume at /app/logs (NUXT_LOG_MAX_DAYS, default 30).
+RUN mkdir -p /app/logs
+
 # Run the app
 EXPOSE 3000/tcp
 ENTRYPOINT [ "bun", "--bun", "run", "/app/server/index.mjs" ]

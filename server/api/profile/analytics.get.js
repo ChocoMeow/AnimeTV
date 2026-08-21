@@ -1,4 +1,5 @@
 import { serverSupabaseClient } from '#supabase/server'
+import { createLoggedError } from '~~/server/utils/logger'
 
 function parseEp(ep) {
     const n = Number.parseInt(String(ep).replace(/\D/g, ''), 10)
@@ -288,7 +289,11 @@ export default defineEventHandler(async (event) => {
             topTagsByTime,
         }
     } catch (err) {
-        console.error('Profile analytics error:', err)
-        throw createError({ statusCode: 500, statusMessage: 'Failed to load profile analytics' })
+        throw createLoggedError(event, {
+            statusCode: 500,
+            statusMessage: 'Failed to load profile analytics',
+            err,
+            context: { module: 'profile-analytics' },
+        })
     }
 })

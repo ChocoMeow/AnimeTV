@@ -11,6 +11,9 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { consumeWsTicket } from '../utils/wsTickets.js'
+import { moduleLogger } from '~~/server/utils/logger'
+
+const wsLog = moduleLogger('user-status-ws', { path: '/api/user-status-ws' })
 
 // peerId -> { peer, userId, accessToken, status, watchingData, lastSeen, supabase }
 const connections = new Map()
@@ -149,7 +152,7 @@ async function flushStatus(supabase, userId, { force = false, touch = false } = 
 
         const { error } = await supabase.from('user_status').upsert(row, { onConflict: 'user_id' })
         if (error) {
-            console.error('[DB] upsert error:', error)
+            wsLog.error({ err: error, userId }, 'ws status upsert failed')
             return { ok: false, error: error.message || 'upsert_failed' }
         }
 
@@ -158,10 +161,10 @@ async function flushStatus(supabase, userId, { force = false, touch = false } = 
             animeRefId: row.anime_ref_id,
             episodeNumber: row.episode_number,
         })
-        console.log(`[DB] ${userId} → ${status}`)
+        wsLog.debug({ userId, status }, 'ws status flushed')
         return { ok: true }
     } catch (err) {
-        console.error('[DB] flushStatus error:', err)
+        wsLog.error({ err, userId }, 'ws status flush failed')
         return { ok: false, error: err instanceof Error ? err.message : 'flush_failed' }
     }
 }
@@ -182,7 +185,7 @@ function startCleanup() {
         const now = Date.now()
         for (const [peerId, conn] of connections) {
             if (isConnectionActive(conn, now)) continue
-            console.log(`[WS] Timeout peer ${peerId} (user ${conn.userId})`)
+            wsLog.info({ peerId, userId: conn.userId }, 'ws peer timed out')
             connections.delete(peerId)
             removePeer(conn.userId, peerId)
             // Force-write so offline/stale watching is cleared immediately
@@ -241,7 +244,7 @@ export default defineWebSocketHandler({
         startCleanup()
 
         safeSend(peer, { type: 'connected', peerId: peer.id, userId, status: 'online', activeConnections: peerCount(userId) })
-        console.log(`[WS] open  peer=${peer.id} user=${userId} (${peerCount(userId)} total)`)
+        wsLog.info({ peerId: peer.id, userId, peers: peerCount(userId) }, 'ws connection opened')
     },
 
     async message(peer, message) {
@@ -336,7 +339,7 @@ export default defineWebSocketHandler({
                 }
 
                 safeSend(peer, { type: 'token_refreshed', timestamp: Date.now() })
-                console.log(`[WS] token refreshed peer=${peer.id} user=${conn.userId}`)
+                wsLog.info({ peerId: peer.id, userId: conn.userId }, 'ws token refreshed')
                 break
             }
 
@@ -357,7 +360,7 @@ export default defineWebSocketHandler({
                 try {
                     peer.websocket.close(1000, 'Client disconnect')
                 } catch {}
-                console.log(`[WS] client disconnect peer=${peer.id} user=${conn.userId}`)
+                wsLog.info({ peerId: peer.id, userId: conn.userId }, 'ws client disconnected')
                 break
 
             default:
@@ -369,11 +372,11 @@ export default defineWebSocketHandler({
         const userId = await handleDisconnect(peer.id)
         // close can fire after explicit disconnect; skip noisy duplicate logs.
         if (!userId) return
-        console.log(`[WS] close peer=${peer.id} user=${userId} (${peerCount(userId)} remaining)`)
+        wsLog.info({ peerId: peer.id, userId, peers: peerCount(userId) }, 'ws connection closed')
     },
 
     async error(peer, err) {
-        console.error('[WS] error:', err)
+        wsLog.error({ err, peerId: peer.id }, 'ws connection error')
         await handleDisconnect(peer.id)
     },
 })

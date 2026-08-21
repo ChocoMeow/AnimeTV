@@ -1,8 +1,9 @@
 <script setup>
 const { userSettings } = useUserSettings()
-const { isMobile } = useMobile()
 const STORAGE_KEY = 'friendListOpen'
 const isOpen = ref(false)
+const isLg = ref(false)
+let lgMq
 
 // Profile dialog state
 const showProfileDialog = ref(false)
@@ -28,31 +29,23 @@ const friendSections = computed(() => [
 
 // Helper to format last seen time
 const formatLastSeen = (lastSeen) => {
-    if (!lastSeen) return "未知";
+    if (!lastSeen) return "未知"
 
-    // Convert lastSeen to a Date object (assuming it's in ISO format)
-    const seen = new Date(lastSeen);
+    const seen = new Date(lastSeen)
+    const localOffset = new Date().getTimezoneOffset() * 60000
+    const localSeen = new Date(seen.getTime() - localOffset)
+    const now = new Date()
 
-    // Get the user's local time zone offset in milliseconds
-    const localOffset = new Date().getTimezoneOffset() * 60000;
+    const diffMs = now - localSeen
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
 
-    // Adjust the seen time to the local time
-    const localSeen = new Date(seen.getTime() - localOffset);
-
-    // Get the current local time
-    const now = new Date();
-
-    // Calculate the difference in milliseconds
-    const diffMs = now - localSeen;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return "剛剛";
-    if (diffMins < 60) return `${diffMins} 分鐘前`;
-    if (diffHours < 24) return `${diffHours} 小時前`;
-    return `${diffDays} 天前`;
-};
+    if (diffMins < 1) return "剛剛"
+    if (diffMins < 60) return `${diffMins} 分鐘前`
+    if (diffHours < 24) return `${diffHours} 小時前`
+    return `${diffDays} 天前`
+}
 
 // Save state to localStorage
 const saveState = (open) => {
@@ -61,35 +54,15 @@ const saveState = (open) => {
     }
 }
 
-// UI controls
+const showToggleButton = computed(() => !isOpen.value && friends.value.length > 0)
+
 const openFriendList = () => {
     isOpen.value = true
-    saveState(true)
-    if (import.meta.client) {
-        document.body.classList.add("friend-list-open")
-    }
 }
 
 const closeFriendList = () => {
     isOpen.value = false
-    saveState(false)
-    if (import.meta.client) {
-        document.body.classList.remove("friend-list-open")
-    }
 }
-
-// Watch isOpen to manage body class when changed by v-model (e.g., when drawer closes)
-watch(isOpen, (newValue) => {
-    if (import.meta.client) {
-        if (newValue) {
-            document.body.classList.add("friend-list-open")
-            saveState(true)
-        } else {
-            document.body.classList.remove("friend-list-open")
-            saveState(false)
-        }
-    }
-})
 
 // Function to open friend profile
 const openFriendProfile = (friend) => {
@@ -97,28 +70,54 @@ const openFriendProfile = (friend) => {
     showProfileDialog.value = true
 }
 
+// UI controls
+function syncBodyClass(open) {
+    if (!import.meta.client) return
+    document.body.classList.toggle('friend-list-open', !!open && isLg.value)
+}
+
+function onBreakpointChange() {
+    const next = lgMq.matches
+    if (next === isLg.value) return
+    isLg.value = next
+    // Close when leaving lg so the reopen toggle is available again
+    if (!next && isOpen.value) {
+        isOpen.value = false
+        syncBodyClass(false)
+    } else {
+        syncBodyClass(isOpen.value)
+    }
+}
+
+watch(isOpen, (open) => {
+    if (!import.meta.client) return
+    syncBodyClass(open)
+    if (isLg.value) saveState(open)
+})
+
 onMounted(() => {
-    // Load saved state from localStorage after mount (client-side only)
-    if (!isMobile.value && typeof localStorage !== 'undefined') {
-        const saved = localStorage.getItem(STORAGE_KEY)
-        if (saved === 'true') {
-            isOpen.value = true
-            document.body.classList.add("friend-list-open")
-        }
+    if (!import.meta.client) return
+    lgMq = window.matchMedia('(min-width: 1024px)')
+    isLg.value = lgMq.matches
+    lgMq.addEventListener('change', onBreakpointChange)
+
+    if (isLg.value && localStorage.getItem(STORAGE_KEY) === 'true') {
+        isOpen.value = true
+        syncBodyClass(true)
     }
 })
 
 onBeforeUnmount(() => {
-    if (import.meta.client) {
-        document.body.classList.remove("friend-list-open")
-    }
+    if (!import.meta.client) return
+    document.body.classList.remove('friend-list-open')
+    lgMq?.removeEventListener('change', onBreakpointChange)
 })
 </script>
 
 <template>
     <!-- Desktop Friend List Panel -->
     <transition name="slide-left">
-        <div v-if="isOpen"
+        <div v-if="isOpen && isLg"
             class="hidden lg:flex fixed right-0 top-0 h-screen w-80 bg-white dark:bg-gray-950 shadow-2xl border-l border-black/10 dark:border-white/10 flex-col z-30 pt-16">
             <!-- Toggle Button (Left Side - when open) -->
             <button @click="closeFriendList"
@@ -156,13 +155,13 @@ onBeforeUnmount(() => {
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <h4
-                                            class="font-semibold text-sm text-white drop-shadow-lg truncate mb-1 hover:underline">
+                                            class="font-semibold text-sm text-gray-900 dark:text-white drop-shadow-lg truncate mb-1 hover:underline">
                                             {{ friend.name }}</h4>
-                                        <div class="flex items-center gap-1.5 text-xs text-white drop-shadow-md mb-0.5">
+                                        <div class="flex items-center gap-1.5 text-xs text-gray-800 dark:text-white drop-shadow-md mb-0.5">
                                             <span class="material-symbols-rounded text-xs">play_circle</span>
                                             <span class="truncate font-medium">{{ friend.currentAnime }}</span>
                                         </div>
-                                        <div class="text-xs text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }}
+                                        <div class="text-xs text-gray-700 dark:text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }}
                                             集</div>
                                     </div>
                                 </div>
@@ -204,16 +203,14 @@ onBeforeUnmount(() => {
         </div>
     </transition>
 
-    <!-- Mobile Friend List Drawer -->
+    <!-- Keep mounted below lg so drawer enter/leave transitions work -->
     <ClientOnly>
-        <BaseBottomDrawer v-if="isMobile" v-model="isOpen" title="好友列表" :max-height="'max-h-[85vh]'">
-            <!-- Mobile Friends List -->
+        <BaseBottomDrawer v-if="!isLg" v-model="isOpen" title="好友列表" :max-height="'max-h-[85vh]'">
             <div class="space-y-4 pb-4">
                 <div v-for="section in friendSections" :key="section.status" class="space-y-3">
                     <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{{
                         section.title }} — {{ section.friends.length }}</h3>
                     <div v-for="friend in section.friends" :key="friend.id" class="friend-card">
-                        <!-- Watching Friend Card (Mobile) -->
                         <div v-if="section.isWatching"
                             class="relative p-4 rounded-2xl ring-1 ring-black/10 dark:ring-white/10 overflow-hidden">
                             <div v-if="friend.animeBackground"
@@ -234,13 +231,13 @@ onBeforeUnmount(() => {
                                             :title="friend.status"></span>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <h4 class="font-bold text-base text-white drop-shadow-lg truncate mb-1">{{
+                                        <h4 class="font-bold text-base text-gray-900 dark:text-white drop-shadow-lg truncate mb-1">{{
                                             friend.name }}</h4>
-                                        <div class="flex items-center gap-1.5 text-sm text-white drop-shadow-md mb-1">
+                                        <div class="flex items-center gap-1.5 text-sm text-gray-800 dark:text-white drop-shadow-md mb-1">
                                             <span class="material-symbols-rounded text-base">play_circle</span>
                                             <span class="truncate font-medium">{{ friend.currentAnime }}</span>
                                         </div>
-                                        <div class="text-sm text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }}
+                                        <div class="text-sm text-gray-700 dark:text-white/90 drop-shadow-md">第 {{ friend.currentEpisode }}
                                             集</div>
                                     </div>
                                 </div>
@@ -249,7 +246,6 @@ onBeforeUnmount(() => {
                                     前往</NuxtLink>
                             </div>
                         </div>
-                        <!-- Regular Friend Card (Mobile) -->
                         <div v-else
                             :class="['flex items-center gap-3 p-4 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 cursor-pointer', section.isOffline ? 'bg-black/[0.02] dark:bg-white/5 opacity-70' : 'bg-black/[0.02] dark:bg-white/5']"
                             @click="openFriendProfile(friend)">
@@ -281,19 +277,23 @@ onBeforeUnmount(() => {
         </BaseBottomDrawer>
     </ClientOnly>
 
-    <!-- Toggle Button - Desktop (when closed) -->
+    <!-- Toggle when closed (all widths) -->
     <ClientOnly>
-        <transition v-if="friends.length" name="fade">
-            <button v-if="!isOpen" @click="openFriendList"
-                class="lg:flex fixed right-4 top-1/2 -translate-y-1/2 z-30 bg-white dark:bg-gray-950 ring-1 ring-black/10 dark:ring-white/15 p-2.5 rounded-full hover:ring-black/20 dark:hover:ring-white/25 transition-all duration-300 shadow-md"
-                title="顯示好友列表">
+        <transition name="fade">
+            <button
+                v-if="showToggleButton"
+                type="button"
+                class="fixed right-4 top-1/2 -translate-y-1/2 z-30 flex bg-white dark:bg-gray-950 ring-1 ring-black/10 dark:ring-white/15 p-2.5 rounded-full hover:ring-black/20 dark:hover:ring-white/25 transition-all duration-300 shadow-md"
+                title="顯示好友列表"
+                @click="openFriendList"
+            >
                 <span class="material-symbols-rounded text-gray-600 dark:text-gray-300 text-xl">group</span>
             </button>
         </transition>
     </ClientOnly>
 
     <!-- User Profile Dialog -->
-    <UserProfileDialog v-if="selectedFriend" v-model="showProfileDialog" :data="selectedFriend" />
+    <UserprofileDialog v-if="selectedFriend" v-model="showProfileDialog" :data="selectedFriend" />
 </template>
 
 <style scoped>
@@ -313,7 +313,6 @@ onBeforeUnmount(() => {
     opacity: 0;
 }
 
-
 /* Fade animation for the floating button */
 .fade-enter-active,
 .fade-leave-active {
@@ -324,23 +323,6 @@ onBeforeUnmount(() => {
 .fade-leave-to {
     opacity: 0;
     transform: scale(0.8);
-}
-
-/* Friend card animation */
-.friend-card {
-    animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 /* Anime background with fade-in and opacity */

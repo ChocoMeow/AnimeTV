@@ -7,10 +7,10 @@ Welcome to **AnimeTV**, a project designed for anime enthusiasts in Taiwan and H
 ## Features
 
 -   **Anime Metadata**: Fetches detailed information about various anime from [ani.gamer.com.tw](https://ani.gamer.com.tw).
--   **Video Streaming**: Provides video content sourced from [anime1.me](https://anime1.me) (HLS and MP4).
+-   **Video Streaming**: Streams from configurable sources — [anime1.me](https://anime1.me) (MP4) and [twxgct.com](https://www.twxgct.com) (HLS).
 -   **User-Friendly Interface**: Built with Nuxt 4 for a seamless and responsive experience, including light / dark / system themes.
 -   **Browse & Search**: Weekday schedule, spotlight, genre themes, filters, pagination, and header search with suggestions.
--   **Custom Video Player**: Theater mode, autoplay next episode, skip OP, playback speed, scrub thumbnails, fullscreen, and customizable keyboard shortcuts.
+-   **Custom Video Player**: Theater mode, autoplay next episode, skip OP, playback speed, HLS quality picker, scrub thumbnails, fullscreen, and customizable keyboard shortcuts.
 -   **Watch History**: Tracks viewing progress so you can resume where you left off.
 -   **Favorite List**: Save favorite anime shows for easy access.
 -   **Offline Downloads**: Download episodes for offline viewing (MP4 and HLS), with pause / resume / cancel and a download manager at `/offline-downloads`.
@@ -18,6 +18,7 @@ Welcome to **AnimeTV**, a project designed for anime enthusiasts in Taiwan and H
 -   **Friend List**: Connect with friends, manage requests, and see live watching status.
 -   **Profile Analytics**: Watch time, genre mix, top titles / studios, and an activity heatmap.
 -   **User Settings**: Themes, history preferences, data clearing, and shortcut customization.
+-   **AI Assistant**: Floating chat helper for anime Q&A, recommendations, history/favorites lookup, and confirmed settings changes (requires privacy consent).
 -   **Admin**: Role-gated metadata search and CRUD for administrators.
 
 ## Screenshot
@@ -76,10 +77,37 @@ Make sure you have the following installed:
         NUXT_PUBLIC_SUPABASE_KEY=your_supabase_key
         NUXT_SUPABASE_SECRET_KEY=your_supabase_secret_key
 
+        # Optional: AI assistant
+        # NUXT_PUBLIC_AI_ENABLED=true
+        # NUXT_AI_API_KEY=your_ai_api_key
+        # NUXT_AI_BASE_URL=https://api.openai.com/v1
+        # NUXT_AI_MODEL=gpt-4o-mini
+        # NUXT_AI_PROXY_URL=http://127.0.0.1:8080
+
         # Optional: FlareSolverr for Cloudflare (https://github.com/FlareSolverr/FlareSolverr)
         # NUXT_CF_FETCH_FLARESOLVERR=http://127.0.0.1:8191/v1
+
+        # Optional: video proxy (low-RAM-friendly defaults)
+        # NUXT_VIDEO_PROXY_CHUNK=524288          # initial progressive Range size (bytes), default 512 KiB
+        # NUXT_VIDEO_PROXY_MAX_CHUNK=1048576     # max bytes per progressive response, default 1 MiB
+        # NUXT_VIDEO_PROXY_META_CACHE=128        # HEAD metadata cache entries
+        # NUXT_VIDEO_PROXY_TIMEOUT_MS=25000      # upstream fetch timeout
+        # NUXT_VIDEO_PROXY_RETRIES=2             # retry count on transient upstream errors
+
+        # Optional: server logging
+        # NUXT_LOG_LEVEL=info
+        # NUXT_LOG_MAX_DAYS=30
+        # NUXT_LOG_TO_FILE=true
+
+        # Database backup / restore (Postgres connection — not the API service role key)
+        # Prefer the Session pooler URL from Supabase → Connect
+        # SUPABASE_DB_URL=postgresql://postgres.[REF]:[PASSWORD]@aws-0-....pooler.supabase.com:5432/postgres
+        # Or password only (uses a linked project: bunx supabase link)
+        # SUPABASE_DB_PASSWORD=your_db_password
+        # Optional CLI auth (Dashboard → Account → Access Tokens)
+        # SUPABASE_ACCESS_TOKEN=your_personal_access_token
         ```
-        > Replace Supabase values from **Supabase → Settings → API**.
+        > Replace Supabase values from **Supabase → Settings → API**. Set `NUXT_PUBLIC_AI_ENABLED=true` to show the AI widget. All app env vars use the `NUXT_` prefix.
 
 4. **Run the development server**:
 
@@ -88,6 +116,68 @@ Make sure you have the following installed:
     ```
 
     Your application will be running at `http://localhost:3000`.
+
+### Production
+
+Build and run locally with Bun:
+
+```bash
+bun run build
+bun run preview
+```
+
+Or run the production Nitro server directly after build:
+
+```bash
+bun --bun run .output/server/index.mjs
+```
+
+**Docker** (image is also published to GHCR on `main` / `beta`):
+
+```bash
+docker build -t animetv .
+docker run --rm -p 3000:3000 --env-file .env -v animetv-logs:/app/logs animetv
+```
+
+Pass the same `NUXT_*` variables as in development. Mount `/app/logs` if you want daily log files persisted (`NUXT_LOG_TO_FILE=true`).
+
+### Database backup & restore
+
+Logical backups follow the [Supabase backup / restore guide](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore): `roles.sql`, `schema.sql`, and `data.sql` in one dated folder.
+
+**Requirements**
+
+- Docker Desktop running (`supabase db dump` uses a container for `pg_dump`)
+- `SUPABASE_DB_URL` or `SUPABASE_DB_PASSWORD` in `.env` (see Setup above)
+- Linked project if using password only: `bunx supabase link`
+- Restore needs `psql` on PATH, or Docker (falls back to `postgres:17`)
+
+**Backup**
+
+```bash
+bun run db:backup
+# or a custom folder name:
+bun scripts/db-backup.js --out backups/pre-migrate
+```
+
+Creates:
+
+```text
+backups/YYYY-MM-DD_HH-mm-ss/
+  roles.sql
+  schema.sql
+  data.sql
+```
+
+**Restore**
+
+```bash
+bun run db:restore -- backups/YYYY-MM-DD_HH-mm-ss
+# skip the confirmation prompt:
+bun run db:restore -- backups/YYYY-MM-DD_HH-mm-ss --yes
+```
+
+> Restore applies SQL against your database and can overwrite existing state. Keep a fresh backup before restoring.
 
 ## License
 
@@ -99,6 +189,7 @@ This project is licensed under the GPL 3.0 License. See the [LICENSE](LICENSE) f
 -   [Supabase](https://supabase.io) for the backend database services.
 -   [ani.gamer.com.tw](https://ani.gamer.com.tw) for anime metadata.
 -   [anime1.me](https://anime1.me) for video content.
+-   [twxgct.com](https://www.twxgct.com) for alternate HLS video content.
 
 ## Disclaimer
 

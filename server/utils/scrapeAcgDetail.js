@@ -1,5 +1,9 @@
 import * as cheerio from 'cheerio'
 import { matchAnimeTags } from '~~/shared/animeTags'
+import { ACG_GAMER_BASE_URL } from '~~/shared/global'
+import { moduleLogger } from '~~/server/utils/logger'
+
+const scrapeLog = moduleLogger('scrapeAcgDetail')
 
 export function sanitizeWikiContentHtml(rawHtml = '') {
     if (!rawHtml) return ''
@@ -143,7 +147,7 @@ export async function scrapeAcgDetail(detailId, opts = {}) {
                 : '',
         }
     } catch (err) {
-        console.error('Error scraping acgDetail:', err.message)
+        scrapeLog.error({ err }, 'Error scraping acgDetail')
         return null
     }
 }

@@ -1,59 +1,29 @@
-import * as cheerio from "cheerio"
+import { serverSupabaseServiceRole } from '#supabase/server'
+import { CACHE_LIFETIME } from '~~/shared/global'
+import { logError } from '~~/server/utils/logger'
 
-// Cache for public anime list (first page only)
-const PUBLIC_ANIME_LIST_CACHE = {
-    fetchPromise: null,
-    timestamp: 0,
-    data: null
-}
+const LIMIT = 50
 
-const CACHE_LIFETIME = 1000 * 60 * 12 // 12 hours
-
-// Public API handler - no authentication required
-// Limited to first page only, no query parameters allowed
-export default defineEventHandler(async (event) => {
-    const currentTime = Date.now()
-
-    // Check cache first
-    if (PUBLIC_ANIME_LIST_CACHE.data && (currentTime - PUBLIC_ANIME_LIST_CACHE.timestamp < CACHE_LIFETIME)) {
-        return PUBLIC_ANIME_LIST_CACHE.data
-    }
-
-    // Wait for any ongoing fetch if it exists
-    if (PUBLIC_ANIME_LIST_CACHE.fetchPromise) {
-        return PUBLIC_ANIME_LIST_CACHE.fetchPromise
-    }
-
-    // Start a new fetch and cache the promise
-    PUBLIC_ANIME_LIST_CACHE.fetchPromise = (async () => {
+export default defineCachedEventHandler(
+    async (event) => {
         try {
-            // Always fetch first page only, no query parameters
-            const url = `${GAMER_BASE_URL}animeList.php?page=1`
-            const { html } = await cfFetch(url)
-            const $ = cheerio.load(html)
+            const client = await serverSupabaseServiceRole(event)
+            const { data, error } = await client
+                .from('anime_meta')
+                .select('thumbnail')
+                .not('thumbnail', 'is', null)
+                .order('premiere_date', { ascending: false, nullsFirst: false })
+                .limit(LIMIT)
 
-            const getAttr = (el, selector, attr) => $(el).find(selector).attr(attr)?.trim() || null
+            if (error) throw error
 
-            const imageUrls = $(".theme-list-block .theme-list-main")
-                .map((_, movie) => getAttr(movie, ".theme-img", "data-src"))
-                .get()
-                .filter(image => image) // Filter out null/empty values
-
-            const response = imageUrls
-
-            // Cache the result
-            PUBLIC_ANIME_LIST_CACHE.data = response
-            PUBLIC_ANIME_LIST_CACHE.timestamp = currentTime
-            PUBLIC_ANIME_LIST_CACHE.fetchPromise = null
-
-            return response
+            return (data ?? [])
+                .map((row) => row.thumbnail)
+                .filter((url) => typeof url === 'string' && /^https?:\/\//.test(url))
         } catch (err) {
-            console.error("Error scraping anime list (public):", err.message)
-            PUBLIC_ANIME_LIST_CACHE.fetchPromise = null // Reset on error to allow retries
+            logError(event, err, { module: 'public-animeList' })
             return []
         }
-    })()
-
-    return PUBLIC_ANIME_LIST_CACHE.fetchPromise
-})
-
+    },
+    { maxAge: CACHE_LIFETIME / 1000, swr: true, getKey: () => 'public-animeList' },
+)

@@ -316,7 +316,7 @@ onUnmounted(() => {
         <!-- Friends Tab -->
         <div v-if="activeTab === 'friends'" class="space-y-4">
             <div v-if="loading" class="text-center py-12">
-                <div class="animate-spin rounded-full h-12 w-12 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white mx-auto"></div>
+                <LoadingSpinner size="xl" class="mx-auto" />
             </div>
 
             <div v-else-if="friends.length === 0" class="empty-panel">
@@ -385,7 +385,7 @@ onUnmounted(() => {
                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">收到的請求</h2>
 
                 <div v-if="loading" class="text-center py-8">
-                    <div class="animate-spin rounded-full h-12 w-12 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white mx-auto"></div>
+                    <LoadingSpinner size="xl" class="mx-auto" />
                 </div>
 
                 <div v-else-if="incomingRequests.length === 0" class="empty-panel py-8">
@@ -445,7 +445,7 @@ onUnmounted(() => {
                     <span class="material-symbols-rounded absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">search</span>
                     <input v-model="searchQuery" type="text" placeholder="搜尋用戶名稱..." class="w-full pl-12 pr-4 py-3 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-black/10 dark:focus:ring-white/20 outline-none transition-shadow" />
                     <div v-if="searchLoading" class="absolute right-4 top-1/2 -translate-y-1/2">
-                        <div class="animate-spin rounded-full h-5 w-5 border-2 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white"></div>
+                        <LoadingSpinner size="sm" />
                     </div>
                 </div>
             </div>
@@ -489,7 +489,7 @@ onUnmounted(() => {
         <!-- Blocked Tab -->
         <div v-if="activeTab === 'blocked'" class="space-y-4">
             <div v-if="blockedLoading" class="text-center py-12">
-                <div class="animate-spin rounded-full h-12 w-12 border-4 border-black/10 dark:border-white/15 border-t-gray-900 dark:border-t-white mx-auto"></div>
+                <LoadingSpinner size="xl" class="mx-auto" />
             </div>
 
             <div v-else-if="blockedUsers.length === 0" class="empty-panel">
@@ -562,7 +562,7 @@ onUnmounted(() => {
     </BaseModal>
 
     <!-- User Profile Dialog -->
-    <UserProfileDialog v-if="selectedFriend" v-model="showProfileDialog" :data="selectedFriend" />
+    <UserprofileDialog v-if="selectedFriend" v-model="showProfileDialog" :data="selectedFriend" />
 </template>
 
 <style scoped>
