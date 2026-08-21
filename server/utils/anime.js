@@ -365,18 +365,24 @@ function calculateMatchScore(parsed1, parsed2) {
     return { score: finalScore, titleScore, seasonScore, seasonPenalty, partScore, partPenalty };
 }
 
-// Pre-parsed candidates cache (avoids re-parsing ~3000 titles per batch)
-let _parsedCandidates = null;
-let _parsedCandidatesTs = 0;
+// Catalog by year + lazy parseTitle (avoid parsing the full list on every match)
+let _catalogIndex = null;
 
-async function getParsedCandidates() {
+async function getCatalogIndex() {
     const candidates = await fetchAnimeData();
-    if (_parsedCandidates && _parsedCandidatesTs === ANIME1_LIST_CACHE.timestamp) {
-        return _parsedCandidates;
+    if (_catalogIndex && _catalogIndex.ts === ANIME1_LIST_CACHE.timestamp) {
+        return _catalogIndex;
     }
-    _parsedCandidates = candidates.map(c => ({ ...c, _parsed: parseTitle(c.title) }));
-    _parsedCandidatesTs = ANIME1_LIST_CACHE.timestamp;
-    return _parsedCandidates;
+
+    const byYear = new Map();
+    for (const c of candidates) {
+        const y = String(c.year ?? '');
+        if (!byYear.has(y)) byYear.set(y, []);
+        byYear.get(y).push(c);
+    }
+
+    _catalogIndex = { ts: ANIME1_LIST_CACHE.timestamp, all: candidates, byYear };
+    return _catalogIndex;
 }
 
 function sortMatches(matches) {
@@ -387,9 +393,10 @@ function sortMatches(matches) {
     return matches;
 }
 
-function findMatchesForParsedQuery(parsedQuery, parsedCandidates, threshold = 0.6, topN = 5) {
+function findMatchesForParsedQuery(parsedQuery, candidates, threshold = 0.6, topN = 5) {
     const matches = [];
-    for (const candidate of parsedCandidates) {
+    for (const candidate of candidates) {
+        if (!candidate._parsed) candidate._parsed = parseTitle(candidate.title);
         const { score, titleScore, seasonScore, seasonPenalty, partScore, partPenalty } =
             calculateMatchScore(parsedQuery, candidate._parsed);
         if (score >= threshold) {
@@ -402,10 +409,10 @@ function findMatchesForParsedQuery(parsedQuery, parsedCandidates, threshold = 0.
 
 export async function searchAnimeTitle(query, threshold = 0.70) {
     try {
-        const candidates = await getParsedCandidates();
-        return findMatchesForParsedQuery(parseTitle(query), candidates, threshold);
+        const { all } = await getCatalogIndex();
+        return findMatchesForParsedQuery(parseTitle(query), all, threshold);
     } catch (error) {
-        animeLog.error({ err: error }, 'Error searching anime title')
+        animeLog.error({ err: error }, 'Error searching anime title');
         return [];
     }
 }
@@ -421,7 +428,7 @@ export async function matchAnimeWithDb(client, animeList) {
             .from("anime_meta")
             .select("source_id")
             .in("source_id", uniqueIds);
-        if (error) animeLog.error({ err: error }, 'matchAnimeWithDb failed')
+        if (error) animeLog.error({ err: error }, 'matchAnimeWithDb failed');
         else data?.forEach(r => knownIds.add(r.source_id));
     }
 
@@ -448,18 +455,20 @@ export async function matchAnimeWithDb(client, animeList) {
 export async function matchAnime(animeList, matchThreshold = 0.70) {
     if (!animeList?.length) return [];
 
-    const candidates = await getParsedCandidates();
-    if (!candidates?.length) return [];
+    const index = await getCatalogIndex().catch((err) => (animeLog.error({ err }, 'Error loading anime catalog for matching'), null));
+    if (!index?.all?.length) return [];
 
     return animeList.map(anime => {
         if (!anime.title || !anime.refId) return null;
 
-        const matches = findMatchesForParsedQuery(parseTitle(anime.title), candidates, matchThreshold);
+        const premiereYear = anime.year?.split('/')?.[0]?.trim();
+        const pool = premiereYear ? (index.byYear.get(premiereYear) || []) : index.all;
+        if (!pool.length) return null;
+
+        const matches = findMatchesForParsedQuery(parseTitle(anime.title), pool, matchThreshold);
         if (!matches.length) return null;
 
-        const premiereYear = anime.year?.split("/")?.[0]?.trim();
-        const bestMatch = (premiereYear && matches.find(m => String(m.year) === premiereYear && m.score >= 0.70)) || matches[0];
-
+        const bestMatch = matches[0];
         return {
             ...anime,
             matchedVideo: {

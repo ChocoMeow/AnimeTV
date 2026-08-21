@@ -12,7 +12,7 @@ export const ANIME1 = Object.freeze({
     id: VIDEO_SOURCE.ANIME1,
     baseUrl: `${ANIME1_SITE}/`,
     apiUrl: `https://v.${ANIME1_HOST}/api`,
-    catalogUrl: 'https://d1zquzjgwo9yb.cloudfront.net/',
+    catalogUrl: `https://${ANIME1_HOST}/animelist.json`,
     referer: `${ANIME1_SITE}/`,
     defaultTserver: 'pt',
     hostMatchers: Object.freeze([ANIME1_HOST]),

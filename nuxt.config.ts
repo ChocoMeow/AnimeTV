@@ -265,6 +265,7 @@ export default defineNuxtConfig({
                     'https://*.supabase.co',
                     'wss://*.supabase.co',
                     'https://*.bzcdn.net',
+                    'https://*.anime1.me',
                 ],
                 'frame-src': [
                     "'self'",
