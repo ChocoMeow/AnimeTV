@@ -1,4 +1,6 @@
 <script setup>
+defineOptions({ inheritAttrs: false })
+
 /**
  * Unified loading spinner — size and border thickness scale together.
  * xs 16/2 · sm 20/2 · md 32/3 · lg 40/3 · xl 48/4 · 2xl 80/4
@@ -35,10 +37,16 @@ const ringClass = computed(() =>
 </script>
 
 <template>
+    <!-- Outer shell: positioning/transform classes from attrs stay off the spinning ring. -->
     <div
         role="status"
         :aria-label="label"
-        class="loading-spinner shrink-0 rounded-full animate-spin"
-        :class="[SIZE_CLASS[size], ringClass]"
-    />
+        class="inline-block shrink-0 leading-none"
+        v-bind="$attrs"
+    >
+        <div
+            class="loading-spinner rounded-full animate-spin"
+            :class="[SIZE_CLASS[size], ringClass]"
+        />
+    </div>
 </template>
