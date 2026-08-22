@@ -13,6 +13,7 @@ defineProps({
     thumbnailPreviewHeight: { type: Number, default: 158 },
     thumbnailImageStyle: { type: Object, default: () => ({}) },
     isPlaying: { type: Boolean, default: false },
+    isEnded: { type: Boolean, default: false },
     isMuted: { type: Boolean, default: false },
     volume: { type: Number, default: 1 },
     showVolumeSlider: { type: Boolean, default: false },
@@ -103,10 +104,23 @@ defineExpose({
             <div class="flex items-center justify-between px-3 sm:px-4 gap-2 mt-1">
             <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
                 <div :class="pillClass">
-                    <button type="button" :class="[btnClass, 'hidden sm:inline-flex']" :title="tooltipLabels.playPause" @click="emit('toggle-play')">
-                        <span class="material-symbols-rounded text-[1.35rem]">{{ isPlaying ? 'pause' : 'play_arrow' }}</span>
+                    <button
+                        type="button"
+                        :class="[btnClass, 'hidden sm:inline-flex']"
+                        :title="isEnded ? (tooltipLabels.replay ?? '重新播放') : tooltipLabels.playPause"
+                        @click="emit('toggle-play')"
+                    >
+                        <span class="material-symbols-rounded text-[1.35rem]">
+                            {{ isEnded ? 'replay' : (isPlaying ? 'pause' : 'play_arrow') }}
+                        </span>
                     </button>
-                    <button type="button" :class="btnClass" :title="tooltipLabels.skipOP" @click="emit('skip-op')">
+                    <button
+                        v-if="!isEnded"
+                        type="button"
+                        :class="btnClass"
+                        :title="tooltipLabels.skipOP"
+                        @click="emit('skip-op')"
+                    >
                         <span class="material-symbols-rounded text-[1.35rem]">fast_forward</span>
                     </button>
                 </div>

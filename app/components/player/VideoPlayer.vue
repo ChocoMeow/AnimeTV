@@ -33,6 +33,7 @@ const controlsRef = ref(null)
 const effectiveVideoSrc = ref('')
 
 const isPlaying = ref(false)
+const isEnded = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
 const volume = ref(1)
@@ -159,6 +160,7 @@ const tooltipLabels = computed(() => {
     }
     return {
         playPause: tooltip('playPause', '播放/暫停'),
+        replay: tooltip('playPause', '重新播放', () => '重新播放'),
         skipOP: tooltip('skipOP', '跳過片頭'),
         mute: tooltip('mute', '靜音', (label) => label.split('/')[0]),
         nextEpisode: tooltip('nextEpisode', '下一集'),
@@ -205,6 +207,12 @@ function handleMouseLeave() {
 function togglePlay() {
     const video = videoRef.value
     if (!video) return
+    if (isEnded.value) {
+        isEnded.value = false
+        video.currentTime = 0
+        video.play().catch(() => {})
+        return
+    }
     if (video.paused) video.play().catch(() => {})
     else video.pause()
 }
@@ -470,6 +478,7 @@ function handleProgressPointerUp(e) {
     if (video && Number.isFinite(t)) {
         currentTime.value = t
         video.currentTime = t
+        isEnded.value = false
     }
     isDraggingProgress.value = false
     if (isPlaying.value) resetControlsTimeout()
@@ -496,9 +505,9 @@ function handleProgressMouseLeaveBar() {
     clearActiveThumbnail()
 }
 
-function onPlay() { isPlaying.value = true; resetControlsTimeout(); emit('play') }
+function onPlay() { isPlaying.value = true; isEnded.value = false; resetControlsTimeout(); emit('play') }
 function onPause() { isPlaying.value = false; showControls.value = true; emit('pause') }
-function onEnded() { isPlaying.value = false; showControls.value = true; resetAutoplayCountdown(); emit('ended') }
+function onEnded() { isPlaying.value = false; isEnded.value = true; showControls.value = true; resetAutoplayCountdown(); emit('ended') }
 function onVolumeChange() {
     const video = videoRef.value
     if (video) {
@@ -577,6 +586,7 @@ function handleKeydown(e) {
     e.preventDefault()
 
     if (action === 'playPause') {
+        if (isEnded.value) return togglePlay()
         if (!isSpaceHeld) {
             isSpaceHeld = true
             originalPlaybackRate = videoRef.value.playbackRate || 1
@@ -660,6 +670,7 @@ function resetPlayerForSource() {
     duration.value = 0
     buffered.value = 0
     isPlaying.value = false
+    isEnded.value = false
     isLoading.value = !!props.src
     isBuffering.value = false
     showControls.value = true
@@ -918,6 +929,7 @@ onUnmounted(() => {
                 :thumbnail-preview-height="thumbnailPreviewHeight"
                 :thumbnail-image-style="thumbnailImageStyle"
                 :is-playing="isPlaying"
+                :is-ended="isEnded"
                 :is-muted="isMuted"
                 :volume="volume"
                 :show-volume-slider="showVolumeSlider"
