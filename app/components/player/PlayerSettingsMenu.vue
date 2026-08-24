@@ -2,6 +2,7 @@
 defineProps({
     page: { type: String, required: true },
     autoplayEnabled: { type: Boolean, default: true },
+    autoFullscreenEnabled: { type: Boolean, default: false },
     theaterMode: { type: Boolean, default: false },
     playbackRate: { type: Number, default: 1 },
     playbackSpeeds: { type: Array, default: () => [0.5, 0.75, 1, 1.25, 1.5, 2, 3] },
@@ -17,6 +18,7 @@ defineProps({
 const emit = defineEmits([
     'update:page',
     'toggle-autoplay',
+    'toggle-auto-fullscreen',
     'toggle-theater',
     'set-speed',
     'set-quality',
@@ -43,6 +45,10 @@ const backClass =
                     <button type="button" :class="menuItemClass" @click="emit('toggle-autoplay')">
                         <span>自動播放下一集</span>
                         <span class="text-xs text-white/55">{{ autoplayEnabled ? '開啟' : '關閉' }}</span>
+                    </button>
+                    <button type="button" :class="menuItemClass" @click="emit('toggle-auto-fullscreen')">
+                        <span>播放時自動全螢幕</span>
+                        <span class="text-xs text-white/55">{{ autoFullscreenEnabled ? '開啟' : '關閉' }}</span>
                     </button>
                     <button
                         v-if="hasCaptions"

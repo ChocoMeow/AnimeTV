@@ -25,6 +25,7 @@ defineProps({
     showSettings: { type: Boolean, default: false },
     settingsPage: { type: String, default: 'main' },
     autoplayEnabled: { type: Boolean, default: true },
+    autoFullscreenEnabled: { type: Boolean, default: false },
     playbackRate: { type: Number, default: 1 },
     playbackSpeeds: { type: Array, default: () => [] },
     qualityLabel: { type: String, default: '自動' },
@@ -56,6 +57,7 @@ const emit = defineEmits([
     'toggle-fullscreen',
     'update:settingsPage',
     'toggle-autoplay',
+    'toggle-auto-fullscreen',
     'open-settings-page',
     'set-speed',
     'set-quality',
@@ -221,6 +223,7 @@ defineExpose({
                     v-if="showSettings"
                     :page="settingsPage"
                     :autoplay-enabled="autoplayEnabled"
+                    :auto-fullscreen-enabled="autoFullscreenEnabled"
                     :theater-mode="theaterMode"
                     :playback-rate="playbackRate"
                     :playback-speeds="playbackSpeeds"
@@ -233,6 +236,7 @@ defineExpose({
                     :selected-caption-lang="selectedCaptionLang"
                     @update:page="emit('update:settingsPage', $event)"
                     @toggle-autoplay="emit('toggle-autoplay')"
+                    @toggle-auto-fullscreen="emit('toggle-auto-fullscreen')"
                     @toggle-theater="emit('toggle-theater')"
                     @open-page="emit('open-settings-page', $event)"
                     @set-speed="emit('set-speed', $event)"

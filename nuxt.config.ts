@@ -228,6 +228,7 @@ export default defineNuxtConfig({
     },
     security: {
         headers: {
+            referrerPolicy: 'strict-origin-when-cross-origin',
             // Default is credentialless — breaks wiki YouTube iframes / CDNs without CORP
             crossOriginEmbedderPolicy: 'unsafe-none',
             xFrameOptions: 'DENY',

@@ -59,6 +59,7 @@ const autoplayVisible = ref(false)
 const autoplaySecsLeft = ref(AUTOPLAY_COUNTDOWN_SECS)
 const autoplayDismissed = ref(false)
 const autoplayEnabled = ref(true)
+const autoFullscreenEnabled = ref(false)
 
 const showSettings = ref(false)
 const settingsPage = ref('main')
@@ -341,6 +342,11 @@ function toggleAutoplay() {
     }
 }
 
+function toggleAutoFullscreen() {
+    autoFullscreenEnabled.value = !autoFullscreenEnabled.value
+    if (typeof localStorage !== 'undefined') localStorage.setItem('autoFullscreenEnabled', autoFullscreenEnabled.value)
+}
+
 function closeSettings() {
     showSettings.value = false
     settingsPage.value = 'main'
@@ -505,7 +511,11 @@ function handleProgressMouseLeaveBar() {
     clearActiveThumbnail()
 }
 
-function onPlay() { isPlaying.value = true; isEnded.value = false; resetControlsTimeout(); emit('play') }
+function onPlay() {
+    isPlaying.value = true; isEnded.value = false; resetControlsTimeout()
+    if (autoFullscreenEnabled.value && !document.fullscreenElement) toggleFullscreen()
+    emit('play')
+}
 function onPause() { isPlaying.value = false; showControls.value = true; emit('pause') }
 function onEnded() { isPlaying.value = false; isEnded.value = true; showControls.value = true; resetAutoplayCountdown(); emit('ended') }
 function onVolumeChange() {
@@ -809,6 +819,8 @@ onMounted(() => {
     if (savedVolume !== null && Number.isFinite(Number(savedVolume))) setVolume(Number(savedVolume), false)
     const savedAutoplay = localStorage.getItem('autoplayEnabled')
     if (savedAutoplay !== null) autoplayEnabled.value = savedAutoplay !== 'false'
+    const savedAutoFullscreen = localStorage.getItem('autoFullscreenEnabled')
+    if (savedAutoFullscreen !== null) autoFullscreenEnabled.value = savedAutoFullscreen === 'true'
     const savedQuality = localStorage.getItem('videoQualityHeight')
     if (savedQuality === 'auto') preferredQualityHeight = -1
     else if (savedQuality != null && Number(savedQuality) > 0) preferredQualityHeight = Number(savedQuality)
@@ -941,6 +953,7 @@ onUnmounted(() => {
                 :show-settings="showSettings"
                 :settings-page="settingsPage"
                 :autoplay-enabled="autoplayEnabled"
+                :auto-fullscreen-enabled="autoFullscreenEnabled"
                 :playback-rate="playbackRate"
                 :playback-speeds="PLAYBACK_SPEEDS"
                 :quality-label="qualityLabel"
@@ -969,6 +982,7 @@ onUnmounted(() => {
                 @toggle-fullscreen="toggleFullscreen"
                 @update:settings-page="settingsPage = $event"
                 @toggle-autoplay="toggleAutoplay"
+                @toggle-auto-fullscreen="toggleAutoFullscreen"
                 @open-settings-page="openSettingsPage"
                 @set-speed="setPlaybackRate"
                 @set-quality="setQuality"
