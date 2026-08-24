@@ -78,6 +78,19 @@
 
 body {
     @apply bg-white dark:bg-gray-950 text-gray-900 dark:text-white;
+    font-family:
+        'Noto Sans TC',
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        'Segoe UI',
+        Roboto,
+        'Helvetica Neue',
+        Arial,
+        'Noto Sans',
+        'Liberation Sans',
+        sans-serif;
 }
 
 .material-symbols-rounded {

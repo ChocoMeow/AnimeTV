@@ -99,6 +99,10 @@ export default defineNuxtConfig({
                 { rel: 'apple-touch-icon', href: '/icons/icon_512x512.png', sizes: '512x512', type: 'image/png' },
                 {
                     rel: 'stylesheet',
+                    href: 'https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@100..900&display=swap',
+                },
+                {
+                    rel: 'stylesheet',
                     href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,-50..200&display=swap',
                 },
             ],
