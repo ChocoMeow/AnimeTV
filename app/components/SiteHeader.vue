@@ -174,7 +174,7 @@ watch(
                                             {{ user?.user_metadata?.name || 'User' }}
                                         </p>
                                         <p class="text-xs text-gray-600 dark:text-gray-400 truncate">
-                                            {{ user?.email }}
+                                            查看觀看統計
                                         </p>
                                     </div>
                                     <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-xl shrink-0" aria-hidden="true">chevron_right</span>
@@ -246,7 +246,7 @@ watch(
                                     {{ user?.user_metadata?.name || 'User' }}
                                 </p>
                                 <p class="text-xs text-gray-600 dark:text-gray-400 truncate">
-                                    {{ user?.email }}
+                                    查看觀看統計
                                 </p>
                             </div>
                             <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-xl shrink-0" aria-hidden="true">chevron_right</span>
