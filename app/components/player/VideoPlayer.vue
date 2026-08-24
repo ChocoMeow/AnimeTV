@@ -4,6 +4,7 @@
  */
 import { createParallelFragLoader } from '~/utils/hlsParallelFragLoader'
 
+const { isMobile } = useMobile()
 const { formatShortcutKey } = useUserSettings()
 
 const props = defineProps({
@@ -199,10 +200,9 @@ function resetControlsTimeout() {
 }
 
 function handleMouseLeave() {
-    if (isPlaying.value && !isHoveringVolume) {
-        showControls.value = false
-        showVolumeSlider.value = false
-    }
+    if (showSettings.value || !isPlaying.value || isHoveringVolume) return
+    showControls.value = false
+    showVolumeSlider.value = false
 }
 
 function togglePlay() {
@@ -789,7 +789,7 @@ watch([() => props.src, () => props.isHls, videoRef], ([src, isHls, video]) => {
 }, { immediate: true })
 
 function handleDocumentPointerDown(e) {
-    if (!showSettings.value) return
+    if (!showSettings.value || isMobile.value) return
     const settingsEl = controlsRef.value?.settingsEl
     const clickedInside = e.composedPath?.().includes(settingsEl) ?? settingsEl?.contains?.(e.target)
     if (!clickedInside) closeSettings()
