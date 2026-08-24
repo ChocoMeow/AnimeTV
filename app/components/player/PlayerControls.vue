@@ -67,7 +67,7 @@ const emit = defineEmits([
 const progressBarRef = ref(null)
 const settingsRef = ref(null)
 
-const pillClass = 'h-10 inline-flex items-center gap-0.5 px-1 rounded-full bg-black/55 backdrop-blur-md'
+const pillClass = 'h-10 inline-flex items-center gap-0.5 px-1 rounded-full bg-black/40 backdrop-blur-md'
 const btnClass = 'w-12 h-8 inline-flex items-center justify-center rounded-full text-white border-0 cursor-pointer outline-none hover:bg-white/15 transition-colors'
 
 defineExpose({
@@ -78,7 +78,7 @@ defineExpose({
 
 <template>
     <div
-        class="player-controls absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/75 via-black/40 to-transparent z-[9] pb-3 sm:pb-4 pointer-events-auto"
+        class="player-controls absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent z-[9] pb-3 sm:pb-4 pointer-events-auto"
         @click.stop
     >
         <PlayerProgressBar
