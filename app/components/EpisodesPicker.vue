@@ -13,6 +13,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'select'])
 
 const PAGE_SIZE = 12
+const SEARCH_MIN_PAGES = 5
 const currentPage = ref(1)
 const query = ref('')
 const chipScroll = ref(null)
@@ -33,6 +34,7 @@ const episodeList = computed(() => {
 })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(episodeList.value.length / PAGE_SIZE)))
+const showSearch = computed(() => totalPages.value > SEARCH_MIN_PAGES)
 
 const filtered = computed(() => {
     const q = query.value.toLowerCase().trim()
@@ -107,8 +109,11 @@ watch(
     { immediate: true },
 )
 
-// Rebind scroll arrows when range chips appear / layout switches
-watch([totalPages, () => props.compact], () => chipScroll.value?.rebind())
+// Rebind range chips on layout change; drop search query when list is short
+watch([totalPages, () => props.compact], ([pages]) => {
+    if (pages <= SEARCH_MIN_PAGES) query.value = ''
+    chipScroll.value?.rebind()
+})
 </script>
 
 <template>
@@ -118,8 +123,7 @@ watch([totalPages, () => props.compact], () => chipScroll.value?.rebind())
         role="list"
         aria-label="Episode list"
     >
-        <!-- Search -->
-        <div class="flex items-center gap-2">
+        <div v-if="showSearch" class="flex items-center gap-2">
             <label v-if="!compact" class="text-sm text-gray-600 dark:text-gray-400">搜尋:</label>
             <input
                 v-model="query"

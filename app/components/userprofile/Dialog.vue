@@ -264,21 +264,21 @@ watch(
                     </div>
                 </div>
 
-                <div v-if="watchingNow" class="space-y-3">
+                <div v-if="watchingNow" class="space-y-2">
                     <h3 class="text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase">正在觀看</h3>
-                    <NuxtLink :to="`/anime/${watchingNow.anime_ref_id}`" class="group flex gap-4 overflow-hidden rounded-xl bg-black/[0.02] dark:bg-white/[0.02] ring-1 ring-black/5 dark:ring-white/5 hover:ring-emerald-500/50 hover:bg-emerald-500/5 transition-all" @click="close">
-                        <div class="w-24 sm:w-32 flex-shrink-0 aspect-[2/3] overflow-hidden rounded-lg">
-                            <NuxtImg :src="watchingNow.anime_image" :alt="watchingNow.anime_title" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
+                    <NuxtLink :to="`/anime/${watchingNow.anime_ref_id}`" class="group relative flex items-center overflow-hidden rounded-xl h-16 ring-1 ring-black/5 dark:ring-white/5 hover:ring-emerald-500/40 transition-all" @click="close">
+                        <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
+                            <NuxtImg :src="watchingNow.anime_image" alt="" class="w-full h-full object-cover scale-110 blur-md" loading="lazy" />
+                            <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/65 to-black/45" />
                         </div>
-                        <div class="flex-1 min-w-0 py-2 flex flex-col justify-center">
-                            <p class="text-sm font-semibold truncate">{{ watchingNow.anime_title }}</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">第 {{ watchingNow.episode_number }} 集</p>
-                            <div class="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] w-fit">
-                                <span class="material-symbols-rounded text-sm">play_circle</span>
-                                正在觀看
+                        <div class="relative z-10 flex flex-1 items-center gap-3 min-w-0 px-4">
+                            <span class="material-symbols-rounded text-emerald-400 text-xl shrink-0">play_circle</span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-semibold text-white truncate">{{ watchingNow.anime_title }}</p>
+                                <p class="text-xs text-white/65 mt-0.5">第 {{ watchingNow.episode_number }} 集 · 正在觀看</p>
                             </div>
+                            <span class="material-symbols-rounded text-white/50 group-hover:text-white/90 transition-colors shrink-0 pr-1">chevron_right</span>
                         </div>
-                        <span class="material-symbols-rounded text-gray-400 self-center pr-3">chevron_right</span>
                     </NuxtLink>
                 </div>
 
@@ -322,17 +322,18 @@ watch(
         <div v-else class="pb-4 space-y-4">
             <div v-if="watchingNow" class="space-y-2">
                 <h3 class="text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase">正在觀看</h3>
-                <NuxtLink :to="`/anime/${watchingNow.anime_ref_id}`" class="group flex gap-3 overflow-hidden rounded-xl bg-black/[0.02] dark:bg-white/5 ring-1 ring-black/5 dark:ring-white/10" @click="close">
-                    <div class="w-20 flex-shrink-0 aspect-[2/3] overflow-hidden rounded-lg">
-                        <NuxtImg :src="watchingNow.anime_image" :alt="watchingNow.anime_title" class="w-full h-full object-cover" loading="lazy" />
+                <NuxtLink :to="`/anime/${watchingNow.anime_ref_id}`" class="group relative flex items-center overflow-hidden rounded-xl h-14 ring-1 ring-black/5 dark:ring-white/10 hover:ring-emerald-500/40 transition-all" @click="close">
+                    <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
+                        <NuxtImg :src="watchingNow.anime_image" alt="" class="w-full h-full object-cover scale-110 blur-md" loading="lazy" />
+                        <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/65 to-black/45" />
                     </div>
-                    <div class="flex-1 min-w-0 py-2 flex flex-col justify-center">
-                        <p class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{{ watchingNow.anime_title }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">第 {{ watchingNow.episode_number }} 集</p>
-                        <div class="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] w-fit">
-                            <span class="material-symbols-rounded text-xs">play_circle</span>
-                            正在觀看
+                    <div class="relative z-10 flex flex-1 items-center gap-2.5 min-w-0 px-3">
+                        <span class="material-symbols-rounded text-emerald-400 text-lg shrink-0">play_circle</span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-semibold text-white truncate">{{ watchingNow.anime_title }}</p>
+                            <p class="text-[11px] text-white/65 mt-0.5">第 {{ watchingNow.episode_number }} 集 · 正在觀看</p>
                         </div>
+                        <span class="material-symbols-rounded text-white/50 group-hover:text-white/90 transition-colors shrink-0 text-xl">chevron_right</span>
                     </div>
                 </NuxtLink>
             </div>

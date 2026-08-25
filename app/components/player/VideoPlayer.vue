@@ -4,6 +4,7 @@
  */
 import { createParallelFragLoader } from '~/utils/hlsParallelFragLoader'
 
+const { isMobile } = useMobile()
 const { formatShortcutKey } = useUserSettings()
 
 const props = defineProps({
@@ -33,6 +34,7 @@ const controlsRef = ref(null)
 const effectiveVideoSrc = ref('')
 
 const isPlaying = ref(false)
+const isEnded = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
 const volume = ref(1)
@@ -58,6 +60,7 @@ const autoplayVisible = ref(false)
 const autoplaySecsLeft = ref(AUTOPLAY_COUNTDOWN_SECS)
 const autoplayDismissed = ref(false)
 const autoplayEnabled = ref(true)
+const autoFullscreenEnabled = ref(false)
 
 const showSettings = ref(false)
 const settingsPage = ref('main')
@@ -159,6 +162,7 @@ const tooltipLabels = computed(() => {
     }
     return {
         playPause: tooltip('playPause', '播放/暫停'),
+        replay: tooltip('playPause', '重新播放', () => '重新播放'),
         skipOP: tooltip('skipOP', '跳過片頭'),
         mute: tooltip('mute', '靜音', (label) => label.split('/')[0]),
         nextEpisode: tooltip('nextEpisode', '下一集'),
@@ -196,15 +200,20 @@ function resetControlsTimeout() {
 }
 
 function handleMouseLeave() {
-    if (isPlaying.value && !isHoveringVolume) {
-        showControls.value = false
-        showVolumeSlider.value = false
-    }
+    if (showSettings.value || !isPlaying.value || isHoveringVolume) return
+    showControls.value = false
+    showVolumeSlider.value = false
 }
 
 function togglePlay() {
     const video = videoRef.value
     if (!video) return
+    if (isEnded.value) {
+        isEnded.value = false
+        video.currentTime = 0
+        video.play().catch(() => {})
+        return
+    }
     if (video.paused) video.play().catch(() => {})
     else video.pause()
 }
@@ -331,6 +340,11 @@ function toggleAutoplay() {
         autoplayNextTimeout = clearTimer(autoplayNextTimeout)
         resetAutoplayCountdown()
     }
+}
+
+function toggleAutoFullscreen() {
+    autoFullscreenEnabled.value = !autoFullscreenEnabled.value
+    if (typeof localStorage !== 'undefined') localStorage.setItem('autoFullscreenEnabled', autoFullscreenEnabled.value)
 }
 
 function closeSettings() {
@@ -470,6 +484,7 @@ function handleProgressPointerUp(e) {
     if (video && Number.isFinite(t)) {
         currentTime.value = t
         video.currentTime = t
+        isEnded.value = false
     }
     isDraggingProgress.value = false
     if (isPlaying.value) resetControlsTimeout()
@@ -496,9 +511,13 @@ function handleProgressMouseLeaveBar() {
     clearActiveThumbnail()
 }
 
-function onPlay() { isPlaying.value = true; resetControlsTimeout(); emit('play') }
+function onPlay() {
+    isPlaying.value = true; isEnded.value = false; resetControlsTimeout()
+    if (autoFullscreenEnabled.value && !document.fullscreenElement) toggleFullscreen()
+    emit('play')
+}
 function onPause() { isPlaying.value = false; showControls.value = true; emit('pause') }
-function onEnded() { isPlaying.value = false; showControls.value = true; resetAutoplayCountdown(); emit('ended') }
+function onEnded() { isPlaying.value = false; isEnded.value = true; showControls.value = true; resetAutoplayCountdown(); emit('ended') }
 function onVolumeChange() {
     const video = videoRef.value
     if (video) {
@@ -577,6 +596,7 @@ function handleKeydown(e) {
     e.preventDefault()
 
     if (action === 'playPause') {
+        if (isEnded.value) return togglePlay()
         if (!isSpaceHeld) {
             isSpaceHeld = true
             originalPlaybackRate = videoRef.value.playbackRate || 1
@@ -660,6 +680,7 @@ function resetPlayerForSource() {
     duration.value = 0
     buffered.value = 0
     isPlaying.value = false
+    isEnded.value = false
     isLoading.value = !!props.src
     isBuffering.value = false
     showControls.value = true
@@ -768,7 +789,7 @@ watch([() => props.src, () => props.isHls, videoRef], ([src, isHls, video]) => {
 }, { immediate: true })
 
 function handleDocumentPointerDown(e) {
-    if (!showSettings.value) return
+    if (!showSettings.value || isMobile.value) return
     const settingsEl = controlsRef.value?.settingsEl
     const clickedInside = e.composedPath?.().includes(settingsEl) ?? settingsEl?.contains?.(e.target)
     if (!clickedInside) closeSettings()
@@ -798,6 +819,8 @@ onMounted(() => {
     if (savedVolume !== null && Number.isFinite(Number(savedVolume))) setVolume(Number(savedVolume), false)
     const savedAutoplay = localStorage.getItem('autoplayEnabled')
     if (savedAutoplay !== null) autoplayEnabled.value = savedAutoplay !== 'false'
+    const savedAutoFullscreen = localStorage.getItem('autoFullscreenEnabled')
+    if (savedAutoFullscreen !== null) autoFullscreenEnabled.value = savedAutoFullscreen === 'true'
     const savedQuality = localStorage.getItem('videoQualityHeight')
     if (savedQuality === 'auto') preferredQualityHeight = -1
     else if (savedQuality != null && Number(savedQuality) > 0) preferredQualityHeight = Number(savedQuality)
@@ -830,6 +853,7 @@ onUnmounted(() => {
 <template>
     <div
         ref="containerRef"
+        data-no-ptr
         :class="[
             'relative w-full rounded-lg',
             showSettings ? 'overflow-visible' : 'overflow-hidden',
@@ -918,6 +942,7 @@ onUnmounted(() => {
                 :thumbnail-preview-height="thumbnailPreviewHeight"
                 :thumbnail-image-style="thumbnailImageStyle"
                 :is-playing="isPlaying"
+                :is-ended="isEnded"
                 :is-muted="isMuted"
                 :volume="volume"
                 :show-volume-slider="showVolumeSlider"
@@ -929,6 +954,7 @@ onUnmounted(() => {
                 :show-settings="showSettings"
                 :settings-page="settingsPage"
                 :autoplay-enabled="autoplayEnabled"
+                :auto-fullscreen-enabled="autoFullscreenEnabled"
                 :playback-rate="playbackRate"
                 :playback-speeds="PLAYBACK_SPEEDS"
                 :quality-label="qualityLabel"
@@ -957,6 +983,7 @@ onUnmounted(() => {
                 @toggle-fullscreen="toggleFullscreen"
                 @update:settings-page="settingsPage = $event"
                 @toggle-autoplay="toggleAutoplay"
+                @toggle-auto-fullscreen="toggleAutoFullscreen"
                 @open-settings-page="openSettingsPage"
                 @set-speed="setPlaybackRate"
                 @set-quality="setQuality"

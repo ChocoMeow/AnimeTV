@@ -1,20 +1,15 @@
 <script setup>
 const props = defineProps({
-    currentPage: {
-        type: Number,
-        required: true,
-    },
-    totalPage: {
-        type: Number,
-        required: true,
-    },
+    currentPage: { type: Number, required: true },
+    totalPage: { type: Number, required: true },
 })
 
-const emit = defineEmits(["change"])
+const emit = defineEmits(['change'])
 
-// Generate page numbers with dots
-function getPageNumbers() {
-    const delta = 2
+const viewportWidth = ref(375)
+const isDesktop = computed(() => viewportWidth.value >= 640)
+
+function getPageNumbers(delta = 2) {
     const range = []
     const rangeWithDots = []
     let l
@@ -30,7 +25,7 @@ function getPageNumbers() {
             if (i - l === 2) {
                 rangeWithDots.push(l + 1)
             } else if (i - l !== 1) {
-                rangeWithDots.push("...")
+                rangeWithDots.push('...')
             }
         }
         rangeWithDots.push(i)
@@ -40,33 +35,94 @@ function getPageNumbers() {
     return rangeWithDots
 }
 
+function getPageWindow(delta) {
+    const start = Math.max(1, props.currentPage - delta)
+    const end = Math.min(props.totalPage, props.currentPage + delta)
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+}
+
+const mobilePages = computed(() => {
+    const w = viewportWidth.value
+    const edgesVisible = props.currentPage > 1 && props.currentPage < props.totalPage
+    let delta = 0
+    if (!(w < 400 && edgesVisible)) {
+        if (w >= 520) delta = 2
+        else if (w >= 380) delta = 1
+    }
+    return getPageWindow(delta)
+})
+
+const desktopPages = computed(() => getPageNumbers())
+
+const showFirstPage = computed(() =>
+    isDesktop.value ? props.currentPage > 3 : props.currentPage > 1,
+)
+
+const showLastPage = computed(() =>
+    isDesktop.value ? props.currentPage < props.totalPage - 2 : props.currentPage < props.totalPage,
+)
+
 function goToPage(page) {
-    if (page !== "..." && page !== props.currentPage) {
-        emit("change", page)
+    if (page !== '...' && page !== props.currentPage) {
+        emit('change', page)
     }
 }
+
+function syncViewportWidth() {
+    viewportWidth.value = window.innerWidth
+}
+
+onMounted(() => {
+    syncViewportWidth()
+    window.addEventListener('resize', syncViewportWidth, { passive: true })
+})
+
+onUnmounted(() => {
+    window.removeEventListener('resize', syncViewportWidth)
+})
 </script>
 
 <template>
-    <div class="flex justify-center items-center">
-        <div class="inline-flex items-center gap-2 bg-black/[0.02] dark:bg-white/5 rounded-xl shadow-lg p-2 ring-1 ring-black/5 dark:ring-white/10">
-            <!-- First Page (Mobile Hidden) -->
-            <button v-if="currentPage > 3" @click="emit('change', 1)" class="pagination-button hidden sm:flex" :disabled="currentPage === 1">
-                <span class="material-symbols-rounded text-sm">first_page</span>
+    <div class="flex justify-center items-center px-2">
+        <div class="inline-flex max-w-full items-center gap-1 rounded-full bg-black/[0.02] p-2 ring-1 ring-black/5 dark:bg-white/5 dark:ring-white/10 sm:gap-1.5 sm:p-1.5">
+            <button
+                v-if="showFirstPage"
+                type="button"
+                class="pagination-button pagination-edge"
+                @click="goToPage(1)"
+            >
+                <span class="pagination-icon material-symbols-rounded">first_page</span>
             </button>
 
-            <!-- Previous Page -->
-            <button class="pagination-button pagination-nav" :class="{ 'pagination-disabled': currentPage === 1 }" :disabled="currentPage === 1" @click="emit('change', currentPage - 1)">
-                <span class="material-symbols-rounded text-sm">chevron_left</span>
-                <span class="hidden sm:inline ml-1">上一頁</span>
+            <button
+                type="button"
+                class="pagination-button pagination-nav gap-1"
+                :class="{ 'pagination-disabled': currentPage === 1 }"
+                :disabled="currentPage === 1"
+                @click="goToPage(currentPage - 1)"
+            >
+                <span class="pagination-icon material-symbols-rounded">chevron_left</span>
+                <span class="hidden sm:inline leading-none">上一頁</span>
             </button>
 
-            <!-- Page Numbers -->
-            <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1 sm:hidden">
                 <button
-                    v-for="page in getPageNumbers()"
-                    :key="page + '-btn'"
+                    v-for="page in mobilePages"
+                    :key="`m-${page}`"
+                    type="button"
+                    class="pagination-number"
+                    :class="page === currentPage ? 'pagination-active' : 'pagination-inactive'"
                     @click="goToPage(page)"
+                >
+                    {{ page }}
+                </button>
+            </div>
+
+            <div class="hidden items-center gap-1 sm:flex">
+                <button
+                    v-for="page in desktopPages"
+                    :key="`${page}-btn`"
+                    type="button"
                     class="pagination-number"
                     :class="{
                         'pagination-active': page === currentPage,
@@ -74,105 +130,77 @@ function goToPage(page) {
                         'pagination-inactive': page !== currentPage && page !== '...',
                     }"
                     :disabled="page === '...'"
+                    @click="goToPage(page)"
                 >
                     {{ page }}
                 </button>
             </div>
 
-            <!-- Next Page -->
-            <button class="pagination-button pagination-nav" :class="{ 'pagination-disabled': currentPage === totalPage }" :disabled="currentPage === totalPage" @click="emit('change', currentPage + 1)">
-                <span class="hidden sm:inline mr-1">下一頁</span>
-                <span class="material-symbols-rounded text-sm">chevron_right</span>
+            <button
+                type="button"
+                class="pagination-button pagination-nav gap-1"
+                :class="{ 'pagination-disabled': currentPage === totalPage }"
+                :disabled="currentPage === totalPage"
+                @click="goToPage(currentPage + 1)"
+            >
+                <span class="hidden sm:inline leading-none">下一頁</span>
+                <span class="pagination-icon material-symbols-rounded">chevron_right</span>
             </button>
 
-            <!-- Last Page (Mobile Hidden) -->
-            <button v-if="currentPage < totalPage - 2" @click="emit('change', totalPage)" class="pagination-button hidden sm:flex" :disabled="currentPage === totalPage">
-                <span class="material-symbols-rounded text-sm">last_page</span>
+            <button
+                v-if="showLastPage"
+                type="button"
+                class="pagination-button pagination-edge"
+                @click="goToPage(totalPage)"
+            >
+                <span class="pagination-icon material-symbols-rounded">last_page</span>
             </button>
         </div>
-    </div>
-
-    <!-- Page Info (Mobile) -->
-    <div class="flex justify-center mt-3 sm:hidden">
-        <span class="text-sm text-gray-600 dark:text-gray-400">
-            第 <span class="font-semibold text-gray-900 dark:text-gray-100">{{ currentPage }}</span> / {{ totalPage }} 頁
-        </span>
     </div>
 </template>
 
 <style scoped>
-/* Base Button Style */
-.pagination-button {
-    @apply min-w-[40px] h-10 px-3 rounded-lg font-medium text-sm
-           flex items-center justify-center
-           transition-all duration-300 transform;
-}
-
-/* Navigation Buttons (Prev/Next/First/Last) */
-.pagination-nav {
-    @apply bg-black/70 dark:bg-white text-white dark:text-black
-           hover:bg-black/80 dark:hover:bg-gray-200
-           hover:shadow-lg hover:-translate-y-0.5
-           active:translate-y-0;
-}
-
-/* Page Number Buttons */
+.pagination-button,
 .pagination-number {
-    @apply min-w-[40px] h-10 px-3 rounded-lg font-medium text-sm
-           flex items-center justify-center
-           transition-all duration-300 transform;
+    @apply inline-flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full px-3 text-sm font-medium leading-none transition-colors sm:h-10 sm:min-w-10;
 }
 
-/* Active Page */
+.pagination-icon {
+    @apply inline-flex size-5 shrink-0 items-center justify-center text-[20px] leading-none;
+}
+
+.pagination-nav {
+    @apply bg-black/5 text-gray-700 ring-1 ring-black/5 hover:bg-black/10 dark:bg-white/10 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-white/20;
+}
+
+.pagination-edge {
+    @apply text-gray-600 hover:bg-black/5 dark:text-gray-400 dark:hover:bg-white/10;
+}
+
 .pagination-active {
-    @apply bg-black/70 dark:bg-white text-white dark:text-black
-           shadow-lg shadow-black/30 dark:shadow-white/30
+    @apply bg-gray-900 font-semibold text-white dark:bg-white dark:text-gray-900;
 }
 
-/* Inactive Pages */
 .pagination-inactive {
-    @apply bg-white dark:bg-white/10 text-gray-600 dark:text-gray-300 
-           hover:bg-black/10 dark:hover:bg-white/20
-           hover:text-black/70 dark:hover:text-white
-           hover:shadow-md hover:-translate-y-0.5
-           active:translate-y-0;
+    @apply tabular-nums text-gray-600 hover:bg-black/5 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-gray-100;
 }
 
-/* Dots */
 .pagination-dots {
-    @apply text-gray-400 dark:text-gray-600 cursor-default
-           hover:bg-transparent hover:transform-none;
+    @apply min-w-8 cursor-default px-1 text-gray-400 hover:bg-transparent dark:text-gray-600;
 }
 
-/* Disabled State */
 .pagination-disabled {
-    @apply opacity-40 cursor-not-allowed
-           hover:shadow-none hover:transform-none;
+    @apply cursor-not-allowed opacity-40 hover:bg-black/5 dark:hover:bg-white/10;
 }
 
-/* Mobile Responsiveness */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
+    .pagination-button,
     .pagination-number {
-        @apply min-w-[36px] h-9 px-2 text-xs;
+        @apply h-11 min-w-11;
     }
 
-    .pagination-button {
-        @apply min-w-[36px] h-9 px-2;
+    .pagination-icon {
+        @apply size-6 text-[22px];
     }
-}
-
-/* Animation */
-@keyframes pulse-subtle {
-    0%,
-    100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.8;
-    }
-}
-
-.pagination-active {
-    animation: pulse-subtle 2s ease-in-out infinite;
 }
 </style>

@@ -13,6 +13,7 @@ defineProps({
     thumbnailPreviewHeight: { type: Number, default: 158 },
     thumbnailImageStyle: { type: Object, default: () => ({}) },
     isPlaying: { type: Boolean, default: false },
+    isEnded: { type: Boolean, default: false },
     isMuted: { type: Boolean, default: false },
     volume: { type: Number, default: 1 },
     showVolumeSlider: { type: Boolean, default: false },
@@ -24,6 +25,7 @@ defineProps({
     showSettings: { type: Boolean, default: false },
     settingsPage: { type: String, default: 'main' },
     autoplayEnabled: { type: Boolean, default: true },
+    autoFullscreenEnabled: { type: Boolean, default: false },
     playbackRate: { type: Number, default: 1 },
     playbackSpeeds: { type: Array, default: () => [] },
     qualityLabel: { type: String, default: '自動' },
@@ -55,6 +57,7 @@ const emit = defineEmits([
     'toggle-fullscreen',
     'update:settingsPage',
     'toggle-autoplay',
+    'toggle-auto-fullscreen',
     'open-settings-page',
     'set-speed',
     'set-quality',
@@ -63,8 +66,9 @@ const emit = defineEmits([
 
 const progressBarRef = ref(null)
 const settingsRef = ref(null)
+const { isMobile } = useMobile()
 
-const pillClass = 'h-10 inline-flex items-center gap-0.5 px-1 rounded-full bg-black/55 backdrop-blur-md'
+const pillClass = 'h-10 inline-flex items-center gap-0.5 px-1 rounded-full bg-black/40 backdrop-blur-md'
 const btnClass = 'w-12 h-8 inline-flex items-center justify-center rounded-full text-white border-0 cursor-pointer outline-none hover:bg-white/15 transition-colors'
 
 defineExpose({
@@ -75,7 +79,7 @@ defineExpose({
 
 <template>
     <div
-        class="player-controls absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/75 via-black/40 to-transparent z-[9] pb-3 sm:pb-4 pointer-events-auto"
+        class="player-controls absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent z-[9] pb-3 sm:pb-4 pointer-events-auto"
         @click.stop
     >
         <PlayerProgressBar
@@ -103,10 +107,23 @@ defineExpose({
             <div class="flex items-center justify-between px-3 sm:px-4 gap-2 mt-1">
             <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
                 <div :class="pillClass">
-                    <button type="button" :class="[btnClass, 'hidden sm:inline-flex']" :title="tooltipLabels.playPause" @click="emit('toggle-play')">
-                        <span class="material-symbols-rounded text-[1.35rem]">{{ isPlaying ? 'pause' : 'play_arrow' }}</span>
+                    <button
+                        type="button"
+                        :class="[btnClass, 'hidden sm:inline-flex']"
+                        :title="isEnded ? (tooltipLabels.replay ?? '重新播放') : tooltipLabels.playPause"
+                        @click="emit('toggle-play')"
+                    >
+                        <span class="material-symbols-rounded text-[1.35rem]">
+                            {{ isEnded ? 'replay' : (isPlaying ? 'pause' : 'play_arrow') }}
+                        </span>
                     </button>
-                    <button type="button" :class="btnClass" :title="tooltipLabels.skipOP" @click="emit('skip-op')">
+                    <button
+                        v-if="!isEnded"
+                        type="button"
+                        :class="btnClass"
+                        :title="tooltipLabels.skipOP"
+                        @click="emit('skip-op')"
+                    >
                         <span class="material-symbols-rounded text-[1.35rem]">fast_forward</span>
                     </button>
                 </div>
@@ -204,9 +221,11 @@ defineExpose({
                 </div>
 
                 <PlayerSettingsMenu
-                    v-if="showSettings"
+                    v-if="isMobile || showSettings"
+                    :open="showSettings"
                     :page="settingsPage"
                     :autoplay-enabled="autoplayEnabled"
+                    :auto-fullscreen-enabled="autoFullscreenEnabled"
                     :theater-mode="theaterMode"
                     :playback-rate="playbackRate"
                     :playback-speeds="playbackSpeeds"
@@ -219,11 +238,13 @@ defineExpose({
                     :selected-caption-lang="selectedCaptionLang"
                     @update:page="emit('update:settingsPage', $event)"
                     @toggle-autoplay="emit('toggle-autoplay')"
+                    @toggle-auto-fullscreen="emit('toggle-auto-fullscreen')"
                     @toggle-theater="emit('toggle-theater')"
                     @open-page="emit('open-settings-page', $event)"
                     @set-speed="emit('set-speed', $event)"
                     @set-quality="emit('set-quality', $event)"
                     @set-caption="emit('set-caption', $event)"
+                    @close="emit('toggle-settings')"
                 />
             </div>
         </div>
