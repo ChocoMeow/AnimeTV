@@ -27,7 +27,6 @@ let mqMinimal
 const visible = computed(() => enabled.value && (state.value !== 'idle' || pull.value > 0 || snapping.value))
 const progress = computed(() => Math.min(1, pull.value / THRESHOLD))
 const iconRotate = computed(() => (state.value === 'ready' ? 180 : Math.round(progress.value * 180)))
-
 let snapTimer = 0
 let reloadTimer = 0
 
@@ -197,6 +196,15 @@ onUnmounted(() => {
     document.documentElement.classList.remove('ptr-enabled')
 })
 
+watch(state, (next) => {
+    if (next !== 'ready') return
+    try {
+        navigator.vibrate?.(12)
+    } catch {
+        /* ignore — unsupported or blocked */
+    }
+})
+
 watch(isMobile, updateEnabled)
 </script>
 
@@ -216,12 +224,12 @@ watch(isMobile, updateEnabled)
             :aria-label="state === 'refreshing' ? '正在重新整理' : state === 'ready' ? '放開即可重新整理' : '下拉重新整理'"
         >
             <div
-                class="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-[0_4px_18px_rgba(0,0,0,0.14)] ring-1 ring-black/10 dark:bg-gray-900 dark:shadow-[0_4px_18px_rgba(0,0,0,0.45)] dark:ring-white/12"
+                class="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 backdrop-blur-md shadow-[0_4px_18px_rgba(0,0,0,0.22)] ring-1 ring-white/10"
             >
-                <LoadingSpinner v-if="state === 'refreshing'" size="sm" />
+                <LoadingSpinner v-if="state === 'refreshing'" size="sm" variant="on-dark" />
                 <span
                     v-else
-                    class="material-symbols-rounded text-[22px] text-gray-800 dark:text-gray-100"
+                    class="material-symbols-rounded text-[22px] text-white"
                     :style="{ transform: `rotate(${iconRotate}deg)` }"
                     aria-hidden="true"
                 >
