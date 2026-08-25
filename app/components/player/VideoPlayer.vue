@@ -853,6 +853,7 @@ onUnmounted(() => {
 <template>
     <div
         ref="containerRef"
+        data-no-ptr
         :class="[
             'relative w-full rounded-lg',
             showSettings ? 'overflow-visible' : 'overflow-hidden',
