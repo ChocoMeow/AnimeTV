@@ -224,7 +224,7 @@ watch(isMobile, updateEnabled)
             :aria-label="state === 'refreshing' ? '正在重新整理' : state === 'ready' ? '放開即可重新整理' : '下拉重新整理'"
         >
             <div
-                class="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 backdrop-blur-md shadow-[0_4px_18px_rgba(0,0,0,0.22)] ring-1 ring-white/10"
+                class="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 backdrop-blur-md shadow-[0_4px_18px_rgba(0,0,0,0.22)] ring-1 ring-white/10"
             >
                 <LoadingSpinner v-if="state === 'refreshing'" size="sm" variant="on-dark" />
                 <span

@@ -236,7 +236,7 @@ onBeforeUnmount(() => {
                 <!-- Drawer Container -->
                 <div 
                     ref="drawerRef"
-                    class="bg-white dark:bg-gray-950 rounded-t-3xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 w-full will-change-transform" 
+                    class="bg-white dark:bg-gray-950 rounded-t-3xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 w-full will-change-transform pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]" 
                     :class="maxHeight"
                     @click.stop
                 >
