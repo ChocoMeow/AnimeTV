@@ -68,11 +68,18 @@ function hasNestedScrollNotAtTop(target) {
     return false
 }
 
+function isScrollLocked() {
+    const { overflow, overflowY } = document.body.style
+    if (overflow === 'hidden' || overflowY === 'hidden') return true
+    const computed = getComputedStyle(document.body)
+    return computed.overflow === 'hidden' || computed.overflowY === 'hidden'
+}
+
 function shouldIgnore(target) {
     if (!splashDone.value) return true
     if (searchModalOpen.value) return true
     if (document.fullscreenElement) return true
-    if (document.body.style.overflow === 'hidden') return true
+    if (isScrollLocked()) return true
     if (state.value === 'refreshing') return true
     if (!(target instanceof Element)) return false
     return Boolean(target.closest(IGNORE_SELECTORS))
@@ -110,7 +117,7 @@ function onTouchMove(event) {
             return
         }
         if (dy < 8) return
-        if (getScrollY() > 1 || hasNestedScrollNotAtTop(event.target)) {
+        if (shouldIgnore(event.target) || getScrollY() > 1 || hasNestedScrollNotAtTop(event.target)) {
             tracking = false
             return
         }

@@ -74,7 +74,7 @@ function thumbClass(on) {
         @click.stop
         @update:model-value="(v) => !v && emit('close')"
     >
-        <div :class="isMobile ? '-mx-4 -my-4' : undefined">
+        <div :class="isMobile ? '-mx-4 -mt-4' : undefined">
             <transition name="settings-page" mode="out-in">
                 <div :key="page">
                     <template v-if="page === 'main'">

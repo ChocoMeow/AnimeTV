@@ -230,13 +230,14 @@ onBeforeUnmount(() => {
         <Transition name="drawer">
             <div 
                 v-if="modelValue" 
+                data-no-ptr
                 class="fixed inset-0 z-50 flex items-end justify-center bg-black/60" 
                 @click.self="handleBackdropClick"
             >
                 <!-- Drawer Container -->
                 <div 
                     ref="drawerRef"
-                    class="bg-white dark:bg-gray-950 rounded-t-3xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 w-full will-change-transform pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]" 
+                    class="bg-white dark:bg-gray-950 rounded-t-3xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 w-full will-change-transform" 
                     :class="maxHeight"
                     @click.stop
                 >
@@ -266,14 +267,18 @@ onBeforeUnmount(() => {
                     <!-- Content -->
                     <div 
                         ref="contentRef"
-                        class="overflow-y-auto px-4 py-4"
+                        class="overflow-y-auto px-4 pt-4"
+                        :class="$slots.footer ? 'pb-4' : 'pb-[calc(1rem+env(safe-area-inset-bottom,0px))]'"
                         style="max-height: calc(90vh - 120px);"
                     >
                         <slot />
                     </div>
 
                     <!-- Footer -->
-                    <div v-if="$slots.footer" class="px-4 py-4">
+                    <div
+                        v-if="$slots.footer"
+                        class="px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
+                    >
                         <slot name="footer" />
                     </div>
                 </div>
