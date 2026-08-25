@@ -78,58 +78,60 @@ function thumbClass(on) {
             <transition name="settings-page" mode="out-in">
                 <div :key="page">
                     <template v-if="page === 'main'">
-                        <button
-                            v-for="item in mainSwitches"
-                            :key="item.event"
-                            type="button"
-                            role="switch"
-                            :aria-checked="item.on"
-                            :class="menuItemClass"
-                            @click="emit(item.event)"
-                        >
-                            <span>{{ item.label }}</span>
-                            <span :class="trackClass(item.on)" aria-hidden="true">
-                                <span :class="thumbClass(item.on)" />
-                            </span>
-                        </button>
-                        <button
-                            v-if="hasCaptions"
-                            type="button"
-                            :class="menuItemClass"
-                            @click.stop="emit('open-page', 'captions')"
-                        >
-                            <span>字幕</span>
-                            <span class="inline-flex items-center gap-0.5 leading-none" :class="mutedClass">
-                                {{ captionLabel }}
-                                <span class="material-symbols-rounded text-base leading-none">chevron_right</span>
-                            </span>
-                        </button>
-                        <button
-                            type="button"
-                            role="switch"
-                            :aria-checked="theaterMode"
-                            :class="[menuItemClass, 'sm:hidden']"
-                            @click="emit('toggle-theater')"
-                        >
-                            <span>劇院模式</span>
-                            <span :class="trackClass(theaterMode)" aria-hidden="true">
-                                <span :class="thumbClass(theaterMode)" />
-                            </span>
-                        </button>
-                        <button type="button" :class="menuItemClass" @click.stop="emit('open-page', 'speed')">
-                            <span>播放速度</span>
-                            <span class="inline-flex items-center gap-0.5 leading-none" :class="mutedClass">
-                                {{ playbackRate }}x
-                                <span class="material-symbols-rounded text-base leading-none">chevron_right</span>
-                            </span>
-                        </button>
-                        <button type="button" :class="menuItemClass" @click.stop="emit('open-page', 'quality')">
-                            <span>畫質</span>
-                            <span class="inline-flex items-center gap-0.5 leading-none" :class="mutedClass">
-                                {{ qualityLabel }}
-                                <span class="material-symbols-rounded text-base leading-none">chevron_right</span>
-                            </span>
-                        </button>
+                        <div :class="isMobile ? 'flex flex-col-reverse' : undefined">
+                            <button
+                                v-for="item in mainSwitches"
+                                :key="item.event"
+                                type="button"
+                                role="switch"
+                                :aria-checked="item.on"
+                                :class="menuItemClass"
+                                @click="emit(item.event)"
+                            >
+                                <span>{{ item.label }}</span>
+                                <span :class="trackClass(item.on)" aria-hidden="true">
+                                    <span :class="thumbClass(item.on)" />
+                                </span>
+                            </button>
+                            <button
+                                v-if="hasCaptions"
+                                type="button"
+                                :class="menuItemClass"
+                                @click.stop="emit('open-page', 'captions')"
+                            >
+                                <span>字幕</span>
+                                <span class="inline-flex items-center gap-0.5 leading-none" :class="mutedClass">
+                                    {{ captionLabel }}
+                                    <span class="material-symbols-rounded text-base leading-none">chevron_right</span>
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                role="switch"
+                                :aria-checked="theaterMode"
+                                :class="[menuItemClass, 'sm:hidden']"
+                                @click="emit('toggle-theater')"
+                            >
+                                <span>劇院模式</span>
+                                <span :class="trackClass(theaterMode)" aria-hidden="true">
+                                    <span :class="thumbClass(theaterMode)" />
+                                </span>
+                            </button>
+                            <button type="button" :class="menuItemClass" @click.stop="emit('open-page', 'speed')">
+                                <span>播放速度</span>
+                                <span class="inline-flex items-center gap-0.5 leading-none" :class="mutedClass">
+                                    {{ playbackRate }}x
+                                    <span class="material-symbols-rounded text-base leading-none">chevron_right</span>
+                                </span>
+                            </button>
+                            <button type="button" :class="menuItemClass" @click.stop="emit('open-page', 'quality')">
+                                <span>畫質</span>
+                                <span class="inline-flex items-center gap-0.5 leading-none" :class="mutedClass">
+                                    {{ qualityLabel }}
+                                    <span class="material-symbols-rounded text-base leading-none">chevron_right</span>
+                                </span>
+                            </button>
+                        </div>
                     </template>
 
                     <template v-else-if="page === 'speed'">
