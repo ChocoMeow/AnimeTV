@@ -49,6 +49,7 @@ const isPageVisible = () => isClient() && !document.hidden
 
 export const useUserStatus = () => {
     const { userSettings } = useUserSettings()
+    const { isIncognito } = useIncognitoMode()
 
     // ============================================================================
     // WebSocket Connection Management
@@ -219,6 +220,11 @@ export const useUserStatus = () => {
      */
     const connectWebSocket = async () => {
         // Prevent multiple connections
+        if (isIncognito.value) {
+            console.log('[Status] Skipping WebSocket: Incognito mode')
+            return
+        }
+
         if (!userSettings.value?.id) {
             console.warn('[Status] Cannot connect: No user ID')
             return
@@ -391,10 +397,12 @@ export const useUserStatus = () => {
     // ============================================================================
 
     /**
-     * Update status via WebSocket
+     * Update status via WebSocket.
+     * Incognito blocks shareable presence (online / idle / watching); offline is still allowed so we can hide.
      */
     const updateStatus = (status, animeData = null) => {
         if (!userSettings.value?.id) return false
+        if (isIncognito.value && status !== 'offline') return false
 
         const watchingPayload = status === 'watching' ? buildWatchingPayload(animeData) : null
         sharedState.currentStatus.value = status
@@ -574,6 +582,10 @@ export const useUserStatus = () => {
      */
     const startTracking = () => {
         if (sharedState.isTracking.value || !userSettings.value?.id) return
+        if (isIncognito.value) {
+            console.log('[Status] Skipping tracking: Incognito mode')
+            return
+        }
 
         console.log('[Status] Starting status tracking')
         sharedState.isTracking.value = true
@@ -629,6 +641,10 @@ export const useUserStatus = () => {
     const initialize = () => {
         if (!userSettings.value?.id) {
             console.warn('[Status] Cannot initialize: No user ID')
+            return
+        }
+        if (isIncognito.value) {
+            console.log('[Status] Skipping initialize: Incognito mode')
             return
         }
 

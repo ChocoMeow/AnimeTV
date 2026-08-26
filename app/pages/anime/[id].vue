@@ -8,6 +8,7 @@ const router = useRouter()
 const client = useSupabaseClient()
 const { isAdmin } = useAdmin()
 const { setWatching, setOnline } = useUserStatus()
+const { isIncognito } = useIncognitoMode()
 const { showToast } = useToast()
 const {
     loadAnimeSnapshot,
@@ -375,7 +376,7 @@ const stopAutoSave = () => {
 
 async function saveWatchHistory(episodeNumber = null) {
     const { watch_history_enabled, id } = userSettings.value
-    if (!watch_history_enabled || !id || !anime.value) return
+    if (isIncognito.value || !watch_history_enabled || !id || !anime.value) return
     const safeEpisodeNumber =
         typeof episodeNumber === 'string' || typeof episodeNumber === 'number'
             ? episodeNumber

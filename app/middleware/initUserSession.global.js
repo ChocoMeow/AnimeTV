@@ -23,6 +23,7 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
 
     const { fetchSettings, settingsLoaded, userSettings } = useUserSettings()
     const { initialize: initializeStatus } = useUserStatus()
+    const { isIncognito } = useIncognitoMode()
     const { fetchAdminRole } = useAdmin()
 
     if (!settingsLoaded.value && navigator.onLine) {
@@ -30,7 +31,7 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
         await fetchAdminRole()
     }
 
-    if (settingsLoaded.value && userSettings.value?.id && navigator.onLine) {
+    if (settingsLoaded.value && userSettings.value?.id && navigator.onLine && !isIncognito.value) {
         await nextTick()
         initializeStatus()
     }

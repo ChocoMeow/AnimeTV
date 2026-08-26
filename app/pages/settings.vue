@@ -3,6 +3,7 @@ const { showToast } = useToast()
 const { searchHistory, userSettings, updateSetting, getDefaultShortcuts, getShortcuts, resetShortcuts, formatShortcutKey } = useUserSettings()
 const { theme, setTheme } = useTheme()
 const { speechLang, setSpeechLang, options: speechLangOptions } = useSpeechLang()
+const { isIncognito, toggleIncognito } = useIncognitoMode()
 const appConfig = useAppConfig()
 const client = useSupabaseClient()
 
@@ -355,6 +356,37 @@ useHead({
                     </div>
 
                     <div class="divide-y divide-black/5 dark:divide-white/10">
+                        <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                            <div class="flex-1 pr-4">
+                                <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1 flex items-center gap-2">
+                                    無痕模式
+                                    <span
+                                        v-if="isIncognito"
+                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30"
+                                    >
+                                        <span class="material-symbols-rounded text-xs">eyeglasses_3</span>
+                                        進行中
+                                    </span>
+                                </h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">
+                                    開啟後不儲存觀看／搜尋紀錄，也不對外顯示線上或觀看狀態（關閉分頁後自動結束）
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                @click="toggleIncognito"
+                                :class="isIncognito ? 'bg-amber-600 dark:bg-amber-500' : 'bg-black/10 dark:bg-white/15'"
+                                class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
+                                :aria-pressed="isIncognito"
+                                aria-label="無痕模式"
+                            >
+                                <span
+                                    :class="isIncognito ? 'translate-x-7' : 'translate-x-1'"
+                                    class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-950 shadow ring-0 transition duration-200 ease-in-out mt-1"
+                                ></span>
+                            </button>
+                        </div>
+
                         <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
                             <div class="flex-1 pr-4">
                                 <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1">觀看紀錄</h4>

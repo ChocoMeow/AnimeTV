@@ -2,6 +2,7 @@
 const { searchModalOpen, openSearchModal } = useMobileSearchState()
 const { isMobile } = useMobile()
 const { isAdmin, clearAdmin } = useAdmin()
+const { isIncognito } = useIncognitoMode()
 const headerHiddenMobile = useState('app-mobile-header-hidden', () => false)
 const showMobilePwaNav = useState('app-show-mobile-pwa-nav', () => false)
 const appConfig = useAppConfig()
@@ -152,7 +153,11 @@ watch(
                         @mouseenter="cancelHideUserMenu"
                         @mouseleave="hideUserMenuDelayed"
                     >
-                        <UserAvatar v-bind="userAvatar" class="w-8 h-8 text-xs" img-class="border-2 border-black/10 dark:border-white/10" />
+                        <UserAvatar
+                            v-bind="userAvatar"
+                            class="w-8 h-8 text-xs"
+                            :img-class="isIncognito ? 'border-2 border-amber-500/70 dark:border-amber-400/70' : 'border-2 border-black/10 dark:border-white/10'"
+                        />
                     </button>
 
                     <transition name="dropdown">
@@ -173,8 +178,8 @@ watch(
                                         <p class="font-semibold text-gray-900 dark:text-gray-100 truncate">
                                             {{ user?.user_metadata?.name || 'User' }}
                                         </p>
-                                        <p class="text-xs text-gray-600 dark:text-gray-400 truncate">
-                                            查看觀看統計
+                                        <p class="text-xs truncate" :class="isIncognito ? 'text-amber-600 dark:text-amber-400' : 'text-gray-600 dark:text-gray-400'">
+                                            {{ isIncognito ? '無痕模式進行中' : '查看觀看統計' }}
                                         </p>
                                     </div>
                                     <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-xl shrink-0" aria-hidden="true">chevron_right</span>
@@ -245,8 +250,8 @@ watch(
                                 <p class="font-semibold text-gray-900 dark:text-gray-100 truncate">
                                     {{ user?.user_metadata?.name || 'User' }}
                                 </p>
-                                <p class="text-xs text-gray-600 dark:text-gray-400 truncate">
-                                    查看觀看統計
+                                <p class="text-xs truncate" :class="isIncognito ? 'text-amber-600 dark:text-amber-400' : 'text-gray-600 dark:text-gray-400'">
+                                    {{ isIncognito ? '無痕模式進行中' : '查看觀看統計' }}
                                 </p>
                             </div>
                             <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-xl shrink-0" aria-hidden="true">chevron_right</span>
