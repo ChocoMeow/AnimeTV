@@ -3,6 +3,7 @@ const { searchModalOpen, openSearchModal } = useMobileSearchState()
 const { isMobile } = useMobile()
 const { isAdmin, clearAdmin } = useAdmin()
 const { isIncognito } = useIncognitoMode()
+const { needRefresh: pwaNeedRefresh, applyUpdate: applyPwaUpdate } = usePwaUpdate()
 const headerHiddenMobile = useState('app-mobile-header-hidden', () => false)
 const showMobilePwaNav = useState('app-show-mobile-pwa-nav', () => false)
 const appConfig = useAppConfig()
@@ -143,6 +144,18 @@ watch(
 
             <!-- Right: Nav (desktop) -->
             <nav class="hidden md:flex items-center gap-3">
+                <button
+                    v-if="pwaNeedRefresh"
+                    type="button"
+                    class="text-sm px-3 py-1.5 rounded-full hover:bg-green-500/10 dark:hover:bg-green-400/15 text-green-600 dark:text-green-400 transition-colors inline-flex items-center gap-1.5"
+                    title="有新版本，點擊更新"
+                    aria-label="更新網站"
+                    @click="applyPwaUpdate"
+                >
+                    <span class="material-symbols-rounded text-[18px] leading-none">system_update_alt</span>
+                    <span>新更新</span>
+                </button>
+
                 <NuxtLink to="/show-all-anime" class="text-sm px-3 py-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10"> 全部作品 </NuxtLink>
 
                 <div class="relative">
@@ -221,6 +234,16 @@ watch(
 
             <!-- Mobile buttons -->
             <div class="md:hidden flex items-center gap-2">
+                <button
+                    v-if="pwaNeedRefresh"
+                    type="button"
+                    class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center"
+                    title="有新版本，點擊更新"
+                    aria-label="更新網站"
+                    @click="applyPwaUpdate"
+                >
+                    <span class="material-symbols-rounded text-green-600 dark:text-green-400">system_update_alt</span>
+                </button>
                 <button type="button" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center" @click="openSearch">
                     <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">search</span>
                 </button>

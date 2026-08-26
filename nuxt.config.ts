@@ -109,8 +109,12 @@ export default defineNuxtConfig({
         },
     },
     pwa: {
-        registerType: 'autoUpdate',
+        // Prompt: don't reload mid-session. Apply on header button or manual refresh.
+        registerType: 'prompt',
         workbox: {
+            // Prompt mode leaves skipWaiting false; claim clients so SKIP_WAITING
+            // can take control and trigger the page reload after update.
+            clientsClaim: true,
             // SSR mode: no static index.html at root.
             // Setting to undefined prevents the default "/" fallback which causes precache errors.
             navigateFallback: undefined,
