@@ -449,6 +449,7 @@ CREATE TABLE IF NOT EXISTS "public"."watch_history" (
     "playback_time" integer DEFAULT 0 NOT NULL,
     "video_duration" integer DEFAULT 0 NOT NULL,
     "progress_percentage" integer DEFAULT 0 NOT NULL,
+    "total_playback_time" integer DEFAULT 0 NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
@@ -474,6 +475,7 @@ CREATE OR REPLACE VIEW "public"."watch_history_latest_updates" WITH ("security_i
     "w"."playback_time",
     "w"."video_duration",
     "w"."progress_percentage",
+    "w"."total_playback_time",
     "w"."created_at",
     "w"."updated_at"
    FROM ("public"."watch_history" "w"

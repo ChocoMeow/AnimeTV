@@ -99,12 +99,13 @@ export default defineEventHandler(async (event) => {
         // ── 1. Fetch watch_history ─────────────────────────────────────────────
         const { data: rows, error } = await client
             .from('watch_history')
-            .select('anime_ref_id, anime_title, anime_image, episode_number, playback_time, progress_percentage, updated_at')
+            .select('anime_ref_id, anime_title, anime_image, episode_number, total_playback_time, playback_time, progress_percentage, updated_at')
             .eq('user_id', userId)
             .order('updated_at', { ascending: true })
 
         if (error) throw error
         const list = rows || []
+        const watchSeconds = (r) => r.total_playback_time ?? r.playback_time ?? 0
 
         // Collect unique ref IDs early so the meta query can fire immediately
         const refIds = []
@@ -152,7 +153,7 @@ export default defineEventHandler(async (event) => {
 
         for (const r of list) {
             const id = r.anime_ref_id
-            const pt = r.playback_time || 0
+            const pt = watchSeconds(r)
             const p = Number(r.progress_percentage) || 0
             const d = new Date(r.updated_at)
             const dk = fmt.dateKey(d)
@@ -205,7 +206,7 @@ export default defineEventHandler(async (event) => {
         }
 
         for (const r of list) {
-            const pt = r.playback_time || 0
+            const pt = watchSeconds(r)
             const id = r.anime_ref_id
 
             // studios

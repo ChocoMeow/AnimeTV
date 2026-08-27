@@ -59,12 +59,14 @@ export default defineEventHandler(async (event) => {
     try {
         const { data: historyRows, error: historyError } = await client
             .from('watch_history')
-            .select('playback_time, updated_at, anime_ref_id, anime_title, anime_image')
+            .select('total_playback_time, playback_time, updated_at, anime_ref_id, anime_title, anime_image')
             .eq('user_id', userId)
             .gte('updated_at', rangeStartIso)
             .lte('updated_at', rangeEndIso)
 
         if (historyError) throw historyError
+
+        const watchSeconds = (row) => row.total_playback_time ?? row.playback_time ?? 0
 
         const timeSpentLabels = []
         const timeSpentValues = []
@@ -101,7 +103,7 @@ export default defineEventHandler(async (event) => {
                 key = t.toISOString().slice(0, 7)
             }
             if (buckets.has(key)) {
-                buckets.set(key, buckets.get(key) + (row.playback_time || 0))
+                buckets.set(key, buckets.get(key) + watchSeconds(row))
             }
         }
 
@@ -131,9 +133,9 @@ export default defineEventHandler(async (event) => {
         const weekdayLabels = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
         for (const row of historyRows || []) {
             const t = new Date(row.updated_at)
-            watchByHour[t.getHours()] += row.playback_time || 0
+            watchByHour[t.getHours()] += watchSeconds(row)
             const wd = (t.getDay() + 6) % 7
-            watchByWeekday[wd] += row.playback_time || 0
+            watchByWeekday[wd] += watchSeconds(row)
         }
 
         const timeByRef = new Map()
@@ -143,7 +145,7 @@ export default defineEventHandler(async (event) => {
                 timeByRef.set(id, { seconds: 0, title: row.anime_title, image: row.anime_image })
             }
             const e = timeByRef.get(id)
-            e.seconds += row.playback_time || 0
+            e.seconds += watchSeconds(row)
         }
         const topAnimeByTime = [...timeByRef.entries()]
             .map(([anime_ref_id, v]) => ({
@@ -184,7 +186,7 @@ export default defineEventHandler(async (event) => {
 
                 for (const row of historyRows || []) {
                     const company = companyByRef.get(row.anime_ref_id) || '未標示'
-                    studioSeconds.set(company, (studioSeconds.get(company) || 0) + (row.playback_time || 0))
+                    studioSeconds.set(company, (studioSeconds.get(company) || 0) + watchSeconds(row))
                 }
                 topStudios = [...studioSeconds.entries()]
                     .sort((a, b) => b[1] - a[1])

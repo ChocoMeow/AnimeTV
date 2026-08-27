@@ -152,7 +152,7 @@ watch(
                     aria-label="更新網站"
                     @click="applyPwaUpdate"
                 >
-                    <span class="material-symbols-rounded text-[18px] leading-none">system_update_alt</span>
+                    <span class="material-symbols-rounded text-[18px] leading-none">download</span>
                     <span>新更新</span>
                 </button>
 
@@ -242,7 +242,7 @@ watch(
                     aria-label="更新網站"
                     @click="applyPwaUpdate"
                 >
-                    <span class="material-symbols-rounded text-green-600 dark:text-green-400">system_update_alt</span>
+                    <span class="material-symbols-rounded text-green-600 dark:text-green-400">download</span>
                 </button>
                 <button type="button" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center" @click="openSearch">
                     <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">search</span>

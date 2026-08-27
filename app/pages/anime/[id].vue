@@ -388,6 +388,15 @@ async function saveWatchHistory(episodeNumber = null) {
     const duration = Number(el?.duration) || 0
     if (!duration) return
     const currentTime = Number(el?.currentTime) || 0
+    const playbackTime = Math.floor(currentTime)
+    const videoDuration = Math.floor(duration)
+    const progress = Math.min(100, Math.floor((currentTime / duration) * 100))
+
+    const prev = allWatchProgress.value[String(epNum)]
+    const prevPlayback = Number(prev?.playback_time) || 0
+    let prevTotal = Number(prev?.total_playback_time) || 0
+    if (!prevTotal && prevPlayback) prevTotal = prevPlayback
+    const delta = playbackTime > prevPlayback ? playbackTime - prevPlayback : 0
 
     const entry = {
         user_id: id,
@@ -395,9 +404,10 @@ async function saveWatchHistory(episodeNumber = null) {
         anime_title: anime.value.title,
         anime_image: anime.value.image,
         episode_number: String(epNum),
-        playback_time: Math.floor(currentTime),
-        video_duration: Math.floor(duration),
-        progress_percentage: Math.min(100, Math.floor((currentTime / duration) * 100)),
+        playback_time: playbackTime,
+        video_duration: videoDuration,
+        progress_percentage: progress,
+        total_playback_time: prevTotal + delta,
     }
 
     try {

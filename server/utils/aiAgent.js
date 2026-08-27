@@ -478,13 +478,13 @@ const handlers = {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
         const { data: rows, error } = await client
             .from('watch_history')
-            .select('playback_time, anime_ref_id')
+            .select('total_playback_time, playback_time, anime_ref_id')
             .eq('user_id', userId)
             .gte('updated_at', monthStart)
         if (error) throw error
 
         const list = rows || []
-        const seconds = list.reduce((sum, r) => sum + (r.playback_time || 0), 0)
+        const seconds = list.reduce((sum, r) => sum + (r.total_playback_time ?? r.playback_time ?? 0), 0)
         const ids = [...new Set(list.map((r) => r.anime_ref_id).filter(Boolean))]
         const { data: meta } = ids.length ? await client.from('anime_meta').select('tags').in('source_id', ids) : { data: [] }
 
