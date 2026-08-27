@@ -6,25 +6,42 @@ const log = moduleLogger('admin-anime-meta')
 
 const FIELD_LABELS = {
     id: '內部編號',
-    source_id: '外部作品編號（source_id）',
+    source_id: '外部作品編號',
     title: '作品標題',
     description: '作品簡介',
-    thumbnail: '封面圖片連結',
+    thumbnail: '封面圖片',
     premiere_date: '首播日期',
     director: '導演',
     distributor: '發行商',
     production_company: '製作公司',
-    tags: '標籤（tags）',
+    tags: '標籤',
     views: '觀看次數',
-    score: '評分（score）',
-    votes: '評分人數（votes）',
-    related_anime_source_ids: '相關作品編號（related_anime_source_ids）',
-    source_details_id: '詳細資料編號（source_details_id）',
-    video_id: '片源 ID（anime1 cat / twxgct slug 或 slug@2 指定季）',
-    video_source: '片源站（anime1 | twxgct）',
-    season: '季數（season）',
+    score: '評分',
+    votes: '評分人數',
+    related_anime_source_ids: '相關作品編號',
+    source_details_id: '詳細資料編號',
+    video_id: '片源 ID',
+    video_source: '片源站',
+    season: '季數',
     created_at: '建立時間',
     updated_at: '更新時間',
+}
+
+/** Optional help text → admin info tooltip. */
+const FIELD_HELP = {
+    source_id: '外部來源作品 ID，作為編輯主鍵；建立後通常不應更動。',
+    related_anime_source_ids: '相關作品的 source_id 陣列，用於頁面「相關推薦」。',
+    source_details_id: '詳細資料來源 ID。填入後可按自動填入，從外部帶入標題、簡介、封面等。',
+    video_source: '影片來源站台。目前支援 anime1、twxgct；需與 video_id 格式對應。',
+    video_id:
+        '依 video_source 填寫：\n' +
+        '• anime1：分類 cat ID（數字）\n' +
+        '• twxgct：作品 slug；預設取第 1 個 volume\n' +
+        '• twxgct 指定季：slug@2\n' +
+        '• twxgct 多季合併：slug@1,2 或 slug@1-3（集數會依序接續編號）',
+    season: '播出季節（春／夏／秋／冬）。變更首播日期時可自動推算。',
+    thumbnail: '封面圖片完整 URL。',
+    tags: '作品標籤陣列，用於搜尋與分類。',
 }
 
 /** Unknown columns go to 其他. */
@@ -46,6 +63,7 @@ function buildField(name, fieldTypes) {
         name,
         type,
         label: FIELD_LABELS[name] || name,
+        description: FIELD_HELP[name] || null,
         readOnly: READ_ONLY.has(name),
         isPrimaryKey: name === 'source_id',
         wide: WIDE_TYPES.has(type),

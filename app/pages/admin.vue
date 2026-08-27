@@ -782,6 +782,11 @@ onMounted(() => {
                                     >
                                     <label class="text-xs font-medium text-gray-700 dark:text-gray-200 flex items-center gap-1">
                                         <span>{{ field.label }}</span>
+                                        <AppTooltip v-if="field.description" :text="field.description">
+                                            <button type="button" class="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" :aria-label="`${field.label}說明`">
+                                                <span class="material-symbols-rounded text-sm">info</span>
+                                            </button>
+                                        </AppTooltip>
                                         <span
                                             v-if="field.isPrimaryKey"
                                             class="px-1.5 py-0.5 rounded-full bg-black/80 dark:bg-white text-white dark:text-black text-[10px] font-semibold"
