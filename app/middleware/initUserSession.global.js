@@ -17,7 +17,7 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
             redirectInfo.path.value = to.fullPath
             return navigateTo('/login')
         }
-        return navigateTo('/welcome')
+        return
     }
 
     if (import.meta.server) {
