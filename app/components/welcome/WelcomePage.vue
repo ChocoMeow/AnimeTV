@@ -98,7 +98,7 @@ useHead({
         </header>
 
         <main class="relative z-10">
-            <section class="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6 sm:pb-24 sm:pt-10">
+            <section class="hero-section">
                 <div class="hero-banner">
                     <img
                         src="/hero.webp"
@@ -110,7 +110,7 @@ useHead({
                     >
                     <div class="hero-overlay" aria-hidden="true" />
 
-                    <div class="hero-content">
+                    <div class="hero-content mx-auto w-full max-w-6xl px-4 sm:px-6">
                         <p class="hero-label mono-label mb-4">台港追番 · 個人使用 · GPL-3.0 開源</p>
                         <h1 class="hero-title font-display">
                             <span class="hero-word">追</span><span class="hero-word hero-word-b">番</span>
@@ -261,19 +261,30 @@ useHead({
     }
 }
 
+.hero-section {
+    padding: 0 0 3rem;
+}
+
+@media (min-width: 640px) {
+    .hero-section {
+        padding-bottom: 4rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .hero-section {
+        padding-bottom: 5rem;
+    }
+}
+
 .hero-banner {
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    border-radius: 1.25rem;
-    border: 1px solid rgba(13, 13, 13, 0.12);
-    min-height: clamp(22rem, 62vw, 34rem);
+    width: 100%;
+    min-height: clamp(28rem, 88vh, 44rem);
     display: flex;
     align-items: flex-end;
-}
-
-.dark .hero-banner {
-    border-color: rgba(255, 255, 255, 0.12);
 }
 
 .hero-bg {
@@ -296,26 +307,27 @@ useHead({
 .hero-content {
     position: relative;
     z-index: 1;
-    width: 100%;
-    padding: 1.75rem 1.5rem 2rem;
+    padding-block: 2rem 2.5rem;
 }
 
 @media (min-width: 640px) {
     .hero-banner {
         align-items: center;
-        min-height: clamp(24rem, 48vw, 32rem);
+        min-height: clamp(32rem, 92vh, 48rem);
     }
 
     .hero-content {
-        max-width: 34rem;
-        padding: 2.5rem 2.25rem;
+        padding-block: 3rem;
     }
 }
 
 @media (min-width: 1024px) {
+    .hero-banner {
+        min-height: clamp(36rem, 94vh, 52rem);
+    }
+
     .hero-content {
-        max-width: 36rem;
-        padding: 3rem 2.75rem;
+        padding-block: 3.5rem;
     }
 }
 
@@ -324,7 +336,7 @@ useHead({
 .hero-note { color: rgba(245, 245, 240, 0.62); }
 
 .hero-title {
-    font-size: clamp(3rem, 10vw, 5.5rem);
+    font-size: clamp(3.25rem, 11vw, 6.25rem);
     line-height: 1.05;
     letter-spacing: -0.02em;
     color: #f5f5f0;
