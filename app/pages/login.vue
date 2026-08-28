@@ -19,7 +19,13 @@ const userName = ref("")
 const userAvatarUrl = ref("")
 const hasRedirected = ref(false)
 
-const redirectPath = redirectInfo.pluck() || "/"
+function resolveRedirectPath(path) {
+    if (!path || typeof path !== 'string') return '/'
+    if (!path.startsWith('/') || path.startsWith('//')) return '/'
+    return path
+}
+
+const redirectPath = computed(() => resolveRedirectPath(redirectInfo.path.value))
 
 const OAUTH_PROVIDERS = [
     {
@@ -105,8 +111,9 @@ function cleanupErrorParams() {
 
 async function fetchFeaturedAnime() {
     try {
-        const imageUrls = await $fetch("/api/public-animeList")
-        if (!imageUrls?.length) return
+        const data = await $fetch('/api/public/welcome-preview')
+        const imageUrls = data?.posters ?? []
+        if (!imageUrls.length) return
 
         featuredAnime.value = imageUrls
         
@@ -164,7 +171,8 @@ function handleAuthSuccess(newUser) {
             authMessage.value = "登入成功！"
 
             setTimeout(() => {
-        navigateTo(redirectPath, { replace: true })
+        const path = resolveRedirectPath(redirectInfo.pluck())
+        navigateTo(path, { replace: true })
     }, ANIMATION_DELAYS.SUCCESS_REDIRECT)
 }
 

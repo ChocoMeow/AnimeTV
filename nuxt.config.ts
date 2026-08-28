@@ -161,7 +161,7 @@ export default defineNuxtConfig({
                     handler: 'NetworkOnly',
                 },
                 {
-                    urlPattern: /^\/api\/(anime|search|public-animeList).*/i,
+                    urlPattern: /^\/api\/(anime|search|public\/welcome-preview).*/i,
                     handler: 'NetworkFirst',
                     options: {
                         cacheName: 'anime-api',

@@ -4,7 +4,21 @@
 
 export default defineNuxtRouteMiddleware(async (to, _from) => {
     const path = (to.path || '/').replace(/\/$/, '') || '/'
-    const isLoginPage = path === '/login'
+    const isPublicPage = path === '/login' || path === '/welcome' || path === '/terms' || path === '/privacy'
+
+    const user = useSupabaseUser()
+
+    if (!user.value) {
+        if (path === '/') {
+            return navigateTo('/welcome')
+        }
+        if (!isPublicPage) {
+            const redirectInfo = useSupabaseCookieRedirect()
+            redirectInfo.path.value = to.fullPath
+            return navigateTo('/login')
+        }
+        return navigateTo('/welcome')
+    }
 
     if (import.meta.server) {
         return
@@ -13,12 +27,6 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
     if (!navigator.onLine) {
         if (!path.startsWith('/offline')) return navigateTo('/offline')
         return
-    }
-
-    const user = useSupabaseUser()
-    if (!user.value) {
-        if (isLoginPage) return
-        return navigateTo('/login')
     }
 
     const { fetchSettings, settingsLoaded, userSettings } = useUserSettings()
