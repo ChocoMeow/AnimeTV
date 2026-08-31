@@ -55,16 +55,27 @@ function seekThumbCount(durationSec, info) {
     return Math.ceil(durationSec / (durationSec < 600 ? 1 : 2))
 }
 
+/** Bunny: 1800px-wide sheets, 300px cells; cell height follows source aspect ratio. */
+function seekCellSize(videoWidth, videoHeight) {
+    const { cols } = TWXGCT.seekGrid
+    const w = Number(videoWidth)
+    const h = Number(videoHeight)
+    const cellW = Math.floor(TWXGCT.seekSheetWidth / cols)
+    const cellH =
+        Number.isFinite(w) && w > 0 && Number.isFinite(h) && h > 0
+            ? Math.floor(cellW * (h / w))
+            : Math.floor((TWXGCT.seekSheetWidth / cols) * 9 / 16)
+    return { cellW, cellH }
+}
+
 /** Bunny seek sheets as WebVTT cues with #xywh crops. */
-function buildSeekVtt(guid, durationSec, sheetStart, sheetCount, thumbCount) {
+function buildSeekVtt(guid, durationSec, sheetStart, sheetCount, thumbCount, videoWidth, videoHeight) {
     const { cols, rows } = TWXGCT.seekGrid
-    const { width, height } = TWXGCT.seekSheetSize
     if (!(durationSec > 0) || sheetCount <= 0) return null
 
+    const { cellW, cellH } = seekCellSize(videoWidth, videoHeight)
     const cells = cols * rows
     const total = Math.min(Math.max(1, thumbCount), sheetCount * cells)
-    const cellW = Math.floor(width / cols)
-    const cellH = Math.floor(height / rows)
     const step = durationSec / total
     const lines = ['WEBVTT', '']
 
@@ -110,7 +121,15 @@ function buildSeekPreview(guid, info) {
     const thumbs = seekThumbCount(duration, info)
     if (thumbs <= 0) return null
     const perSheet = TWXGCT.seekGrid.cols * TWXGCT.seekGrid.rows
-    return buildSeekVtt(guid, duration, 0, Math.ceil(thumbs / perSheet), thumbs)
+    return buildSeekVtt(
+        guid,
+        duration,
+        0,
+        Math.ceil(thumbs / perSheet),
+        thumbs,
+        info?.width,
+        info?.height,
+    )
 }
 
 /**

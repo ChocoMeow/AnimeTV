@@ -33,5 +33,6 @@ export const TWXGCT = Object.freeze({
     captionUrl: (guid, srclang) => `${TWXGCT_CDN}/${guid}/captions/${encodeURIComponent(srclang)}.vtt`,
     seekThumbUrl: (guid, i) => `${TWXGCT_CDN}/${guid}/seek/_${i}.jpg`,
     seekGrid: Object.freeze({ cols: 6, rows: 6 }),
-    seekSheetSize: Object.freeze({ width: 1800, height: 1008 }),
+    /** Bunny seek sheets are always 1800px wide; height depends on source aspect ratio. */
+    seekSheetWidth: 1800,
 })
