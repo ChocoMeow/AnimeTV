@@ -83,12 +83,22 @@ function parseThumbnailsVtt(vttText) {
 
 /**
  * Seek-bar thumbnails. Sheet images are cached (never aborted on hover).
- * @param {{ animeMeta: import('vue').Ref|import('vue').ComputedRef }} options
+ * @param {{
+ *   animeMeta: import('vue').Ref|import('vue').ComputedRef,
+ *   previewWidth?: number,
+ *   previewHeight?: number
+ * }} options
  */
-export function usePlayerThumbnails({ animeMeta }) {
+export function usePlayerThumbnails({
+    animeMeta,
+    previewWidth = THUMB_PREVIEW_W,
+    previewHeight = THUMB_PREVIEW_H,
+}) {
     const segments = ref([])
     const activeThumbnail = ref(null)
+    const isLoading = ref(false)
     let wantSrc = null
+    let requestedSegment = null
     let loadId = 0
     const vttCache = new Map()
     /** @type {Map<string, Promise<boolean>>} */
@@ -103,18 +113,20 @@ export function usePlayerThumbnails({ animeMeta }) {
         return id != null ? String(id).trim() || null : null
     })
     const jpgUrl = computed(() => meta.value.thumbnailJpgUrl || null)
+    const hasThumbnails = computed(() => segments.value.length > 0)
+    const thumbnailDuration = computed(() => segments.value.at(-1)?.end || 0)
 
     const activeThumbnailSrc = computed(() => activeThumbnail.value?.src || jpgUrl.value || null)
 
     const thumbnailPreview = computed(() => {
-        sheetSizesVersion.value
+        void sheetSizesVersion.value
         const seg = activeThumbnail.value
         if (!seg?.xywh) return null
         const src = seg.src || jpgUrl.value
         const crop = resolveXywh(seg.xywh, src ? sheetSizes.get(src) : null, src)
         const sheet = src ? sheetSizes.get(src) : null
         if (!crop?.w || !crop?.h || !sheet?.w || !sheet?.h) return null
-        return spritePreviewStyles(crop, sheet, THUMB_PREVIEW_W, THUMB_PREVIEW_H)
+        return spritePreviewStyles(crop, sheet, previewWidth, previewHeight)
     })
 
     function findAtTime(t) {
@@ -162,7 +174,8 @@ export function usePlayerThumbnails({ animeMeta }) {
 
     function updateActiveThumbnailForTime(t) {
         const seg = findAtTime(t)
-        if (!seg) return
+        if (!seg || seg === requestedSegment) return
+        requestedSegment = seg
         const src = seg.src || jpgUrl.value
         if (!src) {
             activeThumbnail.value = seg.xywh ? seg : null
@@ -182,6 +195,7 @@ export function usePlayerThumbnails({ animeMeta }) {
 
     function clearActiveThumbnail() {
         wantSrc = null
+        requestedSegment = null
         activeThumbnail.value = null
     }
 
@@ -189,35 +203,34 @@ export function usePlayerThumbnails({ animeMeta }) {
         const id = ++loadId
         clearActiveThumbnail()
         segments.value = []
-        if (typeof window === 'undefined') return
-
-        const inline = meta.value.thumbnailVttText
-        if (inline) {
-            segments.value = parseThumbnailsVtt(inline)
-            if (segments.value.length && jpgUrl.value) preload(jpgUrl.value)
-            return
-        }
-
-        const url = meta.value.thumbnailsVttUrl
-        if (!videoId.value || !url) return
-
-        if (vttCache.has(url)) {
-            segments.value = vttCache.get(url)
-            if (segments.value.length && jpgUrl.value) preload(jpgUrl.value)
-            return
-        }
+        isLoading.value = true
 
         try {
-            const res = await fetch(url)
-            if (!res.ok) throw new Error(String(res.status))
-            const parsed = parseThumbnailsVtt(await res.text())
+            if (typeof window === 'undefined') return
+
+            const inline = meta.value.thumbnailVttText
+            let parsed = inline ? parseThumbnailsVtt(inline) : null
+            const url = meta.value.thumbnailsVttUrl
+
+            if (!parsed && videoId.value && url) {
+                if (vttCache.has(url)) {
+                    parsed = vttCache.get(url)
+                } else {
+                    const res = await fetch(url)
+                    if (!res.ok) throw new Error(String(res.status))
+                    parsed = parseThumbnailsVtt(await res.text())
+                    vttCache.set(url, parsed)
+                    if (vttCache.size > VTT_CACHE_LIMIT) vttCache.delete(vttCache.keys().next().value)
+                }
+            }
+
             if (id !== loadId) return
-            segments.value = parsed
-            vttCache.set(url, parsed)
-            while (vttCache.size > VTT_CACHE_LIMIT) vttCache.delete(vttCache.keys().next().value)
-            if (parsed.length && jpgUrl.value) preload(jpgUrl.value)
+            segments.value = parsed || []
+            if (segments.value.length && jpgUrl.value) preload(jpgUrl.value)
         } catch {
             if (id === loadId) segments.value = []
+        } finally {
+            if (id === loadId) isLoading.value = false
         }
     }
 
@@ -233,8 +246,11 @@ export function usePlayerThumbnails({ animeMeta }) {
     })
 
     return {
-        THUMB_PREVIEW_W,
-        THUMB_PREVIEW_H,
+        THUMB_PREVIEW_W: previewWidth,
+        THUMB_PREVIEW_H: previewHeight,
+        hasThumbnails,
+        thumbnailDuration,
+        isLoading: readonly(isLoading),
         activeThumbnail,
         activeThumbnailSrc,
         thumbnailPreview,
