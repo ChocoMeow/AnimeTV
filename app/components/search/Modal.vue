@@ -385,6 +385,17 @@ onUnmounted(() => {
 </script>
 
 <template>
+    <Teleport to="body">
+        <Transition name="search-backdrop">
+            <div
+                v-if="open && !isMobile"
+                class="fixed inset-0 z-40 bg-black/60"
+                aria-hidden="true"
+                @click="close"
+            />
+        </Transition>
+    </Teleport>
+
     <Teleport v-if="open && !isMobile && !isAiMode" to="#desktop-search-anchor">
         <div class="flex w-full items-center justify-center gap-2">
             <div class="w-full max-w-xl">
@@ -633,5 +644,14 @@ onUnmounted(() => {
 .search-dropdown-leave-to {
     opacity: 0;
     transform: translateY(-6px);
+}
+
+.search-backdrop-enter-active,
+.search-backdrop-leave-active {
+    transition: opacity 0.3s ease;
+}
+.search-backdrop-enter-from,
+.search-backdrop-leave-to {
+    opacity: 0;
 }
 </style>
