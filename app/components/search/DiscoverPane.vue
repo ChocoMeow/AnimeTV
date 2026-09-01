@@ -142,6 +142,9 @@ async function loadTrending() {
 
 watch(tab, (id) => {
     if (id === 'trending') loadTrending()
+    nextTick(() => {
+        if (scrollRef.value) scrollRef.value.scrollTop = 0
+    })
 })
 
 watch(

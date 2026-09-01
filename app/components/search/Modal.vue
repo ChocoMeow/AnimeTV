@@ -449,7 +449,7 @@ onUnmounted(() => {
                     @mic-toggle="onMicToggle"
                 />
 
-                <div :class="isMobile ? 'flex min-h-0 flex-1 flex-col' : 'pb-3 pt-[4.5rem]'">
+                <div :class="isMobile ? 'flex min-h-0 flex-1 flex-col' : 'pb-2 pt-[4.5rem]'">
                     <div ref="modalPanelRef" :class="panelClass" @keydown="onInputKeydown">
                         <Transition name="search-pane" mode="out-in">
                             <SearchAiChatPane
@@ -582,7 +582,7 @@ onUnmounted(() => {
                                     </Transition>
                                 </div>
 
-                                <div class="hidden shrink-0 items-center gap-4 px-3 py-2 text-xs text-gray-500 dark:text-gray-400 md:flex">
+                                <div class="hidden shrink-0 items-center gap-4 px-3 pt-2 text-xs text-gray-500 dark:text-gray-400 md:flex">
                                     <AppTooltip v-for="hint in keyboardHints" :key="hint.label" :text="hint.tip">
                                         <span class="inline-flex items-center gap-1.5">
                                             <kbd v-for="key in hint.keys" :key="key" :class="hint.wide ? KBD_WIDE : KBD">{{ key }}</kbd>
