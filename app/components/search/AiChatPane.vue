@@ -323,6 +323,7 @@ onUnmounted(() => {
                     />
                     <SearchMicButton
                         variant="inline"
+                        tip-placement="above"
                         idle-class="bg-black/10 text-gray-900 dark:bg-white/15 dark:text-white"
                         hover-class="hover:bg-black/20 dark:hover:bg-white/30"
                         idle-title="語音輸入"

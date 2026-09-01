@@ -6,6 +6,8 @@ const props = defineProps({
     supported: { type: Boolean, default: true },
     /** inset = absolute inside a search field; inline = flex action button */
     variant: { type: String, default: 'inset' },
+    /** Tooltip placement for inline variant */
+    tipPlacement: { type: String, default: 'below' },
     idleTitle: { type: String, default: '語音搜尋' },
     /** Tailwind classes for idle pill surface (bg / text / ring). Passed by parent. */
     idleClass: {
@@ -49,7 +51,7 @@ watch(
                     ? 'is-listening bg-gray-900 text-white shadow-[0_0_0_1px_rgba(0,0,0,0.08)] dark:bg-white dark:text-gray-950 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.14)]'
                     : '',
                 error
-                    ? 'is-error bg-red-500 text-white shadow-none hover:bg-red-600'
+                    ? 'is-error bg-white text-red-500 ring-1 ring-red-400/50 dark:bg-gray-950 dark:text-red-400 dark:ring-red-400/40'
                     : '',
                 isIdle ? idleClass : '',
                 isIdle ? hoverClass : '',
@@ -66,7 +68,10 @@ watch(
             <div
                 v-if="error"
                 class="search-mic-tooltip bg-gray-950 text-white shadow-[0_8px_24px_rgba(0,0,0,0.28)] dark:bg-white dark:text-gray-950 dark:shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
-                :class="{ 'is-inline': isInline }"
+                :class="{
+                    'is-above': isInline && tipPlacement === 'above',
+                    'is-below': isInline && tipPlacement === 'below',
+                }"
                 role="alert"
             >
                 {{ error }}
@@ -88,7 +93,7 @@ watch(
 }
 .search-mic-root.is-inline {
     flex-shrink: 0;
-    align-self: flex-end;
+    align-self: center;
 }
 
 .search-mic-pill {
@@ -162,13 +167,40 @@ watch(
     text-align: left;
     box-sizing: border-box;
 }
-/* Inline (AI chat): tip above the mic */
-.search-mic-tooltip.is-inline {
+/* Inline below (header search row) */
+.search-mic-tooltip.is-below {
+    top: calc(100% + 0.35rem);
+    bottom: auto;
+    right: 50%;
+    left: auto;
+    transform: translateX(50%);
+    max-width: min(14rem, calc(100vw - 2rem));
+}
+.search-mic-tooltip.is-below::before {
+    top: -4px;
+    bottom: auto;
+    right: 50%;
+    left: auto;
+    transform: translateX(50%) rotate(45deg);
+}
+/* Inline above (AI chat composer) */
+.search-mic-tooltip.is-above {
     top: auto;
     bottom: calc(100% + 0.4rem);
     max-width: min(14rem, calc(100vw - 2rem));
 }
-/* Arrow centered on the mic (half of 2rem / 2.25rem button) */
+.search-mic-tooltip.is-above::before {
+    top: auto;
+    bottom: -4px;
+    right: 1.125rem;
+    left: auto;
+    width: 8px;
+    height: 8px;
+    content: '';
+    position: absolute;
+    background: inherit;
+    transform: rotate(45deg);
+}
 .search-mic-tooltip::before {
     content: '';
     position: absolute;
@@ -180,11 +212,6 @@ watch(
     background: inherit;
     transform: translateX(50%) rotate(45deg);
 }
-.search-mic-tooltip.is-inline::before {
-    top: auto;
-    bottom: -4px;
-    right: 1.125rem;
-}
 
 .mic-tip-enter-active,
 .mic-tip-leave-active {
@@ -195,9 +222,13 @@ watch(
     opacity: 0;
     transform: translateY(-4px);
 }
-.search-mic-tooltip.is-inline.mic-tip-enter-from,
-.search-mic-tooltip.is-inline.mic-tip-leave-to {
+.search-mic-tooltip.is-above.mic-tip-enter-from,
+.search-mic-tooltip.is-above.mic-tip-leave-to {
     transform: translateY(4px);
+}
+.search-mic-tooltip.is-below.mic-tip-enter-from,
+.search-mic-tooltip.is-below.mic-tip-leave-to {
+    transform: translateX(50%) translateY(-4px);
 }
 
 .search-mic-wave {
