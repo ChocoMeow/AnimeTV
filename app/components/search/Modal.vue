@@ -460,7 +460,7 @@ onUnmounted(() => {
                     @mic-toggle="onMicToggle"
                 />
 
-                <div :class="isMobile ? 'flex min-h-0 flex-1 flex-col' : 'pb-2 pt-[4.5rem]'">
+                <div :class="isMobile ? 'flex min-h-0 flex-1 flex-col' : 'pb-3 pt-[4.5rem]'">
                     <div ref="modalPanelRef" :class="panelClass" @keydown="onInputKeydown">
                         <Transition name="search-pane" mode="out-in">
                             <SearchAiChatPane
