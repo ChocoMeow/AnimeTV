@@ -545,7 +545,7 @@ onUnmounted(() => {
                                                             role="option"
                                                             :aria-selected="activeItem?.type === 'askAi'"
                                                             :data-active="activeItem?.type === 'askAi' ? 'true' : undefined"
-                                                            class="flex cursor-pointer items-center gap-3 rounded-xl px-4 py-3 transition-colors"
+                                                            class="flex min-w-0 cursor-pointer items-center gap-3 rounded-xl px-4 py-3 transition-colors"
                                                             :class="rowClass(activeItem?.type === 'askAi')"
                                                             @mouseenter="setActive(0)"
                                                             @mousedown.prevent="selectAskAi()"
@@ -553,10 +553,13 @@ onUnmounted(() => {
                                                             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900">
                                                                 <span class="material-symbols-rounded">smart_toy</span>
                                                             </div>
-                                                            <div class="min-w-0 flex-1">
-                                                                <AppTooltip text="開啟 AI 助手並繼續對話">
-                                                                    <p class="truncate text-sm font-medium text-gray-900 dark:text-gray-100">詢問 AI：「{{ queryText }}」</p>
-                                                                </AppTooltip>
+                                                            <div class="min-w-0 flex-1 overflow-hidden">
+                                                                <p
+                                                                    class="min-w-0 truncate text-sm font-medium text-gray-900 dark:text-gray-100"
+                                                                    :title="`詢問 AI：「${queryText}」`"
+                                                                >
+                                                                    詢問 AI：「{{ queryText }}」
+                                                                </p>
                                                                 <p class="truncate text-xs text-gray-500 dark:text-gray-400">用 AI 搜尋、介紹或推薦相關動漫</p>
                                                             </div>
                                                             <kbd class="hidden shrink-0 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-white/10 sm:inline">↵</kbd>
