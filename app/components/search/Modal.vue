@@ -28,21 +28,15 @@ const {
     setSearchFetchEnabled,
 } = useAnimeSearch()
 const {
-    hoveredAnime,
     animeDetails,
     tooltipLoading,
     tooltipError,
-    tooltipPosition,
     handleMouseEnter,
-    handleMouseLeave,
-    handleTooltipEnter,
-    handleTooltipLeave,
     setFavoriteStatus,
     clearTooltip,
     cleanup: cleanupAnimeTooltip,
 } = useAnimeTooltip()
 
-const TOOLTIP_SPACE = 376
 const ROW_ACTIVE = 'bg-black/8 dark:bg-white/10'
 const ROW_IDLE = 'hover:bg-black/5 dark:hover:bg-white/5'
 const KBD =
@@ -113,6 +107,10 @@ const flatItems = computed(() => {
 
 const activeItem = computed(() => flatItems.value[activeIndex.value] || null)
 const activeHistoryId = computed(() => (activeItem.value?.type === 'history' ? activeItem.value.history.id : null))
+const activeResult = computed(() => (activeItem.value?.type === 'result' ? activeItem.value.result : null))
+const showResultPreview = computed(
+    () => !isMobile.value && !isAskIntent.value && !!searchResults.value.length,
+)
 
 const keyboardHints = computed(() => {
     const hints = []
@@ -183,43 +181,18 @@ function scrollActiveIntoView() {
     nextTick(() => queryActiveEl()?.scrollIntoView({ block: 'nearest' }))
 }
 
-function canFitSearchTooltip() {
-    const panel = modalPanelRef.value
-    if (!panel || typeof window === 'undefined') return false
-    return window.innerWidth - panel.getBoundingClientRect().right >= TOOLTIP_SPACE
+function showResultPreviewFor(result, rowEl) {
+    if (!showResultPreview.value || isAiMode.value || !result?.refId) return
+    handleMouseEnter(result, rowEl || modalPanelRef.value || document.body, { delay: 0 })
 }
 
-function getTooltipAnchor(rowEl) {
-    const panel = modalPanelRef.value
-    if (!panel) return rowEl
-    const panelRect = panel.getBoundingClientRect()
-    const rowRect = rowEl?.getBoundingClientRect?.() || panelRect
-    return {
-        getBoundingClientRect: () => ({
-            left: panelRect.right,
-            right: panelRect.right,
-            top: rowRect.top,
-            bottom: rowRect.bottom,
-            width: 0,
-            height: Math.max(rowRect.height, 1),
-            x: panelRect.right,
-            y: rowRect.top,
-        }),
-    }
-}
-
-function showResultTooltip(result, rowEl) {
-    if (isAiMode.value || !result?.refId || !rowEl) return
-    if (!canFitSearchTooltip()) return clearTooltip()
-    handleMouseEnter(result, getTooltipAnchor(rowEl), { preferredPlacement: 'right', forcePreferred: true, delay: 0 })
-}
-
-function syncTooltipToActive() {
+function syncPreviewToActive() {
+    if (!showResultPreview.value) return clearTooltip()
     const item = activeItem.value
     if (item?.type !== 'result' || !item.result) return clearTooltip()
     nextTick(() => {
         const el = queryActiveEl()
-        if (el) showResultTooltip(item.result, el)
+        showResultPreviewFor(item.result, el)
     })
 }
 
@@ -228,12 +201,12 @@ function moveActive(delta) {
     if (!len) return
     activeIndex.value = (activeIndex.value + delta + len) % len
     scrollActiveIntoView()
-    syncTooltipToActive()
+    syncPreviewToActive()
 }
 
 function onResultHover(result, index, el) {
     activeIndex.value = (showAskAi.value ? 1 : 0) + index
-    showResultTooltip(result, el)
+    showResultPreviewFor(result, el)
 }
 
 function onHistoryHover(item) {
@@ -316,10 +289,6 @@ function onGlobalKeydown(e) {
     }
 }
 
-function onWindowResize() {
-    if (open.value && hoveredAnime.value && !canFitSearchTooltip()) clearTooltip()
-}
-
 function onDocumentPointerDown(e) {
     if (!open.value || isMobile.value) return
     if (e.target.closest?.('[data-search-shell], [data-search-header]')) return
@@ -337,6 +306,10 @@ watch(
     },
 )
 watch([searchQuery, discoverTab], resetActive)
+watch(activeResult, (result) => {
+    if (result && showResultPreview.value) syncPreviewToActive()
+    else if (!result) clearTooltip()
+})
 
 watch(open, (isOpen) => {
     if (isOpen) {
@@ -371,13 +344,11 @@ watch(() => route.fullPath, () => {
 
 onMounted(() => {
     window.addEventListener('keydown', onGlobalKeydown)
-    window.addEventListener('resize', onWindowResize)
     document.addEventListener('pointerdown', onDocumentPointerDown)
 })
 
 onUnmounted(() => {
     window.removeEventListener('keydown', onGlobalKeydown)
-    window.removeEventListener('resize', onWindowResize)
     document.removeEventListener('pointerdown', onDocumentPointerDown)
     cleanupAnimeTooltip()
     setBodyScrollLocked(false)
@@ -479,7 +450,7 @@ onUnmounted(() => {
                                             :key="showDiscover ? 'discover' : contentPaneKey"
                                             ref="listRef"
                                             class="absolute inset-0"
-                                            :class="showDiscover ? '' : 'overflow-y-auto px-3 py-1'"
+                                            :class="showDiscover || showResultPreview ? '' : 'overflow-y-auto px-3 py-1'"
                                         >
                                             <SearchDiscoverPane
                                                 v-if="showDiscover"
@@ -494,8 +465,6 @@ onUnmounted(() => {
                                                 @select-history="selectHistory"
                                                 @remove-history="removeFromHistory"
                                                 @hover-history="onHistoryHover"
-                                                @hover-anime="showResultTooltip"
-                                                @leave-anime="handleMouseLeave"
                                             />
 
                                             <template v-else>
@@ -538,58 +507,78 @@ onUnmounted(() => {
                                                     </ul>
                                                 </div>
 
-                                                <template v-if="showAskAi">
-                                                    <div class="px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">AI</div>
-                                                    <ul>
-                                                        <li
-                                                            role="option"
-                                                            :aria-selected="activeItem?.type === 'askAi'"
-                                                            :data-active="activeItem?.type === 'askAi' ? 'true' : undefined"
-                                                            class="flex min-w-0 cursor-pointer items-center gap-3 rounded-xl px-4 py-3 transition-colors"
-                                                            :class="rowClass(activeItem?.type === 'askAi')"
-                                                            @mouseenter="setActive(0)"
-                                                            @mousedown.prevent="selectAskAi()"
-                                                        >
-                                                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900">
-                                                                <span class="material-symbols-rounded">smart_toy</span>
-                                                            </div>
-                                                            <div class="min-w-0 flex-1 overflow-hidden">
-                                                                <p
-                                                                    class="min-w-0 truncate text-sm font-medium text-gray-900 dark:text-gray-100"
-                                                                    :title="`詢問 AI：「${queryText}」`"
-                                                                >
-                                                                    詢問 AI：「{{ queryText }}」
-                                                                </p>
-                                                                <p class="truncate text-xs text-gray-500 dark:text-gray-400">用 AI 搜尋、介紹或推薦相關動漫</p>
-                                                            </div>
-                                                            <kbd class="hidden shrink-0 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-white/10 sm:inline">↵</kbd>
-                                                        </li>
-                                                    </ul>
-                                                </template>
-
-                                                <template v-if="!isAskIntent && searchResults.length">
-                                                    <div class="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">動漫</div>
-                                                    <ul>
-                                                        <SearchResultItem
-                                                            v-for="(result, i) in searchResults"
-                                                            :key="result.refId"
-                                                            :result="result"
-                                                            :query="searchQuery"
-                                                            :active="isResultActive(result.refId)"
-                                                            @hover="(el) => onResultHover(result, i, el)"
-                                                            @select="selectResult(result)"
-                                                        />
-                                                    </ul>
-                                                </template>
-
                                                 <div
-                                                    v-if="showEmptyResults"
-                                                    class="flex flex-col items-center justify-center px-4 text-center"
-                                                    :class="showAskAi ? 'py-8' : 'py-16'"
+                                                    v-else
+                                                    class="flex h-full min-h-0"
+                                                    :class="showResultPreview ? '' : 'flex-col'"
                                                 >
-                                                    <span class="material-symbols-rounded mb-2 text-4xl text-gray-300 dark:text-gray-600">search_off</span>
-                                                    <p class="text-sm text-gray-500 dark:text-gray-400">找不到「{{ searchQuery }}」的相關結果</p>
-                                                    <p v-if="showAskAi" class="mt-1 text-xs text-gray-400">可以改問上方的 AI 助手</p>
+                                                    <div
+                                                        class="min-h-0 min-w-0 flex-1"
+                                                        :class="showResultPreview ? 'overflow-y-auto px-3 py-1' : ''"
+                                                    >
+                                                        <template v-if="showAskAi">
+                                                            <div class="px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">AI</div>
+                                                            <ul>
+                                                                <li
+                                                                    role="option"
+                                                                    :aria-selected="activeItem?.type === 'askAi'"
+                                                                    :data-active="activeItem?.type === 'askAi' ? 'true' : undefined"
+                                                                    class="flex min-w-0 cursor-pointer items-center gap-3 rounded-xl px-4 py-3 transition-colors"
+                                                                    :class="rowClass(activeItem?.type === 'askAi')"
+                                                                    @mouseenter="setActive(0)"
+                                                                    @mousedown.prevent="selectAskAi()"
+                                                                >
+                                                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900">
+                                                                        <span class="material-symbols-rounded">smart_toy</span>
+                                                                    </div>
+                                                                    <div class="min-w-0 flex-1 overflow-hidden">
+                                                                        <p
+                                                                            class="min-w-0 truncate text-sm font-medium text-gray-900 dark:text-gray-100"
+                                                                            :title="`詢問 AI：「${queryText}」`"
+                                                                        >
+                                                                            詢問 AI：「{{ queryText }}」
+                                                                        </p>
+                                                                        <p class="truncate text-xs text-gray-500 dark:text-gray-400">用 AI 搜尋、介紹或推薦相關動漫</p>
+                                                                    </div>
+                                                                    <kbd class="hidden shrink-0 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-white/10 sm:inline">↵</kbd>
+                                                                </li>
+                                                            </ul>
+                                                        </template>
+
+                                                        <template v-if="searchResults.length">
+                                                            <div class="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">動漫</div>
+                                                            <ul>
+                                                                <SearchResultItem
+                                                                    v-for="(result, i) in searchResults"
+                                                                    :key="result.refId"
+                                                                    :result="result"
+                                                                    :query="searchQuery"
+                                                                    :active="isResultActive(result.refId)"
+                                                                    @hover="(el) => onResultHover(result, i, el)"
+                                                                    @select="selectResult(result)"
+                                                                />
+                                                            </ul>
+                                                        </template>
+
+                                                        <div
+                                                            v-if="showEmptyResults"
+                                                            class="flex flex-col items-center justify-center px-4 text-center"
+                                                            :class="showAskAi ? 'py-8' : 'py-16'"
+                                                        >
+                                                            <span class="material-symbols-rounded mb-2 text-4xl text-gray-300 dark:text-gray-600">search_off</span>
+                                                            <p class="text-sm text-gray-500 dark:text-gray-400">找不到「{{ searchQuery }}」的相關結果</p>
+                                                            <p v-if="showAskAi" class="mt-1 text-xs text-gray-400">可以改問上方的 AI 助手</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <SearchResultPreview
+                                                        v-if="showResultPreview"
+                                                        :details="animeDetails"
+                                                        :loading="tooltipLoading"
+                                                        :error="tooltipError"
+                                                        :fallback="activeResult"
+                                                        @favorite-toggled="({ refId, isFavorite }) => setFavoriteStatus(refId, isFavorite)"
+                                                    />
                                                 </div>
                                             </template>
                                         </div>
@@ -611,17 +600,6 @@ onUnmounted(() => {
             </div>
         </Transition>
     </Teleport>
-
-    <AnimeTooltip
-        :hovered-anime="hoveredAnime"
-        :anime-details="animeDetails"
-        :tooltip-loading="tooltipLoading"
-        :tooltip-error="tooltipError"
-        :tooltip-position="tooltipPosition"
-        :on-tooltip-enter="handleTooltipEnter"
-        :on-tooltip-leave="handleTooltipLeave"
-        :on-favorite-toggled="({ refId, isFavorite }) => setFavoriteStatus(refId, isFavorite)"
-    />
 </template>
 
 <style scoped>

@@ -20,12 +20,12 @@ function onEnter(e) {
         role="option"
         :aria-selected="active"
         :data-active="active ? 'true' : undefined"
-        class="flex cursor-pointer items-start gap-3 rounded-xl px-4 py-3 transition-colors"
+        class="flex cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 transition-colors sm:px-4 sm:py-3"
         :class="active ? 'bg-black/8 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'"
         @mouseenter="onEnter"
         @mousedown.prevent="emit('select')"
     >
-        <div class="aspect-[2/3] w-14 shrink-0 overflow-hidden rounded-md bg-black/5 dark:bg-white/10 sm:w-16">
+        <div class="aspect-[2/3] w-11 shrink-0 overflow-hidden rounded-md bg-black/5 dark:bg-white/10 sm:w-14">
             <NuxtImg v-if="result.image" :src="result.image" :alt="result.title" class="h-full w-full object-cover" loading="lazy" />
             <div v-else class="flex h-full w-full items-center justify-center text-gray-400">
                 <span class="material-symbols-rounded text-lg">image</span>

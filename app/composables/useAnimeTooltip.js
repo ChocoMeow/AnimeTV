@@ -142,9 +142,12 @@ export function useAnimeTooltip() {
         
         if (animeCache.value.has(refId)) {
             const cached = animeCache.value.get(refId)
-            animeDetails.value = { ...cached, episodeCount: cached.episodeCount ?? episodeCount ?? null }
-            tooltipLoading.value = false
-            return
+            // Refresh entries cached before relatedAnime was included
+            if (Array.isArray(cached.relatedAnime)) {
+                animeDetails.value = { ...cached, episodeCount: cached.episodeCount ?? episodeCount ?? null }
+                tooltipLoading.value = false
+                return
+            }
         }
         if (previousRefId !== refId) {
             animeDetails.value = null
@@ -156,7 +159,9 @@ export function useAnimeTooltip() {
             tooltipLoading.value = true
             tooltipError.value = null
             try {
-                const details = await $fetch(`/api/anime/${refId}`)
+                const details = await $fetch(`/api/anime/${refId}`, {
+                    query: { withRelated: 'true' },
+                })
                 const enrichedDetails = {
                     ...details,
                     episodeCount: details.episodeCount ?? episodeCount ?? null,
