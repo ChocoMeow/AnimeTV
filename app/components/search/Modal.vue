@@ -77,7 +77,8 @@ const inputPlaceholder = computed(() =>
 const isShellExpanded = computed(() => isAiMode.value || !isAskIntent.value)
 const panelHeightClass = computed(() => {
     if (isMobile.value) return 'flex-1 min-h-0'
-    return isShellExpanded.value ? 'h-[min(80vh,720px)]' : 'h-[min(58vh,24rem)]'
+    // Both modes use explicit heights so transition-[height] can interpolate.
+    return isShellExpanded.value ? 'h-[min(80vh,720px)]' : 'h-[min(48vh,26rem)]'
 })
 const shellClass = computed(() =>
     isMobile.value
@@ -129,6 +130,17 @@ function rowClass(active) {
 
 function isSuggestionActive(text) {
     return activeItem.value?.type === 'suggestion' && activeItem.value.suggestion.text === text
+}
+
+function suggestionCardClass(text) {
+    return [
+        'ask-stagger group flex flex-col gap-2 rounded-2xl bg-white p-3 text-left shadow-sm ring-1 outline-none transition-[transform,box-shadow,ring-color] duration-300',
+        'hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/10 focus-visible:ring-2 focus-visible:ring-gray-900',
+        'dark:bg-white/[0.04] dark:hover:shadow-black/40 dark:focus-visible:ring-white',
+        isSuggestionActive(text)
+            ? 'ring-black/12 dark:ring-white/20'
+            : 'ring-black/6 dark:ring-white/10',
+    ]
 }
 
 function isResultActive(refId) {
@@ -450,7 +462,7 @@ onUnmounted(() => {
                                             :key="showDiscover ? 'discover' : contentPaneKey"
                                             ref="listRef"
                                             class="absolute inset-0"
-                                            :class="showDiscover || showResultPreview ? '' : 'overflow-y-auto px-3 py-1'"
+                                            :class="showDiscover || showResultPreview || isAskIntent ? '' : 'overflow-y-auto px-3 py-1'"
                                         >
                                             <SearchDiscoverPane
                                                 v-if="showDiscover"
@@ -468,43 +480,47 @@ onUnmounted(() => {
                                             />
 
                                             <template v-else>
-                                                <div v-if="isAskIntent" class="flex min-h-full flex-col px-2 py-3 sm:px-3">
-                                                    <div class="mb-4 flex items-start gap-3 px-2">
-                                                        <img src="/icons/icon.svg" alt="" class="mt-0.5 h-8 w-8 shrink-0 object-contain" width="32" height="32" />
-                                                        <div class="min-w-0">
-                                                            <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">有什麼想問的？</h3>
-                                                            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">直接輸入問題，或選一個建議 — 不會搜尋動漫資料庫</p>
-                                                        </div>
+                                                <div
+                                                    v-if="isAskIntent"
+                                                    class="h-full overflow-y-auto px-3 py-3 md:px-4"
+                                                >
+                                                    <div class="mb-4">
+                                                        <h3 class="text-base font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+                                                            有什麼想問的？
+                                                        </h3>
+                                                        <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                                            直接輸入問題，或選一個建議 — 不會搜尋動漫資料庫
+                                                        </p>
                                                     </div>
-                                                    <h4 class="mb-1.5 px-2 text-[11px] font-semibold tracking-wide text-gray-400 uppercase">建議問題</h4>
-                                                    <ul class="space-y-0.5">
-                                                        <li v-for="(item, i) in AI_PROMPT_SUGGESTIONS" :key="item.text">
-                                                            <button
-                                                                type="button"
-                                                                role="option"
-                                                                :aria-selected="isSuggestionActive(item.text)"
-                                                                :data-active="isSuggestionActive(item.text) ? 'true' : undefined"
-                                                                class="group flex w-full items-center gap-3 rounded-full py-2.5 pl-3 pr-5 text-left transition-colors"
-                                                                :class="rowClass(isSuggestionActive(item.text))"
-                                                                @mouseenter="setActive(i)"
-                                                                @mousedown.prevent="useAskSuggestion(item)"
+
+                                                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                                        <button
+                                                            v-for="(item, i) in AI_PROMPT_SUGGESTIONS"
+                                                            :key="item.text"
+                                                            type="button"
+                                                            role="option"
+                                                            :aria-selected="isSuggestionActive(item.text)"
+                                                            :data-active="isSuggestionActive(item.text) ? 'true' : undefined"
+                                                            :style="{ '--stagger': `${Math.min(i, 8) * 40}ms` }"
+                                                            :class="suggestionCardClass(item.text)"
+                                                            @mouseenter="setActive(i)"
+                                                            @mousedown.prevent="useAskSuggestion(item)"
+                                                        >
+                                                            <span
+                                                                class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-black/5 text-gray-700 transition-colors group-hover:bg-black/8 dark:bg-white/10 dark:text-gray-200 dark:group-hover:bg-white/15"
                                                             >
-                                                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/5 text-gray-600 dark:bg-white/10 dark:text-gray-300">
-                                                                    <span class="material-symbols-rounded text-[20px]">{{ item.icon }}</span>
+                                                                <span class="material-symbols-rounded text-[20px]">{{ item.icon }}</span>
+                                                            </span>
+                                                            <span class="min-w-0">
+                                                                <span class="block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                                                    {{ item.label }}
                                                                 </span>
-                                                                <span class="min-w-0 flex-1">
-                                                                    <span class="block text-sm font-medium text-gray-900 dark:text-gray-100">{{ item.label }}</span>
-                                                                    <span class="mt-0.5 block truncate text-xs text-gray-500 dark:text-gray-400">{{ item.text }}</span>
+                                                                <span class="mt-0.5 block line-clamp-2 text-[11px] leading-snug text-gray-500 dark:text-gray-400">
+                                                                    {{ item.text }}
                                                                 </span>
-                                                                <span
-                                                                    class="material-symbols-rounded shrink-0 text-[18px] text-gray-300 transition-opacity dark:text-gray-600"
-                                                                    :class="isSuggestionActive(item.text) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
-                                                                >
-                                                                    arrow_forward
-                                                                </span>
-                                                            </button>
-                                                        </li>
-                                                    </ul>
+                                                            </span>
+                                                        </button>
+                                                    </div>
                                                 </div>
 
                                                 <div
@@ -585,7 +601,7 @@ onUnmounted(() => {
                                     </Transition>
                                 </div>
 
-                                <div class="hidden shrink-0 items-center gap-4 px-3 pt-2 text-xs text-gray-500 dark:text-gray-400 md:flex">
+                                <div class="hidden shrink-0 items-center gap-4 px-3 pt-3 text-xs text-gray-500 dark:text-gray-400 md:flex">
                                     <AppTooltip v-for="hint in keyboardHints" :key="hint.label" :text="hint.tip">
                                         <span class="inline-flex items-center gap-1.5">
                                             <kbd v-for="key in hint.keys" :key="key" :class="hint.wide ? KBD_WIDE : KBD">{{ key }}</kbd>
@@ -605,14 +621,11 @@ onUnmounted(() => {
 <style scoped>
 .search-pane-enter-active,
 .search-pane-leave-active {
-    transition:
-        opacity 0.22s ease,
-        transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: opacity 0.2s ease;
 }
 .search-pane-enter-from,
 .search-pane-leave-to {
     opacity: 0;
-    transform: translateY(6px);
 }
 
 .search-dropdown-enter-active,
@@ -634,5 +647,27 @@ onUnmounted(() => {
 .search-backdrop-enter-from,
 .search-backdrop-leave-to {
     opacity: 0;
+}
+
+.ask-stagger {
+    animation: ask-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--stagger, 0ms);
+}
+
+@keyframes ask-rise {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ask-stagger {
+        animation: none;
+    }
 }
 </style>

@@ -185,17 +185,9 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
         <div ref="scrollRef" class="min-h-0 min-w-0 flex-1 overflow-y-auto px-3 py-3 md:pl-4 md:pr-3">
             <!-- History -->
             <div v-if="tab === 'history'" class="pb-1">
-                <div class="mb-4 flex items-end justify-between gap-3">
-                    <div>
-                        <h3 :class="TITLE">搜尋紀錄</h3>
-                        <p :class="SUBTITLE">點選關鍵字即可再次搜尋</p>
-                    </div>
-                    <span
-                        v-if="history.length"
-                        class="inline-flex items-center rounded-full bg-sky-500/10 px-2.5 py-1 text-[11px] font-medium text-sky-700 dark:bg-sky-400/10 dark:text-sky-300"
-                    >
-                        {{ history.length }} 筆
-                    </span>
+                <div class="mb-4">
+                    <h3 :class="TITLE">搜尋紀錄</h3>
+                    <p :class="SUBTITLE">點選關鍵字即可再次搜尋</p>
                 </div>
 
                 <div
@@ -258,15 +250,9 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
 
             <!-- Trending -->
             <div v-else-if="tab === 'trending'" class="pb-1">
-                <div class="mb-4 flex items-end justify-between gap-3">
-                    <div>
-                        <h3 :class="TITLE">熱度榜</h3>
-                        <p :class="SUBTITLE">依全站觀看次數排序</p>
-                    </div>
-                    <span class="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-1 text-[11px] font-medium text-rose-700 dark:bg-rose-400/10 dark:text-rose-300">
-                        <span class="discover-pulse-dot" aria-hidden="true" />
-                        即時
-                    </span>
+                <div class="mb-4">
+                    <h3 :class="TITLE">熱度榜</h3>
+                    <p :class="SUBTITLE">依全站觀看次數排序</p>
                 </div>
 
                 <button
@@ -384,14 +370,6 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
     animation-delay: var(--stagger, 0ms);
 }
 
-.discover-pulse-dot {
-    width: 0.4rem;
-    height: 0.4rem;
-    border-radius: 9999px;
-    background: currentColor;
-    animation: discover-pulse 1.6s ease-in-out infinite;
-}
-
 @keyframes discover-rise {
     from {
         opacity: 0;
@@ -403,19 +381,8 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
     }
 }
 
-@keyframes discover-pulse {
-    0%,
-    100% {
-        opacity: 0.55;
-    }
-    50% {
-        opacity: 1;
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
-    .discover-stagger,
-    .discover-pulse-dot {
+    .discover-stagger {
         animation: none;
     }
 }

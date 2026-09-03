@@ -299,7 +299,7 @@ onUnmounted(() => {
                 </div>
             </div>
 
-            <form class="flex shrink-0 flex-col gap-2 border-t border-black/10 p-3 dark:border-white/10" @submit.prevent="sendMessage">
+            <form class="flex shrink-0 flex-col gap-2 border-t border-black/10 p-3 pb-0 dark:border-white/10" @submit.prevent="sendMessage">
                 <div
                     v-if="needsNewChat"
                     class="flex items-center justify-between gap-2 rounded-xl bg-black/[0.04] px-3 py-2 text-xs text-gray-700 ring-1 ring-black/5 dark:bg-white/[0.06] dark:text-gray-200 dark:ring-white/10"
