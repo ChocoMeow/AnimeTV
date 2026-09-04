@@ -1,4 +1,6 @@
 <script setup>
+definePageMeta({ publicSsr: true }) // SSR OG/meta for link previews; client middleware still requires login
+
 // ─── Composables ──────────────────────────────────────────────────────────────
 const { userSettings, getShortcuts, formatShortcutKey } = useUserSettings()
 const user = useSupabaseUser()

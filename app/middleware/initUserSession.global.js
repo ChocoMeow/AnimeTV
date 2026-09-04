@@ -12,6 +12,11 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
         if (path === '/') {
             return navigateTo('/welcome')
         }
+        // Pages with `publicSsr: true` render OG/meta for link previews; client still gates guests
+        if (import.meta.server && to.meta.publicSsr) {
+            return
+        }
+        
         if (!isPublicPage) {
             const redirectInfo = useSupabaseCookieRedirect()
             redirectInfo.path.value = to.fullPath
