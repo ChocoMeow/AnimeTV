@@ -6,23 +6,9 @@ function parseEp(ep) {
     return Number.isFinite(n) ? n : 0
 }
 
-// ─── Timezone helpers ─────────────────────────────────────────────────────────
-function dateKeyTz(date, tz) {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(date)
-}
-
-function hourTz(date, tz) {
-    const h = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', hour12: false }).format(date)
-    return Number(h) % 24
-}
-
 const WEEKDAY_MAP = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
-function weekdayTz(date, tz) {
-    const w = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short' }).format(date)
-    return WEEKDAY_MAP[w] ?? 0
-}
 
-// ─── Pre-build Intl formatters once per request (avoids repeated construction) ─
+// Build Intl formatters once per request (avoids re-creating them in the hot loop)
 function makeFormatters(tz) {
     const date = new Intl.DateTimeFormat('en-CA', { timeZone: tz })
     const hour = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', hour12: false })
@@ -34,7 +20,6 @@ function makeFormatters(tz) {
     }
 }
 
-// ─── Streak calculation ───────────────────────────────────────────────────────
 function computeStreaks(dayKeys, todayKey) {
     const set = new Set(dayKeys)
     const sorted = [...set].sort()
@@ -62,7 +47,7 @@ function computeStreaks(dayKeys, todayKey) {
     return { longestStreakDays: best, currentStreakDays: current }
 }
 
-// ─── Build the 12-month label array + an O(1) index map ──────────────────────
+// Last 12 calendar months → labels + O(1) index map for monthly chart
 function buildMonthlyMeta(nowY, nowM) {
     const labels = []
     const indexMap = new Map()
@@ -80,6 +65,29 @@ function buildMonthlyMeta(nowY, nowM) {
     return { labels, indexMap }
 }
 
+// Pages through PostgREST max-rows (first batch length = page size). Only last 12 months.
+async function fetchWatchHistory(client, userId, sinceIso) {
+    const cols = 'anime_ref_id, anime_title, anime_image, episode_number, total_playback_time, playback_time, progress_percentage, updated_at'
+    const list = []
+    let pageSize
+    for (let from = 0; ; from += pageSize) {
+        let q = client
+            .from('watch_history')
+            .select(cols)
+            .eq('user_id', userId)
+            .gte('updated_at', sinceIso)
+            .order('updated_at', { ascending: true })
+        if (pageSize) q = q.range(from, from + pageSize - 1)
+        const { data, error } = await q
+        if (error) throw error
+        const batch = data || []
+        list.push(...batch)
+        if (!pageSize) pageSize = batch.length
+        if (!batch.length || batch.length < pageSize) break
+    }
+    return list
+}
+
 export default defineEventHandler(async (event) => {
     const user = await authUser(event)
     const client = await serverSupabaseClient(event)
@@ -92,22 +100,18 @@ export default defineEventHandler(async (event) => {
         tz = rawTz
     } catch {}
 
-    // Build formatters once — avoids constructing Intl objects in the hot loop
     const fmt = makeFormatters(tz)
+    const now = new Date()
+    const todayKey = fmt.dateKey(now)
+    const [nowY, nowM] = todayKey.slice(0, 7).split('-').map(Number)
+    const { labels: monthlyLabels, indexMap: monthlyIndex } = buildMonthlyMeta(nowY, nowM)
+    const sinceIso = `${monthlyLabels[0]}-01T00:00:00.000Z`
 
     try {
-        // ── 1. Fetch watch_history ─────────────────────────────────────────────
-        const { data: rows, error } = await client
-            .from('watch_history')
-            .select('anime_ref_id, anime_title, anime_image, episode_number, total_playback_time, playback_time, progress_percentage, updated_at')
-            .eq('user_id', userId)
-            .order('updated_at', { ascending: true })
-
-        if (error) throw error
-        const list = rows || []
+        // ── 1. Fetch last-12-month watch_history (paged) ─────────────────────
+        const list = await fetchWatchHistory(client, userId, sinceIso)
         const watchSeconds = (r) => r.total_playback_time ?? r.playback_time ?? 0
 
-        // Collect unique ref IDs early so the meta query can fire immediately
         const refIds = []
         const seenRef = new Set()
         for (const r of list) {
@@ -117,12 +121,12 @@ export default defineEventHandler(async (event) => {
             }
         }
 
-        // ── 2. Fetch anime_meta (SINGLE query for BOTH studios AND tags) ───────
-        //    Run concurrently with the synchronous list-processing below via
-        //    Promise — the JS loop and the DB round-trip overlap in time.
-        const metaPromise = refIds.length ? client.from('anime_meta').select('source_id, production_company, tags').in('source_id', refIds) : Promise.resolve({ data: [] })
+        // ── 2. Fetch anime_meta (studios + tags); overlaps with row processing ─
+        const metaPromise = refIds.length
+            ? client.from('anime_meta').select('source_id, production_company, tags').in('source_id', refIds)
+            : Promise.resolve({ data: [] })
 
-        // ── 3. Process watch_history rows (runs while meta query is in-flight) ─
+        // ── 3. Aggregate watch_history into charts / summary buckets ──────────
         const byAnime = new Map()
         const watchDays = new Set()
         const hourTotals = new Int32Array(24)
@@ -130,24 +134,15 @@ export default defineEventHandler(async (event) => {
         const weekdayLabels = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
         const daySeconds = new Map()
         const timeByRef = new Map()
-        const tagSeconds = new Map() // filled after meta resolves
+        const tagSeconds = new Map()
 
         let totalWatchSeconds = 0
         let progressSum = 0,
             progressN = 0
 
-        // Pre-build monthly structure (O(1) lookups later)
-        const now = new Date()
-        const todayKey = fmt.dateKey(now)
-        const [nowY, nowM] = todayKey.slice(0, 7).split('-').map(Number)
-        const { labels: monthlyLabels, indexMap: monthlyIndex } = buildMonthlyMeta(nowY, nowM)
         const monthlyValues = new Array(12).fill(0)
-
-        // Episode buckets
         const epLabels = ['1–6', '7–12', '13–24', '25–48', '49+']
         const epBuckets = [0, 0, 0, 0, 0]
-
-        // Progress histogram
         const progressBuckets = [0, 0, 0, 0, 0]
         const progressLabels = ['0–19%', '20–39%', '40–59%', '60–79%', '80–100%']
 
@@ -160,40 +155,32 @@ export default defineEventHandler(async (event) => {
 
             totalWatchSeconds += pt
 
-            // byAnime
             if (!byAnime.has(id)) byAnime.set(id, { title: r.anime_title, image: r.anime_image, maxProgress: 0, hasDeepWatch: false })
             const entry = byAnime.get(id)
             if (p > entry.maxProgress) entry.maxProgress = p
             if (p >= 95) entry.hasDeepWatch = true
 
-            // progress stats
             progressSum += p
             progressN++
             progressBuckets[Math.min(4, Math.floor(Math.min(100, Math.max(0, p)) / 20))]++
 
-            // watch days / heatmap
             watchDays.add(dk)
             daySeconds.set(dk, (daySeconds.get(dk) || 0) + pt)
 
-            // hour / weekday
             hourTotals[fmt.hour(d)] += pt
             weekdayTotals[(fmt.weekday(d) + 6) % 7] += pt
 
-            // monthly — O(1) with Map
-            const monthKey = dk.slice(0, 7)
-            const mIdx = monthlyIndex.get(monthKey)
+            const mIdx = monthlyIndex.get(dk.slice(0, 7))
             if (mIdx !== undefined) monthlyValues[mIdx] += pt
 
-            // timeByRef
             if (!timeByRef.has(id)) timeByRef.set(id, { seconds: 0, title: r.anime_title, image: r.anime_image })
             timeByRef.get(id).seconds += pt
 
-            // episode buckets
             const n = parseEp(r.episode_number)
             epBuckets[n <= 6 ? 0 : n <= 12 ? 1 : n <= 24 ? 2 : n <= 48 ? 3 : 4] += pt
         }
 
-        // ── 4. Await the single meta query and build studio + tag maps ─────────
+        // ── 4. Join meta → studio / tag time maps ────────────────────────────
         const { data: metaRows } = await metaPromise
 
         const studioSeconds = new Map()
@@ -209,11 +196,10 @@ export default defineEventHandler(async (event) => {
             const pt = watchSeconds(r)
             const id = r.anime_ref_id
 
-            // studios
             const company = companyByRef.get(id) || '未標示'
             studioSeconds.set(company, (studioSeconds.get(company) || 0) + pt)
 
-            // tags — distribute time evenly across tags
+            // Split watch time evenly across an anime's tags
             const tags = tagsByRef.get(id)
             if (tags?.length) {
                 const share = pt / tags.length
@@ -221,7 +207,7 @@ export default defineEventHandler(async (event) => {
             }
         }
 
-        // ── 5. Derive summary values ───────────────────────────────────────────
+        // ── 5. Summary + ranked top lists + 42-day heatmap ──────────────────
         let deepWatchedAnimeCount = 0
         for (const [, v] of byAnime) if (v.hasDeepWatch) deepWatchedAnimeCount++
 
@@ -238,7 +224,6 @@ export default defineEventHandler(async (event) => {
             if (hourTotals[hi] > 0) peakHourLabel = `${String(hi).padStart(2, '0')}:00 前後`
         }
 
-        // ── 6. Build sorted output arrays ──────────────────────────────────────
         const topAnimeByTime = [...timeByRef.entries()]
             .map(([anime_ref_id, v]) => ({ anime_ref_id, anime_title: v.title, anime_image: v.image, seconds: v.seconds }))
             .sort((a, b) => b.seconds - a.seconds)
@@ -254,7 +239,6 @@ export default defineEventHandler(async (event) => {
             .slice(0, 8)
             .map(([label, seconds]) => ({ label, seconds }))
 
-        // 42-day heatmap
         const todayMs = new Date(todayKey + 'T12:00:00Z').getTime()
         const heatmapLabels = [],
             heatmapValues = []
