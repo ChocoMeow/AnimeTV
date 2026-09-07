@@ -106,15 +106,13 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                     <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">下載管理</h1>
                     <p class="text-gray-600 dark:text-gray-400 mt-1">管理你的離線下載</p>
                 </div>
-                <div class="flex items-center gap-2 sm:gap-3">
-                    <div class="px-4 py-2.5 bg-black/5 dark:bg-white/10 rounded-full flex items-center gap-2">
-                        <span class="material-symbols-rounded text-gray-600 dark:text-gray-400 text-lg">storage</span>
-                        <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ formatBytes(totalDownloadedBytes) }}</span>
-                    </div>
-                    <button
-                        type="button"
-                        class="px-4 py-2.5 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 rounded-full transition-colors font-medium flex items-center gap-2"
-                        :class="{ 'text-blue-600 dark:text-blue-400': hasDownloadTasks, 'text-gray-700 dark:text-gray-300': !hasDownloadTasks }"
+                <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+                    <AppChip as="div" icon="storage">
+                        {{ formatBytes(totalDownloadedBytes) }}
+                    </AppChip>
+                    <AppChip
+                        v-if="hasDownloadTasks"
+                        variant="accent"
                         @click="showDownloadProgress = true"
                     >
                         <svg
@@ -146,15 +144,8 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                         </svg>
                         <span v-else class="material-symbols-rounded text-lg shrink-0" aria-hidden="true">downloading</span>
                         下載進度
-                    </button>
-                    <button
-                        type="button"
-                        class="px-4 py-2.5 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black rounded-full transition-opacity font-medium flex items-center gap-2"
-                        @click="refreshList"
-                    >
-                        <span class="material-symbols-rounded text-lg">refresh</span>
-                        重新整理
-                    </button>
+                    </AppChip>
+                    <AppChip variant="solid" icon="refresh" @click="refreshList">重新整理</AppChip>
                 </div>
             </div>
         </div>
@@ -368,15 +359,5 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
 <style scoped>
 .panel-card {
     @apply bg-black/[0.02] dark:bg-white/5 rounded-xl ring-1 ring-black/5 dark:ring-white/10 transition-all duration-300;
-}
-
-.empty-state {
-    @apply text-center py-20 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/5 dark:border-white/5;
-}
-
-.btn-primary {
-    @apply inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm
-           bg-gray-900 dark:bg-white text-white dark:text-black
-           hover:opacity-90 transition-opacity;
 }
 </style>

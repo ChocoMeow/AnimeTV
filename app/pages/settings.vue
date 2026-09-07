@@ -7,6 +7,19 @@ const { isIncognito, toggleIncognito } = useIncognitoMode()
 const appConfig = useAppConfig()
 const client = useSupabaseClient()
 
+const themeOptions = [
+    { value: 'light', label: '淺色', icon: 'light_mode' },
+    { value: 'dark', label: '深色', icon: 'dark_mode' },
+    { value: 'system', label: '跟隨系統', icon: 'settings_brightness' },
+]
+
+const dataClearRows = [
+    { key: 'history', title: '觀看紀錄', desc: '清除所有觀看紀錄', countKey: 'watchHistory', actionLabel: '清除' },
+    { key: 'favorites', title: '收藏列表', desc: '清除所有收藏的動漫', countKey: 'favorites', actionLabel: '清除' },
+    { key: 'search', title: '搜尋紀錄', desc: '清除所有搜尋歷史', countKey: 'searchHistory', actionLabel: '清除' },
+    { key: 'all', title: '所有資料', desc: '清除所有個人資料', countKey: null, actionLabel: '全部清除' },
+]
+
 function onSpeechLangChange(value) {
     if (value === speechLang.value) return
     setSpeechLang(value)
@@ -254,15 +267,15 @@ useHead({
                             <p class="text-sm text-gray-600 dark:text-gray-400">選擇淺色、深色或跟隨系統主題</p>
                         </div>
                         <div class="flex flex-wrap gap-2 sm:justify-end">
-                            <button
-                                v-for="opt in [{ value: 'light', label: '淺色', icon: 'light_mode' }, { value: 'dark', label: '深色', icon: 'dark_mode' }, { value: 'system', label: '跟隨系統', icon: 'settings_brightness' }]"
+                            <AppChip
+                                v-for="opt in themeOptions"
                                 :key="opt.value"
+                                :active="theme === opt.value"
+                                :icon="opt.icon"
                                 @click="setTheme(opt.value)"
-                                :class="['pill-tab', theme === opt.value ? 'pill-tab-active' : 'pill-tab-inactive']"
                             >
-                                <span class="material-symbols-rounded text-lg">{{ opt.icon }}</span>
                                 {{ opt.label }}
-                            </button>
+                            </AppChip>
                         </div>
                     </div>
                 </div>
@@ -277,10 +290,7 @@ useHead({
                             </div>
                             <p class="text-sm text-gray-600 dark:text-gray-400">調整影片播放器的鍵盤快捷鍵</p>
                         </div>
-                        <button type="button" @click="showShortcutsModal = true" class="pill-tab pill-tab-inactive sm:justify-end">
-                            <span class="material-symbols-rounded text-lg">edit</span>
-                            自訂
-                        </button>
+                        <AppChip icon="edit" @click="showShortcutsModal = true">自訂</AppChip>
                     </div>
                 </div>
 
@@ -292,36 +302,22 @@ useHead({
                     </div>
 
                     <div class="divide-y divide-black/5 dark:divide-white/10">
-                        <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                        <div
+                            v-for="row in dataClearRows"
+                            :key="row.key"
+                            class="flex items-center justify-between py-3 first:pt-0 last:pb-0"
+                        >
                             <div>
-                                <h4 class="font-medium text-gray-900 dark:text-gray-100">觀看紀錄</h4>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">清除所有觀看紀錄</p>
+                                <h4 class="font-medium text-gray-900 dark:text-gray-100">{{ row.title }}</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">{{ row.desc }}</p>
                             </div>
-                            <button @click="openClearDataModal('history')" :disabled="stats.watchHistory === 0" class="btn-danger-outline">清除</button>
-                        </div>
-
-                        <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                            <div>
-                                <h4 class="font-medium text-gray-900 dark:text-gray-100">收藏列表</h4>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">清除所有收藏的動漫</p>
-                            </div>
-                            <button @click="openClearDataModal('favorites')" :disabled="stats.favorites === 0" class="btn-danger-outline">清除</button>
-                        </div>
-
-                        <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                            <div>
-                                <h4 class="font-medium text-gray-900 dark:text-gray-100">搜尋紀錄</h4>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">清除所有搜尋歷史</p>
-                            </div>
-                            <button @click="openClearDataModal('search')" :disabled="stats.searchHistory === 0" class="btn-danger-outline">清除</button>
-                        </div>
-
-                        <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                            <div>
-                                <h4 class="font-medium text-gray-900 dark:text-gray-100">所有資料</h4>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">清除所有個人資料</p>
-                            </div>
-                            <button @click="openClearDataModal('all')" class="btn-danger-outline">全部清除</button>
+                            <AppChip
+                                variant="danger-outline"
+                                :disabled="row.countKey ? stats[row.countKey] === 0 : false"
+                                @click="openClearDataModal(row.key)"
+                            >
+                                {{ row.actionLabel }}
+                            </AppChip>
                         </div>
                     </div>
                 </div>
@@ -496,22 +492,6 @@ useHead({
 <style scoped>
 .settings-panel {
     @apply bg-black/[0.02] dark:bg-white/5 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 p-5 sm:p-6;
-}
-
-.pill-tab {
-    @apply h-10 px-4 rounded-full text-sm font-medium leading-none transition-colors inline-flex items-center justify-center gap-2 shrink-0;
-}
-
-.pill-tab-inactive {
-    @apply bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20;
-}
-
-.pill-tab-active {
-    @apply bg-gray-900 dark:bg-white text-white dark:text-black shadow-md;
-}
-
-.btn-danger-outline {
-    @apply h-10 px-4 inline-flex items-center justify-center shrink-0 bg-red-500/10 text-red-600 dark:text-red-400 rounded-full text-sm font-medium leading-none hover:bg-red-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed;
 }
 </style>
 

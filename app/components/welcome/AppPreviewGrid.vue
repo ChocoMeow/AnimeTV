@@ -609,22 +609,12 @@ onBeforeUnmount(() => {
 
                             <section v-if="demoRelatedItems.length" aria-label="Related anime">
                                 <div class="flex flex-wrap gap-2 mb-4">
-                                    <button
-                                        type="button"
-                                        class="chip-pill chip-pill--sm"
-                                        :class="relatedTab === 'related' ? 'chip-pill--active' : 'chip-pill--idle'"
-                                        @click="relatedTab = 'related'"
-                                    >
+                                    <AppChip size="sm" :active="relatedTab === 'related'" @click="relatedTab = 'related'">
                                         相關動漫
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="chip-pill chip-pill--sm"
-                                        :class="relatedTab === 'recommended' ? 'chip-pill--active' : 'chip-pill--idle'"
-                                        @click="relatedTab = 'recommended'"
-                                    >
+                                    </AppChip>
+                                    <AppChip size="sm" :active="relatedTab === 'recommended'" @click="relatedTab = 'recommended'">
                                         為你推薦
-                                    </button>
+                                    </AppChip>
                                 </div>
                                 <div class="related-grid-wrap">
                                     <div class="related-grid" role="list">

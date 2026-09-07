@@ -295,13 +295,13 @@ onUnmounted(() => {
 
         <!-- Tabs -->
         <div class="flex flex-wrap gap-2 mb-6 sm:mb-8">
-            <button
+            <AppChip
                 v-for="tab in tabs"
                 :key="tab.id"
+                :active="activeTab === tab.id"
+                :icon="tab.icon"
                 @click="activeTab = tab.id"
-                :class="['pill-tab', activeTab === tab.id ? 'pill-tab-active' : 'pill-tab-inactive']"
             >
-                <span class="material-symbols-rounded text-lg">{{ tab.icon }}</span>
                 <span class="hidden md:inline">{{ tab.label }}</span>
                 <span class="md:hidden">{{ tab.labelShort }}</span>
                 <span
@@ -310,7 +310,7 @@ onUnmounted(() => {
                 >
                     {{ tab.badge }}
                 </span>
-            </button>
+            </AppChip>
         </div>
 
         <!-- Friends Tab -->
@@ -319,7 +319,7 @@ onUnmounted(() => {
                 <LoadingSpinner size="xl" class="mx-auto" />
             </div>
 
-            <div v-else-if="friends.length === 0" class="empty-panel">
+            <div v-else-if="friends.length === 0" class="empty-state">
                 <span class="material-symbols-rounded text-6xl text-gray-400 dark:text-gray-500 mb-4 opacity-60">group</span>
                 <p class="text-gray-700 dark:text-gray-300 text-lg mb-2">還沒有好友</p>
                 <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">開始搜尋並新增您的第一位好友吧！</p>
@@ -327,7 +327,6 @@ onUnmounted(() => {
             </div>
 
             <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                <!-- In Friends Tab, replace the friend card section: -->
                 <div v-for="friend in friends" :key="friend.id" class="panel-card p-4">
                     <div class="flex items-center gap-4">
                         <UserAvatar :src="friend.avatar" :name="friend.name" class="w-16 h-16 text-xl" img-class="ring-2 ring-black/5 dark:ring-white/10" />
@@ -388,7 +387,7 @@ onUnmounted(() => {
                     <LoadingSpinner size="xl" class="mx-auto" />
                 </div>
 
-                <div v-else-if="incomingRequests.length === 0" class="empty-panel py-8">
+                <div v-else-if="incomingRequests.length === 0" class="empty-state py-8">
                     <span class="material-symbols-rounded text-4xl text-gray-400 dark:text-gray-500 mb-2 opacity-60">inbox</span>
                     <p class="text-gray-600 dark:text-gray-400">沒有待處理的好友請求</p>
                 </div>
@@ -403,8 +402,8 @@ onUnmounted(() => {
                             </div>
 
                             <div class="flex gap-2">
-                                <button @click="handleAcceptRequest(request.id)" class="btn-primary-sm">接受</button>
-                                <button @click="handleRejectRequest(request.id)" class="btn-ghost-sm">拒絕</button>
+                                <AppChip variant="solid" @click="handleAcceptRequest(request.id)">接受</AppChip>
+                                <AppChip variant="ghost" @click="handleRejectRequest(request.id)">拒絕</AppChip>
                             </div>
                         </div>
                     </div>
@@ -415,7 +414,7 @@ onUnmounted(() => {
             <div>
                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">已發送的請求</h2>
 
-                <div v-if="outgoingRequests.length === 0" class="empty-panel py-8">
+                <div v-if="outgoingRequests.length === 0" class="empty-state py-8">
                     <span class="material-symbols-rounded text-4xl text-gray-400 dark:text-gray-500 mb-2 opacity-60">send</span>
                     <p class="text-gray-600 dark:text-gray-400">沒有已發送的好友請求</p>
                 </div>
@@ -430,7 +429,7 @@ onUnmounted(() => {
                                 <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">等待對方回應...</p>
                             </div>
 
-                            <button @click="cancelRequest(request.id)" class="btn-ghost-sm">取消</button>
+                            <AppChip variant="ghost" @click="cancelRequest(request.id)">取消</AppChip>
                         </div>
                     </div>
                 </div>
@@ -451,7 +450,7 @@ onUnmounted(() => {
             </div>
 
             <!-- Search Results -->
-            <div v-if="searchQuery && searchResults.length === 0 && !searchLoading" class="empty-panel">
+            <div v-if="searchQuery && searchResults.length === 0 && !searchLoading" class="empty-state">
                 <span class="material-symbols-rounded text-6xl text-gray-400 dark:text-gray-500 mb-4 opacity-60">search_off</span>
                 <p class="text-gray-600 dark:text-gray-400">找不到符合「{{ searchQuery }}」的用戶</p>
             </div>
@@ -465,22 +464,21 @@ onUnmounted(() => {
                             <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ result.name }}</h3>
                         </div>
 
-                        <button 
-                            v-if="result.hasPending" 
-                            disabled 
-                            class="px-4 py-2 bg-black/5 dark:bg-white/10 text-gray-500 dark:text-gray-400 text-sm font-medium rounded-full cursor-not-allowed flex items-center gap-2"
+                        <AppChip
+                            v-if="result.hasPending"
+                            disabled
+                            icon="schedule"
                         >
-                            <span class="material-symbols-rounded text-sm">schedule</span>
                             等待回應
-                        </button>
-                        <button 
-                            v-else 
-                            @click="handleSendRequest(result.id)" 
-                            class="btn-primary-sm"
+                        </AppChip>
+                        <AppChip
+                            v-else
+                            variant="solid"
+                            icon="person_add"
+                            @click="handleSendRequest(result.id)"
                         >
-                            <span class="material-symbols-rounded text-sm">person_add</span>
                             加為好友
-                        </button>
+                        </AppChip>
                     </div>
                 </div>
             </div>
@@ -492,7 +490,7 @@ onUnmounted(() => {
                 <LoadingSpinner size="xl" class="mx-auto" />
             </div>
 
-            <div v-else-if="blockedUsers.length === 0" class="empty-panel">
+            <div v-else-if="blockedUsers.length === 0" class="empty-state">
                 <span class="material-symbols-rounded text-6xl text-gray-400 dark:text-gray-500 mb-4 opacity-60">block</span>
                 <p class="text-gray-700 dark:text-gray-300 text-lg mb-2">沒有封鎖的用戶</p>
                 <p class="text-gray-500 dark:text-gray-400 text-sm">您目前沒有封鎖任何用戶</p>
@@ -521,10 +519,9 @@ onUnmounted(() => {
                             </p>
                         </div>
 
-                        <button @click="openConfirmModal(blockedUser, 'unblock')" class="btn-primary-sm">
-                            <span class="material-symbols-rounded text-sm">check_circle</span>
+                        <AppChip variant="solid" icon="check_circle" @click="openConfirmModal(blockedUser, 'unblock')">
                             解除封鎖
-                        </button>
+                        </AppChip>
                     </div>
                 </div>
             </div>
@@ -569,36 +566,6 @@ onUnmounted(() => {
 .panel-card {
     @apply bg-black/[0.02] dark:bg-white/5 rounded-xl ring-1 ring-black/5 dark:ring-white/10
            hover:ring-black/10 dark:hover:ring-white/20 transition-all duration-200;
-}
-
-.empty-panel {
-    @apply bg-black/[0.02] dark:bg-white/[0.03] border border-black/5 dark:border-white/5 rounded-2xl p-12 text-center;
-}
-
-.pill-tab {
-    @apply px-4 md:px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2;
-}
-
-.pill-tab-inactive {
-    @apply bg-black/5 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20;
-}
-
-.pill-tab-active {
-    @apply bg-gray-900 dark:bg-white text-white dark:text-black shadow-md;
-}
-
-.btn-primary {
-    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold text-sm
-           bg-gray-900 dark:bg-white text-white dark:text-black
-           hover:opacity-90 transition-opacity;
-}
-
-.btn-primary-sm {
-    @apply px-4 py-2 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black text-sm font-medium rounded-full transition-opacity flex items-center gap-2;
-}
-
-.btn-ghost-sm {
-    @apply px-4 py-2 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-full transition-colors;
 }
 
 /* Dropdown animation */

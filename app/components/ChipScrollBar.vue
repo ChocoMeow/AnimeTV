@@ -1,7 +1,7 @@
 <script setup>
 /**
- * YouTube-style horizontal chip scroller: fade edges + chevron buttons.
- * Put chip buttons in the default slot; call rebind() when chip count changes.
+ * Horizontal chip scroller: fade edges + chevron buttons.
+ * Put AppChip (or similar) in the default slot; call rebind() when chip count changes.
  */
 defineProps({
     /** Larger chevrons (related tabs); smaller for episode ranges */
@@ -91,3 +91,44 @@ onUnmounted(() => resizeObserver?.disconnect())
         </div>
     </div>
 </template>
+
+<style scoped>
+.scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+    display: none;
+}
+
+.chip-scroll-edge {
+    @apply absolute inset-y-0 z-10 flex items-center transition-opacity duration-200;
+    width: 2.5rem;
+}
+.chip-scroll-edge--wide {
+    width: 3.25rem;
+}
+.chip-scroll-edge--left {
+    @apply left-0 justify-start;
+    background: linear-gradient(to right, rgb(255 255 255) 40%, transparent);
+}
+:global(.dark) .chip-scroll-edge--left {
+    background: linear-gradient(to right, rgb(3 7 18) 40%, transparent);
+}
+.chip-scroll-edge--right {
+    @apply right-0 justify-end;
+    background: linear-gradient(to left, rgb(255 255 255) 40%, transparent);
+}
+:global(.dark) .chip-scroll-edge--right {
+    background: linear-gradient(to left, rgb(3 7 18) 40%, transparent);
+}
+
+.chip-scroll-btn {
+    @apply w-8 h-8 flex items-center justify-center rounded-full
+           text-gray-900 dark:text-white
+           hover:bg-black/5 dark:hover:bg-white/10 transition-colors;
+}
+.chip-scroll-btn--lg {
+    @apply w-10 h-10;
+}
+</style>

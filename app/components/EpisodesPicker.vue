@@ -224,19 +224,15 @@ onBeforeUnmount(() => {
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">範圍:</span>
             </div>
             <ChipScrollBar ref="chipScroll">
-                <button
+                <AppChip
                     v-for="(start, idx) in rangeStarts"
                     :key="start"
-                    type="button"
-                    class="chip-pill"
-                    :class="[
-                        compact ? 'chip-pill--sm' : '',
-                        currentPage === idx + 1 ? 'chip-pill--active' : 'chip-pill--idle',
-                    ]"
+                    :size="compact ? 'sm' : 'md'"
+                    :active="currentPage === idx + 1"
                     @click="applyRange(start)"
                 >
                     {{ getEpisodeLabel(start) }}–{{ getEpisodeLabel(rangeEnd(idx)) }}
-                </button>
+                </AppChip>
             </ChipScrollBar>
         </div>
 
