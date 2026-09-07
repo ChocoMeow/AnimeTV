@@ -18,7 +18,15 @@ const props = defineProps({
     variant: {
         type: String,
         default: 'toggle',
-        validator: (v) => v in VARIANT_TONES,
+        validator: (v) => [
+            'toggle',
+            'solid',
+            'ghost',
+            'accent',
+            'danger',
+            'danger-ghost',
+            'danger-outline',
+        ].includes(v),
     },
     icon: { type: String, default: null },
     /** Native tag or component. Ignored when `to` is set. */
