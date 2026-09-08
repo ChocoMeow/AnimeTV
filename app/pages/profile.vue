@@ -364,7 +364,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                             <li v-for="(a, idx) in analytics.topAnimeByTime" :key="a.anime_ref_id" class="flex items-center gap-3">
                                 <span class="text-xs font-bold text-gray-400 w-5">{{ idx + 1 }}</span>
                                 <NuxtLink :to="`/anime/${a.anime_ref_id}`" class="flex items-center gap-3 min-w-0 flex-1 group">
-                                    <div class="w-10 h-14 rounded overflow-hidden bg-gray-200 dark:bg-white/10 flex-shrink-0">
+                                    <div class="w-10 aspect-[2/3] rounded overflow-hidden bg-gray-200 dark:bg-white/10 flex-shrink-0">
                                         <NuxtImg v-if="a.anime_image" :src="a.anime_image" class="w-full h-full object-cover" alt="" />
                                     </div>
                                     <div class="min-w-0 flex-1">
@@ -495,7 +495,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                 <li v-for="(a, idx) in chartData.topAnimeByTime.slice(0, 6)" :key="String(a.anime_ref_id) + idx" class="flex items-center gap-3">
                                     <span class="text-xs font-bold text-gray-400 w-5">{{ idx + 1 }}</span>
                                     <NuxtLink :to="`/anime/${a.anime_ref_id}`" class="flex items-center gap-3 min-w-0 flex-1 group">
-                                        <div class="w-10 h-14 rounded overflow-hidden bg-gray-200 dark:bg-white/10 flex-shrink-0">
+                                        <div class="w-10 aspect-[2/3] rounded overflow-hidden bg-gray-200 dark:bg-white/10 flex-shrink-0">
                                             <NuxtImg v-if="a.anime_image" :src="a.anime_image" class="w-full h-full object-cover" alt="" />
                                         </div>
                                         <div class="min-w-0 flex-1">

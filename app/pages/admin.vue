@@ -626,7 +626,7 @@ onMounted(() => {
                                 @click="handleSelect(record)"
                             >
                                 <!-- Thumbnail -->
-                                <div class="flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-white/5">
+                                <div class="flex-shrink-0 w-12 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-white/5">
                                     <NuxtImg
                                         v-if="record.thumbnail"
                                         :src="record.thumbnail"
@@ -740,7 +740,7 @@ onMounted(() => {
                         class="space-y-4"
                     >
                         <div class="flex items-start gap-4">
-                            <div class="w-32 h-44 rounded-xl overflow-hidden bg-gray-100 dark:bg-white/5 flex-shrink-0">
+                            <div class="w-32 aspect-[2/3] rounded-xl overflow-hidden bg-gray-100 dark:bg-white/5 flex-shrink-0">
                                 <NuxtImg
                                     v-if="editableRecord.thumbnail"
                                     :src="editableRecord.thumbnail"

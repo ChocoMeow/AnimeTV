@@ -453,7 +453,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
 .anime-scroll-item {
     flex-shrink: 0;
     width: 100%;
-    aspect-ratio: 9 / 13;
+    aspect-ratio: 2 / 3;
     position: relative;
     margin: 0.75rem 0;
     overflow: visible;

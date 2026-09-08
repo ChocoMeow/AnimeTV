@@ -400,7 +400,7 @@ useHead({
                         <NuxtLink :to="`/anime/${item.anime_ref_id}?e=${item.episode_number}&t=${item.playback_time}`" class="block cursor-pointer">
                             <div class="flex gap-4 p-4">
                                 <!-- Thumbnail -->
-                                <div class="w-24 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-gray-200 dark:bg-white/5 relative">
+                                <div class="w-24 aspect-[2/3] flex-shrink-0 rounded-lg overflow-hidden bg-gray-200 dark:bg-white/5 relative">
                                     <NuxtImg
                                         v-if="item.anime_image"
                                         :src="item.anime_image"

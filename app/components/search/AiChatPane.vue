@@ -204,7 +204,7 @@ onUnmounted(() => {
                                 class="flex items-center gap-2.5 rounded-xl bg-white/70 p-1.5 pr-2.5 ring-1 ring-black/5 hover:bg-black/[0.04] dark:bg-white/5 dark:ring-white/10 dark:hover:bg-white/10"
                                 @click="onNavigate"
                             >
-                                <div class="h-14 w-10 shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10">
+                                <div class="aspect-[2/3] w-10 shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10">
                                     <NuxtImg
                                         v-if="anime.image"
                                         :src="anime.image"
@@ -270,7 +270,7 @@ onUnmounted(() => {
                         </li>
                     </ul>
                     <div v-else-if="pendingFavorite" class="mb-3 flex items-center gap-2.5">
-                        <div class="h-14 w-10 shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10">
+                        <div class="aspect-[2/3] w-10 shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10">
                             <NuxtImg
                                 v-if="pendingFavorite.anime_image"
                                 :src="pendingFavorite.anime_image"

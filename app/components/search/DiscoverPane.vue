@@ -57,9 +57,9 @@ const REMOVE_BTN =
 const HOVER_ARROW =
     'material-symbols-rounded inline-flex h-7 w-7 items-center justify-center text-[20px] text-gray-300 opacity-0 transition-all duration-300 group-hover:translate-x-0.5 group-hover:opacity-100 dark:text-gray-600'
 const POSTER_LG =
-    'h-[7.5rem] w-[5rem] shrink-0 overflow-hidden rounded-xl bg-black/5 ring-1 ring-black/5 dark:bg-white/10 dark:ring-white/10'
+    'aspect-[2/3] w-[5rem] shrink-0 overflow-hidden rounded-xl bg-black/5 ring-1 ring-black/5 dark:bg-white/10 dark:ring-white/10'
 const POSTER_SM =
-    'h-[4.5rem] w-12 shrink-0 overflow-hidden rounded-lg bg-black/5 ring-1 ring-black/5 dark:bg-white/10 dark:ring-white/10'
+    'aspect-[2/3] w-12 shrink-0 overflow-hidden rounded-lg bg-black/5 ring-1 ring-black/5 dark:bg-white/10 dark:ring-white/10'
 const TAG_PILL =
     'rounded-full bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm ring-1 ring-black/6 transition-[transform,background-color] duration-200 hover:-translate-y-px hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-gray-900 dark:bg-white/[0.04] dark:text-gray-200 dark:ring-white/10 dark:hover:bg-white/[0.08] dark:focus-visible:ring-white'
 
