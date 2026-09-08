@@ -68,7 +68,7 @@ onUnmounted(() => resizeObserver?.disconnect())
         </div>
 
         <div
-            class="chip-scroll-edge chip-scroll-edge--left"
+            class="chip-scroll-edge chip-scroll-edge--left bg-gradient-to-r from-white from-40% to-transparent dark:from-gray-950"
             :class="[
                 large ? 'chip-scroll-edge--wide' : '',
                 canScrollLeft ? 'opacity-100' : 'opacity-0 pointer-events-none',
@@ -79,7 +79,7 @@ onUnmounted(() => resizeObserver?.disconnect())
             </button>
         </div>
         <div
-            class="chip-scroll-edge chip-scroll-edge--right"
+            class="chip-scroll-edge chip-scroll-edge--right bg-gradient-to-l from-white from-40% to-transparent dark:from-gray-950"
             :class="[
                 large ? 'chip-scroll-edge--wide' : '',
                 canScrollRight ? 'opacity-100' : 'opacity-0 pointer-events-none',
@@ -110,17 +110,9 @@ onUnmounted(() => resizeObserver?.disconnect())
 }
 .chip-scroll-edge--left {
     @apply left-0 justify-start;
-    background: linear-gradient(to right, rgb(255 255 255) 40%, transparent);
-}
-:global(.dark) .chip-scroll-edge--left {
-    background: linear-gradient(to right, rgb(3 7 18) 40%, transparent);
 }
 .chip-scroll-edge--right {
     @apply right-0 justify-end;
-    background: linear-gradient(to left, rgb(255 255 255) 40%, transparent);
-}
-:global(.dark) .chip-scroll-edge--right {
-    background: linear-gradient(to left, rgb(3 7 18) 40%, transparent);
 }
 
 .chip-scroll-btn {
