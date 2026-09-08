@@ -309,7 +309,7 @@ export function useOfflineAnimeDownloads() {
         const snapshot = {
             refId: String(anime.refId),
             title: anime.title || '',
-            image: anime.image || '',
+            image: anime.image || anime.thumbnail || '',
             description: anime.description || '',
             episodes: toCloneable(anime.episodes, {}),
             tags: toCloneable(anime.tags, []),
@@ -360,8 +360,8 @@ export function useOfflineAnimeDownloads() {
         const entries = await idbEntries(EP_STORE)
         const animeMap = new Map()
         for (const rec of entries) {
-            const refId = rec.refId
-            if (!refId) continue
+            if (!rec.refId) continue
+            const refId = String(rec.refId)
             if (!animeMap.has(refId)) {
                 animeMap.set(refId, {
                     refId,
@@ -385,20 +385,22 @@ export function useOfflineAnimeDownloads() {
         }
 
         const snapshots = await idbEntries(META_STORE)
-        const snapshotMap = new Map(snapshots.map((s) => [s.refId, s]))
+        const snapshotMap = new Map(snapshots.map((s) => [String(s.refId), s]))
 
         return Array.from(animeMap.values())
             .map((item) => {
                 const snap = snapshotMap.get(item.refId)
+                const image = snap?.image || snap?.thumbnail || null
                 return {
                     ...item,
+                    animeTitle: snap?.title || item.animeTitle,
                     episodes: item.episodes.sort((a, b) => {
                         const na = parseInt(a, 10)
                         const nb = parseInt(b, 10)
                         if (!isNaN(na) && !isNaN(nb)) return na - nb
                         return a.localeCompare(b)
                     }),
-                    image: snap?.image || null,
+                    image: image || null,
                 }
             })
             .sort((a, b) => b.latestSavedAt - a.latestSavedAt)
@@ -470,7 +472,7 @@ export function useOfflineAnimeDownloads() {
             })
             await idbPut(EP_STORE, epKey(refId, episodeKey), {
                 kind: 'hls',
-                refId,
+                refId: String(refId),
                 episodeKey: String(episodeKey),
                 animeTitle,
                 videoId: videoId || null,
@@ -484,7 +486,7 @@ export function useOfflineAnimeDownloads() {
             const blob = await fetchBlobWithProgress(source.downloadUrl, onProgress, { signal, waitWhilePaused })
             await idbPut(EP_STORE, epKey(refId, episodeKey), {
                 kind: 'mp4',
-                refId,
+                refId: String(refId),
                 episodeKey: String(episodeKey),
                 animeTitle,
                 videoId: videoId || null,

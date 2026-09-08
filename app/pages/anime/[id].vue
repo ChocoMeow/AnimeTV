@@ -14,7 +14,6 @@ const { isIncognito } = useIncognitoMode()
 const { showToast } = useToast()
 const {
     loadAnimeSnapshot,
-    deleteAnimeSnapshot,
     listDownloadedEpisodeKeys,
     removeEpisode: removeOfflineEpisode,
     getOfflinePlayback,
@@ -300,19 +299,6 @@ async function handleOfflineRemoveEpisode(ep) {
         await refreshOfflineEpisodeList()
     } catch {
         showToast('刪除失敗', 'error')
-    }
-}
-
-async function handleOfflineRemoveAll() {
-    if (!anime.value?.refId || !confirm('確定清除此作品所有離線下載？')) return
-    try {
-        const keys = await listDownloadedEpisodeKeys(anime.value.refId)
-        await Promise.all(keys.map((k) => removeOfflineEpisode(anime.value.refId, k)))
-        await deleteAnimeSnapshot(anime.value.refId)
-        showToast('已清除離線資料', 'success')
-        await refreshOfflineEpisodeList()
-    } catch {
-        showToast('清除失敗', 'error')
     }
 }
 
@@ -1028,7 +1014,6 @@ onUnmounted(() => {
         @download="handleOfflineDownload"
         @download-all="handleOfflineDownload"
         @remove="handleOfflineRemoveEpisode"
-        @remove-all="handleOfflineRemoveAll"
         @refresh="refreshOfflineEpisodeList" />
 
     <!-- Shortcuts Modal -->

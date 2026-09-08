@@ -65,19 +65,19 @@ const isStatic = computed(() => !props.to && props.as === 'div')
             isStatic && 'app-chip--static',
         ]"
     >
-        <span v-if="icon" class="material-symbols-rounded text-lg shrink-0" aria-hidden="true">{{ icon }}</span>
+        <span v-if="icon" class="material-symbols-rounded text-lg leading-none shrink-0" aria-hidden="true">{{ icon }}</span>
         <slot />
     </component>
 </template>
 
 <style scoped>
 .app-chip {
-    @apply inline-flex shrink-0 items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium
-           transition-all duration-200 border-0 whitespace-nowrap;
+    @apply inline-flex h-11 shrink-0 items-center justify-center gap-2 px-4 rounded-full text-sm font-medium leading-none
+           transition-colors duration-200 border-0 shadow-none whitespace-nowrap;
 }
 
 .app-chip--sm {
-    @apply px-3 py-1.5 text-xs;
+    @apply h-8 px-3 text-xs;
 }
 
 .app-chip--idle {
@@ -86,7 +86,7 @@ const isStatic = computed(() => !props.to && props.as === 'div')
 }
 
 .app-chip--solid {
-    @apply bg-gray-900 dark:bg-white text-white dark:text-black shadow-md hover:opacity-90;
+    @apply bg-gray-900 dark:bg-white text-white dark:text-black hover:opacity-90;
 }
 
 .app-chip--accent {
@@ -95,7 +95,7 @@ const isStatic = computed(() => !props.to && props.as === 'div')
 }
 
 .app-chip--danger {
-    @apply bg-red-500 text-white hover:bg-red-600 shadow-none;
+    @apply bg-red-500 text-white hover:bg-red-600;
 }
 
 .app-chip--danger-ghost {
@@ -104,7 +104,7 @@ const isStatic = computed(() => !props.to && props.as === 'div')
 }
 
 .app-chip--danger-outline {
-    @apply bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 shadow-none;
+    @apply bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20;
 }
 
 .app-chip--static {

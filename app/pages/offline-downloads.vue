@@ -10,22 +10,19 @@ const items = ref([])
 const showDeleteConfirm = ref(false)
 const showDownloadProgress = ref(false)
 const animeToDelete = ref(null)
+
 const totalDownloadedBytes = computed(() => items.value.reduce((sum, i) => sum + (i.totalBytes || 0), 0))
 const hasDownloadTasks = computed(() => activeTasks.value.length > 0 || recentTasks.value.length > 0)
 
-/** 0–100: mean progress across active downloads for the header ring */
+const PROGRESS_RING_R = 8
+const PROGRESS_RING_C = 2 * Math.PI * PROGRESS_RING_R
 const activeDownloadProgressPercent = computed(() => {
     const list = activeTasks.value
     if (!list.length) return 0
     const sum = list.reduce((s, t) => s + (Number(t.progress) || 0), 0)
     return Math.min(100, Math.max(0, sum / list.length))
 })
-
-const PROGRESS_RING_R = 8
-const PROGRESS_RING_C = 2 * Math.PI * PROGRESS_RING_R
 const progressRingDashoffset = computed(() => PROGRESS_RING_C * (1 - activeDownloadProgressPercent.value / 100))
-const totalDownloadedEpisodes = computed(() => items.value.reduce((sum, i) => sum + (i.episodeCount || 0), 0))
-const totalAnimeCount = computed(() => items.value.length)
 
 function formatBytes(bytes) {
     if (!bytes || bytes <= 0) return '0 B'
@@ -59,7 +56,7 @@ async function removeOneEpisode(refId, ep) {
     }
 }
 
-async function clearOneAnime(refId, title) {
+function clearOneAnime(refId, title) {
     animeToDelete.value = { refId, title }
     showDeleteConfirm.value = true
 }
@@ -100,264 +97,220 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
 <template>
     <div class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8">
         <!-- Header -->
-        <div class="mb-6 sm:mb-8">
-            <div class="flex items-center justify-between gap-4 flex-wrap mb-6">
-                <div>
-                    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">下載管理</h1>
-                    <p class="text-gray-600 dark:text-gray-400 mt-1">管理你的離線下載</p>
-                </div>
-                <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
-                    <AppChip as="div" icon="storage">
-                        {{ formatBytes(totalDownloadedBytes) }}
-                    </AppChip>
-                    <AppChip
-                        v-if="hasDownloadTasks"
-                        variant="accent"
-                        @click="showDownloadProgress = true"
+        <div class="mb-6 sm:mb-8 flex items-start justify-between gap-4 flex-wrap">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">下載管理</h1>
+                <p class="text-gray-600 dark:text-gray-400 mt-1">管理你的離線下載</p>
+            </div>
+            <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <AppChip as="div" icon="storage">{{ formatBytes(totalDownloadedBytes) }}</AppChip>
+                <AppChip v-if="hasDownloadTasks" variant="accent" @click="showDownloadProgress = true">
+                    <svg
+                        v-if="activeTasks.length"
+                        class="size-5 shrink-0 -rotate-90 text-current"
+                        viewBox="0 0 20 20"
+                        aria-hidden="true"
                     >
-                        <svg
-                            v-if="activeTasks.length"
-                            class="h-5 w-5 shrink-0 -rotate-90 text-current"
-                            viewBox="0 0 20 20"
-                            aria-hidden="true"
-                        >
-                            <circle
-                                cx="10"
-                                cy="10"
-                                :r="PROGRESS_RING_R"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2.5"
-                                class="opacity-25"
-                            />
-                            <circle
-                                cx="10"
-                                cy="10"
-                                :r="PROGRESS_RING_R"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2.5"
-                                stroke-linecap="round"
-                                :stroke-dasharray="PROGRESS_RING_C"
-                                :stroke-dashoffset="progressRingDashoffset"
-                            />
-                        </svg>
-                        <span v-else class="material-symbols-rounded text-lg shrink-0" aria-hidden="true">downloading</span>
-                        下載進度
-                    </AppChip>
-                    <AppChip variant="solid" icon="refresh" @click="refreshList">重新整理</AppChip>
-                </div>
+                        <circle cx="10" cy="10" :r="PROGRESS_RING_R" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-25" />
+                        <circle
+                            cx="10"
+                            cy="10"
+                            :r="PROGRESS_RING_R"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
+                            :stroke-dasharray="PROGRESS_RING_C"
+                            :stroke-dashoffset="progressRingDashoffset"
+                        />
+                    </svg>
+                    <span v-else class="material-symbols-rounded text-lg leading-none shrink-0" aria-hidden="true">downloading</span>
+                    下載進度
+                </AppChip>
+                <AppChip variant="solid" icon="refresh" @click="refreshList">重新整理</AppChip>
             </div>
         </div>
 
-        <!-- Loading State -->
         <div v-if="loading" class="flex items-center justify-center py-20">
             <LoadingSpinner size="xl" />
         </div>
 
-        <div v-else class="space-y-6">
-            <!-- Empty State -->
-            <div v-if="!items.length" class="empty-state">
-                <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-6xl mb-4 opacity-60">download_for_offline</span>
-                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">目前沒有已下載的動漫</h3>
-                <p class="text-gray-500 dark:text-gray-400 mb-6">前往動漫頁面下載集數以便離線觀看</p>
-                <NuxtLink to="/show-all-anime" class="btn-primary">探索動漫</NuxtLink>
-            </div>
+        <div v-else-if="!items.length" class="empty-state">
+            <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-6xl mb-4 opacity-60">download_for_offline</span>
+            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">目前沒有已下載的動漫</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-6">前往動漫頁面下載集數以便離線觀看</p>
+            <NuxtLink to="/show-all-anime" class="btn-primary">探索動漫</NuxtLink>
+        </div>
 
-            <!-- Downloaded Anime Grid -->
-            <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-                <div v-for="anime in items" :key="anime.refId" class="relative panel-card overflow-hidden hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/40">
-                    <div class="p-4 flex gap-4">
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+            <article
+                v-for="anime in items"
+                :key="anime.refId"
+                class="group rounded-2xl bg-black/[0.02] dark:bg-white/5 ring-1 ring-black/5 dark:ring-white/10 overflow-hidden"
+            >
+                <div class="flex gap-4 p-4">
+                    <NuxtLink
+                        :to="`/anime/${anime.refId}`"
+                        class="w-20 aspect-[2/3] shrink-0 self-start rounded-lg overflow-hidden bg-black/5 dark:bg-white/10"
+                    >
                         <NuxtImg
                             v-if="anime.image"
                             :src="anime.image"
-                            alt="Anime cover"
-                            class="w-20 aspect-[2/3] rounded-lg object-cover bg-gray-200 dark:bg-white/5 flex-shrink-0"
+                            :alt="anime.animeTitle"
+                            class="w-full h-full object-cover"
+                            loading="lazy"
                         />
-                        <div class="flex-1 min-w-0 flex flex-col justify-between pr-24">
-                            <div>
-                                <h3 class="font-semibold text-gray-900 dark:text-white line-clamp-2 mb-1 mr-2">
-                                    {{ anime.animeTitle }}
-                                </h3>
-                                <div class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                                    <p class="flex items-center gap-2">
-                                        <span class="material-symbols-rounded text-xs">movie</span>
-                                        {{ anime.episodeCount }} 集已下載
-                                    </p>
-                                    <p class="flex items-center gap-2">
-                                        <span class="material-symbols-rounded text-xs">storage</span>
-                                        {{ formatBytes(anime.totalBytes) }}
-                                    </p>
-                                </div>
-                            </div>
+                        <div v-else class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
+                            <span class="material-symbols-rounded text-3xl">movie</span>
                         </div>
-                    </div>
-                    <div class="absolute top-4 right-4 flex items-center gap-2">
-                        <NuxtLink
-                            :to="`/anime/${anime.refId}`"
-                            class="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black transition-opacity"
-                            title="前往播放"
-                        >
-                            <span class="material-symbols-rounded text-lg">open_in_new</span>
-                        </NuxtLink>
-                        <button
-                            type="button"
-                            class="flex items-center justify-center w-10 h-10 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-colors"
-                            title="清除全部"
-                            @click="clearOneAnime(anime.refId, anime.animeTitle)"
-                        >
-                            <span class="material-symbols-rounded text-lg">delete</span>
-                        </button>
-                    </div>
+                    </NuxtLink>
 
-                    <div class="px-4 pb-4">
-                        <div class="flex flex-wrap gap-2">
-                            <NuxtLink
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-start gap-2">
+                            <NuxtLink :to="`/anime/${anime.refId}`" class="min-w-0 flex-1">
+                                <h2 class="font-semibold text-gray-900 dark:text-white line-clamp-2 leading-8 group-hover:opacity-80 transition-opacity">
+                                    {{ anime.animeTitle }}
+                                </h2>
+                            </NuxtLink>
+                            <button
+                                type="button"
+                                class="w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                title="清除全部"
+                                :aria-label="`清除 ${anime.animeTitle}`"
+                                @click="clearOneAnime(anime.refId, anime.animeTitle)"
+                            >
+                                <span class="material-symbols-rounded text-lg">delete</span>
+                            </button>
+                        </div>
+
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            {{ anime.episodeCount }} 集 · {{ formatBytes(anime.totalBytes) }}
+                        </p>
+
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            <div
                                 v-for="ep in anime.episodes"
                                 :key="`${anime.refId}-${ep}`"
-                                :to="`/anime/${anime.refId}?e=${ep}`"
-                                class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-black/5 dark:bg-white/10 text-sm hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
+                                class="inline-flex items-center gap-0.5 rounded-full bg-black/5 dark:bg-white/10 pl-2.5 pr-0.5 py-0.5 text-sm"
                             >
-                                <span class="text-gray-900 dark:text-gray-100">第 {{ ep }} 集</span>
+                                <NuxtLink
+                                    :to="`/anime/${anime.refId}?e=${ep}`"
+                                    class="text-gray-900 dark:text-gray-100 py-0.5 hover:opacity-70 transition-opacity"
+                                >
+                                    第 {{ ep }} 集
+                                </NuxtLink>
                                 <button
                                     type="button"
-                                    class="text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                                    @click.prevent="removeOneEpisode(anime.refId, ep)"
+                                    class="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                    :aria-label="`刪除第 ${ep} 集`"
+                                    @click="removeOneEpisode(anime.refId, ep)"
                                 >
                                     <span class="material-symbols-rounded text-base">close</span>
                                 </button>
-                            </NuxtLink>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </div>
+    </div>
+
+    <BaseModal :show="showDeleteConfirm" title="確認清除" icon="warning" icon-color="text-red-500" @close="showDeleteConfirm = false">
+        <p class="text-gray-600 dark:text-gray-400">確定要清除「{{ animeToDelete?.title }}」所有離線集數嗎？此操作無法復原。</p>
+        <template #actions>
+            <button class="btn-modal-cancel" @click="showDeleteConfirm = false">取消</button>
+            <button class="btn-modal-danger" @click="confirmClearAnime">確認清除</button>
+        </template>
+    </BaseModal>
+
+    <BaseDialog v-model="showDownloadProgress" title="下載進度" max-width="max-w-lg" scrollable>
+        <div v-if="!activeTasks.length && !recentTasks.length" class="flex flex-col items-center justify-center gap-2 py-12 text-sm text-gray-500 dark:text-gray-400">
+            <span class="material-symbols-rounded text-4xl text-gray-300 dark:text-gray-600">download_done</span>
+            <p>目前沒有下載任務</p>
+        </div>
+
+        <div v-else class="space-y-6">
+            <!-- Active -->
+            <div v-if="activeTasks.length" class="space-y-3">
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300">進行中 ({{ activeTasks.length }})</p>
+                <div class="rounded-xl ring-1 ring-black/5 dark:ring-white/10 bg-black/[0.02] dark:bg-white/[0.03] divide-y divide-black/5 dark:divide-white/10">
+                    <div v-for="task in activeTasks" :key="task.id" class="p-4 space-y-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ task.animeTitle }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                    第 {{ task.episodeKey }} 集 · {{ task.label || (task.status === 'paused' ? '已暫停' : '下載中…') }}
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-1 shrink-0">
+                                <button
+                                    v-if="task.status === 'paused'"
+                                    type="button"
+                                    class="w-8 h-8 inline-flex items-center justify-center rounded-full text-gray-600 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                                    title="繼續下載"
+                                    @click="resumeDownload(task)"
+                                >
+                                    <span class="material-symbols-rounded text-xl">play_arrow</span>
+                                </button>
+                                <button
+                                    v-else
+                                    type="button"
+                                    class="w-8 h-8 inline-flex items-center justify-center rounded-full text-gray-600 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                                    title="暫停下載"
+                                    @click="pauseDownload(task)"
+                                >
+                                    <span class="material-symbols-rounded text-xl">pause</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="w-8 h-8 inline-flex items-center justify-center rounded-full text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                    title="取消下載"
+                                    @click="cancelTask(task)"
+                                >
+                                    <span class="material-symbols-rounded text-xl">close</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <div class="flex-1 min-w-0 h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                                <div
+                                    class="h-full rounded-full transition-all duration-300 ease-out"
+                                    :class="task.status === 'paused' ? 'bg-amber-500' : 'bg-gray-900 dark:bg-white'"
+                                    :style="{ width: `${Math.floor(task.progress || 0)}%` }"
+                                />
+                            </div>
+                            <span class="text-xs tabular-nums font-medium text-gray-500 dark:text-gray-400 shrink-0 w-8 text-right">
+                                {{ Math.floor(task.progress || 0) }}%
+                            </span>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Delete Confirmation Modal -->
-    <BaseModal :show="showDeleteConfirm" title="確認清除" icon="warning" icon-color="text-red-500" @close="showDeleteConfirm = false">
-        <p class="text-gray-600 dark:text-gray-400">確定要清除「{{ animeToDelete?.title }}」所有離線集數嗎？此操作無法復原。</p>
-
-        <template #actions>
-            <button @click="showDeleteConfirm = false" class="btn-modal-cancel">取消</button>
-            <button @click="confirmClearAnime" class="btn-modal-danger">確認清除</button>
-        </template>
-    </BaseModal>
-
-    <!-- Download Progress Dialog -->
-    <BaseDialog v-model="showDownloadProgress" title="下載進度" max-width="max-w-2xl" scrollable>
-        <div v-if="!activeTasks.length && !recentTasks.length" class="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">
-            <span class="material-symbols-rounded text-4xl mb-2 text-gray-300 dark:text-gray-600">download_done</span>
-            <p>目前沒有下載任務</p>
-        </div>
-
-        <div v-else class="space-y-4 pt-4">
-            <!-- Active Tasks -->
-            <div
-                v-for="task in activeTasks"
-                :key="task.id"
-                class="rounded-lg p-4 border transition-colors"
-                :class="
-                    task.status === 'paused'
-                        ? 'bg-amber-50/80 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/50'
-                        : 'bg-gray-50 dark:bg-white/5 border-transparent'
-                "
-            >
-                <div class="flex items-start justify-between gap-3">
-                    <p
-                        class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-snug truncate min-w-0 pr-2 tracking-tight"
-                    >
-                        {{ task.animeTitle }} - 第 {{ task.episodeKey }} 集
-                    </p>
-                    <div class="flex items-center gap-2 shrink-0 pt-0.5">
-                        <template v-if="task.status === 'paused'">
-                            <button
-                                type="button"
-                                class="group inline-flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition-all hover:bg-emerald-100 hover:border-emerald-300 active:scale-[0.97] dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300 dark:hover:bg-emerald-900/40 dark:hover:border-emerald-600/70"
-                                title="繼續下載"
-                                @click="resumeDownload(task)"
-                            >
-                                <span class="material-symbols-rounded text-[20px] leading-none transition-transform group-hover:scale-105">play_arrow</span>
-                            </button>
-                            <button
-                                type="button"
-                                class="group inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 shadow-sm transition-all hover:bg-red-50 hover:border-red-300 active:scale-[0.97] dark:border-red-900/50 dark:bg-white/5 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:border-red-800/60"
-                                title="取消下載"
-                                @click="cancelTask(task)"
-                            >
-                                <span class="material-symbols-rounded text-[18px] leading-none">close</span>
-                            </button>
-                        </template>
-                        <template v-else>
-                            <button
-                                type="button"
-                                class="group inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-300 bg-white text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:border-gray-400 active:scale-[0.97] dark:border-gray-600 dark:bg-white/10 dark:text-gray-200 dark:hover:bg-white/15 dark:hover:border-gray-500"
-                                title="暫停下載"
-                                @click="pauseDownload(task)"
-                            >
-                                <span class="material-symbols-rounded text-[20px] leading-none">pause</span>
-                            </button>
-                            <button
-                                type="button"
-                                class="group inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 shadow-sm transition-all hover:bg-red-50 hover:border-red-300 active:scale-[0.97] dark:border-red-900/50 dark:bg-white/5 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:border-red-800/60"
-                                title="取消下載"
-                                @click="cancelTask(task)"
-                            >
-                                <span class="material-symbols-rounded text-[18px] leading-none">close</span>
-                            </button>
-                        </template>
-                    </div>
-                </div>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1.5 mb-2.5">
-                    {{ task.label || (task.status === 'paused' ? '已暫停' : '下載中...') }}
-                </p>
-                <div class="flex items-center gap-3">
-                    <div class="flex-1 min-w-0 h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-                        <div
-                            class="h-full transition-all"
-                            :class="task.status === 'paused' ? 'bg-amber-500' : 'bg-blue-500'"
-                            :style="{ width: `${Math.floor(task.progress || 0)}%` }"
-                        />
-                    </div>
-                    <span
-                        class="text-sm font-semibold tabular-nums shrink-0 min-w-[2.75rem] text-right"
-                        :class="task.status === 'paused' ? 'text-amber-700 dark:text-amber-300' : 'text-blue-600 dark:text-blue-400'"
-                    >
-                        {{ Math.floor(task.progress || 0) }}%
-                    </span>
-                </div>
-            </div>
-
-            <!-- Recent Tasks -->
-            <div v-if="recentTasks.length" class="border-t border-black/10 dark:border-white/10 pt-4 mt-4">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-3">已完成/失敗</p>
-                <div class="space-y-2">
+            <!-- Recent -->
+            <div v-if="recentTasks.length" class="space-y-3">
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300">最近</p>
+                <div class="rounded-xl ring-1 ring-black/5 dark:ring-white/10 bg-black/[0.02] dark:bg-white/[0.03] divide-y divide-black/5 dark:divide-white/10">
                     <div
                         v-for="task in recentTasks"
                         :key="task.id"
-                        class="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
+                        class="flex items-center justify-between gap-3 px-4 py-3"
                     >
-                        <p class="text-sm text-gray-900 dark:text-white">{{ task.animeTitle }} - 第 {{ task.episodeKey }} 集</p>
-                        <p
-                            class="text-xs inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full"
-                            :class="
-                                task.status === 'error'
-                                    ? 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-300'
-                                    : 'text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-300'
-                            "
+                        <div class="min-w-0">
+                            <p class="text-sm text-gray-900 dark:text-white truncate">{{ task.animeTitle }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">第 {{ task.episodeKey }} 集</p>
+                        </div>
+                        <span
+                            class="inline-flex items-center gap-1 text-xs font-medium shrink-0"
+                            :class="task.status === 'error' ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'"
                         >
-                            <span class="material-symbols-rounded text-sm">{{ task.status === 'error' ? 'error' : 'check_circle' }}</span>
-                            {{ task.status === 'error' ? task.error || '下載失敗' : '下載完成' }}
-                        </p>
+                            <span class="material-symbols-rounded text-base">{{ task.status === 'error' ? 'error' : 'check_circle' }}</span>
+                            {{ task.status === 'error' ? (task.error || '失敗') : '完成' }}
+                        </span>
                     </div>
                 </div>
             </div>
         </div>
     </BaseDialog>
 </template>
-
-<style scoped>
-.panel-card {
-    @apply bg-black/[0.02] dark:bg-white/5 rounded-xl ring-1 ring-black/5 dark:ring-white/10 transition-all duration-300;
-}
-</style>

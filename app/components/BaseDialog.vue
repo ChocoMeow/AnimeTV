@@ -36,9 +36,12 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"])
 
-const { isMobile } = useMobile()
+const { isNarrow } = useMobile()
 
-const effectiveShowClose = computed(() => props.showClose && !isMobile.value)
+/** Width-based only so drawer ↔ modal switches correctly on resize (both directions). */
+const useDrawer = computed(() => isNarrow.value)
+
+const effectiveShowClose = computed(() => props.showClose && !useDrawer.value)
 
 function close() {
     if (!props.persistent) {
@@ -50,10 +53,6 @@ function handleBackdropClick() {
     if (!props.persistent) {
         close()
     }
-}
-
-function handleDrawerClose() {
-    emit("update:modelValue", false)
 }
 
 function handleEscape(event) {
@@ -89,13 +88,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <!-- Mobile: bottom drawer -->
+    <!-- Narrow: bottom drawer -->
     <BaseBottomDrawer
-        v-if="isMobile"
+        v-if="useDrawer"
+        :key="'drawer'"
         :model-value="modelValue"
         :title="showHeader ? title : ''"
         :persistent="persistent"
-        @update:model-value="handleDrawerClose"
+        @update:model-value="emit('update:modelValue', $event)"
     >
         <template v-if="showHeader && (title || effectiveShowClose || $slots.header)" #header>
             <div class="flex items-center justify-between w-full gap-3">
@@ -125,15 +125,15 @@ onBeforeUnmount(() => {
         </template>
     </BaseBottomDrawer>
 
-    <!-- Desktop: centered dialog -->
-    <Teleport v-else to="body">
+    <!-- Wide: centered dialog -->
+    <Teleport v-else :key="'modal'" to="body">
         <Transition name="dialog">
             <div v-if="modelValue" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" :class="{ 'overflow-y-auto': scrollable }" @click.self="handleBackdropClick">
-                <div class="bg-white dark:bg-gray-950 rounded-2xl shadow-2xl w-full transform transition-all ring-1 ring-black/5 dark:ring-white/10 overflow-hidden" :class="[maxWidth, scrollable ? 'my-8' : '', padding ? 'p-6' : 'p-0']" @click.stop>
-                    <!-- Header -->
-                    <div v-if="showHeader && (title || effectiveShowClose || $slots.header)" class="flex items-center justify-between mb-2 flex-shrink-0">
+                <div class="bg-white dark:bg-gray-950 rounded-2xl shadow-2xl w-full transform transition-all ring-1 ring-black/5 dark:ring-white/10" :class="[maxWidth, scrollable ? 'my-8' : '', padding ? 'p-6' : 'p-0']" @click.stop>
+                    <!-- Header: bottom spacing matches BaseBottomDrawer (pb-4) -->
+                    <div v-if="showHeader && (title || effectiveShowClose || $slots.header)" class="flex items-center justify-between pb-4 flex-shrink-0">
                         <slot name="header">
-                            <h3 class="text-2xl font-bold text-gray-900 dark:text-white">
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white">
                                 {{ title }}
                             </h3>
                         </slot>
@@ -143,8 +143,8 @@ onBeforeUnmount(() => {
                         </button>
                     </div>
 
-                    <!-- Content -->
-                    <div :class="['base-dialog-content', scrollable ? 'max-h-[70vh] overflow-y-auto min-h-0' : '']">
+                    <!-- Content: pad so child rings aren't clipped by overflow -->
+                    <div :class="['base-dialog-content', scrollable ? 'max-h-[70vh] overflow-y-auto min-h-0 p-px -m-px' : '']">
                         <slot />
                     </div>
 
