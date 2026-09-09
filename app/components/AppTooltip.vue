@@ -6,35 +6,56 @@ const props = defineProps({
 })
 
 const visible = ref(false)
+const ready = ref(false)
 const anchorRef = ref(null)
-const pos = ref({ x: 0, y: 0 })
+const tipRef = ref(null)
+const pos = ref({ left: 0, top: 0 })
 let showTimer = null
 let hideTimer = null
 
-function updatePos() {
-    const el = anchorRef.value
-    if (!el) return
-    const rect = el.getBoundingClientRect()
+function placeTip() {
+    const anchor = anchorRef.value
+    const tip = tipRef.value
+    if (!anchor || !tip) return
+
     const gap = 8
-    let x = rect.left + rect.width / 2
-    let y = rect.top
-    if (props.placement === 'bottom') y = rect.bottom + gap
-    else if (props.placement === 'top') y = rect.top - gap
-    else if (props.placement === 'left') {
-        x = rect.left - gap
-        y = rect.top + rect.height / 2
-    } else if (props.placement === 'right') {
-        x = rect.right + gap
-        y = rect.top + rect.height / 2
+    const pad = 8
+    const rect = anchor.getBoundingClientRect()
+    const tw = tip.offsetWidth
+    const th = tip.offsetHeight
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+
+    let placement = props.placement
+    if (placement === 'top' && rect.top < th + gap + pad) placement = 'bottom'
+    else if (placement === 'bottom' && vh - rect.bottom < th + gap + pad) placement = 'top'
+    else if (placement === 'left' && rect.left < tw + gap + pad) placement = 'right'
+    else if (placement === 'right' && vw - rect.right < tw + gap + pad) placement = 'left'
+
+    let left = rect.left + rect.width / 2 - tw / 2
+    let top = rect.top - gap - th
+    if (placement === 'bottom') top = rect.bottom + gap
+    else if (placement === 'left') {
+        left = rect.left - gap - tw
+        top = rect.top + rect.height / 2 - th / 2
+    } else if (placement === 'right') {
+        left = rect.right + gap
+        top = rect.top + rect.height / 2 - th / 2
     }
-    pos.value = { x, y }
+
+    left = Math.min(Math.max(pad, left), vw - tw - pad)
+    top = Math.min(Math.max(pad, top), vh - th - pad)
+    pos.value = { left, top }
+    ready.value = true
 }
 
 function onEnter() {
     clearTimeout(hideTimer)
-    showTimer = setTimeout(() => {
-        updatePos()
+    showTimer = setTimeout(async () => {
+        ready.value = false
         visible.value = true
+        await nextTick()
+        placeTip()
     }, props.delay)
 }
 
@@ -42,6 +63,7 @@ function onLeave() {
     clearTimeout(showTimer)
     hideTimer = setTimeout(() => {
         visible.value = false
+        ready.value = false
     }, 80)
 }
 
@@ -58,14 +80,10 @@ onUnmounted(() => {
             <Transition name="app-tip">
                 <div
                     v-if="visible"
-                    class="pointer-events-none fixed z-[10050] max-w-xs rounded-md bg-gray-900 px-2 py-1 text-xs text-white shadow-lg dark:bg-gray-100 dark:text-gray-900"
-                    :class="{
-                        '-translate-x-1/2 -translate-y-full': placement === 'top',
-                        '-translate-x-1/2': placement === 'bottom',
-                        '-translate-x-full -translate-y-1/2': placement === 'left',
-                        '-translate-y-1/2': placement === 'right',
-                    }"
-                    :style="{ left: pos.x + 'px', top: pos.y + 'px' }"
+                    ref="tipRef"
+                    class="pointer-events-none fixed z-[10050] max-w-[min(24rem,calc(100vw-1rem))] whitespace-pre-line rounded-md bg-gray-900 px-2.5 py-1.5 text-xs leading-relaxed text-white shadow-lg dark:bg-gray-100 dark:text-gray-900"
+                    :class="{ 'opacity-0': !ready }"
+                    :style="{ left: pos.left + 'px', top: pos.top + 'px' }"
                     role="tooltip"
                 >
                     {{ text }}
@@ -78,9 +96,7 @@ onUnmounted(() => {
 <style scoped>
 .app-tip-enter-active,
 .app-tip-leave-active {
-    transition:
-        opacity 0.12s ease,
-        transform 0.12s ease;
+    transition: opacity 0.12s ease;
 }
 .app-tip-enter-from,
 .app-tip-leave-to {

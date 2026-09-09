@@ -1,4 +1,6 @@
 <script setup>
+definePageMeta({ publicSsr: true }) // SSR OG/meta for link previews; client middleware still requires login
+
 // ─── Composables ──────────────────────────────────────────────────────────────
 const { userSettings, getShortcuts, formatShortcutKey } = useUserSettings()
 const user = useSupabaseUser()
@@ -8,10 +10,10 @@ const router = useRouter()
 const client = useSupabaseClient()
 const { isAdmin } = useAdmin()
 const { setWatching, setOnline } = useUserStatus()
+const { isIncognito } = useIncognitoMode()
 const { showToast } = useToast()
 const {
     loadAnimeSnapshot,
-    deleteAnimeSnapshot,
     listDownloadedEpisodeKeys,
     removeEpisode: removeOfflineEpisode,
     getOfflinePlayback,
@@ -300,19 +302,6 @@ async function handleOfflineRemoveEpisode(ep) {
     }
 }
 
-async function handleOfflineRemoveAll() {
-    if (!anime.value?.refId || !confirm('確定清除此作品所有離線下載？')) return
-    try {
-        const keys = await listDownloadedEpisodeKeys(anime.value.refId)
-        await Promise.all(keys.map((k) => removeOfflineEpisode(anime.value.refId, k)))
-        await deleteAnimeSnapshot(anime.value.refId)
-        showToast('已清除離線資料', 'success')
-        await refreshOfflineEpisodeList()
-    } catch {
-        showToast('清除失敗', 'error')
-    }
-}
-
 // ─── UI actions ───────────────────────────────────────────────────────────────
 function openShareDialog() {
     const params = new URLSearchParams()
@@ -375,7 +364,7 @@ const stopAutoSave = () => {
 
 async function saveWatchHistory(episodeNumber = null) {
     const { watch_history_enabled, id } = userSettings.value
-    if (!watch_history_enabled || !id || !anime.value) return
+    if (isIncognito.value || !watch_history_enabled || !id || !anime.value) return
     const safeEpisodeNumber =
         typeof episodeNumber === 'string' || typeof episodeNumber === 'number'
             ? episodeNumber
@@ -387,6 +376,15 @@ async function saveWatchHistory(episodeNumber = null) {
     const duration = Number(el?.duration) || 0
     if (!duration) return
     const currentTime = Number(el?.currentTime) || 0
+    const playbackTime = Math.floor(currentTime)
+    const videoDuration = Math.floor(duration)
+    const progress = Math.min(100, Math.floor((currentTime / duration) * 100))
+
+    const prev = allWatchProgress.value[String(epNum)]
+    const prevPlayback = Number(prev?.playback_time) || 0
+    let prevTotal = Number(prev?.total_playback_time) || 0
+    if (!prevTotal && prevPlayback) prevTotal = prevPlayback
+    const delta = playbackTime > prevPlayback ? playbackTime - prevPlayback : 0
 
     const entry = {
         user_id: id,
@@ -394,9 +392,10 @@ async function saveWatchHistory(episodeNumber = null) {
         anime_title: anime.value.title,
         anime_image: anime.value.image,
         episode_number: String(epNum),
-        playback_time: Math.floor(currentTime),
-        video_duration: Math.floor(duration),
-        progress_percentage: Math.min(100, Math.floor((currentTime / duration) * 100)),
+        playback_time: playbackTime,
+        video_duration: videoDuration,
+        progress_percentage: progress,
+        total_playback_time: prevTotal + delta,
     }
 
     try {
@@ -1015,7 +1014,6 @@ onUnmounted(() => {
         @download="handleOfflineDownload"
         @download-all="handleOfflineDownload"
         @remove="handleOfflineRemoveEpisode"
-        @remove-all="handleOfflineRemoveAll"
         @refresh="refreshOfflineEpisodeList" />
 
     <!-- Shortcuts Modal -->

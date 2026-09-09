@@ -107,10 +107,10 @@ function shortcutLabel(action, fallback) {
 
 const {
     THUMB_PREVIEW_W,
+    THUMB_PREVIEW_H,
     activeThumbnail,
     activeThumbnailSrc,
-    thumbnailPreviewHeight,
-    thumbnailImageStyle,
+    thumbnailPreview,
     updateActiveThumbnailForTime,
     clearActiveThumbnail,
 } = usePlayerThumbnails({ animeMeta: computed(() => props.animeMeta) })
@@ -937,10 +937,10 @@ onUnmounted(() => {
                 :hover-preview-time="hoverPreviewTime"
                 :hover-preview-position="hoverPreviewPosition"
                 :thumb-preview-w="THUMB_PREVIEW_W"
+                :thumb-preview-h="THUMB_PREVIEW_H"
                 :active-thumbnail="activeThumbnail"
                 :active-thumbnail-src="activeThumbnailSrc"
-                :thumbnail-preview-height="thumbnailPreviewHeight"
-                :thumbnail-image-style="thumbnailImageStyle"
+                :thumbnail-preview="thumbnailPreview"
                 :is-playing="isPlaying"
                 :is-ended="isEnded"
                 :is-muted="isMuted"

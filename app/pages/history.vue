@@ -317,34 +317,33 @@ useHead({
             <div class="flex flex-col md:flex-row gap-3 sm:gap-4 items-start md:items-center justify-between">
                 <!-- Time Filters -->
                 <div class="flex gap-2 flex-wrap">
-                    <button
+                    <AppChip
                         v-for="filter in filterOptions"
                         :key="filter.value"
+                        :active="selectedFilter === filter.value"
                         @click="selectedFilter = filter.value"
-                        :class="['pill-tab', selectedFilter === filter.value ? 'pill-tab-active' : 'pill-tab-inactive']"
                     >
                         {{ filter.label }}
-                    </button>
+                    </AppChip>
                 </div>
 
                 <!-- Action Buttons -->
                 <div v-if="historyItems.length > 0" class="flex items-center gap-2 sm:gap-3 flex-wrap">
-                    <button @click="selectAll" class="btn-ghost">
-                        <span class="material-symbols-rounded text-lg">
-                            {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? 'check_box' : 'check_box_outline_blank' }}
-                        </span>
+                    <AppChip
+                        variant="ghost"
+                        :icon="selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? 'check_box' : 'check_box_outline_blank'"
+                        @click="selectAll"
+                    >
                         {{ selectedItems.size === filteredHistory.length && filteredHistory.length > 0 ? '取消全選' : '全選' }}
-                    </button>
+                    </AppChip>
 
-                    <button v-if="selectedItems.size > 0" @click="deleteSelected" class="btn-danger">
-                        <span class="material-symbols-rounded text-lg">delete</span>
+                    <AppChip v-if="selectedItems.size > 0" variant="danger" icon="delete" @click="deleteSelected">
                         刪除已選 ({{ selectedItems.size }})
-                    </button>
+                    </AppChip>
 
-                    <button @click="showDeleteAllConfirm = true" class="btn-ghost-danger">
-                        <span class="material-symbols-rounded text-lg">delete_sweep</span>
+                    <AppChip variant="danger-ghost" icon="delete_sweep" @click="showDeleteAllConfirm = true">
                         清除全部
-                    </button>
+                    </AppChip>
                 </div>
             </div>
         </div>
@@ -401,7 +400,7 @@ useHead({
                         <NuxtLink :to="`/anime/${item.anime_ref_id}?e=${item.episode_number}&t=${item.playback_time}`" class="block cursor-pointer">
                             <div class="flex gap-4 p-4">
                                 <!-- Thumbnail -->
-                                <div class="w-24 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-gray-200 dark:bg-white/5 relative">
+                                <div class="w-24 aspect-[2/3] flex-shrink-0 rounded-lg overflow-hidden bg-gray-200 dark:bg-white/5 relative">
                                     <NuxtImg
                                         v-if="item.anime_image"
                                         :src="item.anime_image"
@@ -487,48 +486,6 @@ useHead({
 </template>
 
 <style scoped>
-.page-search {
-    @apply w-full bg-black/5 dark:bg-white/10 border border-transparent rounded-full px-4 py-2.5 pl-10 text-sm
-           text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400
-           focus:ring-2 focus:ring-black/10 dark:focus:ring-white/20 outline-none transition-shadow;
-}
-
-.pill-tab {
-    @apply px-4 py-2 rounded-full text-sm font-medium transition-all duration-200;
-}
-
-.pill-tab-inactive {
-    @apply bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20;
-}
-
-.pill-tab-active {
-    @apply bg-gray-900 dark:bg-white text-white dark:text-black shadow-md;
-}
-
-.btn-primary {
-    @apply inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm
-           bg-gray-900 dark:bg-white text-white dark:text-black
-           hover:opacity-90 transition-opacity;
-}
-
-.btn-ghost {
-    @apply text-sm px-4 py-2 rounded-full bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300
-           hover:bg-black/10 dark:hover:bg-white/20 transition-colors flex items-center gap-2;
-}
-
-.btn-ghost-danger {
-    @apply text-sm px-4 py-2 rounded-full bg-black/5 dark:bg-white/10 text-red-600 dark:text-red-400
-           hover:bg-red-500/10 transition-colors flex items-center gap-2;
-}
-
-.btn-danger {
-    @apply text-sm px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2;
-}
-
-.empty-state {
-    @apply text-center py-20 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/5 dark:border-white/5;
-}
-
 .list-card {
     @apply relative bg-black/[0.02] dark:bg-white/5 rounded-xl overflow-hidden
            ring-1 ring-black/5 dark:ring-white/10

@@ -204,7 +204,7 @@ onUnmounted(() => {
                                 class="flex items-center gap-2.5 rounded-xl bg-white/70 p-1.5 pr-2.5 ring-1 ring-black/5 hover:bg-black/[0.04] dark:bg-white/5 dark:ring-white/10 dark:hover:bg-white/10"
                                 @click="onNavigate"
                             >
-                                <div class="h-14 w-10 shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10">
+                                <div class="aspect-[2/3] w-10 shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10">
                                     <NuxtImg
                                         v-if="anime.image"
                                         :src="anime.image"
@@ -270,7 +270,7 @@ onUnmounted(() => {
                         </li>
                     </ul>
                     <div v-else-if="pendingFavorite" class="mb-3 flex items-center gap-2.5">
-                        <div class="h-14 w-10 shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10">
+                        <div class="aspect-[2/3] w-10 shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10">
                             <NuxtImg
                                 v-if="pendingFavorite.anime_image"
                                 :src="pendingFavorite.anime_image"
@@ -299,7 +299,7 @@ onUnmounted(() => {
                 </div>
             </div>
 
-            <form class="flex shrink-0 flex-col gap-2 border-t border-black/10 p-3 dark:border-white/10" @submit.prevent="sendMessage">
+            <form class="flex shrink-0 flex-col gap-2 border-t border-black/10 p-3 pb-0 dark:border-white/10" @submit.prevent="sendMessage">
                 <div
                     v-if="needsNewChat"
                     class="flex items-center justify-between gap-2 rounded-xl bg-black/[0.04] px-3 py-2 text-xs text-gray-700 ring-1 ring-black/5 dark:bg-white/[0.06] dark:text-gray-200 dark:ring-white/10"
@@ -323,6 +323,7 @@ onUnmounted(() => {
                     />
                     <SearchMicButton
                         variant="inline"
+                        tip-placement="above"
                         idle-class="bg-black/10 text-gray-900 dark:bg-white/15 dark:text-white"
                         hover-class="hover:bg-black/20 dark:hover:bg-white/30"
                         idle-title="語音輸入"

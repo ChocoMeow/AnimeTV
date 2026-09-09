@@ -1,7 +1,7 @@
 <script setup>
 /**
- * YouTube-style horizontal chip scroller: fade edges + chevron buttons.
- * Put chip buttons in the default slot; call rebind() when chip count changes.
+ * Horizontal chip scroller: fade edges + chevron buttons.
+ * Put AppChip (or similar) in the default slot; call rebind() when chip count changes.
  */
 defineProps({
     /** Larger chevrons (related tabs); smaller for episode ranges */
@@ -68,7 +68,7 @@ onUnmounted(() => resizeObserver?.disconnect())
         </div>
 
         <div
-            class="chip-scroll-edge chip-scroll-edge--left"
+            class="chip-scroll-edge chip-scroll-edge--left bg-gradient-to-r from-white from-40% to-transparent dark:from-gray-950"
             :class="[
                 large ? 'chip-scroll-edge--wide' : '',
                 canScrollLeft ? 'opacity-100' : 'opacity-0 pointer-events-none',
@@ -79,7 +79,7 @@ onUnmounted(() => resizeObserver?.disconnect())
             </button>
         </div>
         <div
-            class="chip-scroll-edge chip-scroll-edge--right"
+            class="chip-scroll-edge chip-scroll-edge--right bg-gradient-to-l from-white from-40% to-transparent dark:from-gray-950"
             :class="[
                 large ? 'chip-scroll-edge--wide' : '',
                 canScrollRight ? 'opacity-100' : 'opacity-0 pointer-events-none',
@@ -91,3 +91,36 @@ onUnmounted(() => resizeObserver?.disconnect())
         </div>
     </div>
 </template>
+
+<style scoped>
+.scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+    display: none;
+}
+
+.chip-scroll-edge {
+    @apply absolute inset-y-0 z-10 flex items-center transition-opacity duration-200;
+    width: 2.5rem;
+}
+.chip-scroll-edge--wide {
+    width: 3.25rem;
+}
+.chip-scroll-edge--left {
+    @apply left-0 justify-start;
+}
+.chip-scroll-edge--right {
+    @apply right-0 justify-end;
+}
+
+.chip-scroll-btn {
+    @apply w-8 h-8 flex items-center justify-center rounded-full
+           text-gray-900 dark:text-white
+           hover:bg-black/5 dark:hover:bg-white/10 transition-colors;
+}
+.chip-scroll-btn--lg {
+    @apply w-10 h-10;
+}
+</style>

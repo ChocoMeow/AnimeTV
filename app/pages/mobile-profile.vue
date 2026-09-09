@@ -10,7 +10,7 @@ const loading = ref(true)
 const historyPreview = ref([])
 const favoritesPreview = ref([])
 
-const PREVIEW_LIMIT = 8
+const PREVIEW_LIMIT = 16
 
 const displayName = computed(
     () => user.value?.user_metadata?.name || user.value?.user_metadata?.full_name || '使用者',

@@ -232,7 +232,7 @@ onUnmounted(() => {
 
                 <template v-else>
                     <!-- Empty state -->
-                    <div v-if="!displayedItems.length" class="empty-state">
+                    <div v-if="!displayedItems.length" class="empty-state py-12 text-gray-500 dark:text-gray-400">
                         <span class="material-symbols-rounded text-4xl mb-2 opacity-40">event_busy</span>
                         <p>今日暫無更新節目</p>
                     </div>
@@ -467,12 +467,6 @@ onUnmounted(() => {
            border border-transparent
            shadow-lg shadow-black/20 dark:shadow-white/10
            transform -translate-y-0.5;
-}
-
-/* Empty State */
-.empty-state {
-    @apply text-center py-12 text-gray-500 dark:text-gray-400
-           rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/5 dark:border-white/5;
 }
 
 /* Daily Item Styles */

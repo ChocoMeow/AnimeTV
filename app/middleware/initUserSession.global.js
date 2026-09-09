@@ -4,7 +4,26 @@
 
 export default defineNuxtRouteMiddleware(async (to, _from) => {
     const path = (to.path || '/').replace(/\/$/, '') || '/'
-    const isLoginPage = path === '/login'
+    const isPublicPage = path === '/login' || path === '/welcome' || path === '/terms' || path === '/privacy'
+
+    const user = useSupabaseUser()
+
+    if (!user.value) {
+        if (path === '/') {
+            return navigateTo('/welcome')
+        }
+        // Pages with `publicSsr: true` render OG/meta for link previews; client still gates guests
+        if (import.meta.server && to.meta.publicSsr) {
+            return
+        }
+        
+        if (!isPublicPage) {
+            const redirectInfo = useSupabaseCookieRedirect()
+            redirectInfo.path.value = to.fullPath
+            return navigateTo('/login')
+        }
+        return
+    }
 
     if (import.meta.server) {
         return
@@ -15,14 +34,9 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
         return
     }
 
-    const user = useSupabaseUser()
-    if (!user.value) {
-        if (isLoginPage) return
-        return navigateTo('/login')
-    }
-
     const { fetchSettings, settingsLoaded, userSettings } = useUserSettings()
     const { initialize: initializeStatus } = useUserStatus()
+    const { isIncognito } = useIncognitoMode()
     const { fetchAdminRole } = useAdmin()
 
     if (!settingsLoaded.value && navigator.onLine) {
@@ -30,7 +44,7 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
         await fetchAdminRole()
     }
 
-    if (settingsLoaded.value && userSettings.value?.id && navigator.onLine) {
+    if (settingsLoaded.value && userSettings.value?.id && navigator.onLine && !isIncognito.value) {
         await nextTick()
         initializeStatus()
     }

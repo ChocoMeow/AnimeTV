@@ -55,16 +55,27 @@ function seekThumbCount(durationSec, info) {
     return Math.ceil(durationSec / (durationSec < 600 ? 1 : 2))
 }
 
+/** Bunny: 1800px-wide sheets, 300px cells; cell height follows source aspect ratio. */
+function seekCellSize(videoWidth, videoHeight) {
+    const { cols } = TWXGCT.seekGrid
+    const w = Number(videoWidth)
+    const h = Number(videoHeight)
+    const cellW = Math.floor(TWXGCT.seekSheetWidth / cols)
+    const cellH =
+        Number.isFinite(w) && w > 0 && Number.isFinite(h) && h > 0
+            ? Math.floor(cellW * (h / w))
+            : Math.floor((TWXGCT.seekSheetWidth / cols) * 9 / 16)
+    return { cellW, cellH }
+}
+
 /** Bunny seek sheets as WebVTT cues with #xywh crops. */
-function buildSeekVtt(guid, durationSec, sheetStart, sheetCount, thumbCount) {
+function buildSeekVtt(guid, durationSec, sheetStart, sheetCount, thumbCount, videoWidth, videoHeight) {
     const { cols, rows } = TWXGCT.seekGrid
-    const { width, height } = TWXGCT.seekSheetSize
     if (!(durationSec > 0) || sheetCount <= 0) return null
 
+    const { cellW, cellH } = seekCellSize(videoWidth, videoHeight)
     const cells = cols * rows
     const total = Math.min(Math.max(1, thumbCount), sheetCount * cells)
-    const cellW = Math.floor(width / cols)
-    const cellH = Math.floor(height / rows)
     const step = durationSec / total
     const lines = ['WEBVTT', '']
 
@@ -110,15 +121,52 @@ function buildSeekPreview(guid, info) {
     const thumbs = seekThumbCount(duration, info)
     if (thumbs <= 0) return null
     const perSheet = TWXGCT.seekGrid.cols * TWXGCT.seekGrid.rows
-    return buildSeekVtt(guid, duration, 0, Math.ceil(thumbs / perSheet), thumbs)
+    return buildSeekVtt(
+        guid,
+        duration,
+        0,
+        Math.ceil(thumbs / perSheet),
+        thumbs,
+        info?.width,
+        info?.height,
+    )
+}
+
+/**
+ * Parse volume section selectors from video_id.
+ * - bare slug / @1 → [1]
+ * - @2 → [2]
+ * - @1,2,4 → [1,2,4]
+ * - @1-3 → [1,2,3]
+ * - @1,3-5 → [1,3,4,5]
+ */
+function parseVolumeSelectors(videoId) {
+    const raw = String(videoId || '').trim()
+    const at = raw.match(/^(.+?)@(.+)$/)
+    const cartoonId = at ? at[1].trim() : raw
+    const spec = at ? String(at[2]).trim() : '1'
+    const selected = new Set()
+
+    for (const part of spec.split(/[,+]/).map((p) => p.trim()).filter(Boolean)) {
+        const range = part.match(/^(\d+)\s*-\s*(\d+)$/)
+        if (range) {
+            const a = Math.max(1, Number(range[1]) || 1)
+            const b = Math.max(1, Number(range[2]) || 1)
+            const [lo, hi] = a <= b ? [a, b] : [b, a]
+            for (let i = lo; i <= hi; i++) selected.add(i)
+            continue
+        }
+        const n = Number(part)
+        if (Number.isFinite(n) && n >= 1) selected.add(Math.floor(n))
+    }
+
+    const volumes = selected.size ? [...selected].sort((a, b) => a - b) : [1]
+    return { cartoonId, volumes }
 }
 
 async function listEpisodes(event, videoId) {
     const log = getRequestLogger(event)
-    const raw = String(videoId || '').trim()
-    const at = raw.match(/^(.+?)@(\d+)$/)
-    const cartoonId = at ? at[1] : raw
-    const volume = at ? Math.max(1, Number(at[2]) || 1) : 1 // bare / @1 = 1st .volume-title
+    const { cartoonId, volumes } = parseVolumeSelectors(videoId)
     const episodes = {}
     const seen = new Set()
 
@@ -137,12 +185,12 @@ async function listEpisodes(event, videoId) {
         const linkSel = $(CHAPTER_LINK_SEL).length ? CHAPTER_LINK_SEL : CHAPTER_LINK_FALLBACK_SEL
         let nodes = $(linkSel).toArray()
         if (titles.length) {
-            const target = titles[volume - 1]
+            const targets = new Set(volumes.map((v) => titles[v - 1]).filter(Boolean))
             nodes = []
             let on = false
             $(`.volume-title, ${linkSel}`).each((_, el) => {
                 if ($(el).is('.volume-title')) {
-                    on = el === target
+                    on = targets.has(el)
                     return
                 }
                 if (on) nodes.push(el)
@@ -158,7 +206,7 @@ async function listEpisodes(event, videoId) {
             episodes[String(ep)] = episodeRecord(encodePrefixedToken(TOKEN_PREFIX, [cartoonId, chapterId]))
         }
     } catch (err) {
-        log.error({ err, cartoonId, source: TWXGCT.id }, 'listEpisodes failed')
+        log.error({ err, cartoonId, volumes, source: TWXGCT.id }, 'listEpisodes failed')
     }
 
     return episodes

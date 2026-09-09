@@ -1,6 +1,30 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { createLoggedError } from '~~/server/utils/logger'
 
+// Pages through PostgREST max-rows (first batch length = page size)
+async function fetchWatchHistory(client, userId, rangeStartIso, rangeEndIso) {
+    const cols = 'total_playback_time, playback_time, updated_at, anime_ref_id, anime_title, anime_image'
+    const list = []
+    let pageSize
+    for (let from = 0; ; from += pageSize) {
+        let q = client
+            .from('watch_history')
+            .select(cols)
+            .eq('user_id', userId)
+            .gte('updated_at', rangeStartIso)
+            .lte('updated_at', rangeEndIso)
+            .order('updated_at', { ascending: true })
+        if (pageSize) q = q.range(from, from + pageSize - 1)
+        const { data, error } = await q
+        if (error) throw error
+        const batch = data || []
+        list.push(...batch)
+        if (!pageSize) pageSize = batch.length
+        if (!batch.length || batch.length < pageSize) break
+    }
+    return list
+}
+
 export default defineEventHandler(async (event) => {
     const user = await authUser(event)
     const client = await serverSupabaseClient(event)
@@ -57,14 +81,9 @@ export default defineEventHandler(async (event) => {
     const rangeEndIso = now.toISOString()
 
     try {
-        const { data: historyRows, error: historyError } = await client
-            .from('watch_history')
-            .select('playback_time, updated_at, anime_ref_id, anime_title, anime_image')
-            .eq('user_id', userId)
-            .gte('updated_at', rangeStartIso)
-            .lte('updated_at', rangeEndIso)
+        const historyRows = await fetchWatchHistory(client, userId, rangeStartIso, rangeEndIso)
 
-        if (historyError) throw historyError
+        const watchSeconds = (row) => row.total_playback_time ?? row.playback_time ?? 0
 
         const timeSpentLabels = []
         const timeSpentValues = []
@@ -90,7 +109,7 @@ export default defineEventHandler(async (event) => {
             buckets.set(key, 0)
         }
 
-        for (const row of historyRows || []) {
+        for (const row of historyRows) {
             const t = new Date(row.updated_at)
             let key
             if (bucketType === 'hour') {
@@ -101,12 +120,11 @@ export default defineEventHandler(async (event) => {
                 key = t.toISOString().slice(0, 7)
             }
             if (buckets.has(key)) {
-                buckets.set(key, buckets.get(key) + (row.playback_time || 0))
+                buckets.set(key, buckets.get(key) + watchSeconds(row))
             }
         }
 
         for (let i = 0; i < bucketCount; i++) {
-            const label = timeSpentLabels[i]
             let key
             if (bucketType === 'hour') {
                 const d = new Date(rangeStart)
@@ -123,27 +141,27 @@ export default defineEventHandler(async (event) => {
             timeSpentValues.push(buckets.get(key) || 0)
         }
 
-        const refIds = [...new Set((historyRows || []).map((r) => r.anime_ref_id).filter(Boolean))]
+        const refIds = [...new Set(historyRows.map((r) => r.anime_ref_id).filter(Boolean))]
         let genreDistribution = []
 
         const watchByHour = Array(24).fill(0)
         const watchByWeekday = Array(7).fill(0)
         const weekdayLabels = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
-        for (const row of historyRows || []) {
+        for (const row of historyRows) {
             const t = new Date(row.updated_at)
-            watchByHour[t.getHours()] += row.playback_time || 0
+            watchByHour[t.getHours()] += watchSeconds(row)
             const wd = (t.getDay() + 6) % 7
-            watchByWeekday[wd] += row.playback_time || 0
+            watchByWeekday[wd] += watchSeconds(row)
         }
 
         const timeByRef = new Map()
-        for (const row of historyRows || []) {
+        for (const row of historyRows) {
             const id = row.anime_ref_id
             if (!timeByRef.has(id)) {
                 timeByRef.set(id, { seconds: 0, title: row.anime_title, image: row.anime_image })
             }
             const e = timeByRef.get(id)
-            e.seconds += row.playback_time || 0
+            e.seconds += watchSeconds(row)
         }
         const topAnimeByTime = [...timeByRef.entries()]
             .map(([anime_ref_id, v]) => ({
@@ -182,9 +200,9 @@ export default defineEventHandler(async (event) => {
                     .slice(0, 5)
                     .map(([label, value]) => ({ label, value }))
 
-                for (const row of historyRows || []) {
+                for (const row of historyRows) {
                     const company = companyByRef.get(row.anime_ref_id) || '未標示'
-                    studioSeconds.set(company, (studioSeconds.get(company) || 0) + (row.playback_time || 0))
+                    studioSeconds.set(company, (studioSeconds.get(company) || 0) + watchSeconds(row))
                 }
                 topStudios = [...studioSeconds.entries()]
                     .sort((a, b) => b[1] - a[1])

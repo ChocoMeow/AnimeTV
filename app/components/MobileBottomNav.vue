@@ -1,6 +1,7 @@
 <script setup>
 const { searchModalOpen, openSearchModal } = useMobileSearchState()
 const { isMobile } = useMobile()
+const { isIncognito } = useIncognitoMode()
 
 const route = useRoute()
 const user = useSupabaseUser()
@@ -136,7 +137,7 @@ function itemColorClass(active) {
                             v-if="item.id === 'profile'"
                             v-bind="userAvatar"
                             :class="[avatarBoxClass, avatarTextClass, 'shrink-0 transition-[width,height,box-shadow] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]']"
-                            :img-class="isItemActive(item) ? 'ring-2 ring-white' : 'ring-1 ring-white/30'"
+                            :img-class="isIncognito ? 'ring-2 ring-amber-500' : isItemActive(item) ? 'ring-2 ring-white' : 'ring-1 ring-white/30'"
                         />
 
                         <!-- Icon items -->

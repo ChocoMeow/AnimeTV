@@ -16,7 +16,7 @@ const props = defineProps({
         type: String,
         default: "text-gray-500",
     },
-    maxWidth: { 
+    maxWidth: {
         type: String,
         default: "max-w-md",
     },
@@ -28,7 +28,7 @@ const props = defineProps({
 
 const emit = defineEmits(["close"])
 
-const { isMobile } = useMobile()
+const { isNarrow } = useMobile()
 
 function handleBackdropClick() {
     if (!props.persistent) {
@@ -48,10 +48,6 @@ function lockScroll() {
 
 function unlockScroll() {
     document.body.style.overflow = ""
-}
-
-function handleDrawerClose() {
-    emit("close")
 }
 
 onMounted(() => {
@@ -74,13 +70,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <!-- Mobile: Use Bottom Drawer -->
+    <!-- Narrow: bottom drawer -->
     <BaseBottomDrawer
-        v-if="isMobile"
+        v-if="isNarrow"
         :model-value="show"
         :title="title"
         :persistent="persistent"
-        @update:model-value="handleDrawerClose"
+        @update:model-value="(open) => { if (!open) emit('close') }"
     >
         <template #header>
             <div v-if="title || icon" class="flex items-center gap-3">
@@ -93,44 +89,51 @@ onBeforeUnmount(() => {
             </div>
         </template>
 
-        <!-- Content Slot -->
         <slot />
 
-        <!-- Actions Slot (with default styling) -->
-        <template #footer>
-            <div v-if="$slots.actions" class="flex gap-3 justify-end">
+        <template v-if="$slots.actions" #footer>
+            <div class="flex gap-3 justify-end">
                 <slot name="actions" />
             </div>
         </template>
     </BaseBottomDrawer>
 
-    <!-- Desktop: Use Centered Modal -->
-    <transition v-else name="fade">
-        <div v-if="show" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4" @click="handleBackdropClick">
-            <div class="bg-white dark:bg-gray-950 rounded-2xl shadow-2xl w-full p-6 ring-1 ring-black/5 dark:ring-white/10" :class="maxWidth" @click.stop>
-                <!-- Header -->
-                <div v-if="title || icon" class="flex items-center gap-3 mb-4">
-                    <span v-if="icon" class="material-symbols-rounded text-3xl" :class="iconColor">
-                        {{ icon }}
-                    </span>
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-white">
-                        {{ title }}
-                    </h3>
-                </div>
+    <!-- Wide: centered modal -->
+    <Teleport v-else to="body">
+        <transition name="fade">
+            <div v-if="show" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4" @click="handleBackdropClick">
+                <div
+                    class="bg-white dark:bg-gray-950 rounded-2xl shadow-2xl w-full px-6 pt-6 ring-1 ring-black/5 dark:ring-white/10"
+                    :class="[maxWidth, $slots.actions ? '' : 'pb-safe']"
+                    @click.stop
+                >
+                    <div v-if="title || icon" class="flex items-center gap-3 pb-4">
+                        <span v-if="icon" class="material-symbols-rounded text-3xl" :class="iconColor">
+                            {{ icon }}
+                        </span>
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+                            {{ title }}
+                        </h3>
+                    </div>
 
-                <!-- Content Slot -->
-                <slot />
+                    <div :class="$slots.actions ? 'pb-4' : ''">
+                        <slot />
+                    </div>
 
-                <!-- Actions Slot (with default styling) -->
-                <div v-if="$slots.actions" class="flex gap-3 justify-end mt-6">
-                    <slot name="actions" />
+                    <div v-if="$slots.actions" class="flex gap-3 justify-end pb-safe">
+                        <slot name="actions" />
+                    </div>
                 </div>
             </div>
-        </div>
-    </transition>
+        </transition>
+    </Teleport>
 </template>
 
 <style scoped>
+.pb-safe {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
 .fade-enter-active,
 .fade-leave-active {
     transition: opacity 0.3s ease;

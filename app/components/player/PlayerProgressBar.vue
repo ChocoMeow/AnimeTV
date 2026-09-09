@@ -8,10 +8,10 @@ const props = defineProps({
     hoverPreviewTime: { type: Number, default: 0 },
     hoverPreviewPosition: { type: Number, default: 0 },
     thumbPreviewW: { type: Number, default: 280 },
+    thumbPreviewH: { type: Number, default: 158 },
     activeThumbnail: { type: Object, default: null },
     activeThumbnailSrc: { type: String, default: null },
-    thumbnailPreviewHeight: { type: Number, default: 158 },
-    thumbnailImageStyle: { type: Object, default: () => ({}) },
+    thumbnailPreview: { type: Object, default: null },
 })
 
 const emit = defineEmits([
@@ -76,14 +76,28 @@ defineExpose({
                             :style="{ width: `${thumbPreviewW}px` }"
                         >
                             <div
-                                class="thumb-preview-frame relative overflow-hidden rounded-lg shadow-xl"
-                                :style="{ width: `${thumbPreviewW}px`, height: `${thumbnailPreviewHeight}px` }"
+                                class="thumb-preview-frame relative overflow-hidden rounded-lg shadow-xl bg-black"
+                                :style="{ width: `${thumbPreviewW}px`, height: `${thumbPreviewH}px` }"
                             >
+                                <div
+                                    v-if="thumbnailPreview"
+                                    class="absolute overflow-hidden"
+                                    :style="thumbnailPreview.viewport"
+                                >
+                                    <img
+                                        :src="activeThumbnailSrc"
+                                        class="absolute top-0 left-0 block max-w-none select-none"
+                                        :style="thumbnailPreview.image"
+                                        alt=""
+                                        draggable="false"
+                                    />
+                                </div>
                                 <img
+                                    v-else
                                     :src="activeThumbnailSrc"
-                                    class="absolute top-0 left-0 block w-auto h-auto"
-                                    :style="thumbnailImageStyle"
-                                    alt="Thumbnail preview"
+                                    class="absolute inset-0 block h-full w-full object-cover"
+                                    alt=""
+                                    draggable="false"
                                 />
                             </div>
                             <div class="mt-1.5 bg-black/70 backdrop-blur-md text-white px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap tabular-nums text-center">

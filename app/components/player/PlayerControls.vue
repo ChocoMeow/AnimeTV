@@ -8,10 +8,10 @@ defineProps({
     hoverPreviewTime: { type: Number, default: 0 },
     hoverPreviewPosition: { type: Number, default: 0 },
     thumbPreviewW: { type: Number, default: 280 },
+    thumbPreviewH: { type: Number, default: 158 },
     activeThumbnail: { type: Object, default: null },
     activeThumbnailSrc: { type: String, default: null },
-    thumbnailPreviewHeight: { type: Number, default: 158 },
-    thumbnailImageStyle: { type: Object, default: () => ({}) },
+    thumbnailPreview: { type: Object, default: null },
     isPlaying: { type: Boolean, default: false },
     isEnded: { type: Boolean, default: false },
     isMuted: { type: Boolean, default: false },
@@ -92,10 +92,10 @@ defineExpose({
             :hover-preview-time="hoverPreviewTime"
             :hover-preview-position="hoverPreviewPosition"
             :thumb-preview-w="thumbPreviewW"
+            :thumb-preview-h="thumbPreviewH"
             :active-thumbnail="activeThumbnail"
             :active-thumbnail-src="activeThumbnailSrc"
-            :thumbnail-preview-height="thumbnailPreviewHeight"
-            :thumbnail-image-style="thumbnailImageStyle"
+            :thumbnail-preview="thumbnailPreview"
             @pointerdown="emit('progress-pointerdown', $event)"
             @pointermove="emit('progress-pointermove', $event)"
             @pointerup="emit('progress-pointerup', $event)"

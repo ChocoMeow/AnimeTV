@@ -3,6 +3,7 @@
  */
 export function useAnimeSearch() {
     const { searchHistory, userSettings } = useUserSettings()
+    const { isIncognito } = useIncognitoMode()
     const client = useSupabaseClient()
     const user = useSupabaseUser()
 
@@ -89,7 +90,7 @@ export function useAnimeSearch() {
     }
 
     async function saveSearchHistory(query) {
-        if (!userSettings.value.search_history_enabled || !query || !userSettings.value.id) return
+        if (isIncognito.value || !userSettings.value.search_history_enabled || !query || !userSettings.value.id) return
         if (searchHistory.value.some((item) => item.query === query)) return
 
         try {

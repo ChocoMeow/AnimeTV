@@ -104,16 +104,14 @@ onMounted(resetAndLoad)
 <template>
     <section v-if="showSection" aria-label="Related anime">
         <ChipScrollBar ref="chipScroll" large gap-class="gap-3" class="mb-4">
-            <button
+            <AppChip
                 v-for="tab in tabs"
                 :key="tab.id"
-                type="button"
-                class="chip-pill"
-                :class="selectedTab === tab.id ? 'chip-pill--active' : 'chip-pill--idle'"
+                :active="selectedTab === tab.id"
                 @click="loadTab(tab.id)"
             >
                 {{ tab.label }}
-            </button>
+            </AppChip>
         </ChipScrollBar>
 
         <div v-if="listLoading" class="flex justify-center py-8">

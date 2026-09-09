@@ -153,13 +153,14 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                         </div>
                     </div>
                 </div>
-                <NuxtLink
+                <AppChip
                     to="/settings"
-                    class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-gray-900 dark:bg-white text-white dark:text-black hover:opacity-90 transition-opacity shrink-0 w-full sm:w-auto justify-center"
+                    variant="solid"
+                    icon="settings"
+                    class="w-full sm:w-auto justify-center px-5 py-2.5 font-semibold shadow-none"
                 >
-                    <span class="material-symbols-rounded text-lg">settings</span>
                     帳號設定
-                </NuxtLink>
+                </AppChip>
             </div>
 
             <!-- ── 2. KEY STATS ── -->
@@ -363,7 +364,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                             <li v-for="(a, idx) in analytics.topAnimeByTime" :key="a.anime_ref_id" class="flex items-center gap-3">
                                 <span class="text-xs font-bold text-gray-400 w-5">{{ idx + 1 }}</span>
                                 <NuxtLink :to="`/anime/${a.anime_ref_id}`" class="flex items-center gap-3 min-w-0 flex-1 group">
-                                    <div class="w-10 h-14 rounded overflow-hidden bg-gray-200 dark:bg-white/10 flex-shrink-0">
+                                    <div class="w-10 aspect-[2/3] rounded overflow-hidden bg-gray-200 dark:bg-white/10 flex-shrink-0">
                                         <NuxtImg v-if="a.anime_image" :src="a.anime_image" class="w-full h-full object-cover" alt="" />
                                     </div>
                                     <div class="min-w-0 flex-1">
@@ -416,20 +417,14 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                         <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">區間趨勢</h2>
                     </div>
                     <div class="flex flex-wrap gap-2">
-                        <button
+                        <AppChip
                             v-for="opt in periodOptions"
                             :key="opt.value"
-                            type="button"
+                            :active="statsPeriod === opt.value"
                             @click="statsPeriod = opt.value"
-                            :class="[
-                                'px-4 py-2 rounded-full text-sm font-medium transition-colors',
-                                statsPeriod === opt.value
-                                    ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-md'
-                                    : 'bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20',
-                            ]"
                         >
                             {{ opt.label }}
-                        </button>
+                        </AppChip>
                     </div>
                 </div>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">選定時間範圍內的觀看分布</p>
@@ -500,7 +495,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                 <li v-for="(a, idx) in chartData.topAnimeByTime.slice(0, 6)" :key="String(a.anime_ref_id) + idx" class="flex items-center gap-3">
                                     <span class="text-xs font-bold text-gray-400 w-5">{{ idx + 1 }}</span>
                                     <NuxtLink :to="`/anime/${a.anime_ref_id}`" class="flex items-center gap-3 min-w-0 flex-1 group">
-                                        <div class="w-10 h-14 rounded overflow-hidden bg-gray-200 dark:bg-white/10 flex-shrink-0">
+                                        <div class="w-10 aspect-[2/3] rounded overflow-hidden bg-gray-200 dark:bg-white/10 flex-shrink-0">
                                             <NuxtImg v-if="a.anime_image" :src="a.anime_image" class="w-full h-full object-cover" alt="" />
                                         </div>
                                         <div class="min-w-0 flex-1">
