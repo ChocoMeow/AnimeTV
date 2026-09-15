@@ -17,6 +17,10 @@ export function useAnimeSearch() {
     let searchDebounceTimeout = null
     let micErrorTimeout = null
 
+    function isOffline() {
+        return import.meta.client && !navigator.onLine
+    }
+
     function clearMicError() {
         if (micErrorTimeout) {
             clearTimeout(micErrorTimeout)
@@ -90,7 +94,7 @@ export function useAnimeSearch() {
     }
 
     async function saveSearchHistory(query) {
-        if (isIncognito.value || !userSettings.value.search_history_enabled || !query || !userSettings.value.id) return
+        if (isOffline() || isIncognito.value || !userSettings.value.search_history_enabled || !query || !userSettings.value.id) return
         if (searchHistory.value.some((item) => item.query === query)) return
 
         try {
@@ -113,6 +117,7 @@ export function useAnimeSearch() {
     }
 
     async function removeFromHistory(id) {
+        if (isOffline()) return
         try {
             const { error } = await client.from('search_history').delete().eq('id', id)
             if (error) throw error
@@ -123,6 +128,7 @@ export function useAnimeSearch() {
     }
 
     async function fetchSearchHistory() {
+        if (isOffline()) return
         if (!userSettings.value.id) {
             searchHistory.value = []
             return
@@ -144,7 +150,7 @@ export function useAnimeSearch() {
     }
 
     async function fetchSearchSuggestions() {
-        if (!searchFetchEnabled.value) {
+        if (!searchFetchEnabled.value || isOffline()) {
             searchResults.value = []
             loading.value = false
             return

@@ -1,4 +1,6 @@
 <script setup>
+definePageMeta({ offlineAccess: true })
+
 const appConfig = useAppConfig()
 
 const { listDownloadedAnime, removeEpisode, clearAnimeDownloads } = useOfflineAnimeDownloads()

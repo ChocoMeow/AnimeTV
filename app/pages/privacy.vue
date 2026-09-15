@@ -1,4 +1,6 @@
 <script setup>
+definePageMeta({ public: true })
+
 const appConfig = useAppConfig()
 useHead({ title: `隱私政策 | ${appConfig.siteName}` })
 </script>

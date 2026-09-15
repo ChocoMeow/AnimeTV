@@ -2,6 +2,7 @@
 const appConfig = useAppConfig()
 const user = useSupabaseUser()
 const client = useSupabaseClient()
+const { clear: clearOfflineAuthFlag } = useOfflineAuthCache()
 const { userSettings } = useUserSettings()
 const { isAdmin, clearAdmin } = useAdmin()
 const { isMobile } = useMobile()
@@ -64,6 +65,7 @@ async function fetchPreviews() {
 
 async function signOut() {
     clearAdmin()
+    clearOfflineAuthFlag()
     await client.auth.signOut()
     navigateTo('/login')
 }

@@ -1,5 +1,9 @@
 <script setup>
+definePageMeta({ offlineOnly: true, offlineAccess: true })
+
 const appConfig = useAppConfig()
+const { active, hydrate } = useOfflineAuthCache()
+hydrate()
 
 useHead({
     title: `離線模式 | ${appConfig.siteName}`,
@@ -15,11 +19,20 @@ useHead({
         <p class="text-gray-600 dark:text-gray-400 max-w-md mb-8 leading-relaxed">
             請檢查你的網絡連接。某些功能可能無法使用，但已下載的內容仍可觀看。
         </p>
-        <NuxtLink
-            to="/"
-            class="px-6 py-3 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black rounded-full font-semibold transition-all"
-        >
-            返回首頁
-        </NuxtLink>
+        <div class="flex flex-col sm:flex-row items-center gap-3">
+            <NuxtLink
+                v-if="active"
+                to="/offline-downloads"
+                class="px-6 py-3 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black rounded-full font-semibold transition-all"
+            >
+                開啟下載管理
+            </NuxtLink>
+            <NuxtLink
+                to="/"
+                class="px-6 py-3 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-gray-900 dark:text-gray-100 rounded-full font-semibold transition-all"
+            >
+                返回首頁
+            </NuxtLink>
+        </div>
     </div>
 </template>

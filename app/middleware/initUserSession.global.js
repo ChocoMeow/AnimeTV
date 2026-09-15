@@ -1,23 +1,30 @@
 /**
  * Global middleware: session gate, user settings, admin role, status WebSocket.
+ * Access rules live on pages via definePageMeta ({ public, publicSsr, offlineAccess, offlineOnly }).
  */
 
 export default defineNuxtRouteMiddleware(async (to, _from) => {
     const path = (to.path || '/').replace(/\/$/, '') || '/'
-    const isPublicPage = path === '/login' || path === '/welcome' || path === '/terms' || path === '/privacy'
+    const offline = import.meta.client && !navigator.onLine
+
+    if (to.meta.offlineOnly && !offline) return navigateTo('/')
 
     const user = useSupabaseUser()
+    const { mark, wasSignedIn } = useOfflineAuthCache()
 
-    if (!user.value) {
-        if (path === '/') {
-            return navigateTo('/welcome')
-        }
-        // Pages with `publicSsr: true` render OG/meta for link previews; client still gates guests
-        if (import.meta.server && to.meta.publicSsr) {
-            return
-        }
-        
-        if (!isPublicPage) {
+    if (user.value && import.meta.client) mark()
+
+    const loggedIn = Boolean(user.value) || (offline && wasSignedIn())
+
+    if (!loggedIn) {
+        if (path === '/') return navigateTo('/welcome')
+        if (import.meta.server && to.meta.publicSsr) return
+
+        if (!to.meta.public) {
+            if (offline) {
+                if (!to.meta.offlineOnly) return navigateTo('/offline')
+                return
+            }
             const redirectInfo = useSupabaseCookieRedirect()
             redirectInfo.path.value = to.fullPath
             return navigateTo('/login')
@@ -25,12 +32,10 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
         return
     }
 
-    if (import.meta.server) {
-        return
-    }
+    if (import.meta.server) return
 
-    if (!navigator.onLine) {
-        if (!path.startsWith('/offline')) return navigateTo('/offline')
+    if (offline) {
+        if (!to.meta.offlineAccess) return navigateTo('/offline')
         return
     }
 

@@ -1,5 +1,5 @@
 <script setup>
-definePageMeta({ publicSsr: true }) // SSR OG/meta for link previews; client middleware still requires login
+definePageMeta({ publicSsr: true, offlineAccess: true }) // SSR OG/meta for link previews; client middleware still requires login
 
 // ─── Composables ──────────────────────────────────────────────────────────────
 const { userSettings, getShortcuts, formatShortcutKey } = useUserSettings()
@@ -91,7 +91,7 @@ const offlinePlaybackRevoke = ref(null)
 const offlineThumbRevoke = ref(null)
 const offlineThumbnailJpgUrl = ref(null)
 const offlineThumbnailVttText = ref(null)
-const offlineModeBanner = ref(false)
+const isOfflineView = ref(false)
 
 // Watch history
 const lastWatchedData = ref(null)
@@ -679,20 +679,37 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
 })
 
 // ─── Data fetching ────────────────────────────────────────────────────────────
+function isClientOffline() {
+    return import.meta.client && !navigator.onLine
+}
+
 async function fetchEpisodes(refId) {
     if (!refId) return { episodes: {} }
     episodesLoading.value = true
     try {
         const res = await $fetch(`/api/anime/${refId}/episodes`)
         return { episodes: res?.episodes || {} }
-    } catch (err) {
+    } catch {
         return { episodes: {} }
     } finally {
         episodesLoading.value = false
     }
 }
 
-async function fetchDetail() {
+/** Apply IndexedDB snapshot (saved on download). Returns false if none. */
+async function applyOfflineSnapshot(refId) {
+    const snap = await loadAnimeSnapshot(refId)
+    if (!snap?.episodes || !Object.keys(snap.episodes).length) return false
+
+    anime.value = snap
+    isOfflineView.value = true
+    useHead({ title: `${snap.title} | ${appConfig.siteName}` })
+    await refreshOfflineEpisodeList()
+    applyEpisodeQueryFromRoute()
+    return true
+}
+
+function resetDetailState() {
     loading.value = true
     error.value = null
     videoUrl.value = null
@@ -700,15 +717,27 @@ async function fetchDetail() {
     selectedEpisode.value = null
     episodeLoading.value = false
     episodeFetchId++
-    offlineModeBanner.value = false
+    isOfflineView.value = false
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
+}
 
-    const sourceRefId = String(route.params.id)
+async function fetchDetail() {
+    resetDetailState()
+    const refId = String(route.params.id)
+
+    // Offline: use local snapshot only. SW may cache detail API without episodes.
+    if (isClientOffline()) {
+        if (!(await applyOfflineSnapshot(refId))) {
+            useHead({ title: `載入動漫詳情失敗 | ${appConfig.siteName}` })
+            error.value = '離線模式下找不到此動漫的下載資料'
+        }
+        loading.value = false
+        return
+    }
 
     try {
-        const res = await $fetch(`/api/anime/${sourceRefId}?withRelated=true`)
-
+        const res = await $fetch(`/api/anime/${refId}?withRelated=true`)
         if (!res || !Object.keys(res).length) {
             error.value = '找不到此動漫的詳細資訊'
             return
@@ -719,30 +748,16 @@ async function fetchDetail() {
         useHead({ title: `${res.title} | ${appConfig.siteName}` })
         fetchLastWatched().catch((err) => console.error('Last watched fetch failed:', err))
         refreshOfflineEpisodeList().catch((err) => console.error('Offline episode list refresh failed:', err))
-        fetchEpisodes(sourceRefId)
-            .then(async (earlyEpisodes) => {
-                if (String(route.params.id) !== sourceRefId || !anime.value) return
-                anime.value.episodes = earlyEpisodes?.episodes || {}
+        fetchEpisodes(refId)
+            .then(async ({ episodes }) => {
+                if (String(route.params.id) !== refId || !anime.value) return
+                anime.value.episodes = episodes
                 await nextTick()
                 if (route.query.e && !selectedEpisode.value) applyEpisodeQueryFromRoute()
             })
             .catch((err) => console.error('Episodes fetch flow failed:', err))
-    } catch (err) {
-        if (import.meta.client) {
-            try {
-                const snap = await loadAnimeSnapshot(route.params.id)
-                if (snap?.episodes && Object.keys(snap.episodes).length) {
-                    anime.value = snap
-                    useHead({ title: `${snap.title} | ${appConfig.siteName}` })
-                    offlineModeBanner.value = true
-                    await refreshOfflineEpisodeList()
-                    applyEpisodeQueryFromRoute()
-                    return
-                }
-            } catch (offlineErr) {
-                console.error('Offline snapshot load failed:', offlineErr)
-            }
-        }
+    } catch {
+        if (await applyOfflineSnapshot(refId)) return
         useHead({ title: `載入動漫詳情失敗 | ${appConfig.siteName}` })
         error.value = '載入動漫詳情失敗，請稍後再試'
     } finally {
@@ -857,7 +872,7 @@ onUnmounted(() => {
                     </section>
 
                     <!-- Offline Banner -->
-                    <div v-if="offlineModeBanner"
+                    <div v-if="isOfflineView"
                         :class="['flex items-center gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 text-amber-900 dark:text-amber-100 text-sm', isTheaterMode ? 'lg:col-span-2' : '']"
                         role="status">
                         <span class="material-symbols-rounded flex-shrink-0 text-xl">wifi_off</span>
@@ -880,7 +895,7 @@ onUnmounted(() => {
                         <!-- Title + Actions -->
                         <div ref="toolbarHeaderRef" class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                             <h1 class="min-w-0 md:flex-1 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">{{ anime.title }}</h1>
-                            <div v-if="animeToolbarActions.length" class="flex flex-wrap items-center gap-2 w-full md:w-auto md:flex-shrink-0 md:justify-end">
+                            <div v-if="!isOfflineView && animeToolbarActions.length" class="flex flex-wrap items-center gap-2 w-full md:w-auto md:flex-shrink-0 md:justify-end">
                                 <button v-for="action in toolbarActionsSplit.primary" :key="action.key"
                                     type="button"
                                     class="inline-flex items-center gap-1.5 h-10 px-3 bg-black/5 dark:bg-white/10 rounded-full ring-1 ring-black/5 dark:ring-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all focus:outline-none"
@@ -980,7 +995,7 @@ onUnmounted(() => {
                         @continue-last="continueLast" />
 
                     <AnimeRelatedSection
-                        v-if="anime"
+                        v-if="anime && !isOfflineView"
                         :related-anime="anime.relatedAnime || []"
                         :tags="anime.tags || []"
                         :current-ref-id="anime.refId"

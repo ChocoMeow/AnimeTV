@@ -10,6 +10,7 @@ const appConfig = useAppConfig()
 const route = useRoute()
 const client = useSupabaseClient()
 const user = useSupabaseUser()
+const { clear: clearOfflineAuthFlag } = useOfflineAuthCache()
 const userAvatar = computed(() => ({
     src: user.value?.user_metadata?.avatar_url,
     name: user.value?.user_metadata?.name || 'User',
@@ -55,6 +56,7 @@ function openSearch() {
 async function signOut() {
     showUserMenu.value = false
     clearAdmin()
+    clearOfflineAuthFlag()
     await client.auth.signOut()
     navigateTo('/login')
 }

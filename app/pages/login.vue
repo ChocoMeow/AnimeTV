@@ -237,7 +237,7 @@ watch(user, (newUser) => {
     }
 }, { immediate: true })
 
-definePageMeta({ layout: "" })
+definePageMeta({ layout: '', public: true })
 useHead({ title: `登入 | ${appConfig.siteName}` })
 </script>
 
