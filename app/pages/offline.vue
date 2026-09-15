@@ -2,7 +2,7 @@
 definePageMeta({ offlineOnly: true, offlineAccess: true })
 
 const appConfig = useAppConfig()
-const { active, hydrate } = useOfflineAuthCache()
+const { signedIn, hydrate } = useOfflineAuthCache()
 hydrate()
 
 useHead({
@@ -21,7 +21,7 @@ useHead({
         </p>
         <div class="flex flex-col sm:flex-row items-center gap-3">
             <NuxtLink
-                v-if="active"
+                v-if="signedIn"
                 to="/offline-downloads"
                 class="px-6 py-3 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black rounded-full font-semibold transition-all"
             >

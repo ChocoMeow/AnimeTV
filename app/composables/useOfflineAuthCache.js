@@ -5,40 +5,46 @@
 
 const KEY = 'app:offline-signed-in'
 
+function readFlag() {
+    if (!import.meta.client) return false
+    try {
+        return localStorage.getItem(KEY) === '1'
+    } catch {
+        return false
+    }
+}
+
+function writeFlag(on) {
+    if (!import.meta.client) return
+    try {
+        if (on) localStorage.setItem(KEY, '1')
+        else localStorage.removeItem(KEY)
+    } catch {
+        /* private mode / quota */
+    }
+}
+
 export function useOfflineAuthCache() {
+    const signedIn = useState('offline-signed-in', () => false)
+
     function hydrate() {
-        if (!import.meta.client) return
-        try {
-            active.value = localStorage.getItem(KEY) === '1'
-        } catch {
-            active.value = false
-        }
+        signedIn.value = readFlag()
     }
 
     function mark() {
-        active.value = true
-        if (!import.meta.client) return
-        try {
-            localStorage.setItem(KEY, '1')
-        } catch {
-            /* private mode / quota */
-        }
+        signedIn.value = true
+        writeFlag(true)
     }
 
     function clear() {
-        active.value = false
-        if (!import.meta.client) return
-        try {
-            localStorage.removeItem(KEY)
-        } catch {
-            /* ignore */
-        }
+        signedIn.value = false
+        writeFlag(false)
     }
 
     function wasSignedIn() {
-        if (import.meta.client && !active.value) hydrate()
-        return active.value
+        if (import.meta.client && !signedIn.value) hydrate()
+        return signedIn.value
     }
 
-    return { active, hydrate, mark, clear, wasSignedIn }
+    return { signedIn, hydrate, mark, clear, wasSignedIn }
 }
