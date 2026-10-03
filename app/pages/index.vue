@@ -31,6 +31,9 @@ const weekdayLabel = {
 
 const todayCount = computed(() => (byDay.value[todayCode] || []).length)
 
+const featured = computed(() => spotlight.value[0] || null)
+const sideSpotlight = computed(() => spotlight.value.slice(1))
+
 // Personalized, time-of-day greeting — small but human touch on arrival.
 const greeting = computed(() => {
     const h = new Date().getHours()
@@ -53,19 +56,19 @@ function goRandom() {
     if (pick?.refId) navigateTo(`/anime/${pick.refId}`)
 }
 
-// Subtle 3D tilt on the spotlight tile, following the cursor — a small tactile
-// touch that makes the featured card feel alive without being distracting.
-const tiltStyle = ref({ transform: 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)' })
+// Desktop-only tilt. The resting value is reapplied on leave so the card settles flat.
+const tiltRest = 'perspective(1200px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)'
+const tiltStyle = ref({ transform: tiltRest })
 function handleTiltMove(e) {
     const rect = e.currentTarget.getBoundingClientRect()
     const x = (e.clientX - rect.left) / rect.width - 0.5
     const y = (e.clientY - rect.top) / rect.height - 0.5
     tiltStyle.value = {
-        transform: `perspective(1000px) rotateX(${(-y * 6).toFixed(2)}deg) rotateY(${(x * 8).toFixed(2)}deg) scale3d(1.015, 1.015, 1.015)`,
+        transform: `perspective(1200px) rotateX(${(-y * 4).toFixed(2)}deg) rotateY(${(x * 5).toFixed(2)}deg) scale3d(1.012, 1.012, 1.012)`,
     }
 }
 function resetTilt() {
-    tiltStyle.value = { transform: 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)' }
+    tiltStyle.value = { transform: tiltRest }
 }
 
 // Use shared tooltip composable
@@ -121,86 +124,104 @@ onUnmounted(() => {
 <template>
     <div>
         <div class="space-y-8 sm:space-y-14 max-w-7xl mx-auto px-3 sm:px-4 md:px-6 pt-5 sm:pt-8 pb-8 sm:pb-10">
-            <!-- Discovery Bento -->
-            <section v-if="loading || spotlight.length">
-                <div class="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-5">
-                    <div class="flex items-center gap-3">
-                        <span class="greeting-icon">
-                            <span class="material-symbols-rounded text-xl sm:text-2xl">{{ greeting.icon }}</span>
-                        </span>
-                        <div>
-                            <h1 class="greeting-title">{{ greeting.text }}</h1>
-                            <p class="greeting-sub">
-                                <span v-if="!loading && todayCount">今天有 <strong class="text-gray-900 dark:text-white">{{ todayCount }}</strong> 部動畫更新 · </span>{{ greeting.sub }}
-                            </p>
-                        </div>
+            <!-- Discovery -->
+            <section v-if="loading || featured" aria-label="焦點推薦">
+                <div class="discover-head">
+                    <span class="greeting-icon" aria-hidden="true">
+                        <span class="material-symbols-rounded text-xl sm:text-2xl">{{ greeting.icon }}</span>
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <h1 class="greeting-title">{{ greeting.text }}</h1>
+                        <p class="greeting-sub">
+                            <template v-if="!loading && todayCount">
+                                今天有 <strong class="text-gray-900 dark:text-white">{{ todayCount }}</strong> 部更新
+                                <span class="hidden sm:inline"> · {{ greeting.sub }}</span>
+                            </template>
+                            <template v-else>{{ greeting.sub }}</template>
+                        </p>
                     </div>
-                    <button v-if="shufflePool.length" type="button" class="btn-shuffle" @click="goRandom">
-                        <span class="material-symbols-rounded text-lg">shuffle</span>
-                        隨機一部
+                    <button
+                        v-if="shufflePool.length"
+                        type="button"
+                        class="btn-shuffle"
+                        aria-label="隨機播放一部動畫"
+                        @click="goRandom"
+                    >
+                        <span class="material-symbols-rounded text-xl sm:text-lg" aria-hidden="true">shuffle</span>
+                        <span class="hidden sm:inline">隨機一部</span>
                     </button>
                 </div>
 
-                <!-- Spotlight: skeleton while loading, bento when data exists -->
-                <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 auto-rows-[132px] sm:auto-rows-[260px]">
-                    <div class="col-span-2 row-span-2 rounded-2xl sm:rounded-3xl bg-gray-200 dark:bg-white/5 animate-pulse" />
-                    <div v-for="n in 4" :key="n" class="rounded-2xl bg-gray-200 dark:bg-white/5 animate-pulse" />
+                <div v-if="loading" class="discover-layout" aria-hidden="true">
+                    <div class="feature-skel" />
+                    <div class="spot-rail-wrap">
+                        <div class="spot-rail">
+                            <div v-for="n in 4" :key="n" class="spot-skel" />
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Bento grid -->
-                <div v-else class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 auto-rows-[132px] sm:auto-rows-[260px]">
-                    <!-- Spotlight tile -->
+                <div v-else-if="featured" class="discover-layout rise-in">
                     <NuxtLink
-                        :to="`/anime/${spotlight[0].refId}`"
-                        class="bento-main group col-span-2 row-span-2"
-                        :style="tiltStyle"
+                        :to="`/anime/${featured.refId}`"
+                        class="feature-card"
                         @mousemove="handleTiltMove"
                         @mouseleave="resetTilt"
                     >
-                        <NuxtImg
-                            :src="spotlight[0].image"
-                            alt=""
-                            loading="eager"
-                            fetchpriority="high"
-                            class="bento-main-img"
-                        />
-                        <div class="bento-main-scrim" />
-                        <div class="relative z-10 h-full flex flex-col justify-end p-4 sm:p-6">
-                            <span class="bento-badge">
-                                <span class="material-symbols-rounded text-sm">bolt</span>
-                                焦點新番
-                            </span>
-                            <h2 class="bento-main-title">{{ spotlight[0].title }}</h2>
-                            <div v-if="spotlight[0].episode" class="bento-main-episode">
-                                <span class="material-symbols-rounded text-base">play_circle</span>
-                                {{ spotlight[0].episode }}
+                        <div class="feature-stage" :style="tiltStyle">
+                            <NuxtImg
+                                :src="featured.image"
+                                alt=""
+                                loading="eager"
+                                fetchpriority="high"
+                                class="feature-img"
+                            />
+                            <div class="feature-scrim" />
+                            <div class="feature-copy">
+                                <div class="feature-kicker-row">
+                                    <span class="feature-kicker">
+                                        <span class="material-symbols-rounded text-sm" aria-hidden="true">bolt</span>
+                                        焦點新番
+                                    </span>
+                                    <span v-if="featured.episode" class="feature-ep">{{ featured.episode }}</span>
+                                </div>
+                                <h2 class="feature-title">{{ featured.title }}</h2>
+                                <span class="feature-cta">
+                                    <span class="material-symbols-rounded text-base" aria-hidden="true">play_arrow</span>
+                                    立即觀看
+                                </span>
                             </div>
-                            <span class="bento-main-cta">
-                                <span class="material-symbols-rounded">play_arrow</span>
-                                立即觀看
-                            </span>
                         </div>
                     </NuxtLink>
 
-                    <!-- Side tiles -->
-                    <NuxtLink
-                        v-for="item in spotlight.slice(1)"
-                        :key="item.refId"
-                        :to="`/anime/${item.refId}`"
-                        class="bento-tile group"
-                        @mouseenter="handleMouseEnter(item, $event)"
-                        @mouseleave="handleMouseLeave"
-                    >
-                        <NuxtImg :src="item.image" alt="" loading="lazy" class="bento-tile-img" />
-                        <div class="bento-tile-scrim" />
-                        <div v-if="item.episode" class="bento-tile-episode">{{ item.episode }}</div>
-                        <span class="bento-tile-title">{{ item.title }}</span>
-                        <div class="bento-tile-play">
-                            <span class="material-symbols-rounded text-base">play_arrow</span>
+                    <div v-if="sideSpotlight.length" class="spot-rail-wrap">
+                        <div class="spot-rail" :class="{ 'spot-rail-fill': sideSpotlight.length >= 3 }">
+                            <NuxtLink
+                                v-for="item in sideSpotlight"
+                                :key="item.refId"
+                                :to="`/anime/${item.refId}`"
+                                class="spot-card"
+                                @mouseenter="handleMouseEnter(item, $event)"
+                                @mouseleave="handleMouseLeave"
+                            >
+                                <div class="spot-media">
+                                    <NuxtImg :src="item.image" alt="" loading="lazy" class="spot-img" />
+                                    <span v-if="item.episode" class="spot-ep">{{ item.episode }}</span>
+                                </div>
+                                <div class="spot-copy">
+                                    <p class="spot-title">{{ item.title }}</p>
+                                    <span class="spot-go">
+                                        <span class="material-symbols-rounded text-base" aria-hidden="true">play_arrow</span>
+                                        觀看
+                                    </span>
+                                </div>
+                            </NuxtLink>
                         </div>
-                    </NuxtLink>
+                        <div class="spot-fade" aria-hidden="true" />
+                    </div>
                 </div>
             </section>
+
             <!-- Daily Schedule Section -->
             <section id="daily-schedule" class="scroll-mt-20">
                 <div class="flex items-end justify-between gap-4 mb-4 sm:mb-6">
@@ -212,37 +233,36 @@ onUnmounted(() => {
                     </div>
                 </div>
 
-                <!-- Day Tabs — always visible, even while loading -->
                 <div class="flex flex-wrap gap-2 mb-5 sm:mb-6">
                     <button
                         v-for="d in Object.keys(weekdayLabel)"
                         :key="d"
-                        @click="selectedDay = d"
+                        type="button"
                         :class="['day-tab', selectedDay === d ? 'day-tab-active' : 'day-tab-inactive']"
                         :disabled="loading"
+                        @click="selectedDay = d"
                     >
                         {{ weekdayLabel[d] }}
                     </button>
                 </div>
 
-                <!-- Skeleton grid while loading -->
                 <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
                     <SkeletonDailyItem v-for="n in 12" :key="n" />
                 </div>
 
                 <template v-else>
-                    <!-- Empty state -->
-                    <div v-if="!displayedItems.length" class="empty-state py-12 text-gray-500 dark:text-gray-400">
+                    <Transition name="schedule-day" mode="out-in">
+                    <div v-if="!displayedItems.length" :key="`empty-${selectedDay}`" class="empty-state py-12 text-gray-500 dark:text-gray-400">
                         <span class="material-symbols-rounded text-4xl mb-2 opacity-40">event_busy</span>
                         <p>今日暫無更新節目</p>
                     </div>
 
-                    <!-- Day Content -->
-                    <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+                    <div v-else :key="`day-${selectedDay}`" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
                         <NuxtLink
-                            v-for="item in displayedItems"
+                            v-for="(item, index) in displayedItems"
                             :key="item.refId"
                             class="daily-item group"
+                            :style="{ '--card-i': index }"
                             :to="`/anime/${item.refId}`"
                             @mouseenter="handleMouseEnter(item, $event)"
                             @mouseleave="handleMouseLeave"
@@ -255,20 +275,15 @@ onUnmounted(() => {
                                     class="w-full h-full object-cover transform transition-transform duration-500 group-hover:scale-110"
                                 />
                                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
-
-                                <!-- Episode badge -->
                                 <div v-if="item.episode" class="absolute bottom-1.5 left-1.5 episode-badge">
                                     {{ item.episode }}
                                 </div>
-
-                                <!-- Play icon (corner, non-obstructive) -->
                                 <div class="absolute bottom-1.5 right-1.5 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
                                     <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/95 dark:bg-gray-950/95 flex items-center justify-center shadow-lg">
                                         <span class="material-symbols-rounded text-base sm:text-lg text-gray-900 dark:text-gray-100">play_arrow</span>
                                     </div>
                                 </div>
                             </div>
-
                             <div class="p-2.5">
                                 <div class="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 line-clamp-1 leading-tight">
                                     {{ item.title }}
@@ -276,6 +291,7 @@ onUnmounted(() => {
                             </div>
                         </NuxtLink>
                     </div>
+                    </Transition>
                 </template>
             </section>
 
@@ -325,134 +341,171 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* Greeting bar */
+.discover-head {
+    @apply flex items-center gap-3 mb-4 sm:gap-3.5 sm:mb-5;
+}
+
 .greeting-icon {
     @apply flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center
            bg-gray-900 dark:bg-white text-white dark:text-black;
 }
 
 .greeting-title {
-    @apply text-lg sm:text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white leading-tight;
+    @apply min-w-0 text-lg sm:text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white leading-tight;
 }
 
 .greeting-sub {
-    @apply text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5;
+    @apply text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed;
 }
 
 .btn-shuffle {
-    @apply hidden sm:inline-flex items-center gap-1.5 px-4 py-2 sm:py-2.5 rounded-full font-semibold text-xs sm:text-sm
+    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full
+           font-semibold text-xs sm:text-sm
            bg-black/5 dark:bg-white/10 text-gray-800 dark:text-gray-100
            ring-1 ring-black/10 dark:ring-white/10
-           transition-all duration-200 hover:bg-black/10 dark:hover:bg-white/15 hover:-translate-y-0.5 active:translate-y-0
-           active:scale-95;
+           transition-colors duration-200
+           hover:bg-black/10 dark:hover:bg-white/15
+           active:scale-95
+           sm:h-auto sm:w-auto sm:gap-1.5 sm:px-4 sm:py-2;
 }
 
 .btn-shuffle .material-symbols-rounded {
-    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .btn-shuffle:hover .material-symbols-rounded {
     transform: rotate(180deg);
 }
 
-/* Bento spotlight tile */
-.bento-main {
+.discover-layout {
+    @apply flex flex-col gap-3 sm:gap-4;
+}
+
+.feature-card,
+.feature-skel {
+    @apply min-h-[14.5rem] aspect-[16/10] sm:min-h-[17rem] sm:aspect-[2/1];
+}
+
+.feature-card {
     @apply relative block overflow-hidden rounded-2xl sm:rounded-3xl
-           ring-1 ring-black/5 dark:ring-white/10 shadow-lg
-           transition-shadow duration-300 will-change-transform
-           hover:shadow-2xl hover:shadow-black/20 dark:hover:shadow-black/60;
-    transition: transform 0.15s ease-out, box-shadow 0.3s ease;
-    /* `clip-path` (in addition to overflow:hidden) keeps the rounded corners from
-       flickering square while `transform` is actively changing on this same
-       element (a known Chrome/Safari quirk with border-radius + overflow:hidden
-       + live transforms) — this lets the whole card tilt as one rigid piece
-       without ever losing its rounded clip. */
-    clip-path: inset(0 round 1rem);
+           bg-gray-200 dark:bg-white/5
+           ring-1 ring-black/10 dark:ring-white/10 shadow-lg;
 }
 
-@media (min-width: 640px) {
-    .bento-main {
-        clip-path: inset(0 round 1.5rem);
-    }
-}
-
-.bento-main-img {
-    @apply absolute inset-0 w-full h-full object-cover object-top origin-top transition-transform duration-700 ease-out;
-}
-
-.bento-main:hover .bento-main-img {
-    transform: scale(1.06);
-}
-
-.bento-main-scrim {
+.feature-stage {
     @apply absolute inset-0;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.35) 45%, rgba(0, 0, 0, 0.05) 75%);
+    transition: transform 0.18s ease-out;
 }
 
-.bento-badge {
-    @apply inline-flex items-center gap-1.5 self-start px-2.5 py-1 mb-2.5 sm:mb-3 rounded-full text-[11px] sm:text-xs font-semibold
-           bg-white/15 text-white backdrop-blur-sm ring-1 ring-white/20 w-fit;
+.feature-img {
+    @apply absolute inset-0 h-full w-full object-cover object-top transition-transform duration-700 ease-out;
 }
 
-.bento-main-title {
-    @apply text-lg sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white mb-1.5 sm:mb-2 leading-tight line-clamp-2;
-    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
+.feature-scrim {
+    @apply absolute inset-0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.38) 46%, rgba(0, 0, 0, 0.05) 74%);
 }
 
-.bento-main-episode {
-    @apply flex items-center gap-1.5 text-xs sm:text-sm font-medium text-white/85 mb-3 sm:mb-4;
+.feature-copy {
+    @apply absolute inset-x-0 bottom-0 z-10 flex flex-col p-4 sm:p-6 lg:p-7;
 }
 
-.bento-main-cta {
-    @apply inline-flex items-center gap-1.5 self-start px-4 sm:px-5 py-2 sm:py-2.5 rounded-full font-semibold text-xs sm:text-sm
-           bg-white text-black shadow-lg
-           transition-transform duration-200 group-hover:scale-105 w-fit;
+.feature-kicker-row {
+    @apply flex flex-wrap items-center gap-2 mb-2 sm:mb-3;
 }
 
-/* Bento side tiles */
-.bento-tile {
-    @apply relative block overflow-hidden rounded-2xl bg-black/[0.02] dark:bg-white/5
-           ring-1 ring-black/5 dark:ring-white/10 shadow-sm
-           transition-all duration-300
-           hover:ring-black/10 dark:hover:ring-white/20 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/50;
+.feature-kicker,
+.feature-ep {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold text-white
+           backdrop-blur-md ring-1 ring-white/20;
 }
 
-.bento-tile-img {
-    @apply absolute inset-0 w-full h-full object-cover object-top origin-top transition-transform duration-500;
+.feature-kicker {
+    @apply bg-white/15;
 }
 
-.bento-tile:hover .bento-tile-img {
-    transform: scale(1.08);
+.feature-ep {
+    @apply bg-black/40;
 }
 
-.bento-tile-scrim {
-    @apply absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-90;
+.feature-title {
+    @apply text-xl sm:text-3xl lg:text-[2rem] font-extrabold tracking-tight text-white leading-[1.2] line-clamp-2 mb-3 sm:mb-4;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
 }
 
-.bento-tile-episode {
-    @apply absolute top-1.5 left-1.5 sm:top-2 sm:left-2 px-1.5 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold text-white bg-black/60 backdrop-blur-sm;
+.feature-cta {
+    @apply inline-flex items-center gap-1 self-start w-fit px-4 py-2 sm:px-5 sm:py-2.5 rounded-full
+           text-xs sm:text-sm font-semibold bg-white text-black shadow-lg
+           transition-transform duration-200;
 }
 
-.bento-tile-title {
-    @apply absolute bottom-1.5 left-1.5 right-1.5 sm:bottom-2 sm:left-2 sm:right-2 text-[11px] sm:text-xs font-semibold text-white line-clamp-2 leading-snug;
-    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+.feature-skel {
+    @apply rounded-2xl sm:rounded-3xl bg-gray-200 dark:bg-white/5 animate-pulse;
 }
 
-.bento-tile-play {
-    @apply absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-6 h-6 sm:w-7 sm:h-7 rounded-full
-           bg-white/95 flex items-center justify-center shadow-lg text-gray-900
-           opacity-0 scale-75 transition-all duration-300
-           group-hover:opacity-100 group-hover:scale-100;
+.spot-rail-wrap {
+    @apply relative min-w-0 -mx-3 sm:-mx-4 md:-mx-6;
 }
 
-/* Section Titles */
+.spot-rail {
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0.75rem;
+    padding: 0.125rem 0.75rem 0.4rem;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+}
+
+.spot-rail::-webkit-scrollbar {
+    display: none;
+}
+
+.spot-fade {
+    @apply pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent dark:from-gray-950 lg:hidden;
+}
+
+.spot-card {
+    @apply flex w-[78%] max-w-[17.5rem] shrink-0 snap-start flex-col overflow-hidden rounded-2xl
+           bg-black/[0.02] dark:bg-white/5
+           ring-1 ring-black/5 dark:ring-white/10;
+}
+
+.spot-media {
+    @apply relative aspect-video overflow-hidden bg-gray-200 dark:bg-white/5;
+}
+
+.spot-img {
+    @apply absolute inset-0 h-full w-full object-cover object-top transition-transform duration-500;
+}
+
+.spot-ep {
+    @apply absolute left-2 top-2 rounded-md bg-black/65 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm;
+}
+
+.spot-copy {
+    @apply min-w-0 px-3 py-2.5;
+}
+
+.spot-title {
+    @apply line-clamp-2 text-sm font-semibold leading-snug text-gray-900 dark:text-gray-100;
+}
+
+.spot-go {
+    @apply hidden;
+}
+
+.spot-skel {
+    @apply aspect-[16/11] w-[78%] max-w-[17.5rem] shrink-0 snap-start rounded-2xl bg-gray-200 dark:bg-white/5 animate-pulse;
+}
+
 .section-title {
-    @apply text-xl sm:text-2xl font-bold text-gray-900 dark:text-white;
+    @apply text-xl font-bold text-gray-900 dark:text-white sm:text-2xl;
 }
 
-/* Day Tab Styles */
 .day-tab {
-    @apply px-3 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 transform;
+    @apply px-3 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-300;
 }
 
 .day-tab-inactive {
@@ -466,10 +519,9 @@ onUnmounted(() => {
     @apply bg-gray-900 dark:bg-white text-white dark:text-black
            border border-transparent
            shadow-lg shadow-black/20 dark:shadow-white/10
-           transform -translate-y-0.5;
+           -translate-y-0.5;
 }
 
-/* Daily Item Styles */
 .daily-item {
     @apply block bg-black/[0.02] dark:bg-white/5 rounded-xl overflow-hidden
            cursor-pointer transition-all duration-300
@@ -481,5 +533,189 @@ onUnmounted(() => {
 
 .episode-badge {
     @apply px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold text-white bg-black/70 backdrop-blur-sm;
+}
+
+.schedule-day-enter-active,
+.schedule-day-leave-active {
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.schedule-day-enter-from {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.schedule-day-leave-to {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+.daily-item {
+    animation: schedule-card-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation-delay: calc(var(--card-i, 0) * 45ms);
+}
+
+@keyframes schedule-card-in {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.feature-card:focus-visible,
+.spot-card:focus-visible,
+.daily-item:focus-visible,
+.btn-shuffle:focus-visible,
+.day-tab:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
+}
+
+.rise-in {
+    animation: rise-in 0.35s ease;
+}
+
+@keyframes rise-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (min-width: 640px) {
+    .spot-rail {
+        gap: 1rem;
+        scroll-padding-inline: 1rem;
+        padding-inline: 1rem;
+    }
+
+    .spot-card,
+    .spot-skel {
+        width: 46%;
+        max-width: 21rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .spot-rail {
+        scroll-padding-inline: 1.5rem;
+        padding-inline: 1.5rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .discover-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.65fr) minmax(17rem, 1fr);
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .feature-card,
+    .feature-skel {
+        aspect-ratio: auto;
+        min-height: clamp(22rem, 26vw, 26rem);
+    }
+
+    /* The rail is pulled out of flow so it matches the feature height without stretching the row. */
+    .spot-rail-wrap {
+        margin-inline: 0;
+        min-height: 0;
+    }
+
+    .spot-rail {
+        position: absolute;
+        inset: 0;
+        flex-direction: column;
+        gap: 0.7rem;
+        overflow: hidden;
+        scroll-snap-type: none;
+        padding: 0;
+    }
+
+    .spot-card,
+    .spot-skel {
+        width: 100%;
+        max-width: none;
+        min-height: 0;
+    }
+
+    .spot-rail-fill .spot-card,
+    .spot-skel {
+        flex: 1 1 0;
+    }
+
+    .spot-skel {
+        aspect-ratio: auto;
+    }
+
+    .spot-card {
+        flex-direction: row;
+        align-items: stretch;
+    }
+
+    .spot-media {
+        flex: 0 0 42%;
+        width: 42%;
+        height: 100%;
+        aspect-ratio: auto;
+    }
+
+    .spot-copy {
+        @apply flex min-h-0 flex-col justify-center gap-1 overflow-hidden px-3.5 py-2;
+    }
+
+    .spot-go {
+        @apply inline-flex items-center gap-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400;
+    }
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .feature-card:hover .feature-img {
+        transform: scale(1.06);
+    }
+
+    .feature-card:hover .feature-cta {
+        transform: scale(1.04);
+    }
+
+    .spot-card {
+        @apply transition-shadow duration-300;
+    }
+
+    .spot-card:hover {
+        @apply shadow-lg shadow-black/10 ring-black/10 dark:shadow-black/50 dark:ring-white/20;
+    }
+
+    .spot-card:hover .spot-img {
+        transform: scale(1.06);
+    }
+
+    .spot-card:hover .spot-go {
+        @apply text-gray-900 dark:text-white;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rise-in,
+    .schedule-day-enter-active,
+    .schedule-day-leave-active,
+    .daily-item,
+    .feature-stage,
+    .feature-img,
+    .feature-cta,
+    .spot-img,
+    .btn-shuffle .material-symbols-rounded {
+        animation: none;
+        transition: none;
+    }
 }
 </style>
