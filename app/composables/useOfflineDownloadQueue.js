@@ -20,10 +20,19 @@ function quietAbort(ctrl) {
     }
 }
 
-function progressLabel(ep, phase, current, total, ratio) {
-    if (phase === 'segment') return `第 ${ep} 集：片段 ${current}/${total}`
-    if (phase === 'remux') return `第 ${ep} 集：轉成 MP4`
-    return `第 ${ep} 集：${Math.floor(ratio * 100)}%`
+function progressOf({ phase, current, total }) {
+    if (phase === 'remux') return 0.98
+    if (phase === 'progressive' && !(total > 0)) return Math.min(0.95, 1 - Math.exp(-(current || 0) / 2.5e7))
+    return Math.max(0, Math.min(1, current / total))
+}
+
+function progressLabel(ep, p, ratio) {
+    if (p.phase === 'segment') return `第 ${ep} 集：片段 ${p.current}/${p.total}`
+    if (p.phase === 'remux') return `第 ${ep} 集：轉成 MP4`
+    const amount = p.total > 0
+        ? `${Math.floor(ratio * 100)}%`
+        : `${((p.current || 0) / 1024 / 1024).toFixed(1)} MB`
+    return `第 ${ep} 集：${amount}`
 }
 
 function batchToast({ successCount, failedCount, cancelledCount }, toast) {
@@ -206,17 +215,16 @@ export function useOfflineDownloadQueue() {
                         signal: ctrl?.abort?.signal,
                         waitWhilePaused: () => waitWhilePaused(id),
                         onProgress: (p) => {
-                            if (cancelledIds.value[id] || !p.total) return
-                            if (!['segment', 'progressive', 'remux'].includes(p.phase)) return
-                            const ratio = Math.max(0, Math.min(1, p.current / p.total))
-                            progressByEpisode[ep] = p.phase === 'remux' ? 0.98 : ratio
+                            if (cancelledIds.value[id] || !['segment', 'progressive', 'remux'].includes(p.phase)) return
+                            const ratio = progressOf(p)
+                            progressByEpisode[ep] = ratio
                             updateOverall()
                             const t = tasks.value.find((x) => x.id === id)
                             if (!t || t.status === 'paused') return
                             updateTask(ep, {
                                 status: 'downloading',
-                                progress: (p.phase === 'remux' ? 0.98 : ratio) * 100,
-                                label: progressLabel(ep, p.phase, p.current, p.total, ratio),
+                                progress: ratio * 100,
+                                label: progressLabel(ep, p, ratio),
                             })
                         },
                     })

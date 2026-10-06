@@ -222,20 +222,19 @@ async function fetchBlobWithProgress(url, onProgress, { signal, waitWhilePaused 
         cancelBody(res)
         throwHttp('下載失敗', res.status)
     }
-    const total = parseInt(res.headers.get('content-length') || '0', 10)
-    if (!res.body || !total) {
-        try {
-            const buf = await res.arrayBuffer()
-            onProgress?.({ phase: 'progressive', current: 1, total: 1 })
-            return new Blob([buf], { type: VIDEO_MP4 })
-        } catch (err) {
-            cancelBody(res)
-            throw err
-        }
+    const total = parseInt(res.headers.get('content-length') || res.headers.get('x-content-length') || '0', 10) || 0
+    const emit = (loaded) => onProgress?.({ phase: 'progressive', current: loaded, total })
+
+    if (!res.body) {
+        const buf = await res.arrayBuffer()
+        emit(buf.byteLength)
+        return new Blob([buf], { type: VIDEO_MP4 })
     }
+
     const reader = res.body.getReader()
     const chunks = []
     let loaded = 0
+    let lastAt = 0
     try {
         while (true) {
             await waitReady(waitWhilePaused, signal)
@@ -243,16 +242,17 @@ async function fetchBlobWithProgress(url, onProgress, { signal, waitWhilePaused 
             if (done) break
             chunks.push(value)
             loaded += value.byteLength
-            onProgress?.({ phase: 'progressive', current: Math.max(1, Math.floor((loaded / total) * 100)), total: 100 })
+            const now = Date.now()
+            if (now - lastAt >= 80) {
+                lastAt = now
+                emit(loaded)
+            }
         }
     } catch (err) {
-        try {
-            await reader.cancel()
-        } catch {
-            /* ignore */
-        }
+        reader.cancel().catch(() => {})
         throw err
     }
+    emit(loaded)
     return new Blob(chunks, { type: VIDEO_MP4 })
 }
 
@@ -365,7 +365,6 @@ async function fetchHlsAsMp4(playlistUrl, onProgress, { signal, waitWhilePaused,
     }
 }
 
-/** @returns {Promise<Blob>} */
 /** @returns {Promise<Blob>} */
 export async function fetchEpisodeMp4(source, onProgress, opts, qualityHeight) {
     if (source?.kind === 'hls' && source.playlistUrl) {

@@ -64,7 +64,10 @@ export default defineEventHandler(async (event) => {
         setResponseStatus(event, 200)
         setResponseHeader(event, 'Content-Type', res.headers.get('content-type') || 'video/mp4')
         const len = res.headers.get('content-length')
-        if (len) setResponseHeader(event, 'Content-Length', len)
+        if (len) {
+            setResponseHeader(event, 'Content-Length', len)
+            setResponseHeader(event, 'X-Content-Length', len)
+        }
         setResponseHeader(event, 'Cache-Control', 'no-store')
         setResponseHeader(event, 'Access-Control-Allow-Origin', '*')
 
