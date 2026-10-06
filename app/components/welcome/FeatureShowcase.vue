@@ -10,7 +10,7 @@ const features = [
         id: 'offline',
         glyph: '離',
         title: '離線下載',
-        body: 'MP4 與 HLS 集數可下載至本機，暫停、續傳與取消都由下載管理頁統一處理。',
+        body: '集數會下載為 MP4 至本機（HLS 來源會在下載時轉成 MP4），暫停、續傳與取消都由下載管理頁統一處理。',
     },
     {
         id: 'friends',

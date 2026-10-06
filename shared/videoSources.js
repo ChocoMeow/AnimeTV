@@ -19,3 +19,7 @@ export function normalizeVideoSource(value) {
     if (!value || typeof value !== 'string') return DEFAULT_VIDEO_SOURCE
     return isValidVideoSource(value) ? value : null
 }
+
+export function isTwxgctToken(token) {
+    return typeof token === 'string' && token.startsWith(`${VIDEO_SOURCE.TWXGCT}.`)
+}

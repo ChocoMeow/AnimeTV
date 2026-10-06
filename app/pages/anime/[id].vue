@@ -256,12 +256,21 @@ function revokeOfflineThumbnails() {
     offlineThumbnailJpgUrl.value = null
     offlineThumbnailVttText.value = null
 }
+const offlineCoverRevoke = ref(null)
+function revokeOfflineCover() {
+    offlineCoverRevoke.value?.()
+    offlineCoverRevoke.value = null
+}
+
+function isBlobMediaUrl(src) {
+    return typeof src === 'string' && (src.startsWith('blob:') || src.startsWith('data:'))
+}
 
 async function refreshOfflineEpisodeList() {
     offlineDownloadedKeys.value = anime.value?.refId ? await listDownloadedEpisodeKeys(anime.value.refId) : []
 }
 
-async function handleOfflineDownload(keys) {
+async function handleOfflineDownload(keys, qualityHeight) {
     if (!anime.value || !keys?.length) return
     isOfflineDownloading.value = true
     offlineDownloadProgress.value = 0
@@ -272,6 +281,7 @@ async function handleOfflineDownload(keys) {
             animeTitle: anime.value.title,
             animeSnapshot: anime.value,
             keys,
+            qualityHeight,
             episodes: anime.value.episodes || {},
             setOverallProgress: (v) => {
                 offlineDownloadProgress.value = v
@@ -559,6 +569,7 @@ function mergeEpisodePlaybackMeta(epKey, res) {
 }
 
 async function fetchOnlineVideoUrl(epNum) {
+    if (isOfflineView.value || isClientOffline()) return false
     const token = anime.value?.episodes[String(epNum)]?.token
     if (!token) {
         videoUrl.value = null
@@ -587,6 +598,8 @@ async function fetchOnlineVideoUrl(epNum) {
 
 async function handleStreamError() {
     if (streamRecovering || !selectedEpisode.value) return
+    if (isOfflineView.value || isClientOffline()) return
+    if (String(videoUrl.value || '').startsWith('blob:')) return
     if (!anime.value?.episodes[String(selectedEpisode.value)]?.token) return
 
     if (streamRecoveryAttempts >= MAX_STREAM_RECOVERY) {
@@ -652,9 +665,16 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
             if (playback) {
                 offlinePlaybackRevoke.value = playback.revoke
                 videoUrl.value = playback.url
-                videoIsHls.value = playback.isHls
+                videoIsHls.value = false
                 return
             }
+        }
+
+        if (isOfflineView.value || isClientOffline()) {
+            videoUrl.value = null
+            videoIsHls.value = false
+            showToast('此集尚未下載，離線時無法播放', 'info', 2500)
+            return
         }
 
         showContinuePrompt.value = false
@@ -666,7 +686,7 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
             if (playback) {
                 offlinePlaybackRevoke.value = playback.revoke
                 videoUrl.value = playback.url
-                videoIsHls.value = playback.isHls
+                videoIsHls.value = false
                 showToast('使用離線影片播放', 'info', 2500)
             } else {
                 videoUrl.value = null
@@ -701,7 +721,14 @@ async function applyOfflineSnapshot(refId) {
     const snap = await loadAnimeSnapshot(refId)
     if (!snap?.episodes || !Object.keys(snap.episodes).length) return false
 
-    anime.value = snap
+    revokeOfflineCover()
+    if (snap.imageBlob) {
+        const url = URL.createObjectURL(snap.imageBlob)
+        offlineCoverRevoke.value = () => URL.revokeObjectURL(url)
+        anime.value = { ...snap, image: url, imageBlob: undefined }
+    } else {
+        anime.value = snap
+    }
     isOfflineView.value = true
     useHead({ title: `${snap.title} | ${appConfig.siteName}` })
     await refreshOfflineEpisodeList()
@@ -720,6 +747,7 @@ function resetDetailState() {
     isOfflineView.value = false
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
+    revokeOfflineCover()
 }
 
 async function fetchDetail() {
@@ -793,6 +821,7 @@ onUnmounted(() => {
     toolbarResizeObserver?.disconnect()
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
+    revokeOfflineCover()
     if (toolbarOverflowClickHandler) document.removeEventListener('click', toolbarOverflowClickHandler, true)
     window.removeEventListener('beforeunload', handleLeave)
     window.removeEventListener('keydown', handleShortcutsKeydown)
@@ -834,9 +863,21 @@ onUnmounted(() => {
                         <div v-if="!selectedEpisode && anime?.image"
                             class="aspect-video relative rounded-lg overflow-hidden bg-gray-900 dark:bg-gray-950">
                             <div class="absolute inset-0">
-                                <NuxtImg :src="anime.image" alt="Anime thumbnail" loading="eager"
+                                <img
+                                    v-if="isBlobMediaUrl(anime.image)"
+                                    :src="anime.image"
+                                    alt="Anime thumbnail"
                                     class="w-full h-full object-cover"
-                                    style="filter: blur(2px);" />
+                                    style="filter: blur(2px);"
+                                >
+                                <NuxtImg
+                                    v-else
+                                    :src="anime.image"
+                                    alt="Anime thumbnail"
+                                    loading="eager"
+                                    class="w-full h-full object-cover"
+                                    style="filter: blur(2px);"
+                                />
                             </div>
                             <div class="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
                             <div class="absolute inset-0 flex flex-col items-center justify-center z-[1] px-4 sm:px-8">
@@ -886,6 +927,7 @@ onUnmounted(() => {
                         :episodes="anime?.episodes"
                         :watch-progress="allWatchProgress"
                         :anime-image="anime?.image || ''"
+                        :offline="isOfflineView"
                         :model-value="selectedEpisode"
                         @update:model-value="(n) => (selectedEpisode = n)"
                         @continue-last="continueLast" />
@@ -990,6 +1032,7 @@ onUnmounted(() => {
                         :episodes="anime?.episodes"
                         :watch-progress="allWatchProgress"
                         :anime-image="anime?.image || ''"
+                        :offline="isOfflineView"
                         :model-value="selectedEpisode"
                         @update:model-value="(n) => (selectedEpisode = n)"
                         @continue-last="continueLast" />

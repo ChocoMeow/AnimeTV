@@ -8,6 +8,7 @@ const props = defineProps({
     watchProgress: { type: Object, default: () => ({}) },
     modelValue: { type: [String, Number], default: null },
     compact: { type: Boolean, default: false },
+    offline: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'select'])
@@ -114,6 +115,7 @@ function closePreview(immediate = false) {
 }
 
 function openPreview(ep, event) {
+    if (props.offline || (import.meta.client && !navigator.onLine)) return
     if (!desktopPreviewEnabled.value || !hasPreviewSource(ep)) return
     clearPreviewTimers()
     previewEpisode.value = String(ep)
@@ -311,6 +313,7 @@ onBeforeUnmount(() => {
         </div>
 
         <EpisodeHoverPreview
+            v-if="!offline"
             :open="previewOpen"
             :episode="previewEpisode"
             :episode-data="previewEpisode == null ? null : episodes[String(previewEpisode)]"

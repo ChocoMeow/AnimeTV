@@ -13,6 +13,7 @@ const props = defineProps({
         type: String,
         default: '請選擇',
     },
+    boxed: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -63,30 +64,23 @@ function onClickOutside(event) {
     }
 }
 
+function syncPanelPosition() {
+    nextTick(() => requestAnimationFrame(updatePanelPosition))
+}
+
 function onOpen() {
     open.value = !open.value
-    if (open.value) {
-        nextTick(() => {
-            requestAnimationFrame(() => {
-                updatePanelPosition()
-            })
-        })
-    }
 }
 
 watch(open, (isOpen) => {
     if (isOpen) {
-        nextTick(() => {
-            requestAnimationFrame(() => {
-                updatePanelPosition()
-            })
-        })
+        syncPanelPosition()
         window.addEventListener('scroll', updatePanelPosition, true)
         window.addEventListener('resize', updatePanelPosition)
-    } else {
-        window.removeEventListener('scroll', updatePanelPosition, true)
-        window.removeEventListener('resize', updatePanelPosition)
+        return
     }
+    window.removeEventListener('scroll', updatePanelPosition, true)
+    window.removeEventListener('resize', updatePanelPosition)
 })
 
 onMounted(() => {
@@ -105,8 +99,11 @@ onUnmounted(() => {
         <button
             ref="triggerRef"
             type="button"
-            class="dropdown-trigger w-full rounded-full border border-transparent bg-black/5 dark:bg-white/10 text-gray-900 dark:text-gray-100 text-sm font-medium pl-4 pr-10 py-2.5 text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent transition-colors hover:bg-black/10 dark:hover:bg-white/15"
-            :class="{ 'opacity-60': !modelValue && placeholder }"
+            class="dropdown-trigger w-full bg-black/5 dark:bg-white/10 text-gray-900 dark:text-gray-100 text-sm font-medium pl-4 pr-10 py-2.5 text-left flex items-center justify-between gap-2 focus:outline-none transition-colors hover:bg-black/10 dark:hover:bg-white/15"
+            :class="[
+                boxed ? 'rounded-xl' : 'rounded-full',
+                { 'opacity-60': !modelValue && placeholder },
+            ]"
             @click="onOpen"
         >
             <span class="truncate">{{ selectedLabel }}</span>
@@ -130,7 +127,8 @@ onUnmounted(() => {
                 <div
                     v-show="open"
                     ref="panelRef"
-                    class="dropdown-panel z-[60] max-h-[min(24rem,70vh)] overflow-auto rounded-2xl ring-1 ring-black/5 dark:ring-white/10 bg-white dark:bg-gray-950 shadow-xl py-1.5"
+                    class="dropdown-panel z-[60] max-h-[min(24rem,70vh)] overflow-auto bg-white dark:bg-gray-950 shadow-xl py-1.5"
+                    :class="boxed ? 'rounded-xl border border-black/5 dark:border-white/10' : 'rounded-2xl ring-1 ring-black/5 dark:ring-white/10'"
                     :style="panelStyle"
                 >
                     <button

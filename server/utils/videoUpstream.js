@@ -60,7 +60,7 @@ export function isHlsSegment(url, pathname = '') {
             path = url
         }
     }
-    return /\.(m?ts|m4s|cmfv|aac)(\?|$)/i.test(path)
+    return /\.(m?ts|m4s|cmfv|aac)(\?|$)/i.test(path) || /(?:^|\/)init[^/]*\.mp4(\?|$)/i.test(path)
 }
 
 export function sleep(ms) {

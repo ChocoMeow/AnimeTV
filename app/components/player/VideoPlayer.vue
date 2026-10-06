@@ -650,6 +650,7 @@ function handleKeyup(e) {
 }
 
 function requestStreamRecovery() {
+    if (!props.src) return
     streamErrorTimeout = clearTimer(streamErrorTimeout)
     streamErrorTimeout = setTimeout(() => emit('stream-error'), 300)
 }

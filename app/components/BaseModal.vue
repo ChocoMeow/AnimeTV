@@ -76,6 +76,7 @@ onBeforeUnmount(() => {
         :model-value="show"
         :title="title"
         :persistent="persistent"
+        z-class="z-[70]"
         @update:model-value="(open) => { if (!open) emit('close') }"
     >
         <template #header>
@@ -101,7 +102,7 @@ onBeforeUnmount(() => {
     <!-- Wide: centered modal -->
     <Teleport v-else to="body">
         <transition name="fade">
-            <div v-if="show" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4" @click="handleBackdropClick">
+            <div v-if="show" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] px-4" @click="handleBackdropClick">
                 <div
                     class="bg-white dark:bg-gray-950 rounded-2xl shadow-2xl w-full px-6 pt-6 ring-1 ring-black/5 dark:ring-white/10"
                     :class="[maxWidth, $slots.actions ? '' : 'pb-safe']"

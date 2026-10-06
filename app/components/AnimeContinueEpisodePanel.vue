@@ -6,6 +6,7 @@ const props = defineProps({
     episodesLoading: { type: Boolean, default: false },
     watchProgress: { type: Object, default: () => ({}) },
     animeImage: { type: String, default: "" },
+    offline: { type: Boolean, default: false },
     modelValue: { type: [String, Number], default: null },
 })
 
@@ -73,6 +74,7 @@ function formatTime(seconds) {
                 :watch-progress="watchProgress"
                 :compact="true"
                 :anime-image="animeImage"
+                :offline="offline"
                 :model-value="modelValue"
                 @update:model-value="onEpisodeSelect"
                 @select="onEpisodeSelect" />
