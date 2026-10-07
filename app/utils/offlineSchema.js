@@ -8,11 +8,13 @@
  * @typedef {{ jpgUrl: string|null, vttText: string|null, revoke: () => void }} OfflineThumbnails
  */
 
-import { UNTITLED_ANIME } from '~~/shared/offline'
+import { UNTITLED_ANIME } from '#shared/utils/offline'
 
 const isBlob = (value) => typeof Blob !== 'undefined' && value instanceof Blob
 const isDict = (value) => !!value && typeof value === 'object' && !Array.isArray(value)
-const remoteUrl = (value) => {
+
+/** Strip ephemeral blob:/data: URLs — only remote http(s) covers are persistable. */
+export function remoteUrl(value) {
     const url = String(value || '')
     return !url || url.startsWith('blob:') || url.startsWith('data:') ? '' : url
 }
@@ -146,8 +148,7 @@ export function sortEpisodeKeys(keys) {
 }
 
 export function toLibraryItem(row, snap) {
-    const imageBlob = snap?.imageBlob
-    const image = imageBlob ? URL.createObjectURL(imageBlob) : snap?.image || null
+    const imageBlob = snap?.imageBlob?.size ? snap.imageBlob : null
     const tags = Array.isArray(snap?.tags)
         ? snap.tags.map((tag) => (typeof tag === 'string' ? tag : tag?.name || tag?.label || '')).filter(Boolean)
         : []
@@ -159,7 +160,7 @@ export function toLibraryItem(row, snap) {
         totalBytes: row.totalBytes,
         latestSavedAt: row.latestSavedAt,
         episodes: sortEpisodeKeys(row.episodes),
-        image,
+        image: imageBlob ? URL.createObjectURL(imageBlob) : snap?.image || null,
         imageIsBlob: !!imageBlob,
         description: String(snap?.description || ''),
         tags,

@@ -2,7 +2,7 @@
  * Download transport: always returns a progressive MP4 Blob.
  * HLS vs MP4 is fetch-only — nothing here is stored.
  */
-import { DIRECT_HLS_HOST } from '~~/shared/videoSources'
+import { DIRECT_HLS_HOST } from '#shared/utils/videoSources'
 import {
     OFFLINE_CONCURRENCY,
     RETRY_STATUSES,
@@ -15,7 +15,7 @@ import {
     heightLabel,
     httpStatusFromError,
     throwIfAborted,
-} from '~~/shared/offline'
+} from '#shared/utils/offline'
 import { hlsSegmentsToMp4 } from '~/utils/hlsToMp4'
 
 const HTTP_URL = /^https?:\/\//i
@@ -257,16 +257,24 @@ async function fetchBlobWithProgress(url, onProgress, { signal, waitWhilePaused 
 }
 
 /**
- * Direct CDN (bzcdn CORS). Other hosts go through download-proxy once.
- * HTTP errors are not retried.
+ * Cover hosts are often outside connect-src, so requests go through same-origin
+ * download-proxy (session cookies required). Non-image responses are rejected.
  */
 export async function fetchEpisodeThumbnailBlob(jpgUrl, signal) {
-    if (!jpgUrl || String(jpgUrl).startsWith('blob:')) return null
+    if (!jpgUrl || String(jpgUrl).startsWith('blob:') || String(jpgUrl).startsWith('data:')) return null
     try {
-        const res = await fetch(assetUrl(jpgUrl), { signal, mode: 'cors', credentials: 'omit' })
-        if (res.ok) return await res.blob()
-        cancelBody(res)
-        return null
+        const res = await fetch(assetUrl(jpgUrl), { signal, mode: 'cors', credentials: 'same-origin' })
+        if (!res.ok) {
+            cancelBody(res)
+            return null
+        }
+        const type = (res.headers.get('content-type') || '').toLowerCase()
+        if (type && !type.startsWith('image/')) {
+            cancelBody(res)
+            return null
+        }
+        const blob = await res.blob()
+        return blob.size ? blob : null
     } catch (err) {
         if (signal?.aborted || err?.name === 'AbortError') throw err
         return null

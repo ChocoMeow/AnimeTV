@@ -20,6 +20,7 @@ const {
     getOfflineThumbnailAssets,
 } = useOfflineAnimeDownloads()
 const { runOfflineDownloadBatch } = useOfflineDownloadQueue()
+const { put: putOfflineWatchHistory, list: listOfflineWatchHistory } = useOfflineWatchHistory()
 const {
     hoveredAnime,
     animeDetails,
@@ -256,14 +257,14 @@ function revokeOfflineThumbnails() {
     offlineThumbnailJpgUrl.value = null
     offlineThumbnailVttText.value = null
 }
+const offlineCoverUrl = ref(null)
 const offlineCoverRevoke = ref(null)
+const coverSrc = computed(() => offlineCoverUrl.value || anime.value?.image || '')
+
 function revokeOfflineCover() {
     offlineCoverRevoke.value?.()
     offlineCoverRevoke.value = null
-}
-
-function isBlobMediaUrl(src) {
-    return typeof src === 'string' && (src.startsWith('blob:') || src.startsWith('data:'))
+    offlineCoverUrl.value = null
 }
 
 async function refreshOfflineEpisodeList() {
@@ -399,8 +400,6 @@ async function saveWatchHistory(episodeNumber = null) {
     const entry = {
         user_id: id,
         anime_ref_id: anime.value.refId,
-        anime_title: anime.value.title,
-        anime_image: anime.value.image,
         episode_number: String(epNum),
         playback_time: playbackTime,
         video_duration: videoDuration,
@@ -409,8 +408,11 @@ async function saveWatchHistory(episodeNumber = null) {
     }
 
     try {
-        const { error } = await client.from('watch_history').upsert(entry, { onConflict: 'user_id, anime_ref_id, episode_number' })
-        if (error) throw error
+        if (isClientOffline()) await putOfflineWatchHistory(entry)
+        else {
+            const { error } = await client.from('watch_history').upsert(entry, { onConflict: 'user_id, anime_ref_id, episode_number' })
+            if (error) throw error
+        }
         allWatchProgress.value[entry.episode_number] = entry
         lastWatchedData.value = entry
     } catch (err) {
@@ -427,14 +429,23 @@ function handleLeave() {
 async function fetchLastWatched() {
     if (!userSettings.value.id || !anime.value) return
     try {
-        const { data, error } = await client
-            .from('watch_history')
-            .select('*')
-            .eq('anime_ref_id', anime.value.refId)
-            .eq('user_id', userSettings.value.id)
-            .order('updated_at', { ascending: false })
+        let data
+        if (isClientOffline()) {
+            data = (await listOfflineWatchHistory(userSettings.value.id))
+                .filter((row) => String(row.anime_ref_id) === String(anime.value.refId))
+                .sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))
+        } else {
+            const res = await client
+                .from('watch_history')
+                .select('*')
+                .eq('anime_ref_id', anime.value.refId)
+                .eq('user_id', userSettings.value.id)
+                .order('updated_at', { ascending: false })
+            if (res.error) throw res.error
+            data = res.data
+        }
 
-        if (!error && data?.length) {
+        if (data?.length) {
             allWatchProgress.value = Object.fromEntries(
                 data.filter((item, i, arr) => arr.findIndex((x) => x.episode_number === item.episode_number) === i).map((item) => [item.episode_number, item]),
             )
@@ -722,16 +733,17 @@ async function applyOfflineSnapshot(refId) {
     if (!snap?.episodes || !Object.keys(snap.episodes).length) return false
 
     revokeOfflineCover()
-    if (snap.imageBlob) {
+    // Keep anime.image as the remote URL (persistable). Blob covers are display-only.
+    anime.value = { ...snap, imageBlob: undefined }
+    if (snap.imageBlob?.size) {
         const url = URL.createObjectURL(snap.imageBlob)
+        offlineCoverUrl.value = url
         offlineCoverRevoke.value = () => URL.revokeObjectURL(url)
-        anime.value = { ...snap, image: url, imageBlob: undefined }
-    } else {
-        anime.value = snap
     }
     isOfflineView.value = true
     useHead({ title: `${snap.title} | ${appConfig.siteName}` })
     await refreshOfflineEpisodeList()
+    await fetchLastWatched()
     applyEpisodeQueryFromRoute()
     return true
 }
@@ -860,19 +872,19 @@ onUnmounted(() => {
                     <!-- Video Player -->
                     <section aria-label="Video player" :class="isTheaterMode ? 'lg:col-span-2' : ''">
                         <!-- Thumbnail placeholder (no episode selected) -->
-                        <div v-if="!selectedEpisode && anime?.image"
+                        <div v-if="!selectedEpisode && coverSrc"
                             class="aspect-video relative rounded-lg overflow-hidden bg-gray-900 dark:bg-gray-950">
                             <div class="absolute inset-0">
                                 <img
-                                    v-if="isBlobMediaUrl(anime.image)"
-                                    :src="anime.image"
+                                    v-if="offlineCoverUrl"
+                                    :src="offlineCoverUrl"
                                     alt="Anime thumbnail"
                                     class="w-full h-full object-cover"
                                     style="filter: blur(2px);"
                                 >
                                 <NuxtImg
                                     v-else
-                                    :src="anime.image"
+                                    :src="coverSrc"
                                     alt="Anime thumbnail"
                                     loading="eager"
                                     class="w-full h-full object-cover"
@@ -926,7 +938,7 @@ onUnmounted(() => {
                         :episodes-loading="episodesLoading"
                         :episodes="anime?.episodes"
                         :watch-progress="allWatchProgress"
-                        :anime-image="anime?.image || ''"
+                        :anime-image="coverSrc"
                         :offline="isOfflineView"
                         :model-value="selectedEpisode"
                         @update:model-value="(n) => (selectedEpisode = n)"
@@ -1031,7 +1043,7 @@ onUnmounted(() => {
                         :episodes-loading="episodesLoading"
                         :episodes="anime?.episodes"
                         :watch-progress="allWatchProgress"
-                        :anime-image="anime?.image || ''"
+                        :anime-image="coverSrc"
                         :offline="isOfflineView"
                         :model-value="selectedEpisode"
                         @update:model-value="(n) => (selectedEpisode = n)"

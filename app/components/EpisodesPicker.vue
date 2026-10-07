@@ -23,9 +23,12 @@ const previewAnchor = shallowRef(null)
 const previewOpen = ref(false)
 const desktopPreviewEnabled = ref(false)
 
+const PREVIEW_HOVER_MS = 500
+
 let previewMediaQuery = null
 let closePreviewTimer = null
 let clearPreviewTimer = null
+let openPreviewTimer = null
 
 const isNumericEpisode = (ep) => /^\d+$/.test(String(ep))
 
@@ -92,22 +95,20 @@ function hasPreviewSource(ep) {
 }
 
 function clearPreviewTimers() {
-    if (closePreviewTimer) clearTimeout(closePreviewTimer)
-    if (clearPreviewTimer) clearTimeout(clearPreviewTimer)
-    closePreviewTimer = null
-    clearPreviewTimer = null
+    clearTimeout(closePreviewTimer)
+    clearTimeout(clearPreviewTimer)
+    clearTimeout(openPreviewTimer)
+    closePreviewTimer = clearPreviewTimer = openPreviewTimer = null
 }
 
 function closePreview(immediate = false) {
     clearPreviewTimers()
     previewOpen.value = false
-
     if (immediate) {
         previewEpisode.value = null
         previewAnchor.value = null
         return
     }
-
     clearPreviewTimer = setTimeout(() => {
         previewEpisode.value = null
         previewAnchor.value = null
@@ -120,17 +121,23 @@ function openPreview(ep, event) {
     clearPreviewTimers()
     previewEpisode.value = String(ep)
     previewAnchor.value = event.currentTarget
-    previewOpen.value = true
+    if (previewOpen.value) return
+    openPreviewTimer = setTimeout(() => {
+        openPreviewTimer = null
+        previewOpen.value = true
+    }, PREVIEW_HOVER_MS)
 }
 
 function schedulePreviewClose() {
+    clearTimeout(openPreviewTimer)
+    openPreviewTimer = null
     if (!previewOpen.value) return
-    if (closePreviewTimer) clearTimeout(closePreviewTimer)
+    clearTimeout(closePreviewTimer)
     closePreviewTimer = setTimeout(() => closePreview(), 130)
 }
 
 function keepPreviewOpen() {
-    if (closePreviewTimer) clearTimeout(closePreviewTimer)
+    clearTimeout(closePreviewTimer)
     closePreviewTimer = null
 }
 

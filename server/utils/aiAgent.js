@@ -1,8 +1,8 @@
 import * as cheerio from 'cheerio'
 import { serverSupabaseClient } from '#supabase/server'
+import { WATCH_ANIME_META, WATCH_ANIME_META_INNER, withAnimeCovers } from '#shared/utils/watchHistory'
 import { searchAnimeMeta } from '~~/server/utils/pgroongaSearch'
 import { moduleLogger, createErrorId } from '~~/server/utils/logger'
-
 export const AI_CHAT_LIMITS = {
     maxMessageChars: 3000,
     maxHistoryMessages: 20,
@@ -393,16 +393,16 @@ const handlers = {
         const limit = clamp(args.limit, 1, 100, 20)
         let dbQuery = client
             .from('watch_history_latest_updates')
-            .select('anime_ref_id, anime_title, anime_image, episode_number, progress_percentage, updated_at')
+            .select(`anime_ref_id, episode_number, progress_percentage, updated_at, ${title ? WATCH_ANIME_META_INNER : WATCH_ANIME_META}`)
             .eq('user_id', userId)
 
-        if (title) dbQuery = dbQuery.ilike('anime_title', `%${title}%`)
+        if (title) dbQuery = dbQuery.ilike('anime_meta.title', `%${title}%`)
         if (args.unfinished_only === true) dbQuery = dbQuery.lt('progress_percentage', 90)
 
         const { data, error } = await dbQuery.order('updated_at', { ascending: false }).limit(limit)
         if (error) throw error
         return {
-            items: data || [],
+            items: withAnimeCovers(data),
             ...(title ? { filtered_by_title: title } : {}),
             links: [{ path: '/history', label: '查看全部觀看紀錄' }],
         }
@@ -411,7 +411,7 @@ const handlers = {
     async get_continue_watching({ client, userId, args }) {
         const { data, error } = await client
             .from('watch_history_latest_updates')
-            .select('anime_ref_id, anime_title, anime_image, episode_number, progress_percentage, updated_at')
+            .select(`anime_ref_id, episode_number, progress_percentage, updated_at, ${WATCH_ANIME_META}`)
             .eq('user_id', userId)
             .lt('progress_percentage', 90)
             .order('updated_at', { ascending: false })
@@ -419,7 +419,7 @@ const handlers = {
         if (error) throw error
         const seen = new Set()
         return {
-            items: (data || []).filter((r) => !seen.has(r.anime_ref_id) && seen.add(r.anime_ref_id)),
+            items: withAnimeCovers(data).filter((r) => !seen.has(r.anime_ref_id) && seen.add(r.anime_ref_id)),
             links: [{ path: '/history', label: '查看全部觀看紀錄' }],
         }
     },

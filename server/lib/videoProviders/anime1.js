@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio'
+import { EPISODE_LIST_CACHE_LIFETIME } from '#shared/utils/global'
 import { cfFetch } from '~~/server/utils/anime'
 import { getRequestLogger } from '~~/server/utils/logger'
-import { EPISODE_LIST_CACHE_LIFETIME } from '~~/shared/global'
 import { ANIME1 } from './constants'
 import { episodeRecord, normalizeEpisodeId } from './helpers'
 

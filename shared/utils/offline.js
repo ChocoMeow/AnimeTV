@@ -1,9 +1,10 @@
 /** Shared offline-download constants and keys. */
 
 export const OFFLINE_DB = 'OfflineAnime'
-export const OFFLINE_DB_VERSION = 1
+export const OFFLINE_DB_VERSION = 2
 export const OFFLINE_EP_STORE = 'episodes'
 export const OFFLINE_META_STORE = 'animeMeta'
+export const OFFLINE_HISTORY_STORE = 'watchHistory'
 
 export const OFFLINE_CONCURRENCY = 3
 export const BUNNY_MP4_HEIGHTS = Object.freeze([1080, 720, 480, 360, 240])
@@ -21,6 +22,10 @@ export function offlineEpisodeKey(refId, episodeKey) {
 
 export function offlineMetaKey(refId) {
     return `anime::${refId}`
+}
+
+export function offlineHistoryKey(userId, refId, episodeKey) {
+    return `${userId}::${refId}::${String(episodeKey)}`
 }
 
 export function heightLabel(height) {

@@ -1,4 +1,6 @@
 <script setup>
+import { WATCH_ANIME_META, withAnimeCovers } from '#shared/utils/watchHistory'
+
 const STATUS_MAP = {
     watching: { label: '在線中', dotClass: 'bg-emerald-500' },
     online: { label: '在線中', dotClass: 'bg-emerald-500' },
@@ -130,7 +132,7 @@ async function load() {
         const [{ data: history }, { data: favs }, { count }, mutualRes] = await Promise.all([
             client
                 .from('watch_history_latest_updates')
-                .select('anime_ref_id, anime_title, anime_image, episode_number, updated_at, progress_percentage')
+                .select(`anime_ref_id, episode_number, updated_at, progress_percentage, ${WATCH_ANIME_META}`)
                 .eq('user_id', userId.value)
                 .order('updated_at', { ascending: false })
                 .limit(24),
@@ -150,7 +152,7 @@ async function load() {
             }),
         ])
 
-        const historyRows = history || []
+        const historyRows = withAnimeCovers(history)
         const favRows = favs || []
         const myId = userSettings.value.id
 

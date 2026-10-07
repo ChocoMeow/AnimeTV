@@ -1,5 +1,5 @@
 <script setup>
-import { DEFAULT_VIDEO_SOURCE, VIDEO_SOURCES } from '~~/shared/videoSources'
+import { DEFAULT_VIDEO_SOURCE, VIDEO_SOURCES } from '#shared/utils/videoSources'
 
 const appConfig = useAppConfig()
 const route = useRoute()

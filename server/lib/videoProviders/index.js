@@ -1,6 +1,6 @@
 import anime1 from './anime1'
 import twxgct from './twxgct'
-import { DEFAULT_VIDEO_SOURCE, normalizeVideoSource } from '~~/shared/videoSources'
+import { DEFAULT_VIDEO_SOURCE, normalizeVideoSource } from '#shared/utils/videoSources'
 
 export {
     VIDEO_SOURCE,
@@ -8,7 +8,7 @@ export {
     DEFAULT_VIDEO_SOURCE,
     isValidVideoSource,
     normalizeVideoSource,
-} from '~~/shared/videoSources'
+} from '#shared/utils/videoSources'
 
 /** Register providers here when adding a source. */
 const providerList = [anime1, twxgct]

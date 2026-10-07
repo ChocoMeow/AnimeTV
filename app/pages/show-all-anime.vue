@@ -1,5 +1,5 @@
 <script setup>
-import { ANIME_TAGS } from '~~/shared/animeTags'
+import { ANIME_TAGS } from '#shared/utils/animeTags'
 
 const appConfig = useAppConfig()
 const route = useRoute()

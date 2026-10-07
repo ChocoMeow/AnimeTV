@@ -1,8 +1,8 @@
+import { DIRECT_HLS_HOST } from '#shared/utils/videoSources'
+import { downloadProxyUrl, proxyVideoUrl } from '#shared/utils/offline'
 import { logError } from '~~/server/utils/logger'
 import { resolvePlaybackForToken } from '~~/server/lib/videoProviders'
 import { isHlsPlaylist } from '~~/server/utils/videoUpstream'
-import { DIRECT_HLS_HOST } from '~~/shared/videoSources'
-import { downloadProxyUrl, proxyVideoUrl } from '~~/shared/offline'
 
 function downloadSource(finalUrl, cookie) {
     const hls = isHlsPlaylist(finalUrl) || finalUrl.toLowerCase().includes('m3u8')

@@ -1,5 +1,5 @@
 import { serverSupabaseClient } from '#supabase/server'
-import { CUSTOM_SOURCE_ID_MIN } from '~~/shared/global'
+import { CUSTOM_SOURCE_ID_MIN } from '#shared/utils/global'
 import { createLoggedError, moduleLogger } from '~~/server/utils/logger'
 
 const log = moduleLogger('admin-anime-meta-autofill')

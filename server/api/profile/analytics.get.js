@@ -67,7 +67,7 @@ function buildMonthlyMeta(nowY, nowM) {
 
 // Pages through PostgREST max-rows (first batch length = page size). Only last 12 months.
 async function fetchWatchHistory(client, userId, sinceIso) {
-    const cols = 'anime_ref_id, anime_title, anime_image, episode_number, total_playback_time, playback_time, progress_percentage, updated_at'
+    const cols = 'anime_ref_id, episode_number, total_playback_time, playback_time, progress_percentage, updated_at'
     const list = []
     let pageSize
     for (let from = 0; ; from += pageSize) {
@@ -123,7 +123,7 @@ export default defineEventHandler(async (event) => {
 
         // ── 2. Fetch anime_meta (studios + tags); overlaps with row processing ─
         const metaPromise = refIds.length
-            ? client.from('anime_meta').select('source_id, production_company, tags').in('source_id', refIds)
+            ? client.from('anime_meta').select('source_id, title, thumbnail, production_company, tags').in('source_id', refIds)
             : Promise.resolve({ data: [] })
 
         // ── 3. Aggregate watch_history into charts / summary buckets ──────────
@@ -155,7 +155,7 @@ export default defineEventHandler(async (event) => {
 
             totalWatchSeconds += pt
 
-            if (!byAnime.has(id)) byAnime.set(id, { title: r.anime_title, image: r.anime_image, maxProgress: 0, hasDeepWatch: false })
+            if (!byAnime.has(id)) byAnime.set(id, { title: '', image: '', maxProgress: 0, hasDeepWatch: false })
             const entry = byAnime.get(id)
             if (p > entry.maxProgress) entry.maxProgress = p
             if (p >= 95) entry.hasDeepWatch = true
@@ -173,7 +173,7 @@ export default defineEventHandler(async (event) => {
             const mIdx = monthlyIndex.get(dk.slice(0, 7))
             if (mIdx !== undefined) monthlyValues[mIdx] += pt
 
-            if (!timeByRef.has(id)) timeByRef.set(id, { seconds: 0, title: r.anime_title, image: r.anime_image })
+            if (!timeByRef.has(id)) timeByRef.set(id, { seconds: 0, title: '', image: '' })
             timeByRef.get(id).seconds += pt
 
             const n = parseEp(r.episode_number)
@@ -190,6 +190,18 @@ export default defineEventHandler(async (event) => {
         for (const m of metaRows || []) {
             companyByRef.set(m.source_id, String(m.production_company || '').trim() || '未標示')
             tagsByRef.set(m.source_id, Array.isArray(m.tags) ? m.tags.map((t) => String(t).trim()).filter(Boolean) : [])
+            const title = m.title || ''
+            const image = m.thumbnail || ''
+            const anime = byAnime.get(m.source_id)
+            if (anime) {
+                anime.title = title
+                anime.image = image
+            }
+            const timed = timeByRef.get(m.source_id)
+            if (timed) {
+                timed.title = title
+                timed.image = image
+            }
         }
 
         for (const r of list) {

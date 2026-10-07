@@ -1,6 +1,6 @@
 <script setup>
-import { BUNNY_MP4_HEIGHTS, bunnyQualityOptions } from '~~/shared/offline'
-import { isTwxgctToken } from '~~/shared/videoSources'
+import { BUNNY_MP4_HEIGHTS, bunnyQualityOptions } from '#shared/utils/offline'
+import { isTwxgctToken } from '#shared/utils/videoSources'
 
 const props = defineProps({
     modelValue: { type: Boolean, required: true },

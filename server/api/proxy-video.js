@@ -1,4 +1,4 @@
-import { DIRECT_HLS_HOST } from '~~/shared/videoSources'
+import { DIRECT_HLS_HOST } from '#shared/utils/videoSources'
 import { createLoggedError } from '~~/server/utils/logger'
 import {
     VIDEO_UPSTREAM,

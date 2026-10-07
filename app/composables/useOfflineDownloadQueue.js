@@ -3,7 +3,7 @@ import {
     UNTITLED_ANIME,
     isAbortError,
     offlineEpisodeKey,
-} from '~~/shared/offline'
+} from '#shared/utils/offline'
 
 const ACTIVE = new Set(['queued', 'downloading', 'paused'])
 const FINISHED = new Set(['done', 'error'])

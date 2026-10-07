@@ -1,4 +1,6 @@
 <script setup>
+import { WATCH_ANIME_META, withAnimeCovers } from '#shared/utils/watchHistory'
+
 const appConfig = useAppConfig()
 const user = useSupabaseUser()
 const client = useSupabaseClient()
@@ -44,7 +46,7 @@ async function fetchPreviews() {
     const [historyRes, favoritesRes] = await Promise.all([
         client
             .from('watch_history_latest_updates')
-            .select('*')
+            .select(`*, ${WATCH_ANIME_META}`)
             .eq('user_id', userSettings.value.id)
             .order('updated_at', { ascending: false })
             .range(0, PREVIEW_LIMIT - 1),
@@ -59,7 +61,7 @@ async function fetchPreviews() {
     if (historyRes.error) console.error('Failed to fetch history preview:', historyRes.error)
     if (favoritesRes.error) console.error('Failed to fetch favorites preview:', favoritesRes.error)
 
-    historyPreview.value = historyRes.data || []
+    historyPreview.value = withAnimeCovers(historyRes.data)
     favoritesPreview.value = favoritesRes.data || []
 }
 
