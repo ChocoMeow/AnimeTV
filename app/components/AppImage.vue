@@ -34,14 +34,19 @@ watch(
 
 const showImg = computed(() => Boolean(props.src) && !failed.value)
 
-/** NuxtImg/IPX often breaks SVG (and blob/data URLs) on iOS — use a native <img>. */
+/**
+ * Skip NuxtImg/IPX for formats/URLs it mishandles (esp. iOS + PWA):
+ * SVG, blob/data, and same-origin public files (/hero.webp, /icons/…).
+ * Remote anime covers still use NuxtImg.
+ */
 const useNativeImg = computed(() => {
     const s = String(props.src || '')
-    return (
-        /\.svg(?:$|\?)/i.test(s) ||
-        s.startsWith('data:') ||
-        s.startsWith('blob:')
-    )
+    if (!s) return false
+    if (s.startsWith('data:') || s.startsWith('blob:')) return true
+    if (/\.svg(?:$|\?)/i.test(s)) return true
+    // Same-origin public asset (not protocol-relative //cdn…)
+    if (s.startsWith('/') && !s.startsWith('//')) return true
+    return false
 })
 
 const callerHasFilter = computed(() => {

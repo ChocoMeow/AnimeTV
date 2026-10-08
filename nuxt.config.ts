@@ -121,6 +121,7 @@ export default defineNuxtConfig({
         registerType: 'prompt',
         // Always precache logos used offline (public/ may not match hashed glob quirks on iOS).
         includeAssets: [
+            'hero.webp',
             'icons/icon.svg',
             'icons/animated_icon_400x400.webp',
             'icons/icon_512x512.png',

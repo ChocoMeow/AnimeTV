@@ -103,12 +103,13 @@ useHead({
                     <AppImage
                         src="/hero.webp"
                         alt=""
-                        class="hero-bg"
+                        class="absolute inset-0"
                         img-class="object-cover object-[center_35%]"
                         width="1920"
                         height="1080"
                         loading="eager"
                         fetchpriority="high"
+                        :placeholder="false"
                     />
                     <div class="hero-overlay" aria-hidden="true" />
 
@@ -287,15 +288,6 @@ useHead({
     min-height: clamp(28rem, 88vh, 44rem);
     display: flex;
     align-items: flex-end;
-}
-
-.hero-bg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center 35%;
 }
 
 .hero-overlay {
