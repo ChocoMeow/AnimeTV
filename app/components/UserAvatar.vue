@@ -23,8 +23,6 @@ const initial = computed(() => {
         :alt="name"
         :class="[rounded, imgClass]"
         :img-class="['object-cover', grayscale && 'grayscale']"
-        :placeholder="false"
-        :reveal="false"
         error-icon=""
     >
         <template #error>
