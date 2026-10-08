@@ -55,10 +55,9 @@ export default defineNuxtConfig({
             websocket: true,
         },
         prerender: {
-            // Precache needs a document for navigateFallback "/" (see @vite-pwa/nuxt).
-            // Prerender home so Workbox can include url "/" and avoid non-precached-url.
+            // Precache needs documents for Workbox navigateFallback (cold open offline / iOS PWA).
             crawlLinks: false,
-            routes: ['/'],
+            routes: ['/', '/welcome'],
             failOnError: false,
         },
     },
@@ -97,13 +96,16 @@ export default defineNuxtConfig({
             link: [
                 { rel: 'icon', type: 'image/svg+xml', href: '/icons/icon.svg' },
                 { rel: 'apple-touch-icon', href: '/icons/icon_512x512.png', sizes: '512x512', type: 'image/png' },
+                { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+                { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
                 {
                     rel: 'stylesheet',
                     href: 'https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@100..900&display=swap',
                 },
+                // display=block (not swap): icon fonts must not paint ligature text ("search") as fallback.
                 {
                     rel: 'stylesheet',
-                    href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,-50..200&display=swap',
+                    href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,-50..200&display=block',
                 },
             ],
         },
@@ -115,9 +117,13 @@ export default defineNuxtConfig({
             // Prompt mode leaves skipWaiting false; claim clients so SKIP_WAITING
             // can take control and trigger the page reload after update.
             clientsClaim: true,
-            // SSR mode: no static index.html at root.
-            // Setting to undefined prevents the default "/" fallback which causes precache errors.
-            navigateFallback: undefined,
+            // Cold open offline (esp. iOS standalone): serve precached "/" shell when
+            // the navigation isn't cached. App middleware then sends users to /offline.
+            // Do NOT leave this undefined — Safari shows "can't open the page" instead.
+            navigateFallback: '/',
+            // Only root uses the shell fallback. Other app paths stay NetworkFirst /
+            // miss so we don't hydrate the wrong SSR document for /anime/... etc.
+            navigateFallbackDenylist: [/^\/api\//, /^\/(.+)/],
             globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
             cleanupOutdatedCaches: true,
             runtimeCaching: [
@@ -127,7 +133,8 @@ export default defineNuxtConfig({
                     handler: 'NetworkFirst',
                     options: {
                         cacheName: 'app-pages',
-                        networkTimeoutSeconds: 4,
+                        // Fail over to cache quickly in airplane mode (iOS can hang longer).
+                        networkTimeoutSeconds: 2,
                         expiration: {
                             maxEntries: 80,
                             maxAgeSeconds: 60 * 60 * 24 * 7,
@@ -266,6 +273,8 @@ export default defineNuxtConfig({
             },
             contentSecurityPolicy: {
                 'frame-ancestors': ["'none'"],
+                // Google Fonts CSS (googleapis) + font files (gstatic)
+                'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
                 'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
                 'img-src': ["'self'", 'data:', 'blob:', 'https:'],
                 'media-src': ["'self'", 'blob:', 'https://*.bzcdn.net'],
@@ -275,6 +284,8 @@ export default defineNuxtConfig({
                     'wss://*.supabase.co',
                     'https://*.bzcdn.net',
                     'https://*.anime1.me',
+                    'https://fonts.googleapis.com',
+                    'https://fonts.gstatic.com',
                 ],
                 'frame-src': [
                     "'self'",

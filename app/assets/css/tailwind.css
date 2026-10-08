@@ -56,8 +56,7 @@ body {
 }
 
 .material-symbols-rounded {
-    font-variation-settings:
-        'FILL' 1;
+    font-variation-settings: 'FILL' 1;
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -65,6 +64,5 @@ body {
 }
 
 .material-symbols-rounded.outlined {
-    font-variation-settings:
-        'FILL' 0;
+    font-variation-settings: 'FILL' 0;
 }
