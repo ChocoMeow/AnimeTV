@@ -42,7 +42,7 @@ const year = new Date().getFullYear()
                 <!-- Brand -->
                 <div class="lg:max-w-xs">
                     <NuxtLink to="/" class="inline-flex items-center gap-2 group">
-                        <img src="/icons/icon.svg" :alt="appConfig.siteName" class="w-8 h-8 object-contain" width="32" height="32" loading="lazy" />
+                        <AppImage src="/icons/icon.svg" :alt="appConfig.siteName" class="h-8 w-8" img-class="object-contain" width="32" height="32" :placeholder="false" :reveal="false" />
                         <span class="text-lg font-bold text-gray-900 dark:text-white group-hover:opacity-90">{{ appConfig.siteName }}</span>
                     </NuxtLink>
                     <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">

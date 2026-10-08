@@ -379,18 +379,13 @@ useHead({
                             <!-- Clickable Link -->
                             <NuxtLink :to="`/anime/${item.anime_ref_id}`" class="block">
                                 <!-- Poster -->
-                                <div class="aspect-[2/3] w-full bg-gray-200 dark:bg-white/5 relative overflow-hidden">
-                                    <NuxtImg
-                                        v-if="item.anime_image"
-                                        :src="item.anime_image"
-                                        :alt="item.anime_title"
-                                        loading="lazy"
-                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                    />
-                                    <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
-                                        <span class="material-symbols-rounded text-5xl">movie</span>
-                                    </div>
-                                </div>
+                                <AppImage
+                                    :src="item.anime_image"
+                                    :alt="item.anime_title"
+                                    class="aspect-[2/3] w-full"
+                                    img-class="w-full h-full object-cover group-hover:scale-105"
+                                    icon-class="text-5xl"
+                                />
 
                                 <!-- Title -->
                                 <div class="p-3">
@@ -425,18 +420,13 @@ useHead({
                     <!-- Clickable Link -->
                     <NuxtLink :to="`/anime/${item.anime_ref_id}`" class="block">
                         <!-- Poster -->
-                        <div class="aspect-[2/3] w-full bg-gray-200 dark:bg-white/5 relative overflow-hidden">
-                            <NuxtImg
-                                v-if="item.anime_image"
-                                :src="item.anime_image"
-                                :alt="item.anime_title"
-                                loading="lazy"
-                                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                            <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
-                                <span class="material-symbols-rounded text-5xl">movie</span>
-                            </div>
-                        </div>
+                        <AppImage
+                            :src="item.anime_image"
+                            :alt="item.anime_title"
+                            class="aspect-[2/3] w-full"
+                            img-class="w-full h-full object-cover group-hover:scale-105"
+                            icon-class="text-5xl"
+                        />
 
                         <!-- Title -->
                         <div class="p-3">

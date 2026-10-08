@@ -18,8 +18,6 @@ const props = defineProps({
     },
 })
 
-const imageLoaded = ref(false)
-
 function handleMouseEnter(event) {
     if (props.onMouseEnter) {
         props.onMouseEnter(props.anime, event)
@@ -36,26 +34,12 @@ function handleMouseLeave() {
 <template>
     <NuxtLink :to="`/anime/${anime.refId}`" class="anime-card-item group" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
         <!-- Image Container -->
-        <div class="relative overflow-hidden rounded-t-xl aspect-[2/3] bg-gray-200 dark:bg-white/5">
-            <!-- Skeleton shown while image is loading (Tailwind, matches SkeletonAnimeCard) -->
-            <div v-if="!imageLoaded" class="absolute inset-0 bg-gray-200 dark:bg-white/5 animate-pulse" />
-
-            <NuxtImg
-                :src="anime.image"
-                :alt="anime.title"
-                :class="[
-                    'w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110',
-                    imageLoaded ? 'opacity-100' : 'opacity-0',
-                ]"
-                style="
-                    transition:
-                        opacity 0.4s ease,
-                        transform 0.5s ease;
-                "
-                @load="imageLoaded = true"
-                loading="lazy"
-            />
-
+        <AppImage
+            :src="anime.image"
+            :alt="anime.title"
+            class="rounded-t-xl aspect-[2/3]"
+            img-class="w-full h-full object-cover group-hover:scale-110"
+        >
             <!-- Subtle hover dim (keeps artwork clearly visible) -->
             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300"></div>
 
@@ -77,7 +61,7 @@ function handleMouseLeave() {
                     <span class="material-symbols-rounded text-lg text-gray-900 dark:text-gray-100">play_arrow</span>
                 </div>
             </div>
-        </div>
+        </AppImage>
 
         <!-- Info Container -->
         <div class="p-3 space-y-1.5">

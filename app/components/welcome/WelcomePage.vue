@@ -76,7 +76,7 @@ useHead({
 
         <header class="relative z-20 mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
             <NuxtLink :to="user ? '/' : '/welcome'" class="flex items-center gap-2.5 group">
-                <img src="/icons/icon.svg" alt="" width="36" height="36" class="h-9 w-9" />
+                <AppImage src="/icons/icon.svg" alt="" width="36" height="36" class="h-9 w-9" img-class="object-contain" :placeholder="false" :reveal="false" loading="eager" />
                 <span class="font-display text-xl font-bold tracking-tight">{{ appConfig.siteName }}</span>
             </NuxtLink>
             <nav class="flex items-center gap-2 sm:gap-3">
@@ -100,14 +100,16 @@ useHead({
         <main class="relative z-10">
             <section class="hero-section">
                 <div class="hero-banner">
-                    <img
+                    <AppImage
                         src="/hero.webp"
                         alt=""
                         class="hero-bg"
+                        img-class="object-cover object-[center_35%]"
                         width="1920"
                         height="1080"
+                        loading="eager"
                         fetchpriority="high"
-                    >
+                    />
                     <div class="hero-overlay" aria-hidden="true" />
 
                     <div class="hero-content mx-auto w-full max-w-6xl px-4 sm:px-6">

@@ -123,7 +123,7 @@ onUnmounted(() => {
                 >
                     <span class="material-symbols-rounded text-[20px] text-gray-600 dark:text-gray-300">arrow_back</span>
                 </button>
-                <img src="/icons/icon.svg" :alt="siteName" class="h-5 w-5 object-contain" width="20" height="20" />
+                <AppImage src="/icons/icon.svg" :alt="siteName" class="h-5 w-5" img-class="object-contain" width="20" height="20" :placeholder="false" :reveal="false" />
                 <h3 class="truncate text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100">AI 助手</h3>
             </div>
             <button type="button" class="icon-btn" :disabled="!canClear" title="建立新對話" @click="clearChat">
@@ -204,18 +204,12 @@ onUnmounted(() => {
                                 class="flex items-center gap-2.5 rounded-xl bg-white/70 p-1.5 pr-2.5 ring-1 ring-black/5 hover:bg-black/[0.04] dark:bg-white/5 dark:ring-white/10 dark:hover:bg-white/10"
                                 @click="onNavigate"
                             >
-                                <div class="aspect-[2/3] w-10 shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10">
-                                    <NuxtImg
-                                        v-if="anime.image"
-                                        :src="anime.image"
-                                        :alt="anime.title"
-                                        class="h-full w-full object-cover"
-                                        loading="lazy"
-                                    />
-                                    <div v-else class="flex h-full w-full items-center justify-center text-gray-400">
-                                        <span class="material-symbols-rounded text-base">movie</span>
-                                    </div>
-                                </div>
+                                <AppImage
+                                    :src="anime.image"
+                                    :alt="anime.title"
+                                    class="aspect-[2/3] w-10 shrink-0 rounded-lg bg-black/5 dark:bg-white/10"
+                                    icon-class="text-base"
+                                />
                                 <div class="min-w-0 flex-1">
                                     <p class="line-clamp-2 text-xs leading-snug font-medium text-gray-900 dark:text-gray-100">
                                         {{ anime.title }}
@@ -270,15 +264,12 @@ onUnmounted(() => {
                         </li>
                     </ul>
                     <div v-else-if="pendingFavorite" class="mb-3 flex items-center gap-2.5">
-                        <div class="aspect-[2/3] w-10 shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10">
-                            <NuxtImg
-                                v-if="pendingFavorite.anime_image"
-                                :src="pendingFavorite.anime_image"
-                                :alt="pendingFavorite.anime_title"
-                                class="h-full w-full object-cover"
-                                loading="lazy"
-                            />
-                        </div>
+                        <AppImage
+                            :src="pendingFavorite.anime_image"
+                            :alt="pendingFavorite.anime_title"
+                            class="aspect-[2/3] w-10 shrink-0 rounded-lg bg-black/5 dark:bg-white/10"
+                            icon-class="text-base"
+                        />
                         <div class="min-w-0">
                             <p class="line-clamp-2 text-xs font-medium text-gray-900 dark:text-gray-100">
                                 {{ pendingFavorite.anime_title }}

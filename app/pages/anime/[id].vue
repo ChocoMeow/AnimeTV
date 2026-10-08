@@ -875,20 +875,12 @@ onUnmounted(() => {
                         <div v-if="!selectedEpisode && coverSrc"
                             class="aspect-video relative rounded-lg overflow-hidden bg-gray-900 dark:bg-gray-950">
                             <div class="absolute inset-0">
-                                <img
-                                    v-if="offlineCoverUrl"
-                                    :src="offlineCoverUrl"
+                                <AppImage
+                                    :src="offlineCoverUrl || coverSrc"
                                     alt="Anime thumbnail"
-                                    class="w-full h-full object-cover"
-                                    style="filter: blur(2px);"
-                                >
-                                <NuxtImg
-                                    v-else
-                                    :src="coverSrc"
-                                    alt="Anime thumbnail"
+                                    class="absolute inset-0"
                                     loading="eager"
-                                    class="w-full h-full object-cover"
-                                    style="filter: blur(2px);"
+                                    img-style="filter: blur(2px);"
                                 />
                             </div>
                             <div class="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />

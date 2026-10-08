@@ -278,19 +278,17 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
                         {{ rankLabel(i) }}
                     </span>
 
-                    <div :class="i === 0 ? POSTER_LG : POSTER_SM">
-                        <NuxtImg
-                            v-if="anime.image"
-                            :src="anime.image"
-                            :alt="anime.title"
-                            class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            :class="i === 0 ? 'duration-700' : ''"
-                            loading="lazy"
-                        />
-                        <div v-else class="flex h-full w-full items-center justify-center text-gray-400">
-                            <span class="material-symbols-rounded" :class="i === 0 ? '' : 'text-sm'">image</span>
-                        </div>
-                    </div>
+                    <AppImage
+                        :src="anime.image"
+                        :alt="anime.title"
+                        :class="i === 0 ? POSTER_LG : POSTER_SM"
+                        :img-class="[
+                            'h-full w-full object-cover group-hover:scale-105',
+                            i === 0 ? 'duration-700' : '',
+                        ]"
+                        error-icon="image"
+                        :icon-class="i === 0 ? 'text-4xl' : 'text-sm'"
+                    />
 
                     <span class="min-w-0 flex-1" :class="i === 0 ? 'py-0.5' : ''">
                         <span

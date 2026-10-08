@@ -79,6 +79,7 @@ defineExpose({
                                 class="thumb-preview-frame relative overflow-hidden rounded-lg shadow-xl bg-black"
                                 :style="{ width: `${thumbPreviewW}px`, height: `${thumbPreviewH}px` }"
                             >
+                                <!-- Sprite crops need a raw <img> (custom left/top/size); full-frame uses AppImage. -->
                                 <div
                                     v-if="thumbnailPreview"
                                     class="absolute overflow-hidden"
@@ -92,12 +93,13 @@ defineExpose({
                                         draggable="false"
                                     />
                                 </div>
-                                <img
+                                <AppImage
                                     v-else
                                     :src="activeThumbnailSrc"
-                                    class="absolute inset-0 block h-full w-full object-cover"
                                     alt=""
-                                    draggable="false"
+                                    class="absolute inset-0"
+                                    :placeholder="false"
+                                    :reveal="false"
                                 />
                             </div>
                             <div class="mt-1.5 bg-black/70 backdrop-blur-md text-white px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap tabular-nums text-center">

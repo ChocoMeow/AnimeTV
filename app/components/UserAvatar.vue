@@ -10,10 +10,6 @@ const props = defineProps({
     maxInitials: { type: Number, default: 1 },
 })
 
-const failed = ref(false)
-watch(() => props.src, () => { failed.value = false })
-
-const showImg = computed(() => Boolean(props.src) && !failed.value)
 const initial = computed(() => {
     const n = props.name?.trim() || ''
     return n ? n.slice(0, props.maxInitials).toUpperCase() : '?'
@@ -21,20 +17,20 @@ const initial = computed(() => {
 </script>
 
 <template>
-    <div
+    <AppImage
         v-bind="$attrs"
-        class="relative flex shrink-0 overflow-hidden"
-        :class="[rounded, imgClass, showImg ? 'bg-transparent' : 'bg-gray-200 dark:bg-white/10']"
+        :src="src"
+        :alt="name"
+        :class="[rounded, imgClass]"
+        :img-class="['object-cover', grayscale && 'grayscale']"
+        :placeholder="false"
+        :reveal="false"
+        error-icon=""
     >
-        <img
-            v-if="showImg"
-            :src="src"
-            :alt="name"
-            class="absolute inset-0 block size-full object-cover"
-            :class="grayscale && 'grayscale'"
-            loading="lazy"
-            @error="failed = true"
-        />
-        <span v-else class="flex size-full items-center justify-center font-semibold leading-none text-gray-500 dark:text-gray-400">{{ initial }}</span>
-    </div>
+        <template #error>
+            <span class="flex size-full items-center justify-center bg-gray-200 font-semibold leading-none text-gray-500 dark:bg-white/10 dark:text-gray-400">
+                {{ initial }}
+            </span>
+        </template>
+    </AppImage>
 </template>

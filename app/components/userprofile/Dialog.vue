@@ -269,10 +269,15 @@ watch(
                 <div v-if="watchingNow" class="space-y-2">
                     <h3 class="text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase">正在觀看</h3>
                     <NuxtLink :to="`/anime/${watchingNow.anime_ref_id}`" class="group relative flex items-center overflow-hidden rounded-xl h-16 ring-1 ring-black/5 dark:ring-white/5 hover:ring-emerald-500/40 transition-all" @click="close">
-                        <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
-                            <NuxtImg :src="watchingNow.anime_image" alt="" class="w-full h-full object-cover scale-110 blur-md" loading="lazy" />
+                        <AppImage
+                            :src="watchingNow.anime_image"
+                            alt=""
+                            class="absolute inset-0 pointer-events-none"
+                            img-class="w-full h-full object-cover scale-110 blur-md"
+                            aria-hidden="true"
+                        >
                             <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/65 to-black/45" />
-                        </div>
+                        </AppImage>
                         <div class="relative z-10 flex flex-1 items-center gap-3 min-w-0 px-4">
                             <span class="material-symbols-rounded text-emerald-400 text-xl shrink-0">play_circle</span>
                             <div class="flex-1 min-w-0">
@@ -325,10 +330,15 @@ watch(
             <div v-if="watchingNow" class="space-y-2">
                 <h3 class="text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase">正在觀看</h3>
                 <NuxtLink :to="`/anime/${watchingNow.anime_ref_id}`" class="group relative flex items-center overflow-hidden rounded-xl h-14 ring-1 ring-black/5 dark:ring-white/10 hover:ring-emerald-500/40 transition-all" @click="close">
-                    <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
-                        <NuxtImg :src="watchingNow.anime_image" alt="" class="w-full h-full object-cover scale-110 blur-md" loading="lazy" />
+                    <AppImage
+                        :src="watchingNow.anime_image"
+                        alt=""
+                        class="absolute inset-0 pointer-events-none"
+                        img-class="w-full h-full object-cover scale-110 blur-md"
+                        aria-hidden="true"
+                    >
                         <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/65 to-black/45" />
-                    </div>
+                    </AppImage>
                     <div class="relative z-10 flex flex-1 items-center gap-2.5 min-w-0 px-3">
                         <span class="material-symbols-rounded text-emerald-400 text-lg shrink-0">play_circle</span>
                         <div class="flex-1 min-w-0">

@@ -103,11 +103,12 @@ async function toggleFavorite(event) {
                     </button>
                     <!-- Header with Image -->
                     <div class="flex gap-3 mb-3">
-                        <NuxtImg
-                            :src="animeDetails.image" 
-                            :alt="animeDetails.title" 
-                            class="w-20 sm:w-24 aspect-[2/3] object-cover rounded-lg shadow-lg flex-shrink-0" 
+                        <AppImage
+                            :src="animeDetails.image"
+                            :alt="animeDetails.title"
+                            class="w-20 sm:w-24 aspect-[2/3] rounded-lg shadow-lg flex-shrink-0"
                             loading="eager"
+                            icon-class="text-3xl"
                         />
                         <div class="flex-1 min-w-0">
                             <h3 class="font-bold text-base sm:text-lg text-gray-900 dark:text-white mb-2 line-clamp-2 pr-7">

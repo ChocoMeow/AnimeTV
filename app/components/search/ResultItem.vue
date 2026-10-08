@@ -25,12 +25,13 @@ function onEnter(e) {
         @mouseenter="onEnter"
         @mousedown.prevent="emit('select')"
     >
-        <div class="aspect-[2/3] w-11 shrink-0 overflow-hidden rounded-md bg-black/5 dark:bg-white/10 sm:w-14">
-            <NuxtImg v-if="result.image" :src="result.image" :alt="result.title" class="h-full w-full object-cover" loading="lazy" />
-            <div v-else class="flex h-full w-full items-center justify-center text-gray-400">
-                <span class="material-symbols-rounded text-lg">image</span>
-            </div>
-        </div>
+        <AppImage
+            :src="result.image"
+            :alt="result.title"
+            class="aspect-[2/3] w-11 shrink-0 rounded-md bg-black/5 dark:bg-white/10 sm:w-14"
+            error-icon="image"
+            icon-class="text-lg"
+        />
         <div class="min-w-0 flex-1">
             <h4 class="truncate text-sm font-medium text-gray-900 dark:text-gray-100" v-html="titleHtml" />
             <p v-if="descHtml" class="mt-0.5 line-clamp-3 text-xs text-gray-500 dark:text-gray-400" v-html="descHtml" />

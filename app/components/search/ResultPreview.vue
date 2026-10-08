@@ -88,14 +88,16 @@ async function toggleFavorite(event) {
             class="pointer-events-none absolute inset-0 z-0 overflow-hidden"
             aria-hidden="true"
         >
-            <img
+            <AppImage
                 :key="displayKey"
                 :src="display.image"
                 alt=""
-                class="absolute inset-0 h-full w-full scale-[1.35] object-cover object-[center_20%] opacity-45 blur-3xl dark:opacity-35"
-                loading="lazy"
+                class="absolute inset-0"
+                img-class="scale-[1.35] object-cover object-[center_20%] opacity-45 blur-3xl dark:opacity-35"
                 decoding="async"
-            >
+                :placeholder="false"
+                :reveal="false"
+            />
             <div class="absolute inset-0 bg-gradient-to-b from-gray-100/55 via-gray-100/80 to-gray-100 dark:from-[#141414]/50 dark:via-[#141414]/82 dark:to-[#141414]" />
         </div>
 
@@ -238,14 +240,12 @@ async function toggleFavorite(event) {
                             :title="anime.title"
                             @click.stop
                         >
-                            <div class="aspect-[2/3] overflow-hidden rounded-lg bg-black/5 ring-1 ring-black/5 transition group-hover:ring-black/15 dark:bg-white/10 dark:ring-white/10 dark:group-hover:ring-white/25">
-                                <NuxtImg
-                                    :src="anime.image"
-                                    :alt="anime.title"
-                                    class="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
-                                    loading="lazy"
-                                />
-                            </div>
+                            <AppImage
+                                :src="anime.image"
+                                :alt="anime.title"
+                                class="aspect-[2/3] rounded-lg ring-1 ring-black/5 transition group-hover:ring-black/15 dark:bg-white/10 dark:ring-white/10 dark:group-hover:ring-white/25"
+                                img-class="h-full w-full object-cover group-hover:scale-[1.03]"
+                            />
                             <p class="mt-2 line-clamp-2 text-xs leading-snug text-gray-600 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-gray-200 sm:text-sm">
                                 {{ anime.title }}
                             </p>

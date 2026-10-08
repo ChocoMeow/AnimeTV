@@ -199,18 +199,12 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                 </button>
                 <NuxtLink :to="animeHref(anime.refId)" class="block cursor-pointer">
                     <div class="flex gap-4 p-4">
-                        <div class="w-24 aspect-[2/3] shrink-0 self-start rounded-lg overflow-hidden bg-black/5 dark:bg-white/10">
-                            <img
-                                v-if="anime.image"
-                                :src="anime.image"
-                                :alt="anime.animeTitle"
-                                class="w-full h-full object-cover"
-                                loading="lazy"
-                            >
-                            <div v-else class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
-                                <span class="material-symbols-rounded text-3xl">movie</span>
-                            </div>
-                        </div>
+                        <AppImage
+                            :src="anime.image"
+                            :alt="anime.animeTitle"
+                            class="w-24 aspect-[2/3] shrink-0 self-start rounded-lg bg-black/5 dark:bg-white/10"
+                            icon-class="text-3xl"
+                        />
                         <div class="min-w-0 flex-1 flex flex-col pr-8">
                             <h2 class="font-semibold text-gray-900 dark:text-white line-clamp-2 leading-snug group-hover:opacity-80 transition-opacity">
                                 {{ anime.animeTitle }}

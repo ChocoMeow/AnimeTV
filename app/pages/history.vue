@@ -401,23 +401,16 @@ useHead({
                         <NuxtLink :to="`/anime/${item.anime_ref_id}?e=${item.episode_number}&t=${item.playback_time}`" class="block cursor-pointer">
                             <div class="flex gap-4 p-4">
                                 <!-- Thumbnail -->
-                                <div class="w-24 aspect-[2/3] flex-shrink-0 rounded-lg overflow-hidden bg-gray-200 dark:bg-white/5 relative">
-                                    <NuxtImg
-                                        v-if="item.anime_image"
-                                        :src="item.anime_image"
-                                        :alt="item.anime_title"
-                                        class="w-full h-full object-cover"
-                                        loading="lazy"
-                                    />
-                                    <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
-                                        <span class="material-symbols-rounded text-4xl">movie</span>
-                                    </div>
-
+                                <AppImage
+                                    :src="item.anime_image"
+                                    :alt="item.anime_title"
+                                    class="w-24 aspect-[2/3] flex-shrink-0 rounded-lg"
+                                >
                                     <!-- Progress Bar -->
                                     <div v-if="item.progress_percentage > 0" class="absolute bottom-0 left-0 right-0 h-1 bg-black/40">
                                         <div class="h-full bg-white" :style="{ width: `${item.progress_percentage}%` }"></div>
                                     </div>
-                                </div>
+                                </AppImage>
 
                                 <!-- Info -->
                                 <div class="flex-1 min-w-0 flex flex-col">

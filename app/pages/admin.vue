@@ -626,21 +626,16 @@ onMounted(() => {
                                 @click="handleSelect(record)"
                             >
                                 <!-- Thumbnail -->
-                                <div class="flex-shrink-0 w-12 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-white/5">
-                                    <NuxtImg
-                                        v-if="record.thumbnail"
-                                        :src="record.thumbnail"
-                                        :alt="record.title || record.source_id || 'anime thumbnail'"
-                                        class="w-full h-full object-cover"
-                                        loading="lazy"
-                                    />
-                                    <div
-                                        v-else
-                                        class="w-full h-full flex items-center justify-center text-[10px] text-gray-400 dark:text-gray-500"
-                                    >
-                                        無封面
-                                    </div>
-                                </div>
+                                <AppImage
+                                    :src="record.thumbnail"
+                                    :alt="record.title || record.source_id || 'anime thumbnail'"
+                                    class="flex-shrink-0 w-12 aspect-[2/3] rounded-lg bg-gray-100"
+                                    icon-class="text-lg"
+                                >
+                                    <template #error>
+                                        <span class="text-[10px] text-gray-400 dark:text-gray-500">無封面</span>
+                                    </template>
+                                </AppImage>
 
                                 <!-- Text info -->
                                 <div class="flex flex-col gap-0.5 min-w-0">
@@ -740,21 +735,15 @@ onMounted(() => {
                         class="space-y-4"
                     >
                         <div class="flex items-start gap-4">
-                            <div class="w-32 aspect-[2/3] rounded-xl overflow-hidden bg-gray-100 dark:bg-white/5 flex-shrink-0">
-                                <NuxtImg
-                                    v-if="editableRecord.thumbnail"
-                                    :src="editableRecord.thumbnail"
-                                    :alt="editableRecord.title || editableRecord.source_id || 'thumbnail preview'"
-                                    class="w-full h-full object-cover"
-                                    loading="lazy"
-                                />
-                                <div
-                                    v-else
-                                    class="w-full h-full flex flex-col items-center justify-center text-xs text-gray-400 dark:text-gray-500 px-2 text-center"
-                                >
-                                    無封面預覽
-                                </div>
-                            </div>
+                            <AppImage
+                                :src="editableRecord.thumbnail"
+                                :alt="editableRecord.title || editableRecord.source_id || 'thumbnail preview'"
+                                class="w-32 aspect-[2/3] rounded-xl bg-gray-100 flex-shrink-0"
+                            >
+                                <template #error>
+                                    <span class="px-2 text-center text-xs text-gray-400 dark:text-gray-500">無封面預覽</span>
+                                </template>
+                            </AppImage>
                             <div class="flex-1 text-xs text-gray-500 dark:text-gray-400 space-y-1">
                                 <p class="font-medium text-gray-700 dark:text-gray-200">封面預覽</p>
                                 <p>編輯下方「封面圖片連結」欄位後，儲存前亦會即時更新預覽。</p>

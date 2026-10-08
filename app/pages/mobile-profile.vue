@@ -148,17 +148,12 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                         :to="`/anime/${item.anime_ref_id}?e=${item.episode_number}&t=${item.playback_time}`"
                         class="w-24 shrink-0"
                     >
-                        <div class="relative aspect-[2/3] overflow-hidden rounded-lg bg-gray-200 dark:bg-white/5">
-                            <NuxtImg
-                                v-if="item.anime_image"
-                                :src="item.anime_image"
-                                :alt="item.anime_title"
-                                class="h-full w-full object-cover"
-                                loading="lazy"
-                            />
-                            <div v-else class="flex h-full w-full items-center justify-center text-gray-400">
-                                <span class="material-symbols-rounded text-3xl">movie</span>
-                            </div>
+                        <AppImage
+                            :src="item.anime_image"
+                            :alt="item.anime_title"
+                            class="aspect-[2/3] rounded-lg"
+                            icon-class="text-3xl"
+                        >
                             <div
                                 v-if="item.progress_percentage > 0"
                                 class="absolute bottom-0 left-0 right-0 h-1 bg-black/40"
@@ -168,7 +163,7 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                                     :style="{ width: `${item.progress_percentage}%` }"
                                 />
                             </div>
-                        </div>
+                        </AppImage>
                         <p class="mt-1.5 line-clamp-2 text-xs text-gray-700 dark:text-gray-300">
                             {{ item.anime_title }}
                         </p>
@@ -199,18 +194,12 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                         :to="`/anime/${item.anime_ref_id}`"
                         class="w-24 shrink-0"
                     >
-                        <div class="relative aspect-[2/3] overflow-hidden rounded-lg bg-gray-200 dark:bg-white/5">
-                            <NuxtImg
-                                v-if="item.anime_image"
-                                :src="item.anime_image"
-                                :alt="item.anime_title"
-                                class="h-full w-full object-cover"
-                                loading="lazy"
-                            />
-                            <div v-else class="flex h-full w-full items-center justify-center text-gray-400">
-                                <span class="material-symbols-rounded text-3xl">movie</span>
-                            </div>
-                        </div>
+                        <AppImage
+                            :src="item.anime_image"
+                            :alt="item.anime_title"
+                            class="aspect-[2/3] rounded-lg"
+                            icon-class="text-3xl"
+                        />
                         <p class="mt-1.5 line-clamp-2 text-xs text-gray-700 dark:text-gray-300">
                             {{ item.anime_title }}
                         </p>

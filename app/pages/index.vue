@@ -169,12 +169,13 @@ onUnmounted(() => {
                         @mouseleave="resetTilt"
                     >
                         <div class="feature-stage" :style="tiltStyle">
-                            <NuxtImg
+                            <AppImage
                                 :src="featured.image"
                                 alt=""
+                                class="absolute inset-0"
+                                img-class="object-cover object-top duration-700"
                                 loading="eager"
                                 fetchpriority="high"
-                                class="feature-img"
                             />
                             <div class="feature-scrim" />
                             <div class="feature-copy">
@@ -205,8 +206,14 @@ onUnmounted(() => {
                                 @mouseleave="handleMouseLeave"
                             >
                                 <div class="spot-media">
-                                    <NuxtImg :src="item.image" alt="" loading="lazy" class="spot-img" />
-                                    <span v-if="item.episode" class="spot-ep">{{ item.episode }}</span>
+                                    <AppImage
+                                        :src="item.image"
+                                        alt=""
+                                        class="absolute inset-0"
+                                        img-class="object-cover object-top"
+                                    >
+                                        <span v-if="item.episode" class="spot-ep">{{ item.episode }}</span>
+                                    </AppImage>
                                 </div>
                                 <div class="spot-copy">
                                     <p class="spot-title">{{ item.title }}</p>
@@ -267,13 +274,12 @@ onUnmounted(() => {
                             @mouseenter="handleMouseEnter(item, $event)"
                             @mouseleave="handleMouseLeave"
                         >
-                            <div class="relative overflow-hidden rounded-t-xl aspect-video bg-gray-200 dark:bg-white/5">
-                                <NuxtImg
-                                    :src="item.thumbnail"
-                                    alt=""
-                                    loading="lazy"
-                                    class="w-full h-full object-cover transform transition-transform duration-500 group-hover:scale-110"
-                                />
+                            <AppImage
+                                :src="item.thumbnail"
+                                alt=""
+                                class="rounded-t-xl aspect-video"
+                                img-class="w-full h-full object-cover group-hover:scale-110"
+                            >
                                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
                                 <div v-if="item.episode" class="absolute bottom-1.5 left-1.5 episode-badge">
                                     {{ item.episode }}
@@ -283,7 +289,7 @@ onUnmounted(() => {
                                         <span class="material-symbols-rounded text-base sm:text-lg text-gray-900 dark:text-gray-100">play_arrow</span>
                                     </div>
                                 </div>
-                            </div>
+                            </AppImage>
                             <div class="p-2.5">
                                 <div class="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 line-clamp-1 leading-tight">
                                     {{ item.title }}

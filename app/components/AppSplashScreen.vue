@@ -77,13 +77,17 @@ function onAfterLeave() {
                 aria-live="polite"
                 aria-busy="true"
             >
-                <img
-                    class="app-splash-logo block h-36 w-36 object-contain"
+                <AppImage
+                    class="app-splash-logo h-36 w-36"
                     src="/icons/animated_icon_400x400.webp"
+                    img-class="object-contain"
                     width="144"
                     height="144"
                     alt=""
+                    loading="eager"
                     fetchpriority="high"
+                    :placeholder="false"
+                    :reveal="false"
                 />
             </div>
         </Transition>

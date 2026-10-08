@@ -199,14 +199,13 @@ defineExpose({ reset })
                                     : 'ring-1 ring-black/5 dark:ring-white/5 hover:ring-black/20 dark:hover:ring-white/20'"
                             @click="emit('select')"
                         >
-                            <div class="relative aspect-[2/3] overflow-hidden rounded-[inherit]">
-                                <NuxtImg
-                                    :src="anime.anime_image"
-                                    :alt="anime.anime_title"
-                                    class="w-full h-full object-cover"
-                                    :class="!mobile && 'transition-transform duration-300 group-hover:scale-105'"
-                                    loading="lazy"
-                                />
+                            <AppImage
+                                :src="anime.anime_image"
+                                :alt="anime.anime_title"
+                                class="aspect-[2/3] rounded-[inherit]"
+                                :img-class="mobile ? 'w-full h-full object-cover' : 'w-full h-full object-cover group-hover:scale-105'"
+                                icon-class="text-3xl"
+                            >
                                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-80" />
                                 <div
                                     v-if="anime.isMutual"
@@ -226,7 +225,7 @@ defineExpose({ reset })
                                         <div class="h-full rounded-full bg-white" :style="{ width: `${anime.progress_percentage}%` }" />
                                     </div>
                                 </div>
-                            </div>
+                            </AppImage>
                         </NuxtLink>
                     </div>
                     <div
@@ -258,14 +257,13 @@ defineExpose({ reset })
                                     : 'ring-1 ring-black/5 dark:ring-white/5 hover:ring-rose-400/50'"
                             @click="emit('select')"
                         >
-                            <div class="relative aspect-[2/3] overflow-hidden rounded-[inherit]">
-                                <NuxtImg
-                                    :src="anime.anime_image"
-                                    :alt="anime.anime_title"
-                                    class="w-full h-full object-cover"
-                                    :class="!mobile && 'transition-transform duration-300 group-hover:scale-105'"
-                                    loading="lazy"
-                                />
+                            <AppImage
+                                :src="anime.anime_image"
+                                :alt="anime.anime_title"
+                                class="aspect-[2/3] rounded-[inherit]"
+                                :img-class="mobile ? 'w-full h-full object-cover' : 'w-full h-full object-cover group-hover:scale-105'"
+                                icon-class="text-3xl"
+                            >
                                 <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
                                 <div
                                     class="absolute inline-flex items-center justify-center rounded-full text-white"
@@ -281,7 +279,7 @@ defineExpose({ reset })
                                     <p class="font-medium text-gray-100 truncate" :class="mobile ? 'text-[10px]' : 'text-[11px]'">{{ anime.anime_title }}</p>
                                     <p class="text-gray-300" :class="mobile ? 'text-[9px]' : 'text-[10px]'">收藏於 {{ formatRelativeDate(anime.created_at) }}</p>
                                 </div>
-                            </div>
+                            </AppImage>
                         </NuxtLink>
                     </div>
                     <div
