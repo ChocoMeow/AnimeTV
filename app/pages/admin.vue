@@ -1045,6 +1045,26 @@ onMounted(() => {
            transition-shadow disabled:opacity-60 disabled:cursor-not-allowed;
 }
 
+/* iOS Safari centers native date/datetime values; force left like other admin fields. */
+.admin-input[type='date'],
+.admin-input[type='datetime-local'] {
+    -webkit-appearance: none;
+    appearance: none;
+    text-align: left;
+}
+
+.admin-input[type='date']::-webkit-date-and-time-value,
+.admin-input[type='datetime-local']::-webkit-date-and-time-value {
+    text-align: left;
+    margin: 0;
+}
+
+.admin-input[type='date']::-webkit-datetime-edit,
+.admin-input[type='datetime-local']::-webkit-datetime-edit {
+    text-align: left;
+    padding: 0;
+}
+
 .admin-textarea {
     @apply w-full rounded-2xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-4 py-2.5
            text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500

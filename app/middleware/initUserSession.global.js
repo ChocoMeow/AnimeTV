@@ -7,7 +7,11 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
     const path = (to.path || '/').replace(/\/$/, '') || '/'
     const offline = import.meta.client && !navigator.onLine
 
-    if (to.meta.offlineOnly && !offline) return navigateTo('/')
+    // offlineOnly: only enforce "must be offline" in the browser (allow SSR/prerender).
+    if (to.meta.offlineOnly && import.meta.client && !offline) return navigateTo('/')
+
+    // Offline first — before login/home redirects — so airplane mode never paints online shells.
+    if (offline && !to.meta.offlineAccess) return navigateTo('/offline')
 
     const user = useSupabaseUser()
     const { mark, wasSignedIn } = useOfflineAuthCache()
@@ -21,10 +25,7 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
         if (import.meta.server && to.meta.publicSsr) return
 
         if (!to.meta.public) {
-            if (offline) {
-                if (!to.meta.offlineOnly) return navigateTo('/offline')
-                return
-            }
+            if (offline) return
             const redirectInfo = useSupabaseCookieRedirect()
             redirectInfo.path.value = to.fullPath
             return navigateTo('/login')
@@ -33,11 +34,7 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
     }
 
     if (import.meta.server) return
-
-    if (offline) {
-        if (!to.meta.offlineAccess) return navigateTo('/offline')
-        return
-    }
+    if (offline) return
 
     const { fetchSettings, settingsLoaded, userSettings } = useUserSettings()
     const { initialize: initializeStatus } = useUserStatus()

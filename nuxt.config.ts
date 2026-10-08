@@ -55,9 +55,9 @@ export default defineNuxtConfig({
             websocket: true,
         },
         prerender: {
-            // Precache needs documents for Workbox navigateFallback (cold open offline / iOS PWA).
+            // Precache HTML shells for cold open offline / iOS PWA (see workbox.navigateFallback).
             crawlLinks: false,
-            routes: ['/', '/welcome'],
+            routes: ['/', '/welcome', '/offline'],
             failOnError: false,
         },
     },
@@ -69,6 +69,12 @@ export default defineNuxtConfig({
         head: {
             title: 'AnimeTV',
             script: [
+                // Airplane / offline: jump to /offline before Vue paints the cached home shell.
+                {
+                    innerHTML: `(function(){try{if(navigator.onLine)return;var p=(location.pathname||'/').replace(/\\/$/,'')||'/';if(p==='/offline'||p==='/offline-downloads'||p.indexOf('/anime/')===0)return;location.replace('/offline')}catch(e){}})();`,
+                    type: 'text/javascript',
+                    tagPosition: 'head',
+                },
                 {
                     innerHTML:
                         "document.documentElement.classList.toggle('dark', localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches));",
@@ -113,17 +119,21 @@ export default defineNuxtConfig({
     pwa: {
         // Prompt: don't reload mid-session. Apply on header button or manual refresh.
         registerType: 'prompt',
+        // Always precache logos used offline (public/ may not match hashed glob quirks on iOS).
+        includeAssets: [
+            'icons/icon.svg',
+            'icons/animated_icon_400x400.webp',
+            'icons/icon_512x512.png',
+            'icons/icon_512x512.webp',
+        ],
         workbox: {
             // Prompt mode leaves skipWaiting false; claim clients so SKIP_WAITING
             // can take control and trigger the page reload after update.
             clientsClaim: true,
-            // Cold open offline (esp. iOS standalone): serve precached "/" shell when
-            // the navigation isn't cached. App middleware then sends users to /offline.
-            // Do NOT leave this undefined — Safari shows "can't open the page" instead.
-            navigateFallback: '/',
-            // Only root uses the shell fallback. Other app paths stay NetworkFirst /
-            // miss so we don't hydrate the wrong SSR document for /anime/... etc.
-            navigateFallbackDenylist: [/^\/api\//, /^\/(.+)/],
+            // Cold open offline: if a navigation isn't cached, serve the offline page
+            // (prerendered). Cached "/" still needs the head redirect / middleware.
+            navigateFallback: '/offline',
+            navigateFallbackDenylist: [/^\/api\//],
             globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
             cleanupOutdatedCaches: true,
             runtimeCaching: [

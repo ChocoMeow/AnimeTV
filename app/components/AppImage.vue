@@ -34,6 +34,16 @@ watch(
 
 const showImg = computed(() => Boolean(props.src) && !failed.value)
 
+/** NuxtImg/IPX often breaks SVG (and blob/data URLs) on iOS — use a native <img>. */
+const useNativeImg = computed(() => {
+    const s = String(props.src || '')
+    return (
+        /\.svg(?:$|\?)/i.test(s) ||
+        s.startsWith('data:') ||
+        s.startsWith('blob:')
+    )
+})
+
 const callerHasFilter = computed(() => {
     const style = props.imgStyle
     if (!style) return false
@@ -47,6 +57,14 @@ const rootPositioned = computed(() => {
     const cls = Array.isArray(raw) ? raw.flat().filter(Boolean).join(' ') : String(raw || '')
     return /\b(?:absolute|fixed|sticky|relative)\b/.test(cls)
 })
+
+const imgBindClass = computed(() => [
+    'app-img absolute inset-0 h-full w-full',
+    props.imgClass,
+    props.reveal && (loaded.value ? 'opacity-100' : 'opacity-80'),
+    props.reveal && !callerHasFilter.value && (loaded.value ? 'blur-0' : 'blur-xl'),
+    props.reveal && (loaded.value ? 'scale-100' : 'scale-105'),
+])
 
 function markLoaded() {
     loaded.value = true
@@ -81,8 +99,8 @@ watch(imgRef, (el) => {
             aria-hidden="true"
         />
 
-        <NuxtImg
-            v-if="showImg"
+        <img
+            v-if="showImg && useNativeImg"
             ref="imgRef"
             :src="src"
             :alt="alt"
@@ -92,13 +110,23 @@ watch(imgRef, (el) => {
             :fetchpriority="fetchpriority"
             :decoding="decoding"
             :style="imgStyle"
-            :class="[
-                'app-img absolute inset-0 h-full w-full',
-                imgClass,
-                reveal && (loaded ? 'opacity-100' : 'opacity-80'),
-                reveal && !callerHasFilter && (loaded ? 'blur-0' : 'blur-xl'),
-                reveal && (loaded ? 'scale-100' : 'scale-105'),
-            ]"
+            :class="imgBindClass"
+            @load="markLoaded"
+            @error="markFailed"
+        >
+
+        <NuxtImg
+            v-else-if="showImg"
+            ref="imgRef"
+            :src="src"
+            :alt="alt"
+            :width="width"
+            :height="height"
+            :loading="loading"
+            :fetchpriority="fetchpriority"
+            :decoding="decoding"
+            :style="imgStyle"
+            :class="imgBindClass"
             @load="markLoaded"
             @error="markFailed"
         />
