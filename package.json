@@ -13,6 +13,7 @@
         "db:restore": "bun scripts/db-restore.js"
     },
     "dependencies": {
+        "@fontsource-variable/material-symbols-rounded": "^5.3.8",
         "@nuxt/image": "^2.0.0",
         "@nuxtjs/supabase": "^2.0.1",
         "@vite-pwa/nuxt": "^1.1.1",

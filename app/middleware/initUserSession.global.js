@@ -1,28 +1,27 @@
 /**
- * Global middleware: session gate, user settings, admin role, status WebSocket.
- * Access rules live on pages via definePageMeta ({ public, publicSsr, offlineAccess, offlineOnly }).
+ * Global route gate: offline access, auth, settings, admin, presence.
+ * Page flags via definePageMeta: { public, publicSsr, offlineAccess, offlineOnly }.
  */
-
-export default defineNuxtRouteMiddleware(async (to, _from) => {
+export default defineNuxtRouteMiddleware(async (to) => {
     const path = (to.path || '/').replace(/\/$/, '') || '/'
     const offline = import.meta.client && !navigator.onLine
 
-    // offlineOnly: only enforce "must be offline" in the browser (allow SSR/prerender).
     if (to.meta.offlineOnly && import.meta.client && !offline) return navigateTo('/')
-
-    // Offline first — before login/home redirects — so airplane mode never paints online shells.
     if (offline && !to.meta.offlineAccess) return navigateTo('/offline')
 
     const user = useSupabaseUser()
     const { mark, wasSignedIn } = useOfflineAuthCache()
-
     if (user.value && import.meta.client) mark()
 
     const loggedIn = Boolean(user.value) || (offline && wasSignedIn())
 
     if (!loggedIn) {
-        if (path === '/') return navigateTo('/welcome')
-        if (import.meta.server && to.meta.publicSsr) return
+        // Prerender real HTML shells for the SW precache (avoid meta-refresh stubs).
+        if (path === '/') {
+            if (import.meta.prerender) return
+            return navigateTo('/welcome')
+        }
+        if (import.meta.server && (to.meta.publicSsr || to.meta.offlineAccess)) return
 
         if (!to.meta.public) {
             if (offline) return
@@ -33,8 +32,7 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
         return
     }
 
-    if (import.meta.server) return
-    if (offline) return
+    if (import.meta.server || offline) return
 
     const { fetchSettings, settingsLoaded, userSettings } = useUserSettings()
     const { initialize: initializeStatus } = useUserStatus()

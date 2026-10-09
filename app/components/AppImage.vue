@@ -6,86 +6,42 @@ const props = defineProps({
     alt: { type: String, default: '' },
     imgClass: { type: [String, Array], default: 'object-cover' },
     iconClass: { type: String, default: 'text-4xl' },
-    errorIcon: { type: String, default: 'movie' },
+    errorIcon: { type: String, default: 'image' },
     loading: { type: String, default: 'lazy' },
     fetchpriority: { type: String, default: undefined },
-    decoding: { type: String, default: 'async' },
-    imgStyle: { type: [String, Object], default: undefined },
-    width: { type: [String, Number], default: undefined },
-    height: { type: [String, Number], default: undefined },
-    /** Pulse + muted backdrop while the file is still fetching. */
     placeholder: { type: Boolean, default: true },
-    /** Blur/scale into sharpness once decoded. */
-    reveal: { type: Boolean, default: true },
 })
 
+const NuxtImg = resolveComponent('NuxtImg')
 const attrs = useAttrs()
-const imgRef = ref(null)
+const img = useTemplateRef('img')
 const loaded = ref(false)
 const failed = ref(false)
+const ghost = ref(false) // blurred copy that fades out on reveal
 
-watch(
-    () => props.src,
-    () => {
-        loaded.value = false
-        failed.value = false
-    },
-)
-
-const showImg = computed(() => Boolean(props.src) && !failed.value)
-
-/**
- * Skip NuxtImg/IPX for formats/URLs it mishandles (esp. iOS + PWA):
- * SVG, blob/data, and same-origin public files (/hero.webp, /icons/…).
- * Remote anime covers still use NuxtImg.
- */
-const useNativeImg = computed(() => {
-    const s = String(props.src || '')
-    if (!s) return false
-    if (s.startsWith('data:') || s.startsWith('blob:')) return true
-    if (/\.svg(?:$|\?)/i.test(s)) return true
-    // Same-origin public asset (not protocol-relative //cdn…)
-    if (s.startsWith('/') && !s.startsWith('//')) return true
-    return false
+watch(() => props.src, () => {
+    loaded.value = failed.value = ghost.value = false
 })
 
-const callerHasFilter = computed(() => {
-    const style = props.imgStyle
-    if (!style) return false
-    if (typeof style === 'string') return /filter\s*:/.test(style)
-    return Boolean(style.filter)
-})
+const showImg = computed(() => !!props.src && !failed.value)
 
-/** Caller already positioned the root (e.g. absolute inset-0) — don't add relative. */
-const rootPositioned = computed(() => {
-    const raw = attrs.class
-    const cls = Array.isArray(raw) ? raw.flat().filter(Boolean).join(' ') : String(raw || '')
-    return /\b(?:absolute|fixed|sticky|relative)\b/.test(cls)
-})
+// Plain <img> (browser fetches directly) for sources IPX mishandles (esp. iOS/PWA)
+// and for Google avatars, which rate-limit (429) the shared server IP that IPX uses
+const native = computed(() => /^(data:|blob:|\/(?!\/))|\.svg(\?|$)|googleusercontent\.com/i.test(props.src))
 
-const imgBindClass = computed(() => [
-    'app-img absolute inset-0 h-full w-full',
-    props.imgClass,
-    props.reveal && (loaded.value ? 'opacity-100' : 'opacity-80'),
-    props.reveal && !callerHasFilter.value && (loaded.value ? 'blur-0' : 'blur-xl'),
-    props.reveal && (loaded.value ? 'scale-100' : 'scale-105'),
-])
+// Don't add `relative` if the caller already positioned the root
+const positioned = computed(() => /\b(absolute|fixed|sticky|relative)\b/.test([attrs.class].flat().join(' ')))
 
-function markLoaded() {
+function onLoad() {
+    if (loaded.value) return
     loaded.value = true
+    ghost.value = true
 }
 
-function markFailed() {
-    failed.value = true
-}
-
-function syncCachedImage(el) {
-    const img = el?.$el?.tagName === 'IMG' ? el.$el : el
-    if (img?.complete && img.naturalWidth) markLoaded()
-}
-
-watch(imgRef, (el) => {
-    if (el) nextTick(() => syncCachedImage(el))
+// Image may finish before hydration, so the load event is missed
+onMounted(() => {
+    const el = img.value?.$el ?? img.value
+    if (el?.complete && el.naturalWidth) onLoad()
 })
 </script>
 
@@ -93,53 +49,45 @@ watch(imgRef, (el) => {
     <div
         v-bind="$attrs"
         class="overflow-hidden"
-        :class="{
-            relative: !rootPositioned,
-            'bg-gray-200 dark:bg-white/5': placeholder,
-        }"
+        :class="[
+            positioned ? '' : 'relative',
+            placeholder && !loaded && 'bg-gray-200 dark:bg-white/5',
+        ]"
     >
         <div
             v-if="placeholder && showImg && !loaded"
             class="absolute inset-0 animate-pulse bg-gray-200 dark:bg-white/5"
-            aria-hidden="true"
         />
 
+        <component
+            :is="native ? 'img' : NuxtImg"
+            v-if="showImg"
+            ref="img"
+            :src="src"
+            :alt="alt"
+            :loading="loading"
+            :fetchpriority="fetchpriority"
+            decoding="async"
+            referrerpolicy="no-referrer"
+            class="app-img absolute inset-0 h-full w-full"
+            :class="[imgClass, { 'is-loaded': loaded }]"
+            @load="onLoad"
+            @error="failed = true"
+        />
+
+        <!-- Blur lives on its own layer with a constant filter (Safari-safe) -->
         <img
-            v-if="showImg && useNativeImg"
-            ref="imgRef"
+            v-if="ghost"
             :src="src"
-            :alt="alt"
-            :width="width"
-            :height="height"
-            :loading="loading"
-            :fetchpriority="fetchpriority"
-            :decoding="decoding"
-            :style="imgStyle"
-            :class="imgBindClass"
-            @load="markLoaded"
-            @error="markFailed"
+            alt=""
+            aria-hidden="true"
+            referrerpolicy="no-referrer"
+            class="app-img-ghost absolute inset-0 h-full w-full blur-xl"
+            :class="imgClass"
+            @animationend="ghost = false"
         >
 
-        <NuxtImg
-            v-else-if="showImg"
-            ref="imgRef"
-            :src="src"
-            :alt="alt"
-            :width="width"
-            :height="height"
-            :loading="loading"
-            :fetchpriority="fetchpriority"
-            :decoding="decoding"
-            :style="imgStyle"
-            :class="imgBindClass"
-            @load="markLoaded"
-            @error="markFailed"
-        />
-
-        <div
-            v-if="!showImg"
-            class="absolute inset-0 flex items-center justify-center text-gray-400"
-        >
+        <div v-if="!showImg" class="absolute inset-0 flex items-center justify-center text-gray-400">
             <slot name="error">
                 <span class="material-symbols-rounded" :class="iconClass">{{ errorIcon }}</span>
             </slot>
@@ -151,17 +99,29 @@ watch(imgRef, (el) => {
 
 <style scoped>
 .app-img {
-    transition:
-        opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-        transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-        filter 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity: 0;
+    backface-visibility: hidden;
+}
+.app-img.is-loaded {
+    animation: app-img-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.app-img-ghost {
+    transform: scale(1.1);
+    pointer-events: none;
+    backface-visibility: hidden;
+    animation: app-img-out 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes app-img-in {
+    from { opacity: 0; transform: scale(1.05); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes app-img-out {
+    to { opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .app-img {
-        transition: none;
-        filter: none !important;
-        transform: none;
-    }
+    .app-img.is-loaded { animation: none; opacity: 1; }
+    .app-img-ghost { display: none; }
 }
 </style>

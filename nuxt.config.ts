@@ -4,6 +4,11 @@ export default defineNuxtConfig({
     modules: ['@nuxtjs/tailwindcss', '@nuxtjs/supabase', '@vite-pwa/nuxt', '@nuxt/image', 'nuxt-security'],
     compatibilityDate: '2025-07-15',
     devtools: { enabled: true },
+    typescript: {
+        tsConfig: {
+            exclude: ['../app/service-worker'],
+        },
+    },
     runtimeConfig: {
         supabaseSecretKey: process.env.NUXT_SUPABASE_SECRET_KEY,
         cfFetchFlaresolverr: process.env.NUXT_CF_FETCH_FLARESOLVERR,
@@ -54,8 +59,8 @@ export default defineNuxtConfig({
         experimental: {
             websocket: true,
         },
+        // HTML shells for the SW precache (cold-start offline).
         prerender: {
-            // Precache HTML shells for cold open offline / iOS PWA (see workbox.navigateFallback).
             crawlLinks: false,
             routes: ['/', '/welcome', '/offline'],
             failOnError: false,
@@ -108,18 +113,14 @@ export default defineNuxtConfig({
                     rel: 'stylesheet',
                     href: 'https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@100..900&display=swap',
                 },
-                // display=block (not swap): icon fonts must not paint ligature text ("search") as fallback.
-                {
-                    rel: 'stylesheet',
-                    href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,-50..200&display=block',
-                },
             ],
         },
     },
     pwa: {
-        // Prompt: don't reload mid-session. Apply on header button or manual refresh.
         registerType: 'prompt',
-        // Always precache logos used offline (public/ may not match hashed glob quirks on iOS).
+        strategies: 'injectManifest',
+        srcDir: 'service-worker',
+        filename: 'sw.ts',
         includeAssets: [
             'hero.webp',
             'icons/icon.svg',
@@ -127,78 +128,8 @@ export default defineNuxtConfig({
             'icons/icon_512x512.png',
             'icons/icon_512x512.webp',
         ],
-        workbox: {
-            // Prompt mode leaves skipWaiting false; claim clients so SKIP_WAITING
-            // can take control and trigger the page reload after update.
-            clientsClaim: true,
-            // Cold open offline: if a navigation isn't cached, serve the offline page
-            // (prerendered). Cached "/" still needs the head redirect / middleware.
-            navigateFallback: '/offline',
-            navigateFallbackDenylist: [/^\/api\//],
+        injectManifest: {
             globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
-            cleanupOutdatedCaches: true,
-            runtimeCaching: [
-                {
-                    // Cache all navigation requests (pages) for offline use
-                    urlPattern: ({ request }) => request.mode === 'navigate',
-                    handler: 'NetworkFirst',
-                    options: {
-                        cacheName: 'app-pages',
-                        // Fail over to cache quickly in airplane mode (iOS can hang longer).
-                        networkTimeoutSeconds: 2,
-                        expiration: {
-                            maxEntries: 80,
-                            maxAgeSeconds: 60 * 60 * 24 * 7,
-                        },
-                    },
-                },
-                {
-                    urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-                    handler: 'StaleWhileRevalidate',
-                    options: {
-                        cacheName: 'google-fonts-stylesheets',
-                        expiration: {
-                            maxEntries: 10,
-                            maxAgeSeconds: 60 * 60 * 24 * 30,
-                        },
-                    },
-                },
-                {
-                    urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-                    handler: 'CacheFirst',
-                    options: {
-                        cacheName: 'google-fonts-webfonts',
-                        expiration: {
-                            maxEntries: 30,
-                            maxAgeSeconds: 60 * 60 * 24 * 365,
-                        },
-                    },
-                },
-                {
-                    urlPattern: /^\/api\/anime\/[^/]+\/episodes$/i,
-                    handler: 'NetworkOnly',
-                },
-                {
-                    urlPattern: /^\/api\/(anime|search|public\/welcome-preview).*/i,
-                    handler: 'NetworkFirst',
-                    options: {
-                        cacheName: 'anime-api',
-                        networkTimeoutSeconds: 2,
-                        expiration: {
-                            maxEntries: 100,
-                            maxAgeSeconds: 60 * 60 * 24 * 7,
-                        },
-                    },
-                },
-                {
-                    urlPattern: /^\/api\/proxy-video.*/i,
-                    handler: 'NetworkOnly',
-                },
-                {
-                    urlPattern: /^\/api\/download-proxy.*/i,
-                    handler: 'NetworkOnly',
-                },
-            ],
         },
         manifest: {
             name: 'AnimeTV',

@@ -22,6 +22,7 @@ const hasRedirected = ref(false)
 function resolveRedirectPath(path) {
     if (!path || typeof path !== 'string') return '/'
     if (!path.startsWith('/') || path.startsWith('//')) return '/'
+    if (path.startsWith('/.well-known')) return '/'
     return path
 }
 

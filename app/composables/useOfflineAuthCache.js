@@ -1,8 +1,7 @@
 /**
- * Offline route gate only. Stores a boolean flag — never tokens, email, or profile.
- * Supabase owns the real session; this only remembers "had signed in" for PWA offline.
+ * Boolean "had signed in" flag for PWA offline gates.
+ * Never stores tokens, email, or profile — Supabase owns the session.
  */
-
 const KEY = 'app:offline-signed-in'
 
 function readFlag() {
