@@ -10,17 +10,20 @@ const props = defineProps({
     loading: { type: String, default: 'lazy' },
     fetchpriority: { type: String, default: undefined },
     placeholder: { type: Boolean, default: true },
+    /** Fade-in + blur ghost on load. Off for logos/splash where the animation fights the UI. */
+    reveal: { type: Boolean, default: true },
 })
 
 const NuxtImg = resolveComponent('NuxtImg')
 const attrs = useAttrs()
 const img = useTemplateRef('img')
-const loaded = ref(false)
+const loaded = ref(!props.reveal)
 const failed = ref(false)
 const ghost = ref(false) // blurred copy that fades out on reveal
 
 watch(() => props.src, () => {
-    loaded.value = failed.value = ghost.value = false
+    loaded.value = !props.reveal
+    failed.value = ghost.value = false
 })
 
 const showImg = computed(() => !!props.src && !failed.value)
@@ -33,7 +36,7 @@ const native = computed(() => /^(data:|blob:|\/(?!\/))|\.svg(\?|$)|googleusercon
 const positioned = computed(() => /\b(absolute|fixed|sticky|relative)\b/.test([attrs.class].flat().join(' ')))
 
 function onLoad() {
-    if (loaded.value) return
+    if (!props.reveal || loaded.value) return
     loaded.value = true
     ghost.value = true
 }
@@ -69,15 +72,15 @@ onMounted(() => {
             :fetchpriority="fetchpriority"
             decoding="async"
             referrerpolicy="no-referrer"
-            class="app-img absolute inset-0 h-full w-full"
-            :class="[imgClass, { 'is-loaded': loaded }]"
+            class="absolute inset-0 h-full w-full"
+            :class="[imgClass, reveal ? 'app-img' : null, { 'is-loaded': reveal && loaded }]"
             @load="onLoad"
             @error="failed = true"
         />
 
         <!-- Blur lives on its own layer with a constant filter (Safari-safe) -->
         <img
-            v-if="ghost"
+            v-if="reveal && ghost"
             :src="src"
             alt=""
             aria-hidden="true"

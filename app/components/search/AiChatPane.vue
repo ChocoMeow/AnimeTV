@@ -123,7 +123,7 @@ onUnmounted(() => {
                 >
                     <span class="material-symbols-rounded text-[20px] text-gray-600 dark:text-gray-300">arrow_back</span>
                 </button>
-                <AppImage src="/icons/icon.svg" :alt="siteName" class="h-5 w-5" img-class="object-contain" width="20" height="20" :placeholder="false" :reveal="false" />
+                <AppImage src="/icons/icon.svg" :alt="siteName" class="h-5 w-5" img-class="object-contain" :placeholder="false" :reveal="false" />
                 <h3 class="truncate text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100">AI 助手</h3>
             </div>
             <button type="button" class="icon-btn" :disabled="!canClear" title="建立新對話" @click="clearChat">

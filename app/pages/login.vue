@@ -361,7 +361,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                 <!-- Login Form (Default) -->
                 <div v-else class="space-y-8">
                     <div class="flex justify-center lg:justify-start">
-                        <AppImage src="/icons/icon.svg" alt="" class="h-24 w-24" img-class="object-contain" width="96" height="96" loading="eager" fetchpriority="high" :placeholder="false" :reveal="false" />
+                        <AppImage src="/icons/icon.svg" alt="" class="h-24 w-24" img-class="object-contain" loading="eager" fetchpriority="high" :placeholder="false" :reveal="false" />
                     </div>
                     
                     <div class="text-center lg:text-left space-y-3">

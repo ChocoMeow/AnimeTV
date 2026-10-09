@@ -132,7 +132,7 @@ watch(
                 <!-- Left: Logo -->
                 <div class="flex shrink-0 items-center gap-2">
                     <NuxtLink to="/" class="group flex items-center gap-1 pr-2">
-                        <AppImage src="/icons/icon.svg" :alt="appConfig.siteName" class="h-7 w-7" img-class="object-contain" width="28" height="28" loading="eager" fetchpriority="high" :placeholder="false" :reveal="false" />
+                        <AppImage src="/icons/icon.svg" :alt="appConfig.siteName" class="h-7 w-7" img-class="object-contain" loading="eager" fetchpriority="high" :placeholder="false" :reveal="false" />
                         <span class="text-xl font-semibold text-black dark:text-white"> {{ appConfig.siteName }}</span>
                     </NuxtLink>
                 </div>

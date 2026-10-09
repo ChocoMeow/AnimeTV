@@ -81,8 +81,6 @@ function onAfterLeave() {
                     class="app-splash-logo h-36 w-36"
                     src="/icons/animated_icon_400x400.webp"
                     img-class="object-contain"
-                    width="144"
-                    height="144"
                     alt=""
                     loading="eager"
                     fetchpriority="high"
