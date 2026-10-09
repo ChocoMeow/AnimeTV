@@ -1,4 +1,9 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+
+// Build/prerender only — real values come from .env or container runtime.
+const SUPABASE_URL = process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const SUPABASE_KEY = process.env.NUXT_PUBLIC_SUPABASE_KEY || 'placeholder-anon-key'
+
 export default defineNuxtConfig({
     css: ['~/assets/css/tailwind.css'],
     modules: ['@nuxtjs/tailwindcss', '@nuxtjs/supabase', '@vite-pwa/nuxt', '@nuxt/image', 'nuxt-security'],
@@ -20,8 +25,8 @@ export default defineNuxtConfig({
         logMaxDays: process.env.NUXT_LOG_MAX_DAYS,
         logToFile: process.env.NUXT_LOG_TO_FILE,
         public: {
-            supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
-            supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY,
+            supabaseUrl: SUPABASE_URL,
+            supabaseKey: SUPABASE_KEY,
             aiEnabled: false,
         },
     },
@@ -174,6 +179,9 @@ export default defineNuxtConfig({
         },
     },
     supabase: {
+        // Fallbacks so `nuxt build` without .env can prerender /offline for the SW.
+        url: SUPABASE_URL,
+        key: SUPABASE_KEY,
         redirect: false,
         redirectOptions: {
             login: '/login',
