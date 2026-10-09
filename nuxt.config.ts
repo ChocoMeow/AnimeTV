@@ -59,10 +59,11 @@ export default defineNuxtConfig({
         experimental: {
             websocket: true,
         },
-        // HTML shells for the SW precache (cold-start offline).
+        // Only /offline is static for the SW. `/` and `/welcome` SSR at runtime
+        // with each host’s own NUXT_PUBLIC_SUPABASE_* (not baked into the image).
         prerender: {
             crawlLinks: false,
-            routes: ['/', '/welcome', '/offline'],
+            routes: ['/offline'],
             failOnError: false,
         },
     },

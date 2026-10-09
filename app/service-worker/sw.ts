@@ -24,12 +24,17 @@ precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 clientsClaim()
 
-async function offlineFallback(request: Request): Promise<Response> {
-    const path = new URL(request.url).pathname.replace(/\/$/, '') || '/'
-    if (path === OFFLINE) {
-        return (await matchPrecache(OFFLINE)) ?? new Response('Offline', { status: 503 })
-    }
-    return Response.redirect(OFFLINE, 302)
+async function offlinePage(): Promise<Response | undefined> {
+    // Nuxt may precache as `/offline` or `/offline/index.html`
+    return (
+        (await matchPrecache(OFFLINE))
+        || (await matchPrecache(`${OFFLINE}/`))
+        || (await matchPrecache(`${OFFLINE}/index.html`))
+    )
+}
+
+async function offlineFallback(_request: Request): Promise<Response> {
+    return (await offlinePage()) ?? new Response('Offline', { status: 503, statusText: 'Offline' })
 }
 
 registerRoute(

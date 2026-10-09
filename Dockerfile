@@ -3,6 +3,12 @@ ARG BUN_VERSION=1.4.2
 FROM oven/bun:${BUN_VERSION} AS build
 WORKDIR /app
 
+# Placeholders only — NOT your real project keys.
+# Real NUXT_PUBLIC_SUPABASE_* belong at container runtime (docker run / compose).
+# Needed so @nuxtjs/supabase does not crash during Nitro prerender of /offline.
+ENV NUXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co \
+    NUXT_PUBLIC_SUPABASE_KEY=placeholder-anon-key
+
 COPY package.json bun.lock* ./
 
 # Use ignore-scripts to avoid building node modules like better-sqlite3
