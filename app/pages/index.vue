@@ -475,7 +475,7 @@ onUnmounted(() => {
 .spot-card {
     @apply flex w-[78%] max-w-[17.5rem] shrink-0 snap-start flex-col overflow-hidden rounded-2xl
            bg-black/[0.02] dark:bg-white/5
-           ring-1 ring-black/5 dark:ring-white/10;
+           border border-black/5 dark:border-white/10;
 }
 
 .spot-media {
@@ -644,7 +644,8 @@ onUnmounted(() => {
         gap: 0.7rem;
         overflow: hidden;
         scroll-snap-type: none;
-        padding: 0;
+        /* Keep 1px inset so card borders are not clipped by overflow:hidden. */
+        padding: 1px;
     }
 
     .spot-card,
@@ -698,7 +699,7 @@ onUnmounted(() => {
     }
 
     .spot-card:hover {
-        @apply shadow-lg shadow-black/10 ring-black/10 dark:shadow-black/50 dark:ring-white/20;
+        @apply shadow-lg shadow-black/10 border-black/10 dark:shadow-black/50 dark:border-white/20;
     }
 
     .spot-card:hover .spot-img {
