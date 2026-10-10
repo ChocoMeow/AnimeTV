@@ -146,12 +146,13 @@ async function signInWithOAuth(provider) {
     loading.value = true
     error.value = null
     authStatus.value = "idle"
+    const redirectTo = `${window.location.origin}/login`
 
     try {
         const { error: authError } = await client.auth.signInWithOAuth({
             provider,
             options: {
-                redirectTo: `${window.location.origin}/login`,
+                redirectTo,
             },
         })
 
@@ -177,12 +178,12 @@ function handleAuthSuccess(newUser) {
     }, ANIMATION_DELAYS.SUCCESS_REDIRECT)
 }
 
-function handleOAuthCallback() {
+async function handleOAuthCallback() {
     if (!import.meta.client) return
 
-                const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(window.location.search)
     const hashParams = new URLSearchParams(window.location.hash.substring(1))
-    
+
     if (urlParams.has("error") || hashParams.has("error")) {
         const errorInfo = parseOAuthError()
         if (errorInfo) {
@@ -195,12 +196,24 @@ function handleOAuthCallback() {
         }
         return
     }
-    
+
     if (urlParams.has("code") || hashParams.has("code")) {
-                    authStatus.value = "verifying"
-                    authMessage.value = "正在驗證您的身份..."
-                }
+        authStatus.value = "verifying"
+        authMessage.value = "正在驗證您的身份..."
+        const code = urlParams.get("code") || hashParams.get("code")
+        try {
+            const { data, error: exErr } = await client.auth.exchangeCodeForSession(code)
+            if (exErr) {
+                error.value = exErr.message || '登入驗證失敗'
+                authStatus.value = 'error'
+                authMessage.value = error.value
+                loading.value = false
             }
+        } catch {
+            /* exchange failures surface through the auth error state */
+        }
+    }
+}
 
 function resetAuthError() {
     authStatus.value = 'idle'
