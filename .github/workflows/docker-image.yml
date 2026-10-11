@@ -27,11 +27,12 @@ jobs:
               run: echo "IMAGE_NAME=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
             # Bump only in the workspace — commit/tag/push happen after a successful image build.
-            - name: Bump patch version (local)
+            # beta: 1.0.1 → 1.0.2b1 → 1.0.2b2; main: 1.0.2b2 → 1.0.2 (or 1.0.2 → 1.0.3)
+            - name: Bump version (local)
               id: bump
               if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
               run: |
-                  npm version patch --no-git-tag-version
+                  node scripts/build-version.mjs bump "${{ github.ref_name }}"
                   echo "bumped=true" >> "$GITHUB_OUTPUT"
 
             - name: Resolve build metadata

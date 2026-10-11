@@ -25,7 +25,7 @@ RUN bun install --frozen-lockfile --ignore-scripts
 # Copy the entire project
 COPY . .
 
-RUN bun scripts/write-build-info.mjs && bun --bun run build
+RUN bun scripts/build-version.mjs write && bun --bun run build
 
 # Copy production dependencies and source code into final image
 FROM oven/bun:${BUN_VERSION} AS production
