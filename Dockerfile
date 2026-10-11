@@ -9,6 +9,14 @@ WORKDIR /app
 ENV NUXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co \
     NUXT_PUBLIC_SUPABASE_KEY=placeholder-anon-key
 
+# Build identity (baked into shared/buildInfo.js — not runtime-overridable)
+ARG APP_VERSION=
+ARG APP_CHANNEL=development
+ARG GIT_SHA=local
+ENV APP_VERSION=$APP_VERSION \
+    APP_CHANNEL=$APP_CHANNEL \
+    GIT_SHA=$GIT_SHA
+
 COPY package.json bun.lock* ./
 
 # Use ignore-scripts to avoid building node modules like better-sqlite3
@@ -17,7 +25,7 @@ RUN bun install --frozen-lockfile --ignore-scripts
 # Copy the entire project
 COPY . .
 
-RUN bun --bun run build
+RUN bun scripts/write-build-info.mjs && bun --bun run build
 
 # Copy production dependencies and source code into final image
 FROM oven/bun:${BUN_VERSION} AS production

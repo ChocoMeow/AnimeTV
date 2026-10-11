@@ -1,4 +1,6 @@
 <script setup>
+import { buildInfo } from '#shared/buildInfo'
+
 const appConfig = useAppConfig()
 
 const navExplore = [
@@ -32,6 +34,19 @@ const socialLinks = [
 ].filter((s) => s.url)
 
 const year = new Date().getFullYear()
+
+const commitUrl = computed(() => {
+    const sha = buildInfo.gitSha
+    const repo = appConfig.social?.github
+    if (!repo || !sha || sha === 'local') return null
+    return `${repo.replace(/\/$/, '')}/commit/${sha}`
+})
+
+const channelClass = {
+    stable: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+    beta: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+    development: 'bg-gray-500/15 text-gray-600 dark:text-gray-300',
+}[buildInfo.channel] || 'bg-gray-500/15 text-gray-600 dark:text-gray-300'
 </script>
 
 <template>
@@ -128,9 +143,25 @@ const year = new Date().getFullYear()
             </div>
 
             <!-- Bottom bar -->
-            <div class="mt-10 pt-8 border-t border-black/10 dark:border-white/10">
+            <div class="mt-10 pt-8 border-t border-black/10 dark:border-white/10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p class="text-sm text-gray-500 dark:text-gray-400">
                     © {{ year }} {{ appConfig.siteName }}. 保留所有權利。
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span>v{{ buildInfo.version }}</span>
+                    <span
+                        class="inline-flex items-center rounded px-1.5 py-0.5 font-medium capitalize"
+                        :class="channelClass"
+                    >{{ buildInfo.channel }}</span>
+                    <a
+                        v-if="commitUrl"
+                        :href="commitUrl"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="font-mono hover:text-gray-900 dark:hover:text-white transition-colors"
+                        :title="`View commit ${buildInfo.gitSha}`"
+                    >{{ buildInfo.gitSha }}</a>
+                    <span v-else class="font-mono">{{ buildInfo.gitSha }}</span>
                 </p>
             </div>
         </div>
