@@ -26,18 +26,13 @@ jobs:
             - name: Lowercase image name
               run: echo "IMAGE_NAME=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-            - name: Bump patch version
+            # Bump only in the workspace — commit/tag/push happen after a successful image build.
+            - name: Bump patch version (local)
+              id: bump
               if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
               run: |
-                  git config user.name "github-actions[bot]"
-                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
                   npm version patch --no-git-tag-version
-                  VERSION=$(node -p "require('./package.json').version")
-                  git add package.json
-                  git commit -m "chore: bump version to ${VERSION} [skip ci]"
-                  git tag "v${VERSION}"
-                  git push origin "HEAD:${{ github.ref_name }}"
-                  git push origin "v${VERSION}"
+                  echo "bumped=true" >> "$GITHUB_OUTPUT"
 
             - name: Resolve build metadata
               id: meta_ver
@@ -98,3 +93,14 @@ jobs:
                   cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
                   provenance: false
                   sbom: false
+
+            - name: Commit and tag version
+              if: ${{ steps.bump.outputs.bumped == 'true' }}
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  VERSION="${{ steps.meta_ver.outputs.version }}"
+                  git add package.json
+                  git commit -m "chore: bump version to ${VERSION} [skip ci]"
+                  git tag "v${VERSION}"
+                  git push --atomic origin "HEAD:${{ github.ref_name }}" "refs/tags/v${VERSION}"
