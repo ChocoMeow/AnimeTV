@@ -73,6 +73,8 @@ jobs:
                   tags: |
                       type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
                       type=raw,value=beta,enable=${{ github.ref_name == 'beta' }}
+                      type=raw,value=${{ steps.meta_ver.outputs.version }}
+                      type=raw,value=v${{ steps.meta_ver.outputs.version }}
                       type=sha
                   labels: |
                       org.opencontainers.image.version=${{ steps.meta_ver.outputs.version }}
