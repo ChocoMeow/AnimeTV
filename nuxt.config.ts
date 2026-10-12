@@ -8,7 +8,14 @@ export default defineNuxtConfig({
     css: ['~/assets/css/tailwind.css'],
     modules: ['@nuxtjs/tailwindcss', '@nuxtjs/supabase', '@vite-pwa/nuxt', '@nuxt/image', 'nuxt-security'],
     compatibilityDate: '2025-07-15',
-    devtools: { enabled: true },
+    devtools: { enabled: process.env.NODE_ENV !== 'production' },
+    // Vite 8: use postcss-nesting (ESM) instead of CJS tailwindcss/nesting
+    postcss: {
+        plugins: {
+            'postcss-nesting': {},
+            'tailwindcss/nesting': false,
+        },
+    },
     typescript: {
         tsConfig: {
             exclude: ['../app/service-worker'],
@@ -32,22 +39,24 @@ export default defineNuxtConfig({
     },
     $production: {
         vite: {
-            esbuild: {
-                drop: ['console', 'debugger'],
-                pure: ['console.debug', 'console.info', 'console.warn', 'console.error'],
+            build: {
+                rolldownOptions: {
+                    output: {
+                        minify: {
+                            compress: { dropConsole: true, dropDebugger: true },
+                        },
+                    },
+                },
             },
         },
         nitro: {
-            esbuild: {
-                options: {
-                    drop: ['console'],
-                },
-            },
-        }
+            esbuild: { options: { drop: ['console'] } },
+        },
     },
+    // NUXT_DEV_HOST=0.0.0.0 for LAN/device testing
     devServer: {
         port: 3000,
-        host: '0.0.0.0',
+        host: process.env.NUXT_DEV_HOST || 'localhost',
     },
     nitro: {
         preset: 'bun',
@@ -75,6 +84,7 @@ export default defineNuxtConfig({
     experimental: {
         emitRouteChunkError: 'automatic-immediate',
         entryImportMap: false,
+        early404: true,
     },
     app: {
         head: {
@@ -153,7 +163,7 @@ export default defineNuxtConfig({
                 },
                 {
                     src: 'icons/icon_144x144.webp',
-                    sizes: '64x64',
+                    sizes: '144x144',
                     type: 'image/webp',
                 },
                 {
@@ -193,6 +203,8 @@ export default defineNuxtConfig({
         types: false,
     },
     security: {
+        // Console drop is via $production rolldownOptions (Vite 8); security's esbuild path warns
+        removeLoggers: false,
         headers: {
             referrerPolicy: 'strict-origin-when-cross-origin',
             // Default is credentialless — breaks wiki YouTube iframes / CDNs without CORP
