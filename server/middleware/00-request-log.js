@@ -14,7 +14,7 @@ export default defineEventHandler((event) => {
     if (!bare || SKIP.some((p) => bare.startsWith(p)) || STATIC.test(bare)) return
 
     const started = Date.now()
-    event.node.res.on('finish', () => {
+    event.node.res.once('finish', () => {
         getRequestLogger(event).info(
             {
                 method: event.method || event.node?.req?.method || 'GET',

@@ -99,6 +99,9 @@ Make sure you have the following installed:
         # NUXT_LOG_MAX_DAYS=30
         # NUXT_LOG_TO_FILE=true
 
+        # Optional: expose Nuxt dev server on LAN (default is localhost)
+        # NUXT_DEV_HOST=0.0.0.0
+
         # Database backup / restore (Postgres connection — not the API service role key)
         # Prefer the Session pooler URL from Supabase → Connect
         # SUPABASE_DB_URL=postgresql://postgres.[REF]:[PASSWORD]@aws-0-....pooler.supabase.com:5432/postgres

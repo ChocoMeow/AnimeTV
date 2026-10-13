@@ -13,10 +13,7 @@ const showMobilePwaNav = useState("app-show-mobile-pwa-nav", () => false)
     >
         <SiteHeader />
 
-        <main
-            class="flex-1 w-full transition-all duration-300 ease-in-out max-md:transition-[margin-top,padding] max-md:duration-300"
-            :class="'max-md:pt-14'"
-        >
+        <main class="flex-1 w-full max-md:pt-14 transition-all duration-300 ease-in-out max-md:transition-[margin-top,padding]">
             <slot />
             <GlobalToast />
         </main>
@@ -30,16 +27,8 @@ const showMobilePwaNav = useState("app-show-mobile-pwa-nav", () => false)
 </template>
 
 <style>
-/* Smooth transitions for theme switching */
-* {
-    transition-property: background-color, border-color, color;
-    transition-duration: 200ms;
-    transition-timing-function: ease-in-out;
-}
-
-/* Prevent transition on page load */
-.dark-mode-transition-disabled * {
-    transition: none !important;
+html.theme-animating * {
+    transition: background-color 200ms ease-in-out, border-color 200ms ease-in-out, color 200ms ease-in-out;
 }
 
 /* Smooth scroll behavior */

@@ -379,8 +379,9 @@ onUnmounted(() => {
         </Transition>
     </Teleport>
 
-    <Teleport v-if="open && !isMobile && !isAiMode" to="#desktop-search-anchor">
-        <div class="flex w-full items-center justify-center gap-2">
+    <!-- Keep Teleport mounted; v-if on content avoids insertBefore races with the header anchor -->
+    <Teleport to="#desktop-search-anchor">
+        <div v-if="open && !isMobile && !isAiMode" class="flex w-full items-center justify-center gap-2">
             <div class="w-full max-w-xl">
                 <SearchInputBar
                     ref="inputBarRef"

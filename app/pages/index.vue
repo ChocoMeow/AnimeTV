@@ -1,40 +1,47 @@
 <script setup>
 const appConfig = useAppConfig()
-const loading = ref(true)
-const byDay = ref({})
-const themes = ref({})
-const spotlight = ref([])
-const fetchedAt = ref(null)
 
-const today = new Date()
-const jsDay = today.getDay()
-const dayMap = { 0: '7', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6' }
-const todayCode = dayMap[jsDay] || '1'
-const selectedDay = ref(todayCode)
-const displayedItems = computed(() => {
-    if (selectedDay.value === '0') {
-        return Object.values(byDay.value || {}).flat()
+function shapeHomeAnime(res) {
+    const byDay = res?.byDay || {}
+    const byRef = Object.fromEntries(
+        Object.values(byDay).flat().filter((i) => i?.refId).map((i) => [String(i.refId), i]),
+    )
+    return {
+        byDay,
+        themes: res?.themes || {},
+        spotlight: (res?.spotlight || []).map((item) => {
+            const d = byRef[String(item.refId)]
+            return d ? { ...item, image: d.thumbnail ?? item.image, episode: d.episode ?? null } : item
+        }),
+        fetchedAt: res?.fetchedAt || null,
     }
-    return byDay.value[selectedDay.value] || []
-})
-
-const weekdayLabel = {
-    0: '全部',
-    1: '週一',
-    2: '週二',
-    3: '週三',
-    4: '週四',
-    5: '週五',
-    6: '週六',
-    7: '週日',
 }
 
-const todayCount = computed(() => (byDay.value[todayCode] || []).length)
+// useFetch forwards cookies on SSR (needed for authUser on /api/anime)
+const { data: home, pending: loading } = await useFetch('/api/anime', {
+    key: 'home-anime',
+    default: () => ({ byDay: {}, themes: {}, spotlight: [], fetchedAt: null }),
+    transform: shapeHomeAnime,
+})
 
+const byDay = computed(() => home.value.byDay)
+const themes = computed(() => home.value.themes)
+const spotlight = computed(() => home.value.spotlight)
+const fetchedAt = computed(() => home.value.fetchedAt)
+
+const todayCode = String(new Date().getDay() || 7) // Sun=7, Mon=1…Sat=6
+const selectedDay = ref(todayCode)
+const weekdayLabel = { 0: '全部', 1: '週一', 2: '週二', 3: '週三', 4: '週四', 5: '週五', 6: '週六', 7: '週日' }
+
+const allByDay = computed(() => Object.values(byDay.value).flat())
+const displayedItems = computed(() =>
+    selectedDay.value === '0' ? allByDay.value : (byDay.value[selectedDay.value] || []),
+)
+const todayCount = computed(() => (byDay.value[todayCode] || []).length)
 const featured = computed(() => spotlight.value[0] || null)
 const sideSpotlight = computed(() => spotlight.value.slice(1))
+const shufflePool = computed(() => (allByDay.value.length ? allByDay.value : spotlight.value))
 
-// Personalized, time-of-day greeting — small but human touch on arrival.
 const greeting = computed(() => {
     const h = new Date().getHours()
     if (h >= 5 && h < 11) return { text: '早安', sub: '為新的一天，挑一部元氣滿滿的動畫吧', icon: 'wb_twilight' }
@@ -44,11 +51,6 @@ const greeting = computed(() => {
     return { text: '夜貓子模式', sub: '這麼晚還在追番嗎？記得早點休息喔', icon: 'dark_mode' }
 })
 
-// "Surprise me" — picks from the whole week's lineup, not just today, for real variety.
-const shufflePool = computed(() => {
-    const all = Object.values(byDay.value || {}).flat()
-    return all.length ? all : spotlight.value
-})
 function goRandom() {
     const pool = shufflePool.value
     if (!pool.length) return
@@ -56,7 +58,6 @@ function goRandom() {
     if (pick?.refId) navigateTo(`/anime/${pick.refId}`)
 }
 
-// Desktop-only tilt. The resting value is reapplied on leave so the card settles flat.
 const tiltRest = 'perspective(1200px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)'
 const tiltStyle = ref({ transform: tiltRest })
 function handleTiltMove(e) {
@@ -71,7 +72,6 @@ function resetTilt() {
     tiltStyle.value = { transform: tiltRest }
 }
 
-// Use shared tooltip composable
 const {
     hoveredAnime,
     animeDetails,
@@ -86,39 +86,8 @@ const {
     cleanup,
 } = useAnimeTooltip()
 
-async function fetchHomeAnime() {
-    loading.value = true
-    try {
-        const res = await $fetch('/api/anime')
-        byDay.value = res.byDay || {}
-        themes.value = res.themes || {}
-        const daily = Object.fromEntries(
-            Object.values(byDay.value).flat().filter((i) => i?.refId).map((i) => [String(i.refId), i]),
-        )
-        spotlight.value = (res.spotlight || []).map((item) => {
-            const d = daily[String(item.refId)]
-            return d ? { ...item, image: d.thumbnail ?? item.image, episode: d.episode ?? null } : item
-        })
-        fetchedAt.value = res.fetchedAt || null
-    } catch (err) {
-        console.error('Failed to fetch /api/anime:', err)
-        byDay.value = {}
-        themes.value = {}
-        spotlight.value = []
-    } finally {
-        loading.value = false
-    }
-}
-
 useHead({ title: `每日新番 | ${appConfig.siteName}` })
-
-onMounted(() => {
-    fetchHomeAnime()
-})
-
-onUnmounted(() => {
-    cleanup()
-})
+onUnmounted(cleanup)
 </script>
 
 <template>
