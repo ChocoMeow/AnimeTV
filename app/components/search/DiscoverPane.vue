@@ -48,7 +48,7 @@ const RANK_TONE = [
     'text-gray-400 dark:text-gray-500',
 ]
 
-const CARD = 'rounded-2xl bg-white shadow-sm ring-1 ring-black/6 dark:bg-white/[0.04] dark:ring-white/10'
+const CARD = 'rounded-2xl bg-white shadow-sm ring-1 ring-black/10 dark:bg-white/[0.04] dark:ring-white/10'
 const TITLE = 'text-base font-semibold tracking-tight text-gray-900 dark:text-gray-100'
 const SUBTITLE = 'mt-0.5 text-xs text-gray-500 dark:text-gray-400'
 const META = 'text-[11px] text-gray-500 dark:text-gray-400'
@@ -61,7 +61,7 @@ const POSTER_LG =
 const POSTER_SM =
     'aspect-[2/3] w-12 shrink-0 overflow-hidden rounded-lg bg-black/5 ring-1 ring-black/5 dark:bg-white/10 dark:ring-white/10'
 const TAG_PILL =
-    'rounded-full bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm ring-1 ring-black/6 transition-[transform,background-color] duration-200 hover:-translate-y-px hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-gray-900 dark:bg-white/[0.04] dark:text-gray-200 dark:ring-white/10 dark:hover:bg-white/[0.08] dark:focus-visible:ring-white'
+    'rounded-full bg-white px-3 py-1.5 text-xs font-medium text-gray-700 border border-black/10 transition-[transform,background-color] duration-200 hover:-translate-y-px hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-gray-900 dark:bg-white/[0.04] dark:text-gray-200 dark:border-white/10 dark:hover:bg-white/[0.08] dark:focus-visible:ring-white'
 
 const trending = ref([])
 const loading = ref(false)
@@ -116,7 +116,7 @@ function historyShellClass(item, featured) {
     return [
         'group relative flex items-center rounded-xl px-2 py-1 transition-colors',
         props.activeHistoryId === item.id
-            ? 'bg-white shadow-sm ring-1 ring-black/8 dark:bg-white/[0.08] dark:ring-white/15'
+            ? 'bg-white shadow-sm ring-1 ring-black/10 dark:bg-white/[0.08] dark:ring-white/15'
             : 'hover:bg-white/80 dark:hover:bg-white/[0.06]',
     ]
 }

@@ -157,7 +157,7 @@ onUnmounted(() => {
 <template>
     <!-- Filters Section -->
     <div
-        class="sticky z-40 bg-white/95 dark:bg-gray-950/90 backdrop-blur-sm border-b border-gray-200 dark:border-white/10 shadow-sm rounded-2xl md:top-16 max-md:transition-[top] max-md:duration-300"
+        class="sticky z-30 bg-white/95 dark:bg-gray-950/90 backdrop-blur-sm border-b border-black/10 dark:border-white/10 shadow-sm rounded-2xl md:top-16 max-md:transition-[top] max-md:duration-300"
         :class="headerHiddenMobile ? 'max-md:top-0' : 'max-md:top-14'"
     >
         <div class="max-w-7xl mx-auto px-4 py-4">
@@ -334,7 +334,7 @@ onUnmounted(() => {
 
 .tag-pill-inactive {
     @apply bg-white dark:bg-white/10 text-gray-600 dark:text-gray-300
-           border border-gray-200 dark:border-white/10
+           border border-black/10 dark:border-white/10
            hover:bg-black/10 dark:hover:bg-white/20
            hover:shadow-sm hover:-translate-y-0.5;
 }

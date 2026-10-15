@@ -44,7 +44,7 @@ const KBD =
 const KBD_WIDE =
     'inline-flex h-6 min-w-9 items-center justify-center rounded-md bg-black/5 px-1.5 text-[11px] font-medium uppercase leading-none tracking-wide text-gray-600 dark:bg-white/10 dark:text-gray-300'
 const DESKTOP_MIC_IDLE =
-    '!h-9 !w-9 bg-white text-gray-500 shadow-sm ring-1 ring-black/8 dark:bg-gray-950 dark:text-gray-400 dark:ring-white/10'
+    '!h-9 !w-9 bg-white text-gray-500 shadow-sm ring-1 ring-black/10 dark:bg-gray-950 dark:text-gray-400 dark:ring-white/10'
 const DESKTOP_MIC_HOVER =
     'hover:text-gray-800 hover:ring-black/15 dark:hover:text-gray-200 dark:hover:ring-white/20'
 
@@ -138,8 +138,8 @@ function suggestionCardClass(text) {
         'hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/10 focus-visible:ring-2 focus-visible:ring-gray-900',
         'dark:bg-white/[0.04] dark:hover:shadow-black/40 dark:focus-visible:ring-white',
         isSuggestionActive(text)
-            ? 'ring-black/12 dark:ring-white/20'
-            : 'ring-black/6 dark:ring-white/10',
+            ? 'ring-black/15 dark:ring-white/20'
+            : 'ring-black/10 dark:ring-white/10',
     ]
 }
 
