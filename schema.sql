@@ -340,8 +340,6 @@ CREATE TABLE IF NOT EXISTS "public"."favorites" (
     "id" integer NOT NULL,
     "user_id" "uuid" NOT NULL,
     "anime_ref_id" bigint NOT NULL,
-    "anime_title" "text" NOT NULL,
-    "anime_image" "text" NOT NULL,
     "created_at" timestamp without time zone DEFAULT "now"() NOT NULL
 );
 

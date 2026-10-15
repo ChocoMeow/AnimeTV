@@ -498,7 +498,7 @@ async function toggleFavorite() {
     const table = client.from('favorites')
     const match = { user_id: userSettings.value.id, anime_ref_id: anime.value.refId }
     const { error } = isFavorite.value
-        ? await table.insert({ ...match, anime_title: anime.value.title, anime_image: anime.value.image })
+        ? await table.insert(match)
         : await table.delete().match(match)
     if (error) {
         isFavorite.value = !isFavorite.value

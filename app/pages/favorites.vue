@@ -1,102 +1,85 @@
 <script setup>
+import { WATCH_ANIME_META, WATCH_ANIME_META_INNER, withAnimeCovers } from '#shared/utils/watchHistory'
+
 const { userSettings } = useUserSettings()
 const { showToast } = useToast()
 const appConfig = useAppConfig()
-const route = useRoute()
 const client = useSupabaseClient()
 
-const favoriteItems = ref([]) // each item will have seasonYear/seasonIndex/seasonLabel precomputed
+const SEASON_NAMES = ['冬季', '春季', '夏季', '秋季']
+const pageSize = 20
+
+const favoriteItems = ref([])
 const loading = ref(true)
 const searchQuery = ref('')
 const selectedItems = ref(new Set())
 const showDeleteConfirm = ref(false)
 const showDeleteAllConfirm = ref(false)
-const pageSize = 20
 const currentPage = ref(0)
 const hasMore = ref(true)
 const loadingMore = ref(false)
-const sortBy = ref('recent') // recent, title, season
+const sortBy = ref('recent')
 
-// ---------- Season helpers ----------
-function enrichWithSeason(favorites) {
-    const seasonNames = ['冬季', '春季', '夏季', '秋季']
-
-    return (favorites || []).map((item) => {
-        const premiere = item.anime_meta?.premiere_date
-        let year = 0
-        let month = 0
-
-        if (premiere) {
-            const [y, mo] = String(premiere).split('-')
-            year = Number(y) || 0
-            month = Number(mo) || 0
+function mapFavorites(rows) {
+    return withAnimeCovers(rows).map((item) => {
+        const [y, m] = String(item.premiere_date || '').split('-').map(Number)
+        const year = y || 0
+        const seasonIndex = m >= 1 && m <= 12 ? Math.floor((m - 1) / 3) : -1
+        return {
+            ...item,
+            seasonYear: year,
+            seasonIndex,
+            seasonLabel: year && seasonIndex >= 0 ? `${year} 年${SEASON_NAMES[seasonIndex]}` : '未分類季節',
         }
-
-        let seasonIndex = -1
-        if (month >= 1 && month <= 3) seasonIndex = 0
-        else if (month >= 4 && month <= 6) seasonIndex = 1
-        else if (month >= 7 && month <= 9) seasonIndex = 2
-        else if (month >= 10 && month <= 12) seasonIndex = 3
-
-        const label = year && seasonIndex >= 0 ? `${year} 年${seasonNames[seasonIndex]}` : '未分類季節'
-
-        return { ...item, seasonYear: year, seasonIndex, seasonLabel: label }
     })
 }
 
-// Computed filtered favorites (flat list used for grid and grouping)
+function buildFavoritesQuery(from, to) {
+    const search = searchQuery.value?.trim()
+    let query = client
+        .from('favorites')
+        .select(`*, ${search ? WATCH_ANIME_META_INNER : WATCH_ANIME_META}`)
+        .eq('user_id', userSettings.value.id)
+        .range(from, to)
+
+    if (search) query = query.ilike('anime_meta.title', `%${search}%`)
+    if (sortBy.value === 'title') return query.order('anime_meta(title)', { ascending: true })
+    if (sortBy.value === 'season') return query.order('anime_meta(premiere_date)', { ascending: false, nullsFirst: false })
+    return query.order('created_at', { ascending: false })
+}
+
 const filteredFavorites = computed(() => {
     let filtered = [...favoriteItems.value]
-
-    // Filter by search query
     if (searchQuery.value) {
         const query = searchQuery.value.toLowerCase()
         filtered = filtered.filter((item) => item.anime_title?.toLowerCase().includes(query))
     }
 
-    // Sort
     if (sortBy.value === 'title') {
         filtered.sort((a, b) => a.anime_title.localeCompare(b.anime_title))
     } else if (sortBy.value === 'season') {
-        // Sort by season (newest season first), fallback to recent if no season info
         filtered.sort((a, b) => {
             const yearA = a.seasonYear || 0
             const yearB = b.seasonYear || 0
-            const idxA = typeof a.seasonIndex === 'number' ? a.seasonIndex : -1
-            const idxB = typeof b.seasonIndex === 'number' ? b.seasonIndex : -1
-
-            // If both have valid season info, sort by year desc, then seasonIndex desc
+            const idxA = a.seasonIndex ?? -1
+            const idxB = b.seasonIndex ?? -1
             if (yearA && yearB) {
-                if (yearA !== yearB) {
-                    return yearB - yearA
-                }
-                if (idxA !== idxB) {
-                    return idxB - idxA
-                }
-            } else if (yearA && !yearB) {
-                return -1
-            } else if (!yearA && yearB) {
-                return 1
-            }
-
-            // Fallback: recent created_at
+                if (yearA !== yearB) return yearB - yearA
+                if (idxA !== idxB) return idxB - idxA
+            } else if (yearA) return -1
+            else if (yearB) return 1
             return new Date(b.created_at) - new Date(a.created_at)
         })
     } else {
-        // Sort by recent (created_at)
         filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     }
-
     return filtered
 })
 
-// Group favorites by season label for season view
 const groupedFavoritesBySeason = computed(() => {
     if (sortBy.value !== 'season') return {}
-
     return filteredFavorites.value.reduce((acc, item) => {
-        const label = item.seasonLabel || '未分類季節'
-        ;(acc[label] ||= []).push(item)
+        ;(acc[item.seasonLabel || '未分類季節'] ||= []).push(item)
         return acc
     }, {})
 })
@@ -104,55 +87,29 @@ const groupedFavoritesBySeason = computed(() => {
 function toggleSelectItem(id, event) {
     event.preventDefault()
     event.stopPropagation()
-    if (selectedItems.value.has(id)) {
-        selectedItems.value.delete(id)
-    } else {
-        selectedItems.value.add(id)
-    }
+    if (selectedItems.value.has(id)) selectedItems.value.delete(id)
+    else selectedItems.value.add(id)
 }
 
 function selectAll() {
-    if (selectedItems.value.size === filteredFavorites.value.length) {
-        selectedItems.value.clear()
-    } else {
-        filteredFavorites.value.forEach((item) => selectedItems.value.add(item.id))
-    }
+    if (selectedItems.value.size === filteredFavorites.value.length) selectedItems.value.clear()
+    else filteredFavorites.value.forEach((item) => selectedItems.value.add(item.id))
 }
 
 async function loadMore() {
     if (loading.value || loadingMore.value || !hasMore.value) return
-
     loadingMore.value = true
     try {
         const nextPage = currentPage.value + 1
-        const from = nextPage * pageSize
-        const to = from + pageSize - 1
-
-        let query = client.from('favorites').select('*, anime_meta!anime_ref_id(premiere_date)').eq('user_id', userSettings.value.id).range(from, to)
-
-        // Apply search filter (server-side)
-        if (searchQuery.value?.trim()) {
-            query = query.ilike('anime_title', `%${searchQuery.value.trim()}%`)
-        }
-
-        if (sortBy.value === 'title') {
-            query = query.order('anime_title', { ascending: true })
-        } else if (sortBy.value === 'season') {
-            query = query.order('anime_meta(premiere_date)', { ascending: false, nullsFirst: false })
-        } else {
-            query = query.order('created_at', { ascending: false })
-        }
-
-        const { data, error } = await query
+        const { data, error } = await buildFavoritesQuery(nextPage * pageSize, nextPage * pageSize + pageSize - 1)
         if (error) throw error
-
-        if (data && data.length > 0) {
-            favoriteItems.value = [...favoriteItems.value, ...enrichWithSeason(data)]
-            currentPage.value = nextPage
-            if (data.length < pageSize) hasMore.value = false
-        } else {
+        if (!data?.length) {
             hasMore.value = false
+            return
         }
+        favoriteItems.value = [...favoriteItems.value, ...mapFavorites(data)]
+        currentPage.value = nextPage
+        if (data.length < pageSize) hasMore.value = false
     } catch (err) {
         console.error('Failed to load more favorites:', err)
     } finally {
@@ -161,30 +118,18 @@ async function loadMore() {
 }
 
 function handleScroll() {
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop
-    const windowHeight = window.innerHeight
-    const documentHeight = document.documentElement.scrollHeight
-
-    // Load more when user is 200px from bottom
-    if (scrollTop + windowHeight >= documentHeight - 200) {
-        loadMore()
-    }
+    if (window.pageYOffset + window.innerHeight >= document.documentElement.scrollHeight - 200) loadMore()
 }
 
 async function deleteSelected() {
-    if (selectedItems.value.size === 0) return
-    showDeleteConfirm.value = true
+    if (selectedItems.value.size) showDeleteConfirm.value = true
 }
 
 async function confirmDelete() {
     try {
         const idsToDelete = Array.from(selectedItems.value)
-
         const { error } = await client.from('favorites').delete().in('id', idsToDelete)
-
         if (error) throw error
-
-        // Remove from local state
         favoriteItems.value = favoriteItems.value.filter((item) => !idsToDelete.includes(item.id))
         selectedItems.value.clear()
         showDeleteConfirm.value = false
@@ -198,9 +143,7 @@ async function confirmDeleteAll() {
     try {
         if (!userSettings.value.id) return
         const { error } = await client.from('favorites').delete().eq('user_id', userSettings.value.id)
-
         if (error) throw error
-
         favoriteItems.value = []
         selectedItems.value.clear()
         showDeleteAllConfirm.value = false
@@ -217,32 +160,11 @@ async function fetchFavorites() {
             favoriteItems.value = []
             return
         }
-
-        let query = client
-            .from('favorites')
-            .select('*, anime_meta!anime_ref_id(premiere_date)')
-            .eq('user_id', userSettings.value.id)
-            .range(0, pageSize - 1)
-
-        // Apply search filter (server-side)
-        if (searchQuery.value?.trim()) {
-            query = query.ilike('anime_title', `%${searchQuery.value.trim()}%`)
-        }
-
-        if (sortBy.value === 'title') {
-            query = query.order('anime_title', { ascending: true })
-        } else if (sortBy.value === 'season') {
-            query = query.order('anime_meta(premiere_date)', { ascending: false, nullsFirst: false })
-        } else {
-            query = query.order('created_at', { ascending: false })
-        }
-
-        const { data, error } = await query
+        const { data, error } = await buildFavoritesQuery(0, pageSize - 1)
         if (error) throw error
-
-        favoriteItems.value = enrichWithSeason(data || [])
+        favoriteItems.value = mapFavorites(data)
         currentPage.value = 0
-        hasMore.value = data && data.length === pageSize
+        hasMore.value = data?.length === pageSize
     } catch (err) {
         console.error('Failed to fetch favorites:', err)
         favoriteItems.value = []
@@ -261,7 +183,6 @@ onBeforeUnmount(() => {
     window.removeEventListener('scroll', handleScroll)
 })
 
-// Reset when sort or search changes
 watch([sortBy, searchQuery], () => {
     favoriteItems.value = []
     currentPage.value = 0

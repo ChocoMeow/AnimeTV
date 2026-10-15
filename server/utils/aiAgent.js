@@ -427,22 +427,16 @@ const handlers = {
     async get_favorites({ client, userId, args }) {
         const title = escapeIlike(args.title)
         const limit = clamp(args.limit, 1, 100, 30)
-
-        let countQuery = client.from('favorites').select('anime_ref_id', { count: 'exact', head: true }).eq('user_id', userId)
-        if (title) countQuery = countQuery.ilike('anime_title', `%${title}%`)
-        const { count, error: countError } = await countQuery
-        if (countError) throw countError
-
         let dbQuery = client
             .from('favorites')
-            .select('anime_ref_id, anime_title, anime_image, created_at')
+            .select(`anime_ref_id, created_at, ${title ? WATCH_ANIME_META_INNER : WATCH_ANIME_META}`, { count: 'exact' })
             .eq('user_id', userId)
-        if (title) dbQuery = dbQuery.ilike('anime_title', `%${title}%`)
+        if (title) dbQuery = dbQuery.ilike('anime_meta.title', `%${title}%`)
 
-        const { data, error } = await dbQuery.order('created_at', { ascending: false }).limit(limit)
+        const { data, count, error } = await dbQuery.order('created_at', { ascending: false }).limit(limit)
         if (error) throw error
         return {
-            items: data || [],
+            items: withAnimeCovers(data),
             total: count ?? (data || []).length,
             ...(title ? { filtered_by_title: title } : {}),
             links: [{ path: '/favorites', label: '打開收藏頁' }],
@@ -660,14 +654,10 @@ export async function applyConfirmedAction(event, userId, action) {
         }
 
         const title = found.title || animeId
-        const image = found.thumbnail || ''
         const match = { user_id: userId, anime_ref_id: animeId }
 
         if (favoriteAction === 'add') {
-            const { error } = await client.from('favorites').upsert(
-                { ...match, anime_title: title, anime_image: image },
-                { onConflict: 'user_id,anime_ref_id' },
-            )
+            const { error } = await client.from('favorites').upsert(match, { onConflict: 'user_id,anime_ref_id' })
             if (error) throw error
         } else {
             const { error } = await client.from('favorites').delete().match(match)

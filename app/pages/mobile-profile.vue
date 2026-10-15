@@ -52,7 +52,7 @@ async function fetchPreviews() {
             .range(0, PREVIEW_LIMIT - 1),
         client
             .from('favorites')
-            .select('id, anime_ref_id, anime_title, anime_image, created_at')
+            .select(`id, anime_ref_id, created_at, ${WATCH_ANIME_META}`)
             .eq('user_id', userSettings.value.id)
             .order('created_at', { ascending: false })
             .range(0, PREVIEW_LIMIT - 1),
@@ -62,7 +62,7 @@ async function fetchPreviews() {
     if (favoritesRes.error) console.error('Failed to fetch favorites preview:', favoritesRes.error)
 
     historyPreview.value = withAnimeCovers(historyRes.data)
-    favoritesPreview.value = favoritesRes.data || []
+    favoritesPreview.value = withAnimeCovers(favoritesRes.data)
 }
 
 async function signOut() {

@@ -138,7 +138,7 @@ async function load() {
                 .limit(24),
             client
                 .from('favorites')
-                .select('anime_ref_id, anime_title, anime_image, created_at')
+                .select(`anime_ref_id, created_at, ${WATCH_ANIME_META}`)
                 .eq('user_id', userId.value)
                 .order('created_at', { ascending: false })
                 .limit(24),
@@ -153,7 +153,7 @@ async function load() {
         ])
 
         const historyRows = withAnimeCovers(history)
-        const favRows = favs || []
+        const favRows = withAnimeCovers(favs)
         const myId = userSettings.value.id
 
         const [mutualWatchIds, mutualFavIds] = await Promise.all([

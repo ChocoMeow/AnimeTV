@@ -50,8 +50,6 @@ async function toggleFavorite(event) {
             await client.from("favorites").insert({
                 user_id: userSettings.value.id,
                 anime_ref_id: props.animeDetails.refId,
-                anime_title: props.animeDetails.title,
-                anime_image: props.animeDetails.image,
             })
         } else {
             await client.from("favorites").delete().match({
