@@ -2,14 +2,13 @@
 /**
  * Video player orchestrator — UI lives in sibling player/* components.
  */
-import { createParallelFragLoader } from '~/utils/hlsParallelFragLoader'
-
 const { isMobile } = useMobile()
 const { formatShortcutKey } = useUserSettings()
 
 const props = defineProps({
     src: { type: String, default: '' },
     isHls: { type: Boolean, default: false },
+    startTime: { type: Number, default: 0 },
     autoplay: { type: Boolean, default: false },
     preload: { type: String, default: 'metadata' },
     hasNextEpisode: { type: Boolean, default: true },
@@ -45,8 +44,13 @@ const buffered = ref(0)
 const showVolumeSlider = ref(false)
 const isLoading = ref(false)
 const isBuffering = ref(false)
-const showLoading = computed(() => props.loading || isLoading.value || isBuffering.value) /** Spinner for both initial load and mid-playback stalls */
-const isInitialLoading = computed(() => props.loading || isLoading.value) /** Hide controls only while the source is first loading (not while buffering) */
+/** Playing: stall spinner only. Idle: full load overlay. */
+const showLoading = computed(() =>
+    isPlaying.value
+        ? isBuffering.value || props.loading
+        : props.loading || isLoading.value || isBuffering.value,
+)
+const isInitialLoading = computed(() => !isPlaying.value && (props.loading || isLoading.value))
 const isDraggingProgress = ref(false)
 const dragPreviewTime = ref(0)
 const isHoveringProgress = ref(false)
@@ -82,15 +86,29 @@ let isUnmounted = false
 let spaceBoostActive = false
 let hlsInstance = null
 let hlsPrefetchReset = null
+let hlsRateLimitTimer = null
+let hlsRateLimitBackoff = false
 let isHoveringVolume = false
 let isSpaceHeld = false
 let originalPlaybackRate = 1
+let startTimeApplied = false
 const streamRecoveryAttempts = { network: 0, media: 0 }
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 const clearTimer = (timer) => {
     if (timer) clearTimeout(timer)
     return null
+}
+
+function applyStartTimeIfNeeded() {
+    if (startTimeApplied) return
+    const t = Number(props.startTime)
+    if (!(t > 0)) return
+    const video = videoRef.value
+    if (!video) return
+    video.currentTime = clamp(t, 0, Number.isFinite(video.duration) ? video.duration : Infinity)
+    currentTime.value = video.currentTime
+    startTimeApplied = true
 }
 
 function shortcutEntry(action) {
@@ -512,7 +530,11 @@ function handleProgressMouseLeaveBar() {
 }
 
 function onPlay() {
-    isPlaying.value = true; isEnded.value = false; resetControlsTimeout()
+    isPlaying.value = true
+    isEnded.value = false
+    isLoading.value = false
+    isBuffering.value = false
+    resetControlsTimeout()
     if (autoFullscreenEnabled.value && !document.fullscreenElement) toggleFullscreen()
     emit('play')
 }
@@ -533,11 +555,16 @@ function onLoadedMetadata() {
     const nextDuration = videoRef.value?.duration
     duration.value = Number.isFinite(nextDuration) ? nextDuration : 0
     applyCaptionTracks()
+    applyStartTimeIfNeeded()
 }
 function onLoadedData() { isLoading.value = false; isBuffering.value = false; emit('loadeddata') }
 function onLoadStart() { isLoading.value = true; emit('loadstart') }
 function onWaiting() { if (isPlaying.value) isBuffering.value = true }
-function onCanPlay() { isLoading.value = false; isBuffering.value = false }
+function onCanPlay() {
+    isLoading.value = false
+    isBuffering.value = false
+    applyStartTimeIfNeeded()
+}
 
 function onTimeUpdate() {
     const video = videoRef.value
@@ -655,7 +682,28 @@ function requestStreamRecovery() {
     streamErrorTimeout = setTimeout(() => emit('stream-error'), 300)
 }
 
+function backoffHls429(hls) {
+    if (hlsRateLimitBackoff) return
+    hlsRateLimitBackoff = true
+    isBuffering.value = true
+    isLoading.value = false
+    const level = Math.max(0, hls.currentLevel >= 0 ? hls.currentLevel : hls.loadLevel)
+    hls.stopLoad()
+    hls.loadLevel = level
+    hls.nextLoadLevel = level
+    hlsRateLimitTimer = clearTimer(hlsRateLimitTimer)
+    hlsRateLimitTimer = setTimeout(() => {
+        hlsRateLimitBackoff = false
+        hlsRateLimitTimer = null
+        if (hlsInstance !== hls || isUnmounted) return
+        isBuffering.value = false
+        hls.startLoad()
+    }, 4000)
+}
+
 function destroyHls() {
+    hlsRateLimitTimer = clearTimer(hlsRateLimitTimer)
+    hlsRateLimitBackoff = false
     hlsPrefetchReset?.()
     hlsPrefetchReset = null
     hlsInstance?.destroy()
@@ -691,6 +739,7 @@ function resetPlayerForSource() {
     playbackRate.value = 1
     autoplayDismissed.value = false
     resetAutoplayCountdown()
+    startTimeApplied = false
 }
 
 async function applyVideoSource(src, isHls, video) {
@@ -718,41 +767,52 @@ async function applyVideoSource(src, isHls, video) {
     }
 
     try {
-        const { FragLoader, warmAhead, clear, reset } = createParallelFragLoader(Hls)
-        hlsPrefetchReset = reset
+        // bzcdn rate-limits parallel prefetch / ABR retry storms — use stock loader there.
+        const limited = isDirectHlsSrc(src)
+        const parallel = limited ? null : createParallelFragLoader(Hls)
+        hlsPrefetchReset = parallel?.reset ?? null
 
+        const startPosition = Number(props.startTime) > 0 ? Number(props.startTime) : -1
         const hls = new Hls({
-            fragLoadingMaxRetry: 4,
-            manifestLoadingMaxRetry: 4,
-            levelLoadingMaxRetry: 4,
+            fragLoadingMaxRetry: limited ? 1 : 4,
+            fragLoadingRetryDelay: limited ? 4000 : 1000,
+            levelLoadingMaxRetry: limited ? 1 : 4,
             startLevel: 0,
+            startPosition,
             abrEwmaDefaultEstimate: 500_000,
             maxBufferLength: 30,
-            startFragPrefetch: true,
-            fLoader: FragLoader,
+            startFragPrefetch: !limited,
+            ...(parallel ? { fLoader: parallel.FragLoader } : {}),
         })
         hlsInstance = hls
+        if (startPosition > 0) startTimeApplied = true
+
+        const alive = () => hlsInstance === hls && generation === sourceGeneration
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            if (hlsInstance !== hls || generation !== sourceGeneration) return
-            syncQualityLevelsFromHls(hls)
+            if (alive()) syncQualityLevelsFromHls(hls)
         })
-        hls.on(Hls.Events.LEVEL_LOADED, (_, { details }) => {
-            if (hlsInstance !== hls || generation !== sourceGeneration) return
-            clear()
-            warmAhead(details?.fragments, 0)
-        })
-        hls.on(Hls.Events.FRAG_LOADED, (_, { frag }) => {
-            if (hlsInstance !== hls || generation !== sourceGeneration || frag?.type !== 'main') return
-            const details = hls.levels[frag.level]?.details
-            if (!details) return
-            warmAhead(details.fragments, frag.sn - details.startSN + 1)
-        })
+        if (parallel) {
+            hls.on(Hls.Events.LEVEL_LOADED, (_, { details }) => {
+                if (!alive()) return
+                parallel.clear()
+                parallel.warmAhead(details?.fragments, 0)
+            })
+            hls.on(Hls.Events.FRAG_LOADED, (_, { frag }) => {
+                if (!alive() || frag?.type !== 'main') return
+                const details = hls.levels[frag.level]?.details
+                if (details) parallel.warmAhead(details.fragments, frag.sn - details.startSN + 1)
+            })
+        }
         hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
-            if (hlsInstance !== hls || generation !== sourceGeneration) return
-            activeQualityIndex.value = data.level
+            if (alive()) activeQualityIndex.value = data.level
         })
         hls.on(Hls.Events.ERROR, (_, data) => {
-            if (!data.fatal || hlsInstance !== hls || generation !== sourceGeneration) return
+            if (!alive()) return
+            if (data?.response?.code === 429) {
+                backoffHls429(hls)
+                return
+            }
+            if (!data.fatal) return
             if (data.type === Hls.ErrorTypes.NETWORK_ERROR && streamRecoveryAttempts.network < 2) {
                 streamRecoveryAttempts.network++
                 isLoading.value = true

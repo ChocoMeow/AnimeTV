@@ -1,3 +1,17 @@
+import { DIRECT_HLS_HOST } from '#shared/utils/videoSources'
+
+/** True for bzcdn (and proxied `?url=` wrappers). Aggressive HLS loaders trip its rate limits. */
+export function isDirectHlsSrc(src) {
+    if (!src) return false
+    try {
+        const page = new URL(src, typeof location !== 'undefined' ? location.origin : 'http://localhost')
+        const raw = page.searchParams.get('url') || page.href
+        return DIRECT_HLS_HOST.test(new URL(raw, page).hostname)
+    } catch {
+        return false
+    }
+}
+
 /**
  * Prefetch upcoming HLS segments with a sliding concurrency window.
  * As soon as one download finishes, the next segment starts — no batch
@@ -9,7 +23,7 @@
  * aborting a load, cancels the underlying fetch instead of letting it
  * finish uselessly in the background and hog bandwidth.
  */
-export function createParallelFragLoader(Hls, { minAhead = 1, maxAhead = 6 } = {}) {
+export function createParallelFragLoader(Hls, { minAhead = 1, maxAhead = 6, gapMs = 0 } = {}) {
     const BaseLoader = Hls.DefaultConfig.loader
     const pending = new Map() // url -> { promise, index, controller }
 
@@ -17,6 +31,7 @@ export function createParallelFragLoader(Hls, { minAhead = 1, maxAhead = 6 } = {
     let fragments = []
     let cursor = 0
     let inFlight = 0
+    let pumpTimer = null
 
     const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n))
 
@@ -68,8 +83,20 @@ export function createParallelFragLoader(Hls, { minAhead = 1, maxAhead = 6 } = {
             })
             .finally(() => {
                 inFlight--
-                pump()
+                schedulePump()
             })
+    }
+
+    function schedulePump() {
+        if (gapMs <= 0) {
+            pump()
+            return
+        }
+        if (pumpTimer != null) return
+        pumpTimer = setTimeout(() => {
+            pumpTimer = null
+            pump()
+        }, gapMs)
     }
 
     function pump() {
@@ -77,6 +104,11 @@ export function createParallelFragLoader(Hls, { minAhead = 1, maxAhead = 6 } = {
         while (inFlight < limit && cursor < fragments.length) {
             warm(fragments[cursor], cursor)
             cursor++
+            // Rate-limited CDNs: start at most one warm per pump tick.
+            if (gapMs > 0) {
+                if (inFlight < limit && cursor < fragments.length) schedulePump()
+                break
+            }
         }
     }
 
@@ -96,6 +128,10 @@ export function createParallelFragLoader(Hls, { minAhead = 1, maxAhead = 6 } = {
     }
 
     function clear() {
+        if (pumpTimer != null) {
+            clearTimeout(pumpTimer)
+            pumpTimer = null
+        }
         for (const [url, entry] of pending) abortEntry(url, entry)
         fragments = []
         cursor = 0

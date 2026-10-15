@@ -101,10 +101,8 @@ const allWatchProgress = ref({})
 
 // Player
 const videoPlayer = ref(null)
-const hasSetInitialTime = ref(false)
 const isTheaterMode = ref(false)
 const streamResumeTime = ref(null)
-const streamResumePlaying = ref(false)
 const MAX_STREAM_RECOVERY = 3
 const episodeLoading = ref(false)
 let streamRecoveryAttempts = 0
@@ -159,6 +157,15 @@ const videoPlayerMeta = computed(() => {
         thumbnailsVttUrl: ep?.thumbnails_vtt_url || null,
         captions: Array.isArray(ep?.captions) ? ep.captions : [],
     }
+})
+
+const playerStartTime = computed(() => {
+    if (streamResumeTime.value != null) return Number(streamResumeTime.value) || 0
+    const q = parseFloat(route.query.t)
+    if (q > 0) return q
+    const saved = allWatchProgress.value[String(selectedEpisode.value)]
+    if (!saved || Number(saved.progress_percentage) >= 90) return 0
+    return Math.max(0, Number(saved.playback_time) || 0)
 })
 
 const additionalDetails = computed(() => {
@@ -506,47 +513,9 @@ async function toggleFavorite() {
     }
 }
 
-// ─── Video ready ──────────────────────────────────────────────────────────────
-async function onVideoReady() {
-    const recoveryTime = streamResumeTime.value
-    if (recoveryTime != null) {
-        streamResumeTime.value = null
-        hasSetInitialTime.value = true
-        const resumePlaying = streamResumePlaying.value
-        streamResumePlaying.value = false
-        const doResume = () => {
-            videoPlayer.value?.seek(recoveryTime)
-            if (resumePlaying) videoPlayer.value?.play()
-        }
-        const videoEl = videoPlayer.value?.videoElement
-        videoEl?.readyState >= 2 ? doResume() : videoEl?.addEventListener('canplay', doResume, { once: true })
-        return
-    }
-
-    if (hasSetInitialTime.value) return
-
-    let startTime = route.query.t ? parseFloat(route.query.t) : null
-
-    if (startTime == null && selectedEpisode.value) {
-        const saved = allWatchProgress.value[String(selectedEpisode.value)]
-        if (saved) startTime = Number(saved.progress_percentage) >= 90 ? 0 : Number(saved.playback_time)
-    }
-
-    if (startTime && !isNaN(startTime) && startTime > 0 && videoPlayer.value) {
-        const videoEl = videoPlayer.value.videoElement
-        const doSeek = () => {
-            if (!hasSetInitialTime.value) {
-                videoPlayer.value?.seek(startTime)
-                hasSetInitialTime.value = true
-            }
-        }
-        videoEl?.readyState >= 2 ? doSeek() : videoEl?.addEventListener('canplay', doSeek, { once: true })
-    } else {
-        hasSetInitialTime.value = true
-    }
-
+function onVideoReady() {
+    streamResumeTime.value = null
     videoPlayer.value?.videoElement && setTimeout(() => videoPlayer.value.videoElement.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100)
-
     if (anime.value && selectedEpisode.value)
         setWatching({ refId: anime.value.refId, title: anime.value.title, image: anime.value.image, episode: selectedEpisode.value })
 }
@@ -621,7 +590,6 @@ async function handleStreamError() {
     streamRecovering = true
     streamRecoveryAttempts++
     streamResumeTime.value = videoPlayer.value?.currentTime ?? 0
-    streamResumePlaying.value = videoPlayer.value?.isPlaying ?? false
     showToast('正在重新連線…', 'info')
 
     try {
@@ -642,7 +610,6 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
     if (oldEpNum && oldEpNum !== epNum) {
         streamRecoveryAttempts = 0
         if (videoPlayer.value) saveWatchHistory(oldEpNum)
-        hasSetInitialTime.value = false
         if (route.query.t || route.query.e) {
             const q = { ...route.query }
             delete q.t
@@ -898,6 +865,7 @@ onUnmounted(() => {
                             ref="videoPlayer"
                             :src="videoUrl || ''"
                             :is-hls="videoIsHls"
+                            :start-time="playerStartTime"
                             :loading="episodeLoading"
                             :anime-meta="videoPlayerMeta"
                             preload="metadata"
