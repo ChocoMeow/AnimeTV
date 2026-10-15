@@ -48,6 +48,18 @@
     }
 }
 
+/* Freeze element transitions while `.dark` flips; View Transition handles the fade */
+html.theme-animating,
+html.theme-animating * {
+    transition: none !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 200ms;
+    animation-timing-function: ease-in-out;
+}
+
 body {
     @apply bg-white dark:bg-gray-950 text-gray-900 dark:text-white;
     font-family:
