@@ -1,33 +1,16 @@
 <script setup>
 const appConfig = useAppConfig()
 
-function shapeHomeAnime(res) {
-    const byDay = res?.byDay || {}
-    const byRef = Object.fromEntries(
-        Object.values(byDay).flat().filter((i) => i?.refId).map((i) => [String(i.refId), i]),
-    )
-    return {
-        byDay,
-        themes: res?.themes || {},
-        spotlight: (res?.spotlight || []).map((item) => {
-            const d = byRef[String(item.refId)]
-            return d ? { ...item, image: d.thumbnail ?? item.image, episode: d.episode ?? null } : item
-        }),
-        fetchedAt: res?.fetchedAt || null,
-    }
-}
-
 // useFetch forwards cookies on SSR (needed for authUser on /api/anime)
 const { data: home, pending: loading } = await useFetch('/api/anime', {
     key: 'home-anime',
-    default: () => ({ byDay: {}, themes: {}, spotlight: [], fetchedAt: null }),
+    default: () => ({ byDay: {}, themes: {}, spotlight: [] }),
     transform: shapeHomeAnime,
 })
 
 const byDay = computed(() => home.value.byDay)
 const themes = computed(() => home.value.themes)
 const spotlight = computed(() => home.value.spotlight)
-const fetchedAt = computed(() => home.value.fetchedAt)
 
 const todayCode = String(new Date().getDay() || 7) // Sun=7, Mon=1…Sat=6
 const selectedDay = ref(todayCode)
@@ -51,26 +34,14 @@ const greeting = computed(() => {
     return { text: '夜貓子模式', sub: '這麼晚還在追番嗎？記得早點休息喔', icon: 'dark_mode' }
 })
 
-function goRandom() {
-    const pool = shufflePool.value
-    if (!pool.length) return
-    const pick = pool[Math.floor(Math.random() * pool.length)]
-    if (pick?.refId) navigateTo(`/anime/${pick.refId}`)
-}
-
 const tiltRest = 'perspective(1200px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)'
 const tiltStyle = ref({ transform: tiltRest })
-function handleTiltMove(e) {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = (e.clientX - rect.left) / rect.width - 0.5
-    const y = (e.clientY - rect.top) / rect.height - 0.5
-    tiltStyle.value = {
-        transform: `perspective(1200px) rotateX(${(-y * 4).toFixed(2)}deg) rotateY(${(x * 5).toFixed(2)}deg) scale3d(1.012, 1.012, 1.012)`,
-    }
-}
-function resetTilt() {
-    tiltStyle.value = { transform: tiltRest }
-}
+
+/** `null` = auto; set while day grids crossfade so height can ease */
+const scheduleHeight = ref(null)
+const scheduleStyle = computed(() =>
+    scheduleHeight.value == null ? undefined : { height: `${scheduleHeight.value}px` },
+)
 
 const {
     hoveredAnime,
@@ -85,6 +56,62 @@ const {
     setFavoriteStatus,
     cleanup,
 } = useAnimeTooltip()
+
+function shapeHomeAnime(res) {
+    const dayMap = res?.byDay || {}
+    const byRef = Object.fromEntries(
+        Object.values(dayMap).flat().filter((i) => i?.refId).map((i) => [String(i.refId), i]),
+    )
+    return {
+        byDay: dayMap,
+        themes: res?.themes || {},
+        spotlight: (res?.spotlight || []).map((item) => {
+            const d = byRef[String(item.refId)]
+            return d ? { ...item, image: d.thumbnail ?? item.image, episode: d.episode ?? null } : item
+        }),
+    }
+}
+
+function goRandom() {
+    const pool = shufflePool.value
+    if (!pool.length) return
+    const pick = pool[Math.floor(Math.random() * pool.length)]
+    if (pick?.refId) navigateTo(`/anime/${pick.refId}`)
+}
+
+function handleTiltMove(e) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / rect.width - 0.5
+    const y = (e.clientY - rect.top) / rect.height - 0.5
+    tiltStyle.value = {
+        transform: `perspective(1200px) rotateX(${(-y * 4).toFixed(2)}deg) rotateY(${(x * 5).toFixed(2)}deg) scale3d(1.012, 1.012, 1.012)`,
+    }
+}
+
+function resetTilt() {
+    tiltStyle.value = { transform: tiltRest }
+}
+
+function onScheduleBeforeLeave(el) {
+    scheduleHeight.value = el.offsetHeight
+}
+
+function onScheduleBeforeEnter(el) {
+    nextTick(() => {
+        const next = el.offsetHeight
+        if (scheduleHeight.value == null || scheduleHeight.value === next) {
+            scheduleHeight.value = null
+            return
+        }
+        requestAnimationFrame(() => {
+            scheduleHeight.value = next
+        })
+    })
+}
+
+function onScheduleAfterEnter() {
+    scheduleHeight.value = null
+}
 
 useHead({ title: `每日新番 | ${appConfig.siteName}` })
 onUnmounted(cleanup)
@@ -227,46 +254,56 @@ onUnmounted(cleanup)
                 </div>
 
                 <template v-else>
-                    <Transition name="schedule-day" mode="out-in">
-                    <div v-if="!displayedItems.length" :key="`empty-${selectedDay}`" class="empty-state py-12 text-gray-500 dark:text-gray-400">
-                        <span class="material-symbols-rounded text-4xl mb-2 opacity-40">event_busy</span>
-                        <p>今日暫無更新節目</p>
-                    </div>
-
-                    <div v-else :key="`day-${selectedDay}`" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
-                        <NuxtLink
-                            v-for="(item, index) in displayedItems"
-                            :key="item.refId"
-                            class="daily-item group"
-                            :style="{ '--card-i': index }"
-                            :to="`/anime/${item.refId}`"
-                            @mouseenter="handleMouseEnter(item, $event)"
-                            @mouseleave="handleMouseLeave"
+                    <div
+                        class="schedule-viewport"
+                        :class="{ 'is-resizing': scheduleHeight != null }"
+                        :style="scheduleStyle"
+                    >
+                        <Transition
+                            name="schedule-day"
+                            @before-leave="onScheduleBeforeLeave"
+                            @before-enter="onScheduleBeforeEnter"
+                            @after-enter="onScheduleAfterEnter"
                         >
-                            <AppImage
-                                :src="item.thumbnail"
-                                alt=""
-                                class="rounded-t-xl aspect-video"
-                                img-class="w-full h-full object-cover group-hover:scale-110"
-                            >
-                                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
-                                <div v-if="item.episode" class="absolute bottom-1.5 left-1.5 episode-badge">
-                                    {{ item.episode }}
-                                </div>
-                                <div class="absolute bottom-1.5 right-1.5 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-                                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/95 dark:bg-gray-950/95 flex items-center justify-center shadow-lg">
-                                        <span class="material-symbols-rounded text-base sm:text-lg text-gray-900 dark:text-gray-100">play_arrow</span>
-                                    </div>
-                                </div>
-                            </AppImage>
-                            <div class="p-2.5">
-                                <div class="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 line-clamp-1 leading-tight">
-                                    {{ item.title }}
-                                </div>
+                            <div v-if="!displayedItems.length" :key="`empty-${selectedDay}`" class="empty-state py-12 text-gray-500 dark:text-gray-400">
+                                <span class="material-symbols-rounded text-4xl mb-2 opacity-40">event_busy</span>
+                                <p>今日暫無更新節目</p>
                             </div>
-                        </NuxtLink>
+
+                            <div v-else :key="`day-${selectedDay}`" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+                                <NuxtLink
+                                    v-for="item in displayedItems"
+                                    :key="item.refId"
+                                    class="daily-item group"
+                                    :to="`/anime/${item.refId}`"
+                                    @mouseenter="handleMouseEnter(item, $event)"
+                                    @mouseleave="handleMouseLeave"
+                                >
+                                    <AppImage
+                                        :src="item.thumbnail"
+                                        alt=""
+                                        class="rounded-t-xl aspect-video"
+                                        img-class="w-full h-full object-cover group-hover:scale-110"
+                                    >
+                                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
+                                        <div v-if="item.episode" class="absolute bottom-1.5 left-1.5 episode-badge">
+                                            {{ item.episode }}
+                                        </div>
+                                        <div class="absolute bottom-1.5 right-1.5 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                                            <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/95 dark:bg-gray-950/95 flex items-center justify-center shadow-lg">
+                                                <span class="material-symbols-rounded text-base sm:text-lg text-gray-900 dark:text-gray-100">play_arrow</span>
+                                            </div>
+                                        </div>
+                                    </AppImage>
+                                    <div class="p-2.5">
+                                        <div class="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 line-clamp-1 leading-tight">
+                                            {{ item.title }}
+                                        </div>
+                                    </div>
+                                </NuxtLink>
+                            </div>
+                        </Transition>
                     </div>
-                    </Transition>
                 </template>
             </section>
 
@@ -510,35 +547,27 @@ onUnmounted(cleanup)
     @apply px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold text-white bg-black/70 backdrop-blur-sm;
 }
 
+.schedule-viewport {
+    position: relative;
+    overflow: hidden;
+}
+.schedule-viewport.is-resizing {
+    transition: height 0.3s ease;
+}
 .schedule-day-enter-active,
 .schedule-day-leave-active {
-    transition: opacity 0.35s ease, transform 0.35s ease;
+    transition: opacity 0.3s ease;
 }
-
-.schedule-day-enter-from {
-    opacity: 0;
-    transform: translateY(10px);
+/* Outgoing day overlays so only the incoming grid sets height */
+.schedule-day-leave-active {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    width: 100%;
 }
-
+.schedule-day-enter-from,
 .schedule-day-leave-to {
     opacity: 0;
-    transform: translateY(-8px);
-}
-
-.daily-item {
-    animation: schedule-card-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-    animation-delay: calc(var(--card-i, 0) * 45ms);
-}
-
-@keyframes schedule-card-in {
-    from {
-        opacity: 0;
-        transform: translateY(12px) scale(0.96);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
 }
 
 .feature-card:focus-visible,
@@ -684,7 +713,7 @@ onUnmounted(cleanup)
     .rise-in,
     .schedule-day-enter-active,
     .schedule-day-leave-active,
-    .daily-item,
+    .schedule-viewport.is-resizing,
     .feature-stage,
     .feature-img,
     .feature-cta,

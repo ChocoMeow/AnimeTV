@@ -37,8 +37,8 @@ const {
     cleanup: cleanupAnimeTooltip,
 } = useAnimeTooltip()
 
-const ROW_ACTIVE = 'bg-black/8 dark:bg-white/10'
-const ROW_IDLE = 'hover:bg-black/5 dark:hover:bg-white/5'
+const ROW_ACTIVE = 'bg-white shadow-sm dark:bg-white/10 dark:shadow-none'
+const ROW_IDLE = 'hover:bg-white/90 dark:hover:bg-white/[0.08]'
 const KBD =
     'inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-black/5 px-1.5 text-xs font-medium leading-none text-gray-600 dark:bg-white/10 dark:text-gray-300'
 const KBD_WIDE =

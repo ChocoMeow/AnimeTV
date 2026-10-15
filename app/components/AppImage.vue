@@ -106,13 +106,13 @@ onMounted(() => {
     backface-visibility: hidden;
 }
 .app-img.is-loaded {
-    animation: app-img-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: app-img-in 1.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 .app-img-ghost {
     transform: scale(1.1);
     pointer-events: none;
     backface-visibility: hidden;
-    animation: app-img-out 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: app-img-out 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes app-img-in {
