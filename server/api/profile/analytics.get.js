@@ -1,5 +1,6 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { createLoggedError } from '~~/server/utils/logger'
+import { parseDbTimestamp } from '~~/app/utils/formatTime'
 
 function parseEp(ep) {
     const n = Number.parseInt(String(ep).replace(/\D/g, ''), 10)
@@ -150,7 +151,7 @@ export default defineEventHandler(async (event) => {
             const id = r.anime_ref_id
             const pt = watchSeconds(r)
             const p = Number(r.progress_percentage) || 0
-            const d = new Date(r.updated_at)
+            const d = parseDbTimestamp(r.updated_at)
             const dk = fmt.dateKey(d)
 
             totalWatchSeconds += pt

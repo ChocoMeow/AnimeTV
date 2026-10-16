@@ -50,14 +50,8 @@ function formatBytes(bytes) {
 }
 
 function formatSavedAt(ts) {
-    if (!ts) return ''
-    const then = new Date(ts)
-    if (Number.isNaN(then.getTime())) return ''
-    const diff = Date.now() - then.getTime()
-    if (diff < 60_000) return '剛剛更新'
-    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分鐘前更新`
-    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小時前更新`
-    return `${then.getFullYear()}年${then.getMonth() + 1}月${then.getDate()}日更新`
+    const label = formatRelativeDate(ts)
+    return label ? `${label}更新` : ''
 }
 
 function animeStats(anime) {

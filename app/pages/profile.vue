@@ -145,10 +145,10 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                         <p v-if="email" class="text-sm text-gray-600 dark:text-gray-400 truncate">{{ email }}</p>
                         <div v-if="analytics.summary.firstWatchAt" class="flex flex-wrap gap-x-4 mt-1">
                             <span class="text-xs text-gray-500 dark:text-gray-500">
-                                最早紀錄 {{ new Date(analytics.summary.firstWatchAt).toLocaleDateString() }}
+                                最早紀錄 {{ formatCalendarDate(analytics.summary.firstWatchAt) }}
                             </span>
                             <span v-if="analytics.summary.lastWatchAt" class="text-xs text-gray-500 dark:text-gray-500">
-                                最近紀錄 {{ new Date(analytics.summary.lastWatchAt).toLocaleDateString() }}
+                                最近紀錄 {{ formatCalendarDate(analytics.summary.lastWatchAt) }}
                             </span>
                         </div>
                     </div>

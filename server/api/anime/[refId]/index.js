@@ -7,12 +7,13 @@ import {
 } from '~~/server/utils/scrapeAnimeMeta'
 import { parseViews } from '~~/server/utils/functions'
 import { getRequestLogger, moduleLogger } from '~~/server/utils/logger'
+import { parseDbTimestamp } from '~~/app/utils/formatTime'
 
 const log = moduleLogger('anime-detail')
 const ONE_MONTH_MS = 1000 * 60 * 60 * 24 * 30
 
 const isStale = (meta) => {
-    const ms = new Date(meta?.updated_at).getTime()
+    const ms = parseDbTimestamp(meta?.updated_at).getTime()
     return !isNaN(ms) && Date.now() - ms > ONE_MONTH_MS
 }
 

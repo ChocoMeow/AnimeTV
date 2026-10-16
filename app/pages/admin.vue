@@ -174,17 +174,23 @@ function formatValueForInput(value, type) {
                 if (dateOnlyPattern.test(value)) {
                     return value
                 }
-                const date = new Date(value)
+                const date = parseDbTimestamp(value)
                 if (!isNaN(date.getTime())) {
-                    return date.toISOString().slice(0, 10)
+                    const month = String(date.getMonth() + 1).padStart(2, '0')
+                    const day = String(date.getDate()).padStart(2, '0')
+                    return `${date.getFullYear()}-${month}-${day}`
                 }
             }
             return ''
         case 'datetime':
             if (typeof value === 'string') {
-                const date = new Date(value)
+                const date = parseDbTimestamp(value)
                 if (!isNaN(date.getTime())) {
-                    return date.toISOString().slice(0, 16)
+                    const month = String(date.getMonth() + 1).padStart(2, '0')
+                    const day = String(date.getDate()).padStart(2, '0')
+                    const hours = String(date.getHours()).padStart(2, '0')
+                    const minutes = String(date.getMinutes()).padStart(2, '0')
+                    return `${date.getFullYear()}-${month}-${day}T${hours}:${minutes}`
                 }
             }
             return ''

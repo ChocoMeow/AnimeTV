@@ -68,10 +68,10 @@ const filteredFavorites = computed(() => {
                 if (idxA !== idxB) return idxB - idxA
             } else if (yearA) return -1
             else if (yearB) return 1
-            return new Date(b.created_at) - new Date(a.created_at)
+            return parseDbTimestamp(b.created_at) - parseDbTimestamp(a.created_at)
         })
     } else {
-        filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        filtered.sort((a, b) => parseDbTimestamp(b.created_at) - parseDbTimestamp(a.created_at))
     }
     return filtered
 })

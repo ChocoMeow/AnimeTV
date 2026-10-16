@@ -69,7 +69,7 @@ const scrollRef = ref(null)
 let loaded = false
 
 const sortedHistory = computed(() =>
-    [...props.history].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
+    [...props.history].sort((a, b) => parseDbTimestamp(b.created_at) - parseDbTimestamp(a.created_at)),
 )
 
 function stagger(i, step = 35, max = 12) {
@@ -82,20 +82,6 @@ function rankLabel(i) {
 
 function rankTone(i) {
     return RANK_TONE[Math.min(i, RANK_TONE.length - 1)]
-}
-
-function formatHistoryWhen(createdAt) {
-    if (!createdAt) return ''
-    const date = new Date(createdAt)
-    const diffMs = Date.now() - date.getTime()
-    const diffDays = Math.floor(diffMs / 86400000)
-    if (diffDays === 0) {
-        const hours = Math.floor(diffMs / 3600000)
-        return hours === 0 ? `${Math.max(1, Math.floor(diffMs / 60000))} 分鐘前` : `${hours} 小時前`
-    }
-    if (diffDays === 1) return '昨天'
-    if (diffDays < 7) return `${diffDays} 天前`
-    return date.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' })
 }
 
 function animeMeta(anime) {
@@ -227,7 +213,7 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
                                 {{ item.query }}
                             </span>
                             <span :class="['mt-0.5 block', META]">
-                                {{ i === 0 ? '最近搜尋 · ' : '' }}{{ formatHistoryWhen(item.created_at) }}
+                                {{ i === 0 ? '最近搜尋 · ' : '' }}{{ formatRelativeDate(item.created_at) }}
                             </span>
                         </span>
                     </button>

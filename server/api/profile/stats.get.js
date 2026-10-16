@@ -1,5 +1,6 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { createLoggedError } from '~~/server/utils/logger'
+import { parseDbTimestamp } from '~~/app/utils/formatTime'
 
 // Pages through PostgREST max-rows (first batch length = page size)
 async function fetchWatchHistory(client, userId, rangeStartIso, rangeEndIso) {
@@ -110,7 +111,7 @@ export default defineEventHandler(async (event) => {
         }
 
         for (const row of historyRows) {
-            const t = new Date(row.updated_at)
+            const t = parseDbTimestamp(row.updated_at)
             let key
             if (bucketType === 'hour') {
                 key = t.toISOString().slice(0, 13)
@@ -148,7 +149,7 @@ export default defineEventHandler(async (event) => {
         const watchByWeekday = Array(7).fill(0)
         const weekdayLabels = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
         for (const row of historyRows) {
-            const t = new Date(row.updated_at)
+            const t = parseDbTimestamp(row.updated_at)
             watchByHour[t.getHours()] += watchSeconds(row)
             const wd = (t.getDay() + 6) % 7
             watchByWeekday[wd] += watchSeconds(row)

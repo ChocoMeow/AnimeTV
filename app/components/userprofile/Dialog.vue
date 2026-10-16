@@ -86,7 +86,7 @@ function loadBannerFromAvatar(url) {
 }
 
 function inferActivityStatus(lastActivityAt) {
-    const minutesAgo = lastActivityAt ? (Date.now() - new Date(lastActivityAt)) / 60000 : Infinity
+    const minutesAgo = lastActivityAt ? (Date.now() - parseDbTimestamp(lastActivityAt)) / 60000 : Infinity
     if (minutesAgo <= 10) return { label: '在線中', dotClass: 'bg-emerald-500' }
     if (minutesAgo <= 60) return { label: '剛剛有活動', dotClass: 'bg-amber-400' }
     return { label: '離線', dotClass: 'bg-gray-500' }

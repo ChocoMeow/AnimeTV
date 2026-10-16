@@ -27,26 +27,6 @@ const friendSections = computed(() => [
     { friends: offlineFriends.value, title: "離線", status: "offline", dotColorClass: "bg-gray-400", icon: null, text: null, isOffline: true }
 ].filter(section => section.friends.length > 0))
 
-// Helper to format last seen time
-const formatLastSeen = (lastSeen) => {
-    if (!lastSeen) return "未知"
-
-    const seen = new Date(lastSeen)
-    const localOffset = new Date().getTimezoneOffset() * 60000
-    const localSeen = new Date(seen.getTime() - localOffset)
-    const now = new Date()
-
-    const diffMs = now - localSeen
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMs / 3600000)
-    const diffDays = Math.floor(diffMs / 86400000)
-
-    if (diffMins < 1) return "剛剛"
-    if (diffMins < 60) return `${diffMins} 分鐘前`
-    if (diffHours < 24) return `${diffHours} 小時前`
-    return `${diffDays} 天前`
-}
-
 // Save state to localStorage
 const saveState = (open) => {
     if (typeof localStorage !== 'undefined') {
@@ -190,7 +170,7 @@ onBeforeUnmount(() => {
                                 <h4 class="font-medium text-sm text-gray-900 dark:text-white truncate hover:underline">
                                     {{ friend.name }}</h4>
                                 <p v-if="section.isOffline" class="text-xs text-gray-500 dark:text-gray-400">上次上線 {{
-                                    formatLastSeen(friend.lastSeen) }}</p>
+                                    formatRelativeDate(friend.lastSeen) || '未知' }}</p>
                                 <p v-else class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                     <span v-if="section.icon" class="material-symbols-rounded text-xs">{{ section.icon }}</span>
                                     {{ section.text }}
@@ -264,7 +244,7 @@ onBeforeUnmount(() => {
                                 <h4 class="font-semibold text-base text-gray-900 dark:text-white truncate">{{
                                     friend.name }}</h4>
                                 <p v-if="section.isOffline" class="text-sm text-gray-500 dark:text-gray-400">上次上線 {{
-                                    formatLastSeen(friend.lastSeen) }}</p>
+                                    formatRelativeDate(friend.lastSeen) || '未知' }}</p>
                                 <p v-else class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                     <span v-if="section.icon" class="material-symbols-rounded text-sm">{{ section.icon }}</span>
                                     {{ section.text }}

@@ -53,7 +53,7 @@ const groupedHistory = computed(() => {
     const groups = {}
 
     filteredHistory.value.forEach((item) => {
-        const date = new Date(item.updated_at)
+        const date = parseDbTimestamp(item.updated_at)
         const today = new Date()
         const yesterday = new Date(today)
         yesterday.setDate(yesterday.getDate() - 1)
