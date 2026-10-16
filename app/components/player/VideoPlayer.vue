@@ -106,9 +106,22 @@ function applyStartTimeIfNeeded() {
     if (!(t > 0)) return
     const video = videoRef.value
     if (!video) return
-    video.currentTime = clamp(t, 0, Number.isFinite(video.duration) ? video.duration : Infinity)
-    currentTime.value = video.currentTime
+    // canplay also fires after skip/scrub. If playback is already past the
+    // resume point, lock it in instead of pulling the playhead backward.
+    if (video.currentTime > t + 1) {
+        startTimeApplied = true
+        return
+    }
+    seekTo(t)
+}
+
+function seekTo(time) {
+    const video = videoRef.value
+    if (!video) return
     startTimeApplied = true
+    const maxTime = Number.isFinite(video.duration) ? video.duration : Infinity
+    video.currentTime = clamp(Number(time) || 0, 0, maxTime)
+    currentTime.value = video.currentTime
 }
 
 function shortcutEntry(action) {
@@ -228,7 +241,7 @@ function togglePlay() {
     if (!video) return
     if (isEnded.value) {
         isEnded.value = false
-        video.currentTime = 0
+        seekTo(0)
         video.play().catch(() => {})
         return
     }
@@ -239,8 +252,7 @@ function togglePlay() {
 function skip(seconds) {
     const video = videoRef.value
     if (!video) return
-    const maxTime = Number.isFinite(video.duration) ? video.duration : Infinity
-    video.currentTime = clamp(video.currentTime + seconds, 0, maxTime)
+    seekTo(video.currentTime + seconds)
 }
 
 function skipOP() {
@@ -500,9 +512,8 @@ function handleProgressPointerUp(e) {
         : calculateTimeFromPosition(e) ?? dragPreviewTime.value
     progressApi()?.releasePointerCapture?.(e.pointerId)
     if (video && Number.isFinite(t)) {
-        currentTime.value = t
-        video.currentTime = t
         isEnded.value = false
+        seekTo(t)
     }
     isDraggingProgress.value = false
     if (isPlaying.value) resetControlsTimeout()
@@ -866,12 +877,7 @@ defineExpose({
     volume: computed(() => volume.value),
     play: () => videoRef.value?.play().catch(() => {}),
     pause: () => videoRef.value?.pause(),
-    seek: (time) => {
-        const video = videoRef.value
-        if (!video) return
-        const maxTime = Number.isFinite(video.duration) ? video.duration : Infinity
-        video.currentTime = clamp(Number(time) || 0, 0, maxTime)
-    },
+    seek: (time) => seekTo(time),
     setVolume,
 })
 

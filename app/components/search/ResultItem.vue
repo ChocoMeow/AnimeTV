@@ -28,7 +28,7 @@ function onEnter(e) {
         <AppImage
             :src="result.image"
             :alt="result.title"
-            class="aspect-[2/3] w-11 shrink-0 rounded-md bg-black/5 dark:bg-white/10 sm:w-14"
+            class="aspect-[2/3] w-16 shrink-0 rounded-md bg-black/5 dark:bg-white/10 sm:w-14"
             error-icon="image"
             icon-class="text-lg"
         />

@@ -172,7 +172,7 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
                 class="flex h-9 shrink-0 items-center gap-2.5 rounded-full px-3.5 text-sm transition-colors md:w-full"
                 :class="
                     tab === t.id
-                        ? 'bg-white font-medium text-gray-900 shadow-sm dark:bg-white/10 dark:text-gray-100'
+                        ? 'bg-black/[0.06] font-medium text-gray-900 dark:bg-white/10 dark:text-gray-100'
                         : 'text-gray-500 hover:bg-black/5 dark:text-gray-400 dark:hover:bg-white/5'
                 "
                 @click="tab = t.id"
