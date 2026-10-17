@@ -14,12 +14,22 @@ const spotlight = computed(() => home.value.spotlight)
 
 const todayCode = String(new Date().getDay() || 7) // Sun=7, Mon=1…Sat=6
 const selectedDay = ref(todayCode)
-const weekdayLabel = { 0: '全部', 1: '週一', 2: '週二', 3: '週三', 4: '週四', 5: '週五', 6: '週六', 7: '週日' }
+const dailyFeed = ref(null)
+let spyLock = 0
+let daySpyFrame = 0
 
+const weekRail = computed(() => {
+    const days = [...'一二三四五六日'].map((label, i) => ({
+        code: String(i + 1),
+        label,
+        zh: `週${label}`,
+        items: byDay.value[String(i + 1)] || [],
+    }))
+    const start = Math.max(0, Number(todayCode) - 1)
+    return days.slice(start).concat(days.slice(0, start))
+})
+const activeDayIndex = computed(() => Math.max(0, weekRail.value.findIndex((day) => day.code === selectedDay.value)))
 const allByDay = computed(() => Object.values(byDay.value).flat())
-const displayedItems = computed(() =>
-    selectedDay.value === '0' ? allByDay.value : (byDay.value[selectedDay.value] || []),
-)
 const todayCount = computed(() => (byDay.value[todayCode] || []).length)
 const featured = computed(() => spotlight.value[0] || null)
 const sideSpotlight = computed(() => spotlight.value.slice(1))
@@ -36,12 +46,6 @@ const greeting = computed(() => {
 
 const tiltRest = 'perspective(1200px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)'
 const tiltStyle = ref({ transform: tiltRest })
-
-/** `null` = auto; set while day grids crossfade so height can ease */
-const scheduleHeight = ref(null)
-const scheduleStyle = computed(() =>
-    scheduleHeight.value == null ? undefined : { height: `${scheduleHeight.value}px` },
-)
 
 const {
     hoveredAnime,
@@ -92,29 +96,48 @@ function resetTilt() {
     tiltStyle.value = { transform: tiltRest }
 }
 
-function onScheduleBeforeLeave(el) {
-    scheduleHeight.value = el.offsetHeight
-}
-
-function onScheduleBeforeEnter(el) {
-    nextTick(() => {
-        const next = el.offsetHeight
-        if (scheduleHeight.value == null || scheduleHeight.value === next) {
-            scheduleHeight.value = null
+function syncDayFromScroll() {
+    if (spyLock || !dailyFeed.value) return
+    const line = 96
+    const feed = dailyFeed.value.getBoundingClientRect()
+    if (feed.bottom < line || feed.top > line) return
+    for (const el of dailyFeed.value.querySelectorAll('[data-day]')) {
+        const rect = el.getBoundingClientRect()
+        if (rect.top <= line && rect.bottom > line && el.dataset.day) {
+            selectedDay.value = el.dataset.day
             return
         }
-        requestAnimationFrame(() => {
-            scheduleHeight.value = next
-        })
-    })
+    }
 }
 
-function onScheduleAfterEnter() {
-    scheduleHeight.value = null
+function onPageScroll() {
+    cancelAnimationFrame(daySpyFrame)
+    daySpyFrame = requestAnimationFrame(syncDayFromScroll)
+}
+
+function focusDay(code) {
+    selectedDay.value = code
+    const el = document.getElementById(`daily-day-${code}`)
+    if (!el) return
+    const lock = ++spyLock
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const unlock = () => {
+        if (lock === spyLock) spyLock = 0
+    }
+    window.addEventListener('scrollend', unlock, { once: true })
+    window.setTimeout(unlock, 900)
 }
 
 useHead({ title: `每日新番 | ${appConfig.siteName}` })
-onUnmounted(cleanup)
+onMounted(() => {
+    window.addEventListener('scroll', onPageScroll, { passive: true })
+    nextTick(syncDayFromScroll)
+})
+onUnmounted(() => {
+    window.removeEventListener('scroll', onPageScroll)
+    cancelAnimationFrame(daySpyFrame)
+    cleanup()
+})
 </script>
 
 <template>
@@ -227,54 +250,57 @@ onUnmounted(cleanup)
 
             <!-- Daily Schedule Section -->
             <section id="daily-schedule" class="scroll-mt-20">
-                <div class="flex items-end justify-between gap-4 mb-4 sm:mb-6">
-                    <div>
-                        <h2 class="section-title">每日新番</h2>
-                        <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            <span class="hidden sm:inline">滑鼠懸停查看詳情 | </span>點擊日期標籤查看當日更新
-                        </p>
+                <div class="mb-4 sm:mb-6">
+                    <h2 class="section-title">每日新番</h2>
+                    <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        這週每天更新的動畫都在這裡。
+                    </p>
+                </div>
+
+                <div class="daily-layout">
+                    <nav class="day-rail" aria-label="星期">
+                        <div class="day-rail-list">
+                            <div
+                                class="day-rail-pill"
+                                :style="{ transform: `translateY(calc(${activeDayIndex} * (var(--day-step) + var(--day-gap))))` }"
+                                aria-hidden="true"
+                            />
+                            <button
+                                v-for="day in weekRail"
+                                :key="day.code"
+                                type="button"
+                                class="day-rail-btn"
+                                :class="{ 'is-active': selectedDay === day.code }"
+                                :aria-pressed="selectedDay === day.code"
+                                :aria-label="day.zh"
+                                :disabled="loading"
+                                @click="focusDay(day.code)"
+                            >
+                                <span>{{ day.label }}</span>
+                            </button>
+                        </div>
+                    </nav>
+
+                    <div v-if="loading" class="daily-feed daily-stack" aria-hidden="true">
+                        <div v-for="n in 8" :key="n" class="daily-card-skel" />
                     </div>
-                </div>
 
-                <div class="flex flex-wrap gap-2 mb-5 sm:mb-6">
-                    <button
-                        v-for="d in Object.keys(weekdayLabel)"
-                        :key="d"
-                        type="button"
-                        :class="['day-tab', selectedDay === d ? 'day-tab-active' : 'day-tab-inactive']"
-                        :disabled="loading"
-                        @click="selectedDay = d"
-                    >
-                        {{ weekdayLabel[d] }}
-                    </button>
-                </div>
-
-                <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
-                    <SkeletonDailyItem v-for="n in 12" :key="n" />
-                </div>
-
-                <template v-else>
-                    <div
-                        class="schedule-viewport"
-                        :class="{ 'is-resizing': scheduleHeight != null }"
-                        :style="scheduleStyle"
-                    >
-                        <Transition
-                            name="schedule-day"
-                            @before-leave="onScheduleBeforeLeave"
-                            @before-enter="onScheduleBeforeEnter"
-                            @after-enter="onScheduleAfterEnter"
+                    <div v-else ref="dailyFeed" class="daily-feed flex flex-col">
+                        <div
+                            v-for="day in weekRail"
+                            :id="`daily-day-${day.code}`"
+                            :key="day.code"
+                            class="scroll-mt-[5.5rem]"
+                            :data-day="day.code"
                         >
-                            <div v-if="!displayedItems.length" :key="`empty-${selectedDay}`" class="empty-state py-12 text-gray-500 dark:text-gray-400">
-                                <span class="material-symbols-rounded text-4xl mb-2 opacity-40">event_busy</span>
-                                <p>今日暫無更新節目</p>
+                            <div v-if="!day.items.length" class="daily-empty">
+                                <p>{{ day.zh }}暫無更新</p>
                             </div>
-
-                            <div v-else :key="`day-${selectedDay}`" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+                            <div v-else class="daily-stack">
                                 <NuxtLink
-                                    v-for="item in displayedItems"
+                                    v-for="item in day.items"
                                     :key="item.refId"
-                                    class="daily-item group"
+                                    class="daily-card group"
                                     :to="`/anime/${item.refId}`"
                                     @mouseenter="handleMouseEnter(item, $event)"
                                     @mouseleave="handleMouseLeave"
@@ -282,29 +308,19 @@ onUnmounted(cleanup)
                                     <AppImage
                                         :src="item.thumbnail"
                                         alt=""
-                                        class="rounded-t-xl aspect-video"
-                                        img-class="w-full h-full object-cover group-hover:scale-110"
-                                    >
-                                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
-                                        <div v-if="item.episode" class="absolute bottom-1.5 left-1.5 episode-badge">
-                                            {{ item.episode }}
-                                        </div>
-                                        <div class="absolute bottom-1.5 right-1.5 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-                                            <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/95 dark:bg-gray-950/95 flex items-center justify-center shadow-lg">
-                                                <span class="material-symbols-rounded text-base sm:text-lg text-gray-900 dark:text-gray-100">play_arrow</span>
-                                            </div>
-                                        </div>
-                                    </AppImage>
-                                    <div class="p-2.5">
-                                        <div class="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 line-clamp-1 leading-tight">
-                                            {{ item.title }}
-                                        </div>
+                                        class="absolute inset-0"
+                                        img-class="h-full w-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-105"
+                                    />
+                                    <div class="daily-scrim" />
+                                    <span v-if="item.episode" class="daily-badge">{{ item.episode }}</span>
+                                    <div class="daily-copy">
+                                        <p class="daily-title">{{ item.title }}</p>
                                     </div>
                                 </NuxtLink>
                             </div>
-                        </Transition>
+                        </div>
                     </div>
-                </template>
+                </div>
             </section>
 
             <!-- Theme Sections (full grids, no side-scrolling) -->
@@ -399,7 +415,7 @@ onUnmounted(cleanup)
 }
 
 .feature-card {
-    @apply relative block overflow-hidden rounded-2xl sm:rounded-3xl
+    @apply relative block overflow-hidden rounded-xl
            bg-gray-200 dark:bg-white/5
            ring-1 ring-black/10 dark:ring-white/10 shadow-lg;
 }
@@ -452,7 +468,7 @@ onUnmounted(cleanup)
 }
 
 .feature-skel {
-    @apply rounded-2xl sm:rounded-3xl bg-gray-200 dark:bg-white/5 animate-pulse;
+    @apply rounded-xl bg-gray-200 dark:bg-white/5 animate-pulse;
 }
 
 .spot-rail-wrap {
@@ -479,7 +495,7 @@ onUnmounted(cleanup)
 }
 
 .spot-card {
-    @apply flex w-[78%] max-w-[17.5rem] shrink-0 snap-start flex-col overflow-hidden rounded-2xl
+    @apply flex w-[78%] max-w-[17.5rem] shrink-0 snap-start flex-col overflow-hidden rounded-xl
            bg-black/[0.02] dark:bg-white/5
            border border-black/5 dark:border-white/10;
 }
@@ -509,72 +525,100 @@ onUnmounted(cleanup)
 }
 
 .spot-skel {
-    @apply aspect-[16/11] w-[78%] max-w-[17.5rem] shrink-0 snap-start rounded-2xl bg-gray-200 dark:bg-white/5 animate-pulse;
+    @apply aspect-[16/11] w-[78%] max-w-[17.5rem] shrink-0 snap-start rounded-xl bg-gray-200 dark:bg-white/5 animate-pulse;
 }
 
 .section-title {
     @apply text-xl font-bold text-gray-900 dark:text-white sm:text-2xl;
 }
 
-.day-tab {
-    @apply px-3 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-300;
+.daily-layout {
+    @apply -ml-1 flex items-start gap-2 sm:gap-3;
 }
 
-.day-tab-inactive {
-    @apply bg-black/5 dark:bg-white/10 text-gray-600 dark:text-gray-300
-           border border-black/10 dark:border-white/10
-           hover:bg-black/10 dark:hover:bg-white/20
-           hover:-translate-y-0.5;
+.day-rail {
+    @apply sticky top-20 flex w-max shrink-0 flex-col items-start;
 }
 
-.day-tab-active {
-    @apply bg-gray-900 dark:bg-white text-white dark:text-black
-           border border-transparent
-           shadow-lg shadow-black/20 dark:shadow-white/10
-           -translate-y-0.5;
+.day-rail-list {
+    --day-step: 2.75rem;
+    --day-gap: 0.7rem;
+    @apply relative flex w-[var(--day-step)] flex-col items-stretch gap-[var(--day-gap)];
 }
 
-.daily-item {
-    @apply block bg-black/[0.02] dark:bg-white/5 rounded-xl overflow-hidden
-           cursor-pointer transition-all duration-300
-           ring-1 ring-black/5 dark:ring-white/10
-           hover:ring-black/10 dark:hover:ring-white/20
-           hover:shadow-xl hover:shadow-black/10 dark:hover:shadow-black/60
-           hover:-translate-y-1;
+.day-rail-pill {
+    @apply pointer-events-none absolute inset-x-0 top-0 z-0 h-[var(--day-step)] rounded-full
+           bg-gray-950 shadow-lg shadow-black/15
+           dark:bg-white dark:shadow-white/10;
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.episode-badge {
-    @apply px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold text-white bg-black/70 backdrop-blur-sm;
+.day-rail-btn {
+    @apply relative z-10 flex h-[var(--day-step)] w-full items-center justify-center rounded-full text-base font-semibold text-gray-900
+           transition-colors duration-300
+           dark:text-white
+           disabled:opacity-50;
 }
 
-.schedule-viewport {
-    position: relative;
-    overflow: hidden;
+.day-rail-btn:not(.is-active):hover {
+    @apply bg-black/10 dark:bg-white/15;
 }
-.schedule-viewport.is-resizing {
-    transition: height 0.3s ease;
+
+.day-rail-btn.is-active {
+    @apply text-white dark:text-black;
 }
-.schedule-day-enter-active,
-.schedule-day-leave-active {
-    transition: opacity 0.3s ease;
+
+.daily-feed {
+    @apply min-w-0 flex-1;
 }
-/* Outgoing day overlays so only the incoming grid sets height */
-.schedule-day-leave-active {
-    position: absolute;
-    inset-inline: 0;
-    top: 0;
-    width: 100%;
+
+.daily-feed > [data-day] + [data-day] {
+    @apply mt-6 border-t border-black/10 pt-6 dark:border-white/10 sm:mt-8 sm:pt-8;
 }
-.schedule-day-enter-from,
-.schedule-day-leave-to {
-    opacity: 0;
+
+.daily-empty {
+    @apply rounded-2xl border border-black/5 bg-black/[0.02] px-4 py-8 text-center text-sm text-gray-500
+           dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-400;
+}
+
+.daily-stack {
+    @apply grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4;
+}
+
+.daily-card {
+    @apply relative block aspect-video overflow-hidden rounded-xl
+           bg-gray-200 shadow-md shadow-black/10 ring-1 ring-black/5
+           dark:bg-white/5 dark:shadow-black/40 dark:ring-white/10;
+}
+
+.daily-card-skel {
+    @apply aspect-video rounded-xl bg-gray-200 animate-pulse dark:bg-white/5;
+}
+
+.daily-scrim {
+    @apply absolute inset-0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.18) 46%, rgba(0, 0, 0, 0.08) 100%);
+}
+
+.daily-badge {
+    @apply absolute left-2 top-2 z-10 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-md
+           sm:left-2.5 sm:top-2.5 sm:text-[11px];
+}
+
+.daily-copy {
+    @apply absolute inset-x-0 bottom-0 z-10 p-2.5 sm:p-3;
+}
+
+.daily-title {
+    @apply line-clamp-2 text-xs font-bold leading-tight tracking-tight text-white sm:text-sm;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
 }
 
 .feature-card:focus-visible,
 .spot-card:focus-visible,
-.daily-item:focus-visible,
+.daily-card:focus-visible,
 .btn-shuffle:focus-visible,
-.day-tab:focus-visible {
+.day-rail-btn:focus-visible {
     outline: 2px solid currentColor;
     outline-offset: 3px;
 }
@@ -711,9 +755,7 @@ onUnmounted(cleanup)
 
 @media (prefers-reduced-motion: reduce) {
     .rise-in,
-    .schedule-day-enter-active,
-    .schedule-day-leave-active,
-    .schedule-viewport.is-resizing,
+    .day-rail-pill,
     .feature-stage,
     .feature-img,
     .feature-cta,
