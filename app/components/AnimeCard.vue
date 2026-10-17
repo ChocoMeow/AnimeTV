@@ -104,12 +104,19 @@ function handleMouseLeave() {
 .badge-year {
     @apply bg-black/70 text-white
            text-xs font-bold px-2.5 py-1 rounded-full shadow-lg
-           backdrop-blur-sm border border-white/10
+           border border-white/10
            transform transition-transform duration-300;
 }
 
 .group:hover .badge-year {
     @apply scale-110;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .badge-year {
+        -webkit-backdrop-filter: blur(4px);
+        backdrop-filter: blur(4px);
+    }
 }
 
 /* Animations */

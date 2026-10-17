@@ -16,7 +16,6 @@ const todayCode = String(new Date().getDay() || 7) // Sun=7, Mon=1…Sat=6
 const selectedDay = ref(todayCode)
 const dailyFeed = ref(null)
 let spyLock = 0
-let daySpyFrame = 0
 
 const weekRail = computed(() => {
     const days = [...'一二三四五六日'].map((label, i) => ({
@@ -85,25 +84,6 @@ function resetTilt() {
     featurePhoto.value?.style.removeProperty('transform')
 }
 
-function syncDayFromScroll() {
-    if (spyLock || !dailyFeed.value) return
-    const line = 96
-    const feed = dailyFeed.value.getBoundingClientRect()
-    if (feed.bottom < line || feed.top > line) return
-    for (const el of dailyFeed.value.querySelectorAll('[data-day]')) {
-        const rect = el.getBoundingClientRect()
-        if (rect.top <= line && rect.bottom > line && el.dataset.day) {
-            selectedDay.value = el.dataset.day
-            return
-        }
-    }
-}
-
-function onPageScroll() {
-    cancelAnimationFrame(daySpyFrame)
-    daySpyFrame = requestAnimationFrame(syncDayFromScroll)
-}
-
 function focusDay(code) {
     selectedDay.value = code
     const el = document.getElementById(`daily-day-${code}`)
@@ -118,13 +98,22 @@ function focusDay(code) {
 }
 
 useHead({ title: `每日新番 | ${appConfig.siteName}` })
-onMounted(() => {
-    window.addEventListener('scroll', onPageScroll, { passive: true })
-    nextTick(syncDayFromScroll)
+
+watch(dailyFeed, (feed, _prev, onCleanup) => {
+    if (!feed) return
+    const observer = new IntersectionObserver((entries) => {
+        if (spyLock) return
+        const hit = entries
+            .filter((entry) => entry.isIntersecting)
+            .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]
+        const code = hit?.target?.dataset?.day
+        if (code) selectedDay.value = code
+    }, { rootMargin: '-96px 0px -75% 0px', threshold: 0 })
+    for (const el of feed.querySelectorAll('[data-day]')) observer.observe(el)
+    onCleanup(() => observer.disconnect())
 })
+
 onUnmounted(() => {
-    window.removeEventListener('scroll', onPageScroll)
-    cancelAnimationFrame(daySpyFrame)
     cancelAnimationFrame(tiltFrame)
     cleanup()
 })
@@ -388,7 +377,7 @@ onUnmounted(() => {
 .feature-kicker,
 .feature-ep {
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold text-white
-           ring-1 ring-white/20 backdrop-blur-md sm:text-xs;
+           ring-1 ring-white/20 sm:text-xs;
 }
 
 .feature-kicker {
@@ -466,7 +455,7 @@ onUnmounted(() => {
 }
 
 .spot-ep {
-    @apply absolute left-2.5 top-2.5 z-10 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-md;
+    @apply absolute left-2.5 top-2.5 z-10 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white;
 }
 
 .spot-copy {
@@ -569,7 +558,7 @@ onUnmounted(() => {
 }
 
 .daily-badge {
-    @apply absolute left-2 top-2 z-10 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-md
+    @apply absolute left-2 top-2 z-10 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-white
            sm:left-2.5 sm:top-2.5 sm:text-[11px];
 }
 
@@ -734,6 +723,14 @@ onUnmounted(() => {
 }
 
 @media (hover: hover) and (pointer: fine) {
+    .feature-kicker,
+    .feature-ep,
+    .spot-ep,
+    .daily-badge {
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+    }
+
     .feature-card:hover .feature-photo {
         transition: none;
     }
