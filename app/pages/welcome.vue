@@ -1,5 +1,5 @@
 <script setup>
-definePageMeta({ layout: 'welcome' })
+definePageMeta({ layout: 'welcome', public: true })
 </script>
 
 <template>

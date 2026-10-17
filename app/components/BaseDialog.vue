@@ -143,8 +143,7 @@ onBeforeUnmount(() => {
                         </button>
                     </div>
 
-                    <!-- Content: pad so child rings aren't clipped by overflow -->
-                    <div :class="['base-dialog-content', scrollable ? 'max-h-[70vh] overflow-y-auto min-h-0 p-px -m-px' : '']">
+                    <div :class="['base-dialog-content', scrollable ? 'max-h-[70vh] overflow-y-auto min-h-0' : '']">
                         <slot />
                     </div>
 

@@ -1,9 +1,10 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { createLoggedError } from '~~/server/utils/logger'
+import { parseDbTimestamp } from '~~/app/utils/formatTime'
 
 // Pages through PostgREST max-rows (first batch length = page size)
 async function fetchWatchHistory(client, userId, rangeStartIso, rangeEndIso) {
-    const cols = 'total_playback_time, playback_time, updated_at, anime_ref_id, anime_title, anime_image'
+    const cols = 'total_playback_time, playback_time, updated_at, anime_ref_id'
     const list = []
     let pageSize
     for (let from = 0; ; from += pageSize) {
@@ -110,7 +111,7 @@ export default defineEventHandler(async (event) => {
         }
 
         for (const row of historyRows) {
-            const t = new Date(row.updated_at)
+            const t = parseDbTimestamp(row.updated_at)
             let key
             if (bucketType === 'hour') {
                 key = t.toISOString().slice(0, 13)
@@ -148,7 +149,7 @@ export default defineEventHandler(async (event) => {
         const watchByWeekday = Array(7).fill(0)
         const weekdayLabels = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
         for (const row of historyRows) {
-            const t = new Date(row.updated_at)
+            const t = parseDbTimestamp(row.updated_at)
             watchByHour[t.getHours()] += watchSeconds(row)
             const wd = (t.getDay() + 6) % 7
             watchByWeekday[wd] += watchSeconds(row)
@@ -157,30 +158,25 @@ export default defineEventHandler(async (event) => {
         const timeByRef = new Map()
         for (const row of historyRows) {
             const id = row.anime_ref_id
-            if (!timeByRef.has(id)) {
-                timeByRef.set(id, { seconds: 0, title: row.anime_title, image: row.anime_image })
-            }
-            const e = timeByRef.get(id)
-            e.seconds += watchSeconds(row)
+            if (!timeByRef.has(id)) timeByRef.set(id, { seconds: 0, title: '', image: '' })
+            timeByRef.get(id).seconds += watchSeconds(row)
         }
-        const topAnimeByTime = [...timeByRef.entries()]
-            .map(([anime_ref_id, v]) => ({
-                anime_ref_id,
-                anime_title: v.title,
-                anime_image: v.image,
-                seconds: v.seconds,
-            }))
-            .sort((a, b) => b.seconds - a.seconds)
-            .slice(0, 8)
 
         let topStudios = []
         if (refIds.length > 0) {
             const { data: metaRows, error: metaError } = await client
                 .from('anime_meta')
-                .select('source_id, tags, production_company')
+                .select('source_id, title, thumbnail, tags, production_company')
                 .in('source_id', refIds)
 
             if (!metaError && metaRows?.length) {
+                for (const row of metaRows) {
+                    const e = timeByRef.get(row.source_id)
+                    if (e) {
+                        e.title = row.title || ''
+                        e.image = row.thumbnail || ''
+                    }
+                }
                 const tagCounts = new Map()
                 const studioSeconds = new Map()
                 const companyByRef = new Map()
@@ -210,6 +206,16 @@ export default defineEventHandler(async (event) => {
                     .map(([label, seconds]) => ({ label, seconds }))
             }
         }
+
+        const topAnimeByTime = [...timeByRef.entries()]
+            .map(([anime_ref_id, v]) => ({
+                anime_ref_id,
+                anime_title: v.title,
+                anime_image: v.image,
+                seconds: v.seconds,
+            }))
+            .sort((a, b) => b.seconds - a.seconds)
+            .slice(0, 8)
 
         return {
             timeSpent: { labels: timeSpentLabels, values: timeSpentValues },

@@ -340,8 +340,6 @@ CREATE TABLE IF NOT EXISTS "public"."favorites" (
     "id" integer NOT NULL,
     "user_id" "uuid" NOT NULL,
     "anime_ref_id" bigint NOT NULL,
-    "anime_title" "text" NOT NULL,
-    "anime_image" "text" NOT NULL,
     "created_at" timestamp without time zone DEFAULT "now"() NOT NULL
 );
 
@@ -443,8 +441,6 @@ CREATE TABLE IF NOT EXISTS "public"."watch_history" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "user_id" "uuid" NOT NULL,
     "anime_ref_id" bigint NOT NULL,
-    "anime_title" "text" NOT NULL,
-    "anime_image" "text" NOT NULL,
     "episode_number" "text" NOT NULL,
     "playback_time" integer DEFAULT 0 NOT NULL,
     "video_duration" integer DEFAULT 0 NOT NULL,
@@ -469,8 +465,6 @@ CREATE OR REPLACE VIEW "public"."watch_history_latest_updates" WITH ("security_i
  SELECT "w"."id",
     "w"."user_id",
     "w"."anime_ref_id",
-    "w"."anime_title",
-    "w"."anime_image",
     "w"."episode_number",
     "w"."playback_time",
     "w"."video_duration",

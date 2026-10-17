@@ -1,9 +1,26 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+
+// Build/prerender only — real values come from .env or container runtime.
+const SUPABASE_URL = process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const SUPABASE_KEY = process.env.NUXT_PUBLIC_SUPABASE_KEY || 'placeholder-anon-key'
+
 export default defineNuxtConfig({
     css: ['~/assets/css/tailwind.css'],
     modules: ['@nuxtjs/tailwindcss', '@nuxtjs/supabase', '@vite-pwa/nuxt', '@nuxt/image', 'nuxt-security'],
     compatibilityDate: '2025-07-15',
-    devtools: { enabled: true },
+    devtools: { enabled: process.env.NODE_ENV !== 'production' },
+    // Vite 8: use postcss-nesting (ESM) instead of CJS tailwindcss/nesting
+    postcss: {
+        plugins: {
+            'postcss-nesting': {},
+            'tailwindcss/nesting': false,
+        },
+    },
+    typescript: {
+        tsConfig: {
+            exclude: ['../app/service-worker'],
+        },
+    },
     runtimeConfig: {
         supabaseSecretKey: process.env.NUXT_SUPABASE_SECRET_KEY,
         cfFetchFlaresolverr: process.env.NUXT_CF_FETCH_FLARESOLVERR,
@@ -15,29 +32,31 @@ export default defineNuxtConfig({
         logMaxDays: process.env.NUXT_LOG_MAX_DAYS,
         logToFile: process.env.NUXT_LOG_TO_FILE,
         public: {
-            supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
-            supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY,
+            supabaseUrl: SUPABASE_URL,
+            supabaseKey: SUPABASE_KEY,
             aiEnabled: false,
         },
     },
     $production: {
         vite: {
-            esbuild: {
-                drop: ['console', 'debugger'],
-                pure: ['console.debug', 'console.info', 'console.warn', 'console.error'],
+            build: {
+                rolldownOptions: {
+                    output: {
+                        minify: {
+                            compress: { dropConsole: true, dropDebugger: true },
+                        },
+                    },
+                },
             },
         },
         nitro: {
-            esbuild: {
-                options: {
-                    drop: ['console'],
-                },
-            },
-        }
+            esbuild: { options: { drop: ['console'] } },
+        },
     },
+    // NUXT_DEV_HOST=0.0.0.0 for LAN/device testing
     devServer: {
         port: 3000,
-        host: '0.0.0.0',
+        host: process.env.NUXT_DEV_HOST || 'localhost',
     },
     nitro: {
         preset: 'bun',
@@ -54,22 +73,29 @@ export default defineNuxtConfig({
         experimental: {
             websocket: true,
         },
+        // Only /offline is static for the SW. `/` and `/welcome` SSR at runtime
+        // with each host’s own NUXT_PUBLIC_SUPABASE_* (not baked into the image).
         prerender: {
-            // Precache needs a document for navigateFallback "/" (see @vite-pwa/nuxt).
-            // Prerender home so Workbox can include url "/" and avoid non-precached-url.
             crawlLinks: false,
-            routes: ['/'],
+            routes: ['/offline'],
             failOnError: false,
         },
     },
     experimental: {
         emitRouteChunkError: 'automatic-immediate',
         entryImportMap: false,
+        early404: true,
     },
     app: {
         head: {
             title: 'AnimeTV',
             script: [
+                // Airplane / offline: jump to /offline before Vue paints the cached home shell.
+                {
+                    innerHTML: `(function(){try{if(navigator.onLine)return;var p=(location.pathname||'/').replace(/\\/$/,'')||'/';if(p==='/offline'||p==='/offline-downloads'||p.indexOf('/anime/')===0)return;location.replace('/offline')}catch(e){}})();`,
+                    type: 'text/javascript',
+                    tagPosition: 'head',
+                },
                 {
                     innerHTML:
                         "document.documentElement.classList.toggle('dark', localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches));",
@@ -97,90 +123,29 @@ export default defineNuxtConfig({
             link: [
                 { rel: 'icon', type: 'image/svg+xml', href: '/icons/icon.svg' },
                 { rel: 'apple-touch-icon', href: '/icons/icon_512x512.png', sizes: '512x512', type: 'image/png' },
+                { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+                { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
                 {
                     rel: 'stylesheet',
                     href: 'https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@100..900&display=swap',
-                },
-                {
-                    rel: 'stylesheet',
-                    href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,-50..200&display=swap',
                 },
             ],
         },
     },
     pwa: {
-        // Prompt: don't reload mid-session. Apply on header button or manual refresh.
         registerType: 'prompt',
-        workbox: {
-            // Prompt mode leaves skipWaiting false; claim clients so SKIP_WAITING
-            // can take control and trigger the page reload after update.
-            clientsClaim: true,
-            // SSR mode: no static index.html at root.
-            // Setting to undefined prevents the default "/" fallback which causes precache errors.
-            navigateFallback: undefined,
+        strategies: 'injectManifest',
+        srcDir: 'service-worker',
+        filename: 'sw.ts',
+        includeAssets: [
+            'hero.webp',
+            'icons/icon.svg',
+            'icons/animated_icon_400x400.webp',
+            'icons/icon_512x512.png',
+            'icons/icon_512x512.webp',
+        ],
+        injectManifest: {
             globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
-            cleanupOutdatedCaches: true,
-            runtimeCaching: [
-                {
-                    // Cache all navigation requests (pages) for offline use
-                    urlPattern: ({ request }) => request.mode === 'navigate',
-                    handler: 'NetworkFirst',
-                    options: {
-                        cacheName: 'app-pages',
-                        networkTimeoutSeconds: 4,
-                        expiration: {
-                            maxEntries: 80,
-                            maxAgeSeconds: 60 * 60 * 24 * 7,
-                        },
-                    },
-                },
-                {
-                    urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-                    handler: 'StaleWhileRevalidate',
-                    options: {
-                        cacheName: 'google-fonts-stylesheets',
-                        expiration: {
-                            maxEntries: 10,
-                            maxAgeSeconds: 60 * 60 * 24 * 30,
-                        },
-                    },
-                },
-                {
-                    urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-                    handler: 'CacheFirst',
-                    options: {
-                        cacheName: 'google-fonts-webfonts',
-                        expiration: {
-                            maxEntries: 30,
-                            maxAgeSeconds: 60 * 60 * 24 * 365,
-                        },
-                    },
-                },
-                {
-                    urlPattern: /^\/api\/anime\/[^/]+\/episodes$/i,
-                    handler: 'NetworkOnly',
-                },
-                {
-                    urlPattern: /^\/api\/(anime|search|public\/welcome-preview).*/i,
-                    handler: 'NetworkFirst',
-                    options: {
-                        cacheName: 'anime-api',
-                        networkTimeoutSeconds: 2,
-                        expiration: {
-                            maxEntries: 100,
-                            maxAgeSeconds: 60 * 60 * 24 * 7,
-                        },
-                    },
-                },
-                {
-                    urlPattern: /^\/api\/proxy-video.*/i,
-                    handler: 'NetworkOnly',
-                },
-                {
-                    urlPattern: /^\/api\/download-proxy.*/i,
-                    handler: 'NetworkOnly',
-                },
-            ],
         },
         manifest: {
             name: 'AnimeTV',
@@ -198,7 +163,7 @@ export default defineNuxtConfig({
                 },
                 {
                     src: 'icons/icon_144x144.webp',
-                    sizes: '64x64',
+                    sizes: '144x144',
                     type: 'image/webp',
                 },
                 {
@@ -224,6 +189,9 @@ export default defineNuxtConfig({
         },
     },
     supabase: {
+        // Fallbacks so `nuxt build` without .env can prerender /offline for the SW.
+        url: SUPABASE_URL,
+        key: SUPABASE_KEY,
         redirect: false,
         redirectOptions: {
             login: '/login',
@@ -235,6 +203,8 @@ export default defineNuxtConfig({
         types: false,
     },
     security: {
+        // Console drop is via $production rolldownOptions (Vite 8); security's esbuild path warns
+        removeLoggers: false,
         headers: {
             referrerPolicy: 'strict-origin-when-cross-origin',
             // Default is credentialless — breaks wiki YouTube iframes / CDNs without CORP
@@ -266,6 +236,8 @@ export default defineNuxtConfig({
             },
             contentSecurityPolicy: {
                 'frame-ancestors': ["'none'"],
+                // Google Fonts CSS (googleapis) + font files (gstatic)
+                'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
                 'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
                 'img-src': ["'self'", 'data:', 'blob:', 'https:'],
                 'media-src': ["'self'", 'blob:', 'https://*.bzcdn.net'],
@@ -275,6 +247,8 @@ export default defineNuxtConfig({
                     'wss://*.supabase.co',
                     'https://*.bzcdn.net',
                     'https://*.anime1.me',
+                    'https://fonts.googleapis.com',
+                    'https://fonts.gstatic.com',
                 ],
                 'frame-src': [
                     "'self'",

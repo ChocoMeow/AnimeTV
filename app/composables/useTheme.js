@@ -1,95 +1,90 @@
-const THEME_KEY = "theme";
+const THEME_KEY = 'theme'
+const THEMES = new Set(['light', 'dark', 'system'])
 
-/**
- * Apply theme from localStorage (or system) to document. Call early (e.g. from a client plugin) to avoid FOUC.
- */
-export function initTheme() {
-    if (import.meta.server || typeof document === "undefined") return;
-    const isDark =
-        localStorage.getItem(THEME_KEY) === "dark" ||
-        (!localStorage.getItem(THEME_KEY) &&
-            window.matchMedia("(prefers-color-scheme: dark)").matches);
-    document.documentElement.classList.toggle("dark", isDark);
+function darkMq() {
+    return window.matchMedia('(prefers-color-scheme: dark)')
 }
 
-/** @type {'light'|'dark'|'system'} */
 function getStoredTheme() {
-    if (import.meta.client && typeof localStorage !== "undefined") {
-        const stored = localStorage.getItem(THEME_KEY);
-        if (stored === "light" || stored === "dark" || stored === "system") return stored;
-    }
-    return "system";
+    if (!import.meta.client) return 'system'
+    const stored = localStorage.getItem(THEME_KEY)
+    return THEMES.has(stored) ? stored : 'system'
 }
 
-function isDarkPreferred() {
-    if (import.meta.client && window.matchMedia) {
-        return window.matchMedia("(prefers-color-scheme: dark)").matches;
-    }
-    return false;
+function resolveDark(theme) {
+    return theme === 'dark' || (theme === 'system' && darkMq().matches)
 }
 
-function applyThemeToDocument(theme) {
-    if (import.meta.server || typeof document === "undefined") return;
-    const isDark =
-        theme === "dark" || (theme === "system" && isDarkPreferred());
-    document.documentElement.classList.toggle("dark", isDark);
+/** Flip `.dark` with per-element transitions frozen (View Transition snapshots the result). */
+function setDark(isDark) {
+    const root = document.documentElement
+    root.classList.add('theme-animating')
+    root.classList.toggle('dark', isDark)
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => root.classList.remove('theme-animating'))
+    })
 }
 
-let systemListener = null;
+function applyTheme(theme, animate = false) {
+    if (!import.meta.client) return
+    const isDark = resolveDark(theme)
+    if (document.documentElement.classList.contains('dark') === isDark) return
 
-function applyTheme(theme) {
-    applyThemeToDocument(theme);
-    if (import.meta.client && window.matchMedia) {
-        const mq = window.matchMedia("(prefers-color-scheme: dark)");
-        if (systemListener) {
-            mq.removeEventListener("change", systemListener);
-            systemListener = null;
-        }
-        if (theme === "system") {
-            systemListener = () => applyThemeToDocument("system");
-            mq.addEventListener("change", systemListener);
-        }
+    const flip = () => setDark(isDark)
+    const canFade =
+        animate &&
+        !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+        typeof document.startViewTransition === 'function'
+
+    if (canFade) document.startViewTransition(flip).finished.catch(() => {})
+    else flip()
+}
+
+let systemListener = null
+
+function watchSystemTheme(enabled) {
+    const mq = darkMq()
+    if (systemListener) {
+        mq.removeEventListener('change', systemListener)
+        systemListener = null
     }
+    if (!enabled) return
+    systemListener = () => applyTheme('system', true)
+    mq.addEventListener('change', systemListener)
 }
 
 export function useTheme() {
-    const theme = ref(getStoredTheme());
+    const theme = ref(getStoredTheme())
 
     function setTheme(value) {
-        const v = value === "light" || value === "dark" || value === "system" ? value : "system";
-        theme.value = v;
-        if (import.meta.client) {
-            if (v === "system") {
-                localStorage.removeItem(THEME_KEY);
-            } else {
-                localStorage.setItem(THEME_KEY, v);
-            }
-            applyTheme(v);
-        }
+        const next = THEMES.has(value) ? value : 'system'
+        theme.value = next
+        if (!import.meta.client) return
+        if (next === 'system') localStorage.removeItem(THEME_KEY)
+        else localStorage.setItem(THEME_KEY, next)
+        applyTheme(next, true)
+        watchSystemTheme(next === 'system')
     }
 
-    // Sync on mount: read from localStorage (client) and apply
     onMounted(() => {
-        theme.value = getStoredTheme();
-        applyTheme(theme.value);
-    });
+        theme.value = getStoredTheme()
+        applyTheme(theme.value)
+        watchSystemTheme(theme.value === 'system')
+    })
 
     if (import.meta.client) {
-        // Optional: sync when storage changes (e.g. another tab)
-        const handleStorage = (e) => {
-            if (e.key === THEME_KEY) {
-                theme.value = getStoredTheme();
-                applyTheme(theme.value);
-            }
-        };
-        window.addEventListener("storage", handleStorage);
+        const onStorage = (e) => {
+            if (e.key !== THEME_KEY) return
+            theme.value = getStoredTheme()
+            applyTheme(theme.value)
+            watchSystemTheme(theme.value === 'system')
+        }
+        window.addEventListener('storage', onStorage)
         onUnmounted(() => {
-            window.removeEventListener("storage", handleStorage);
-            if (systemListener && window.matchMedia) {
-                window.matchMedia("(prefers-color-scheme: dark)").removeEventListener("change", systemListener);
-            }
-        });
+            window.removeEventListener('storage', onStorage)
+            watchSystemTheme(false)
+        })
     }
 
-    return { theme, setTheme };
+    return { theme, setTheme }
 }

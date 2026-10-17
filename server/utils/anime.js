@@ -1,6 +1,6 @@
+import { CACHE_LIFETIME } from '#shared/utils/global'
 import { moduleLogger } from '~~/server/utils/logger'
 import { ANIME1 } from '~~/server/lib/videoProviders/constants'
-import { CACHE_LIFETIME } from '~~/shared/global'
 import { ANIME1_LIST_CACHE, RESPONSE_CACHE } from '~~/server/utils/cache'
 
 const animeLog = moduleLogger('anime')

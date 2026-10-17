@@ -1,5 +1,8 @@
 import * as cheerio from 'cheerio'
-import { GAMER_BASE_URL } from '~~/shared/global'
+import { GAMER_BASE_URL } from '#shared/utils/global'
+import { DEFAULT_VIDEO_SOURCE } from '#shared/utils/videoSources'
+import { cfFetch, matchAnime } from '~~/server/utils/anime'
+import { isValidNumberString, parseViews } from '~~/server/utils/functions'
 import { moduleLogger } from '~~/server/utils/logger'
 
 const scrapeLog = moduleLogger('scrapeAnimeMeta')
@@ -105,6 +108,7 @@ export function buildAnimeMetaPayload(scraped) {
         source_id: scraped.refId,
         source_details_id: scraped.detailId,
         video_id: scraped.videoId || null,
+        video_source: scraped.videoId ? DEFAULT_VIDEO_SOURCE : null,
         season: scraped.season || null,
     }
 }

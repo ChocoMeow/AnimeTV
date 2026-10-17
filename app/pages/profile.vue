@@ -145,10 +145,10 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                         <p v-if="email" class="text-sm text-gray-600 dark:text-gray-400 truncate">{{ email }}</p>
                         <div v-if="analytics.summary.firstWatchAt" class="flex flex-wrap gap-x-4 mt-1">
                             <span class="text-xs text-gray-500 dark:text-gray-500">
-                                最早紀錄 {{ new Date(analytics.summary.firstWatchAt).toLocaleDateString() }}
+                                最早紀錄 {{ formatCalendarDate(analytics.summary.firstWatchAt) }}
                             </span>
                             <span v-if="analytics.summary.lastWatchAt" class="text-xs text-gray-500 dark:text-gray-500">
-                                最近紀錄 {{ new Date(analytics.summary.lastWatchAt).toLocaleDateString() }}
+                                最近紀錄 {{ formatCalendarDate(analytics.summary.lastWatchAt) }}
                             </span>
                         </div>
                     </div>
@@ -364,9 +364,12 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                             <li v-for="(a, idx) in analytics.topAnimeByTime" :key="a.anime_ref_id" class="flex items-center gap-3">
                                 <span class="text-xs font-bold text-gray-400 w-5">{{ idx + 1 }}</span>
                                 <NuxtLink :to="`/anime/${a.anime_ref_id}`" class="flex items-center gap-3 min-w-0 flex-1 group">
-                                    <div class="w-10 aspect-[2/3] rounded overflow-hidden bg-gray-200 dark:bg-white/10 flex-shrink-0">
-                                        <NuxtImg v-if="a.anime_image" :src="a.anime_image" class="w-full h-full object-cover" alt="" />
-                                    </div>
+                                    <AppImage
+                                        :src="a.anime_image"
+                                        alt=""
+                                        class="w-10 aspect-[2/3] rounded flex-shrink-0 dark:bg-white/10"
+                                        icon-class="text-lg"
+                                    />
                                     <div class="min-w-0 flex-1">
                                         <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate group-hover:underline">{{ a.anime_title }}</p>
                                         <p class="text-xs text-gray-500">{{ formatDuration(a.seconds) }}</p>
@@ -495,9 +498,12 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                 <li v-for="(a, idx) in chartData.topAnimeByTime.slice(0, 6)" :key="String(a.anime_ref_id) + idx" class="flex items-center gap-3">
                                     <span class="text-xs font-bold text-gray-400 w-5">{{ idx + 1 }}</span>
                                     <NuxtLink :to="`/anime/${a.anime_ref_id}`" class="flex items-center gap-3 min-w-0 flex-1 group">
-                                        <div class="w-10 aspect-[2/3] rounded overflow-hidden bg-gray-200 dark:bg-white/10 flex-shrink-0">
-                                            <NuxtImg v-if="a.anime_image" :src="a.anime_image" class="w-full h-full object-cover" alt="" />
-                                        </div>
+                                        <AppImage
+                                            :src="a.anime_image"
+                                            alt=""
+                                            class="w-10 aspect-[2/3] rounded flex-shrink-0 dark:bg-white/10"
+                                            icon-class="text-lg"
+                                        />
                                         <div class="min-w-0 flex-1">
                                             <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate group-hover:underline">{{ a.anime_title }}</p>
                                             <p class="text-xs text-gray-500">{{ formatDuration(a.seconds) }}</p>

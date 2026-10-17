@@ -1,10 +1,11 @@
 <script setup>
+import { WATCH_ANIME_META, WATCH_ANIME_META_INNER, withAnimeCovers } from '#shared/utils/watchHistory'
+
 const { userSettings } = useUserSettings()
 const { showToast } = useToast()
 const appConfig = useAppConfig()
 const route = useRoute()
 const client = useSupabaseClient()
-
 const {
     hoveredAnime,
     animeDetails,
@@ -52,7 +53,7 @@ const groupedHistory = computed(() => {
     const groups = {}
 
     filteredHistory.value.forEach((item) => {
-        const date = new Date(item.updated_at)
+        const date = parseDbTimestamp(item.updated_at)
         const today = new Date()
         const yesterday = new Date(today)
         yesterday.setDate(yesterday.getDate() - 1)
@@ -125,6 +126,10 @@ function applyTimeFilter(query) {
     return query.gte('updated_at', filterDate.toISOString())
 }
 
+function historySelect(search) {
+    return search ? `*, ${WATCH_ANIME_META_INNER}` : `*, ${WATCH_ANIME_META}`
+}
+
 async function loadMore() {
     if (loading.value || loadingMore.value || !hasMore.value) return
 
@@ -134,22 +139,21 @@ async function loadMore() {
         const from = nextPage * pageSize
         const to = from + pageSize - 1
 
-        let query = client.from('watch_history_latest_updates').select('*').eq('user_id', userSettings.value.id)
+        const search = searchQuery.value?.trim()
+        let query = client
+            .from('watch_history_latest_updates')
+            .select(historySelect(search))
+            .eq('user_id', userSettings.value.id)
 
-        // Apply time filter
         query = applyTimeFilter(query)
-
-        // Apply search filter (server-side)
-        if (searchQuery.value?.trim()) {
-            query = query.ilike('anime_title', `%${searchQuery.value.trim()}%`)
-        }
+        if (search) query = query.ilike('anime_meta.title', `%${search}%`)
 
         const { data, error } = await query.order('updated_at', { ascending: false }).range(from, to)
 
         if (error) throw error
 
         if (data && data.length > 0) {
-            historyItems.value = [...historyItems.value, ...data]
+            historyItems.value = [...historyItems.value, ...withAnimeCovers(data)]
             currentPage.value = nextPage
 
             // Check if we got fewer records than requested
@@ -222,24 +226,21 @@ async function confirmDeleteAll() {
 async function fetchHistory() {
     loading.value = true
     try {
-        let query = client.from('watch_history_latest_updates').select('*').eq('user_id', userSettings.value.id)
+        const search = searchQuery.value?.trim()
+        let query = client
+            .from('watch_history_latest_updates')
+            .select(historySelect(search))
+            .eq('user_id', userSettings.value.id)
 
-        // Apply time filter
         query = applyTimeFilter(query)
-
-        // Apply search filter (server-side)
-        if (searchQuery.value?.trim()) {
-            query = query.ilike('anime_title', `%${searchQuery.value.trim()}%`)
-        }
+        if (search) query = query.ilike('anime_meta.title', `%${search}%`)
 
         const { data, error } = await query.order('updated_at', { ascending: false }).range(0, pageSize - 1)
 
         if (error) throw error
 
-        historyItems.value = data || []
+        historyItems.value = withAnimeCovers(data)
         currentPage.value = 0
-
-        // Check if there might be more records
         hasMore.value = data && data.length === pageSize
     } catch (err) {
         console.error('Failed to fetch history:', err)
@@ -400,23 +401,16 @@ useHead({
                         <NuxtLink :to="`/anime/${item.anime_ref_id}?e=${item.episode_number}&t=${item.playback_time}`" class="block cursor-pointer">
                             <div class="flex gap-4 p-4">
                                 <!-- Thumbnail -->
-                                <div class="w-24 aspect-[2/3] flex-shrink-0 rounded-lg overflow-hidden bg-gray-200 dark:bg-white/5 relative">
-                                    <NuxtImg
-                                        v-if="item.anime_image"
-                                        :src="item.anime_image"
-                                        :alt="item.anime_title"
-                                        class="w-full h-full object-cover"
-                                        loading="lazy"
-                                    />
-                                    <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
-                                        <span class="material-symbols-rounded text-4xl">movie</span>
-                                    </div>
-
+                                <AppImage
+                                    :src="item.anime_image"
+                                    :alt="item.anime_title"
+                                    class="w-24 aspect-[2/3] flex-shrink-0 rounded-lg"
+                                >
                                     <!-- Progress Bar -->
                                     <div v-if="item.progress_percentage > 0" class="absolute bottom-0 left-0 right-0 h-1 bg-black/40">
                                         <div class="h-full bg-white" :style="{ width: `${item.progress_percentage}%` }"></div>
                                     </div>
-                                </div>
+                                </AppImage>
 
                                 <!-- Info -->
                                 <div class="flex-1 min-w-0 flex flex-col">

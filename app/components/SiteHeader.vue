@@ -10,6 +10,7 @@ const appConfig = useAppConfig()
 const route = useRoute()
 const client = useSupabaseClient()
 const user = useSupabaseUser()
+const { clear: clearOfflineAuthFlag } = useOfflineAuthCache()
 const userAvatar = computed(() => ({
     src: user.value?.user_metadata?.avatar_url,
     name: user.value?.user_metadata?.name || 'User',
@@ -55,6 +56,7 @@ function openSearch() {
 async function signOut() {
     showUserMenu.value = false
     clearAdmin()
+    clearOfflineAuthFlag()
     await client.auth.signOut()
     navigateTo('/login')
 }
@@ -130,7 +132,7 @@ watch(
                 <!-- Left: Logo -->
                 <div class="flex shrink-0 items-center gap-2">
                     <NuxtLink to="/" class="group flex items-center gap-1 pr-2">
-                        <img src="/icons/icon.svg" :alt="appConfig.siteName" class="h-7 w-7 object-contain" width="28" height="28" fetchpriority="high" />
+                        <AppImage src="/icons/icon.svg" :alt="appConfig.siteName" class="h-7 w-7" img-class="object-contain" loading="eager" fetchpriority="high" :placeholder="false" :reveal="false" />
                         <span class="text-xl font-semibold text-black dark:text-white"> {{ appConfig.siteName }}</span>
                     </NuxtLink>
                 </div>

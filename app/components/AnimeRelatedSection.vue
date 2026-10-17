@@ -47,16 +47,16 @@ async function fetchByTags(tagList) {
     const { data, error } = await query
     if (error) throw error
 
+    // Tag tabs query Supabase directly — map to the same shape as /api/anime relatedAnime
     return (data || []).map((row) => {
-        const premiere = row.premiere_date ? String(row.premiere_date) : ''
-        const scoreNum = Number(row.score)
+        const score = Number(row.score)
         return {
             refId: String(row.source_id),
             title: row.title,
             image: row.thumbnail,
-            year: premiere ? premiere.slice(0, 4) : null,
+            premiereDate: row.premiere_date || null,
             views: row.views ?? null,
-            score: Number.isFinite(scoreNum) && scoreNum > 0 ? scoreNum : null,
+            score: Number.isFinite(score) && score > 0 ? score : null,
         }
     })
 }
@@ -134,14 +134,13 @@ onMounted(resetAndLoad)
                     @mouseenter="emit('tooltip-enter', item, $event)"
                     @mouseleave="emit('tooltip-leave')"
                 >
-                    <div class="relative aspect-[2/3] overflow-hidden bg-gray-200 dark:bg-white/5">
-                        <NuxtImg
-                            :src="item.image"
-                            :alt="`${item.title} thumbnail`"
-                            loading="lazy"
-                            decoding="async"
-                            class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
+                    <AppImage
+                        :src="item.image"
+                        :alt="`${item.title} thumbnail`"
+                        class="aspect-[2/3]"
+                        decoding="async"
+                        img-class="w-full h-full object-cover group-hover:scale-105"
+                    >
                         <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
                         <div class="absolute bottom-0 left-0 right-0 p-2.5 space-y-1.5">
                             <p class="text-[11px] font-medium text-gray-100 line-clamp-2 leading-snug">{{ item.title }}</p>
@@ -150,10 +149,10 @@ onMounted(resetAndLoad)
                                     <span class="material-symbols-rounded text-[14px] leading-none text-yellow-400">star</span>
                                     <span v-if="item.score" class="leading-none tabular-nums">{{ item.score.toFixed(1) }}</span>
                                 </span>
-                                <span v-if="item.year" class="leading-none tabular-nums">{{ item.year }}</span>
+                                <span v-if="item.premiereDate" class="leading-none tabular-nums">{{ item.premiereDate.slice(0, 4) }}</span>
                             </div>
                         </div>
-                    </div>
+                    </AppImage>
                 </NuxtLink>
             </div>
         </div>

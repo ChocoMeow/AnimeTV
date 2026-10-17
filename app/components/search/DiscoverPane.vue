@@ -48,7 +48,7 @@ const RANK_TONE = [
     'text-gray-400 dark:text-gray-500',
 ]
 
-const CARD = 'rounded-2xl bg-white shadow-sm ring-1 ring-black/6 dark:bg-white/[0.04] dark:ring-white/10'
+const CARD = 'rounded-2xl bg-white shadow-sm ring-1 ring-black/10 dark:bg-white/[0.04] dark:ring-white/10'
 const TITLE = 'text-base font-semibold tracking-tight text-gray-900 dark:text-gray-100'
 const SUBTITLE = 'mt-0.5 text-xs text-gray-500 dark:text-gray-400'
 const META = 'text-[11px] text-gray-500 dark:text-gray-400'
@@ -61,7 +61,7 @@ const POSTER_LG =
 const POSTER_SM =
     'aspect-[2/3] w-12 shrink-0 overflow-hidden rounded-lg bg-black/5 ring-1 ring-black/5 dark:bg-white/10 dark:ring-white/10'
 const TAG_PILL =
-    'rounded-full bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm ring-1 ring-black/6 transition-[transform,background-color] duration-200 hover:-translate-y-px hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-gray-900 dark:bg-white/[0.04] dark:text-gray-200 dark:ring-white/10 dark:hover:bg-white/[0.08] dark:focus-visible:ring-white'
+    'rounded-full bg-white px-3 py-1.5 text-xs font-medium text-gray-700 border border-black/10 transition-[transform,background-color] duration-200 hover:-translate-y-px hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-gray-900 dark:bg-white/[0.04] dark:text-gray-200 dark:border-white/10 dark:hover:bg-white/[0.08] dark:focus-visible:ring-white'
 
 const trending = ref([])
 const loading = ref(false)
@@ -69,7 +69,7 @@ const scrollRef = ref(null)
 let loaded = false
 
 const sortedHistory = computed(() =>
-    [...props.history].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
+    [...props.history].sort((a, b) => parseDbTimestamp(b.created_at) - parseDbTimestamp(a.created_at)),
 )
 
 function stagger(i, step = 35, max = 12) {
@@ -82,20 +82,6 @@ function rankLabel(i) {
 
 function rankTone(i) {
     return RANK_TONE[Math.min(i, RANK_TONE.length - 1)]
-}
-
-function formatHistoryWhen(createdAt) {
-    if (!createdAt) return ''
-    const date = new Date(createdAt)
-    const diffMs = Date.now() - date.getTime()
-    const diffDays = Math.floor(diffMs / 86400000)
-    if (diffDays === 0) {
-        const hours = Math.floor(diffMs / 3600000)
-        return hours === 0 ? `${Math.max(1, Math.floor(diffMs / 60000))} 分鐘前` : `${hours} 小時前`
-    }
-    if (diffDays === 1) return '昨天'
-    if (diffDays < 7) return `${diffDays} 天前`
-    return date.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' })
 }
 
 function animeMeta(anime) {
@@ -116,7 +102,7 @@ function historyShellClass(item, featured) {
     return [
         'group relative flex items-center rounded-xl px-2 py-1 transition-colors',
         props.activeHistoryId === item.id
-            ? 'bg-white shadow-sm ring-1 ring-black/8 dark:bg-white/[0.08] dark:ring-white/15'
+            ? 'bg-white shadow-sm ring-1 ring-black/10 dark:bg-white/[0.08] dark:ring-white/15'
             : 'hover:bg-white/80 dark:hover:bg-white/[0.06]',
     ]
 }
@@ -172,7 +158,7 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
                 class="flex h-9 shrink-0 items-center gap-2.5 rounded-full px-3.5 text-sm transition-colors md:w-full"
                 :class="
                     tab === t.id
-                        ? 'bg-white font-medium text-gray-900 shadow-sm dark:bg-white/10 dark:text-gray-100'
+                        ? 'bg-black/[0.06] font-medium text-gray-900 dark:bg-white/10 dark:text-gray-100'
                         : 'text-gray-500 hover:bg-black/5 dark:text-gray-400 dark:hover:bg-white/5'
                 "
                 @click="tab = t.id"
@@ -227,7 +213,7 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
                                 {{ item.query }}
                             </span>
                             <span :class="['mt-0.5 block', META]">
-                                {{ i === 0 ? '最近搜尋 · ' : '' }}{{ formatHistoryWhen(item.created_at) }}
+                                {{ i === 0 ? '最近搜尋 · ' : '' }}{{ formatRelativeDate(item.created_at) }}
                             </span>
                         </span>
                     </button>
@@ -278,19 +264,17 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
                         {{ rankLabel(i) }}
                     </span>
 
-                    <div :class="i === 0 ? POSTER_LG : POSTER_SM">
-                        <NuxtImg
-                            v-if="anime.image"
-                            :src="anime.image"
-                            :alt="anime.title"
-                            class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            :class="i === 0 ? 'duration-700' : ''"
-                            loading="lazy"
-                        />
-                        <div v-else class="flex h-full w-full items-center justify-center text-gray-400">
-                            <span class="material-symbols-rounded" :class="i === 0 ? '' : 'text-sm'">image</span>
-                        </div>
-                    </div>
+                    <AppImage
+                        :src="anime.image"
+                        :alt="anime.title"
+                        :class="i === 0 ? POSTER_LG : POSTER_SM"
+                        :img-class="[
+                            'h-full w-full object-cover group-hover:scale-105',
+                            i === 0 ? 'duration-700' : '',
+                        ]"
+                        error-icon="image"
+                        :icon-class="i === 0 ? 'text-4xl' : 'text-sm'"
+                    />
 
                     <span class="min-w-0 flex-1" :class="i === 0 ? 'py-0.5' : ''">
                         <span

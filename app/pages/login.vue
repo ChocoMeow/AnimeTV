@@ -22,6 +22,7 @@ const hasRedirected = ref(false)
 function resolveRedirectPath(path) {
     if (!path || typeof path !== 'string') return '/'
     if (!path.startsWith('/') || path.startsWith('//')) return '/'
+    if (path.startsWith('/.well-known')) return '/'
     return path
 }
 
@@ -145,12 +146,13 @@ async function signInWithOAuth(provider) {
     loading.value = true
     error.value = null
     authStatus.value = "idle"
+    const redirectTo = `${window.location.origin}/login`
 
     try {
         const { error: authError } = await client.auth.signInWithOAuth({
             provider,
             options: {
-                redirectTo: `${window.location.origin}/login`,
+                redirectTo,
             },
         })
 
@@ -176,12 +178,12 @@ function handleAuthSuccess(newUser) {
     }, ANIMATION_DELAYS.SUCCESS_REDIRECT)
 }
 
-function handleOAuthCallback() {
+async function handleOAuthCallback() {
     if (!import.meta.client) return
 
-                const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(window.location.search)
     const hashParams = new URLSearchParams(window.location.hash.substring(1))
-    
+
     if (urlParams.has("error") || hashParams.has("error")) {
         const errorInfo = parseOAuthError()
         if (errorInfo) {
@@ -194,12 +196,24 @@ function handleOAuthCallback() {
         }
         return
     }
-    
+
     if (urlParams.has("code") || hashParams.has("code")) {
-                    authStatus.value = "verifying"
-                    authMessage.value = "正在驗證您的身份..."
-                }
+        authStatus.value = "verifying"
+        authMessage.value = "正在驗證您的身份..."
+        const code = urlParams.get("code") || hashParams.get("code")
+        try {
+            const { data, error: exErr } = await client.auth.exchangeCodeForSession(code)
+            if (exErr) {
+                error.value = exErr.message || '登入驗證失敗'
+                authStatus.value = 'error'
+                authMessage.value = error.value
+                loading.value = false
             }
+        } catch {
+            /* exchange failures surface through the auth error state */
+        }
+    }
+}
 
 function resetAuthError() {
     authStatus.value = 'idle'
@@ -237,7 +251,7 @@ watch(user, (newUser) => {
     }
 }, { immediate: true })
 
-definePageMeta({ layout: "" })
+definePageMeta({ layout: '', public: true })
 useHead({ title: `登入 | ${appConfig.siteName}` })
 </script>
 
@@ -257,16 +271,14 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                             :key="`${lane.class}-${index}-${imageUrl}`"
                                 class="anime-scroll-item"
                             >
-                                <div class="relative w-full h-full rounded-2xl overflow-hidden shadow-lg group">
-                                    <NuxtImg
-                                    v-if="imageUrl"
+                                <AppImage
                                     :src="imageUrl"
                                     alt="Anime"
-                                        :class="['w-full h-full object-cover transition-all duration-500 group-hover:scale-110 rounded-2xl border-2 border-gray-300 dark:border-white/10', animeLoaded ? 'fade-in-image' : 'opacity-0']"
-                                        loading="lazy"
-                                    />
+                                    class="group h-full w-full rounded-2xl shadow-lg"
+                                    img-class="h-full w-full object-cover rounded-2xl border-2 border-gray-300 dark:border-white/10 group-hover:scale-110"
+                                >
                                     <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl"></div>
-                                </div>
+                                </AppImage>
                             </div>
                         </div>
                     </div>
@@ -321,7 +333,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                     <div class="bg-black/[0.02] dark:bg-white/5 rounded-xl p-4 ring-1 ring-black/5 dark:ring-white/10">
                         <div class="flex items-center justify-center gap-3">
                             <div class="w-10 h-10 rounded-full bg-gray-900 dark:bg-white/10 flex items-center justify-center overflow-hidden">
-                                <NuxtImg v-if="userAvatarUrl" :src="userAvatarUrl" alt="" class="w-full h-full object-cover" loading="lazy" />
+                                <AppImage v-if="userAvatarUrl" :src="userAvatarUrl" alt="" class="h-full w-full" :placeholder="false" />
                             </div>
                             <div class="text-left">
                                 <p class="text-xs text-gray-500 dark:text-gray-400">已登入為</p>
@@ -362,7 +374,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                 <!-- Login Form (Default) -->
                 <div v-else class="space-y-8">
                     <div class="flex justify-center lg:justify-start">
-                        <img src="/icons/icon.svg" alt="" class="w-24 h-24 object-contain" width="96" height="96" fetchpriority="high" />
+                        <AppImage src="/icons/icon.svg" alt="" class="h-24 w-24" img-class="object-contain" loading="eager" fetchpriority="high" :placeholder="false" :reveal="false" />
                     </div>
                     
                     <div class="text-center lg:text-left space-y-3">
@@ -422,7 +434,11 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
         <!-- Mobile Background -->
         <div class="lg:hidden absolute inset-0 z-0">
             <div v-if="randomMobileAnime" class="absolute inset-0">
-                <NuxtImg :src="randomMobileAnime" alt="Anime" class="w-full h-full object-cover" loading="lazy" />
+                <AppImage
+                    :src="randomMobileAnime"
+                    alt="Anime"
+                    class="absolute inset-0"
+                />
             </div>
             <div class="absolute inset-0 bg-gradient-to-b from-white via-white/90 to-white dark:from-gray-950 dark:via-gray-950/90 dark:to-gray-950"></div>
         </div>
@@ -477,19 +493,9 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
             disabled:opacity-50 disabled:cursor-not-allowed text-white;
 }
 
-.fade-in-image {
-    opacity: 1;
-    animation: fadeInImage 0.8s ease-out;
-}
-
 @keyframes scrollDown {
     0% { transform: translate3d(0, 0, 0); }
     100% { transform: translate3d(0, -50%, 0); }
-}
-
-@keyframes fadeInImage {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
 }
 
 @keyframes success-pop {

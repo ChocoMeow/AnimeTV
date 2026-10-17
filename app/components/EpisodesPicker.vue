@@ -8,6 +8,7 @@ const props = defineProps({
     watchProgress: { type: Object, default: () => ({}) },
     modelValue: { type: [String, Number], default: null },
     compact: { type: Boolean, default: false },
+    offline: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'select'])
@@ -22,9 +23,12 @@ const previewAnchor = shallowRef(null)
 const previewOpen = ref(false)
 const desktopPreviewEnabled = ref(false)
 
+const PREVIEW_HOVER_MS = 500
+
 let previewMediaQuery = null
 let closePreviewTimer = null
 let clearPreviewTimer = null
+let openPreviewTimer = null
 
 const isNumericEpisode = (ep) => /^\d+$/.test(String(ep))
 
@@ -91,22 +95,20 @@ function hasPreviewSource(ep) {
 }
 
 function clearPreviewTimers() {
-    if (closePreviewTimer) clearTimeout(closePreviewTimer)
-    if (clearPreviewTimer) clearTimeout(clearPreviewTimer)
-    closePreviewTimer = null
-    clearPreviewTimer = null
+    clearTimeout(closePreviewTimer)
+    clearTimeout(clearPreviewTimer)
+    clearTimeout(openPreviewTimer)
+    closePreviewTimer = clearPreviewTimer = openPreviewTimer = null
 }
 
 function closePreview(immediate = false) {
     clearPreviewTimers()
     previewOpen.value = false
-
     if (immediate) {
         previewEpisode.value = null
         previewAnchor.value = null
         return
     }
-
     clearPreviewTimer = setTimeout(() => {
         previewEpisode.value = null
         previewAnchor.value = null
@@ -114,21 +116,28 @@ function closePreview(immediate = false) {
 }
 
 function openPreview(ep, event) {
+    if (props.offline || (import.meta.client && !navigator.onLine)) return
     if (!desktopPreviewEnabled.value || !hasPreviewSource(ep)) return
     clearPreviewTimers()
     previewEpisode.value = String(ep)
     previewAnchor.value = event.currentTarget
-    previewOpen.value = true
+    if (previewOpen.value) return
+    openPreviewTimer = setTimeout(() => {
+        openPreviewTimer = null
+        previewOpen.value = true
+    }, PREVIEW_HOVER_MS)
 }
 
 function schedulePreviewClose() {
+    clearTimeout(openPreviewTimer)
+    openPreviewTimer = null
     if (!previewOpen.value) return
-    if (closePreviewTimer) clearTimeout(closePreviewTimer)
+    clearTimeout(closePreviewTimer)
     closePreviewTimer = setTimeout(() => closePreview(), 130)
 }
 
 function keepPreviewOpen() {
-    if (closePreviewTimer) clearTimeout(closePreviewTimer)
+    clearTimeout(closePreviewTimer)
     closePreviewTimer = null
 }
 
@@ -311,6 +320,7 @@ onBeforeUnmount(() => {
         </div>
 
         <EpisodeHoverPreview
+            v-if="!offline"
             :open="previewOpen"
             :episode="previewEpisode"
             :episode-data="previewEpisode == null ? null : episodes[String(previewEpisode)]"

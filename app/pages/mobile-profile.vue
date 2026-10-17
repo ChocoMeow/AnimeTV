@@ -1,7 +1,10 @@
 <script setup>
+import { WATCH_ANIME_META, withAnimeCovers } from '#shared/utils/watchHistory'
+
 const appConfig = useAppConfig()
 const user = useSupabaseUser()
 const client = useSupabaseClient()
+const { clear: clearOfflineAuthFlag } = useOfflineAuthCache()
 const { userSettings } = useUserSettings()
 const { isAdmin, clearAdmin } = useAdmin()
 const { isMobile } = useMobile()
@@ -43,13 +46,13 @@ async function fetchPreviews() {
     const [historyRes, favoritesRes] = await Promise.all([
         client
             .from('watch_history_latest_updates')
-            .select('*')
+            .select(`*, ${WATCH_ANIME_META}`)
             .eq('user_id', userSettings.value.id)
             .order('updated_at', { ascending: false })
             .range(0, PREVIEW_LIMIT - 1),
         client
             .from('favorites')
-            .select('id, anime_ref_id, anime_title, anime_image, created_at')
+            .select(`id, anime_ref_id, created_at, ${WATCH_ANIME_META}`)
             .eq('user_id', userSettings.value.id)
             .order('created_at', { ascending: false })
             .range(0, PREVIEW_LIMIT - 1),
@@ -58,12 +61,13 @@ async function fetchPreviews() {
     if (historyRes.error) console.error('Failed to fetch history preview:', historyRes.error)
     if (favoritesRes.error) console.error('Failed to fetch favorites preview:', favoritesRes.error)
 
-    historyPreview.value = historyRes.data || []
-    favoritesPreview.value = favoritesRes.data || []
+    historyPreview.value = withAnimeCovers(historyRes.data)
+    favoritesPreview.value = withAnimeCovers(favoritesRes.data)
 }
 
 async function signOut() {
     clearAdmin()
+    clearOfflineAuthFlag()
     await client.auth.signOut()
     navigateTo('/login')
 }
@@ -144,17 +148,12 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                         :to="`/anime/${item.anime_ref_id}?e=${item.episode_number}&t=${item.playback_time}`"
                         class="w-24 shrink-0"
                     >
-                        <div class="relative aspect-[2/3] overflow-hidden rounded-lg bg-gray-200 dark:bg-white/5">
-                            <NuxtImg
-                                v-if="item.anime_image"
-                                :src="item.anime_image"
-                                :alt="item.anime_title"
-                                class="h-full w-full object-cover"
-                                loading="lazy"
-                            />
-                            <div v-else class="flex h-full w-full items-center justify-center text-gray-400">
-                                <span class="material-symbols-rounded text-3xl">movie</span>
-                            </div>
+                        <AppImage
+                            :src="item.anime_image"
+                            :alt="item.anime_title"
+                            class="aspect-[2/3] rounded-lg"
+                            icon-class="text-3xl"
+                        >
                             <div
                                 v-if="item.progress_percentage > 0"
                                 class="absolute bottom-0 left-0 right-0 h-1 bg-black/40"
@@ -164,7 +163,7 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                                     :style="{ width: `${item.progress_percentage}%` }"
                                 />
                             </div>
-                        </div>
+                        </AppImage>
                         <p class="mt-1.5 line-clamp-2 text-xs text-gray-700 dark:text-gray-300">
                             {{ item.anime_title }}
                         </p>
@@ -195,18 +194,12 @@ useHead({ title: `帳戶 | ${appConfig.siteName}` })
                         :to="`/anime/${item.anime_ref_id}`"
                         class="w-24 shrink-0"
                     >
-                        <div class="relative aspect-[2/3] overflow-hidden rounded-lg bg-gray-200 dark:bg-white/5">
-                            <NuxtImg
-                                v-if="item.anime_image"
-                                :src="item.anime_image"
-                                :alt="item.anime_title"
-                                class="h-full w-full object-cover"
-                                loading="lazy"
-                            />
-                            <div v-else class="flex h-full w-full items-center justify-center text-gray-400">
-                                <span class="material-symbols-rounded text-3xl">movie</span>
-                            </div>
-                        </div>
+                        <AppImage
+                            :src="item.anime_image"
+                            :alt="item.anime_title"
+                            class="aspect-[2/3] rounded-lg"
+                            icon-class="text-3xl"
+                        />
                         <p class="mt-1.5 line-clamp-2 text-xs text-gray-700 dark:text-gray-300">
                             {{ item.anime_title }}
                         </p>

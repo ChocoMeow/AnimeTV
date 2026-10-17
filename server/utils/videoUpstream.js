@@ -60,7 +60,7 @@ export function isHlsSegment(url, pathname = '') {
             path = url
         }
     }
-    return /\.(m?ts|m4s|cmfv|aac)(\?|$)/i.test(path)
+    return /\.(m?ts|m4s|cmfv|aac)(\?|$)/i.test(path) || /(?:^|\/)init[^/]*\.mp4(\?|$)/i.test(path)
 }
 
 export function sleep(ms) {
@@ -72,11 +72,11 @@ export function bindClientAbort(event) {
     const abort = () => {
         if (!ac.signal.aborted) ac.abort()
     }
-    // Only abort upstream when the client drops before the response finishes.
-    event.node.res.on('close', () => {
+    // once() — avoid stacking close listeners if this is called more than once
+    event.node.res.once('close', () => {
         if (!event.node.res.writableFinished) abort()
     })
-    event.node.req.on('error', abort)
+    event.node.req.once('error', abort)
     return ac
 }
 

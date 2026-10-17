@@ -1,4 +1,4 @@
-import { VIDEO_SOURCE } from '~~/shared/videoSources'
+import { VIDEO_SOURCE } from '#shared/utils/videoSources'
 
 const ANIME1_HOST = 'anime1.me'
 const ANIME1_SITE = `https://${ANIME1_HOST}`

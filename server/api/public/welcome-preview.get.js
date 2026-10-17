@@ -1,5 +1,5 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
-import { CACHE_LIFETIME } from '~~/shared/global'
+import { CACHE_LIFETIME } from '#shared/utils/global'
 import { logError } from '~~/server/utils/logger'
 import { toYearMonthSlash } from '~~/server/utils/functions'
 

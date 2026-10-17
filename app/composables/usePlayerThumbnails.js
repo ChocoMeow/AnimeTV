@@ -65,7 +65,7 @@ function parseThumbnailsVtt(vttText) {
     for (const block of String(vttText || '').replace(/\r/g, '').split(/\n\s*\n/)) {
         const timeMatch = block.match(/((?:\d{2}:)?\d{2}:\d{2}\.\d{3})\s*-->\s*((?:\d{2}:)?\d{2}:\d{2}\.\d{3})/)
         if (!timeMatch) continue
-        const src = block.match(/(https?:\/\/[^\s#]+)/i)?.[1]
+        const src = block.match(/((?:blob:|https?:)[^\s#]+)/i)?.[1]
         const xywh = parseXywh(block)
         if (!src && !xywh) continue
         const seg = {
@@ -235,7 +235,7 @@ export function usePlayerThumbnails({
     }
 
     watch(
-        [videoId, () => meta.value.thumbnailVttText, () => meta.value.thumbnailsVttUrl],
+        [videoId, jpgUrl, () => meta.value.thumbnailVttText, () => meta.value.thumbnailsVttUrl],
         load,
         { immediate: true },
     )

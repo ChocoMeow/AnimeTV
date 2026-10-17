@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio"
 import { serverSupabaseClient } from "#supabase/server"
-import { GAMER_BASE_URL } from "~~/shared/global"
+import { GAMER_BASE_URL } from "#shared/utils/global"
 import { searchAnimeMeta } from "~~/server/utils/pgroongaSearch"
 
 function truncateDescription(text, max = 140) {

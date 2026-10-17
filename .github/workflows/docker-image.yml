@@ -15,14 +15,38 @@ jobs:
     build-and-push:
         runs-on: ubuntu-latest
         permissions:
-            contents: read
+            contents: write
             packages: write
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
             - name: Lowercase image name
               run: echo "IMAGE_NAME=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+            # Bump only in the workspace — commit/tag/push happen after a successful image build.
+            # beta: 1.0.1 → 1.0.2b1 → 1.0.2b2; main: 1.0.2b2 → 1.0.2 (or 1.0.2 → 1.0.3)
+            - name: Bump version (local)
+              id: bump
+              if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+              run: |
+                  node scripts/build-version.mjs bump "${{ github.ref_name }}"
+                  echo "bumped=true" >> "$GITHUB_OUTPUT"
+
+            - name: Resolve build metadata
+              id: meta_ver
+              run: |
+                  echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+                  echo "sha=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+                  if [ "${{ github.ref_name }}" = "main" ]; then
+                    echo "channel=stable" >> "$GITHUB_OUTPUT"
+                  elif [ "${{ github.ref_name }}" = "beta" ]; then
+                    echo "channel=beta" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "channel=development" >> "$GITHUB_OUTPUT"
+                  fi
 
             - name: Set up QEMU
               uses: docker/setup-qemu-action@v3
@@ -49,7 +73,12 @@ jobs:
                   tags: |
                       type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
                       type=raw,value=beta,enable=${{ github.ref_name == 'beta' }}
+                      type=raw,value=${{ steps.meta_ver.outputs.version }}
+                      type=raw,value=v${{ steps.meta_ver.outputs.version }}
                       type=sha
+                  labels: |
+                      org.opencontainers.image.version=${{ steps.meta_ver.outputs.version }}
+                      org.opencontainers.image.revision=${{ steps.meta_ver.outputs.sha }}
 
             - name: Build and push Docker image
               uses: docker/build-push-action@v6
@@ -59,7 +88,22 @@ jobs:
                   platforms: linux/amd64,linux/arm64
                   tags: ${{ steps.meta.outputs.tags }}
                   labels: ${{ steps.meta.outputs.labels }}
+                  build-args: |
+                      APP_VERSION=${{ steps.meta_ver.outputs.version }}
+                      APP_CHANNEL=${{ steps.meta_ver.outputs.channel }}
+                      GIT_SHA=${{ steps.meta_ver.outputs.sha }}
                   cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
                   cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
                   provenance: false
                   sbom: false
+
+            - name: Commit and tag version
+              if: ${{ steps.bump.outputs.bumped == 'true' }}
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  VERSION="${{ steps.meta_ver.outputs.version }}"
+                  git add package.json
+                  git commit -m "chore: bump version to ${VERSION} [skip ci]"
+                  git tag "v${VERSION}"
+                  git push --atomic origin "HEAD:${{ github.ref_name }}" "refs/tags/v${VERSION}"

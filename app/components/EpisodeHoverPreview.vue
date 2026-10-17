@@ -1,9 +1,6 @@
 <script setup>
 const resolvedPreviewMetaCache = new Map()
 const PREVIEW_META_CACHE_LIMIT = 30
-const META_IDLE = 'idle'
-const META_LOADING = 'loading'
-const META_READY = 'ready'
 
 const props = defineProps({
     open: { type: Boolean, default: false },
@@ -27,7 +24,7 @@ const isScrubbing = ref(false)
 const placement = ref('top')
 const position = ref({ left: VIEWPORT_INSET, top: VIEWPORT_INSET })
 const resolvedEpisodeData = ref(null)
-const metadataState = ref(META_IDLE)
+const metaSettled = ref(false)
 
 let animationFrame = 0
 let lastFrameTime = 0
@@ -63,11 +60,20 @@ const {
     previewHeight: PREVIEW_HEIGHT,
 })
 
-const isVisible = computed(() => props.open && hasThumbnails.value)
-const progress = computed(() => {
-    if (!thumbnailDuration.value) return 0
-    return clamp((previewTime.value / thumbnailDuration.value) * 100, 0, 100)
-})
+const hasDisplayFrame = computed(() =>
+    !!(thumbnailPreview.value || (activeThumbnail.value && activeThumbnailSrc.value)),
+)
+
+/** Open shell while loading; hide once we know there are no thumbnails. */
+const isVisible = computed(() =>
+    props.open && !(metaSettled.value && !isLoading.value && !hasThumbnails.value),
+)
+
+const progress = computed(() =>
+    thumbnailDuration.value
+        ? clamp((previewTime.value / thumbnailDuration.value) * 100, 0, 100)
+        : 0,
+)
 const watchPercentage = computed(() =>
     clamp(Number(props.watchData?.progress_percentage) || 0, 0, 100),
 )
@@ -88,14 +94,15 @@ function updatePosition() {
     const roomAbove = anchor.top - VIEWPORT_INSET
     const roomBelow = window.innerHeight - anchor.bottom - VIEWPORT_INSET
     const showAbove = roomAbove >= PREVIEW_HEIGHT + ANCHOR_GAP || roomAbove >= roomBelow
-    const desiredTop = showAbove
-        ? anchor.top - PREVIEW_HEIGHT - ANCHOR_GAP
-        : anchor.bottom + ANCHOR_GAP
 
     placement.value = showAbove ? 'top' : 'bottom'
     position.value = {
         left: clamp(anchor.left + anchor.width / 2 - PREVIEW_WIDTH / 2, VIEWPORT_INSET, maxLeft),
-        top: clamp(desiredTop, VIEWPORT_INSET, maxTop),
+        top: clamp(
+            showAbove ? anchor.top - PREVIEW_HEIGHT - ANCHOR_GAP : anchor.bottom + ANCHOR_GAP,
+            VIEWPORT_INSET,
+            maxTop,
+        ),
     }
 }
 
@@ -107,6 +114,15 @@ function stopAnimation() {
 
 function animate(timestamp) {
     if (!isVisible.value) return
+
+    // Hold time until a sprite frame is painted (VTT can resolve before the image loads).
+    if (!hasDisplayFrame.value) {
+        updateActiveThumbnailForTime(previewTime.value)
+        lastFrameTime = 0
+        animationFrame = requestAnimationFrame(animate)
+        return
+    }
+
     if (!lastFrameTime) lastFrameTime = timestamp
     if (!isScrubbing.value && thumbnailDuration.value > 0) {
         const elapsed = ((timestamp - lastFrameTime) / 1000) * PLAYBACK_RATE
@@ -120,8 +136,7 @@ function animate(timestamp) {
 function seekFromPointer(event) {
     const rect = timelineRef.value?.getBoundingClientRect()
     if (!rect?.width || !thumbnailDuration.value) return
-    const ratio = clamp((event.clientX - rect.left) / rect.width, 0, 1)
-    previewTime.value = ratio * thumbnailDuration.value
+    previewTime.value = clamp((event.clientX - rect.left) / rect.width, 0, 1) * thumbnailDuration.value
     updateActiveThumbnailForTime(previewTime.value)
 }
 
@@ -183,17 +198,19 @@ function fetchPreviewMeta(token) {
 async function resolvePreviewMetadata() {
     const id = ++metadataResolveId
     resolvedEpisodeData.value = null
-    metadataState.value = META_IDLE
+    metaSettled.value = false
 
-    if (!props.open) return
-
-    const token = props.episodeData?.token
-    if (hasThumbnailMeta(props.episodeData) || !token) {
-        metadataState.value = META_READY
+    if (props.episode == null) {
+        metaSettled.value = true
         return
     }
 
-    metadataState.value = META_LOADING
+    const token = props.episodeData?.token
+    if (hasThumbnailMeta(props.episodeData) || !token) {
+        metaSettled.value = true
+        return
+    }
+
     try {
         const result = await fetchPreviewMeta(token)
         if (id !== metadataResolveId) return
@@ -201,42 +218,41 @@ async function resolvePreviewMetadata() {
     } catch {
         resolvedPreviewMetaCache.delete(token)
     } finally {
-        if (id === metadataResolveId) metadataState.value = META_READY
+        if (id === metadataResolveId) metaSettled.value = true
     }
 }
 
 watch(
-    [() => props.open, hasThumbnails, isLoading, metadataState],
-    ([open, available, loading, state]) => {
-        if (open && !available && !loading && state === META_READY) emit('unavailable')
+    [() => props.open, hasThumbnails, isLoading, metaSettled],
+    ([open, available, loading, settled]) => {
+        if (open && settled && !loading && !available) emit('unavailable')
     },
 )
 
 watch(
-    () => props.episode,
+    [() => props.episode, () => props.episodeData],
     () => {
         previewTime.value = 0
         isScrubbing.value = false
         clearActiveThumbnail()
+        resolvePreviewMetadata()
     },
-)
-
-watch(
-    [() => props.open, () => props.episode, () => props.episodeData],
-    resolvePreviewMetadata,
     { immediate: true },
 )
 
-watch(isVisible, async (visible) => {
-    stopAnimation()
-    if (!visible) return
-
-    previewTime.value = 0
-    await nextTick()
-    updatePosition()
-    updateActiveThumbnailForTime(previewTime.value)
-    animationFrame = requestAnimationFrame(animate)
-})
+watch(
+    [isVisible, hasThumbnails],
+    async ([visible, thumbs]) => {
+        stopAnimation()
+        if (!visible) return
+        previewTime.value = 0
+        await nextTick()
+        updatePosition()
+        if (!thumbs) return
+        updateActiveThumbnailForTime(0)
+        animationFrame = requestAnimationFrame(animate)
+    },
+)
 
 onMounted(() => {
     window.addEventListener('resize', updatePosition)
@@ -265,6 +281,13 @@ onBeforeUnmount(() => {
                     class="relative overflow-hidden rounded-lg bg-black"
                     :style="{ width: `${PREVIEW_WIDTH}px`, height: `${PREVIEW_HEIGHT}px` }"
                 >
+                    <div
+                        v-if="!hasDisplayFrame"
+                        class="absolute inset-0 flex items-center justify-center bg-gray-950"
+                        aria-hidden="true"
+                    >
+                        <span class="material-symbols-rounded animate-pulse text-4xl text-white/25">movie</span>
+                    </div>
                     <div
                         v-if="thumbnailPreview"
                         class="absolute overflow-hidden"
@@ -300,6 +323,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div
+                        v-if="hasThumbnails && thumbnailDuration"
                         ref="timelineRef"
                         class="preview-timeline group/timeline absolute inset-x-0 bottom-0 z-10 flex h-5 cursor-pointer touch-none items-end"
                         role="slider"

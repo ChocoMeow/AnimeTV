@@ -8,12 +8,12 @@ defineEmits(['select'])
 
 <template>
     <div
-        class="intent-switcher relative h-9 min-w-[7.25rem] rounded-full bg-white p-1 shadow-sm ring-1 ring-black/8 dark:bg-gray-950 dark:ring-white/10"
+        class="intent-switcher relative h-9 min-w-[7.25rem] rounded-full bg-white p-1 shadow-sm ring-1 ring-black/10 dark:bg-gray-950 dark:shadow-none dark:ring-white/10"
         role="tablist"
         aria-label="輸入模式"
     >
         <div
-            class="intent-switcher-pill absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-black/6 dark:bg-white/10"
+            class="intent-switcher-pill absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-black/10 dark:bg-white/10"
             :class="{ 'is-ask': ask }"
             aria-hidden="true"
         />

@@ -1,5 +1,5 @@
 <script setup>
-definePageMeta({ publicSsr: true }) // SSR OG/meta for link previews; client middleware still requires login
+definePageMeta({ publicSsr: true, offlineAccess: true }) // SSR OG/meta for link previews; client middleware still requires login
 
 // ─── Composables ──────────────────────────────────────────────────────────────
 const { userSettings, getShortcuts, formatShortcutKey } = useUserSettings()
@@ -20,6 +20,7 @@ const {
     getOfflineThumbnailAssets,
 } = useOfflineAnimeDownloads()
 const { runOfflineDownloadBatch } = useOfflineDownloadQueue()
+const { put: putOfflineWatchHistory, list: listOfflineWatchHistory } = useOfflineWatchHistory()
 const {
     hoveredAnime,
     animeDetails,
@@ -91,7 +92,7 @@ const offlinePlaybackRevoke = ref(null)
 const offlineThumbRevoke = ref(null)
 const offlineThumbnailJpgUrl = ref(null)
 const offlineThumbnailVttText = ref(null)
-const offlineModeBanner = ref(false)
+const isOfflineView = ref(false)
 
 // Watch history
 const lastWatchedData = ref(null)
@@ -100,10 +101,8 @@ const allWatchProgress = ref({})
 
 // Player
 const videoPlayer = ref(null)
-const hasSetInitialTime = ref(false)
 const isTheaterMode = ref(false)
 const streamResumeTime = ref(null)
-const streamResumePlaying = ref(false)
 const MAX_STREAM_RECOVERY = 3
 const episodeLoading = ref(false)
 let streamRecoveryAttempts = 0
@@ -158,6 +157,15 @@ const videoPlayerMeta = computed(() => {
         thumbnailsVttUrl: ep?.thumbnails_vtt_url || null,
         captions: Array.isArray(ep?.captions) ? ep.captions : [],
     }
+})
+
+const playerStartTime = computed(() => {
+    if (streamResumeTime.value != null) return Number(streamResumeTime.value) || 0
+    const q = parseFloat(route.query.t)
+    if (q > 0) return q
+    const saved = allWatchProgress.value[String(selectedEpisode.value)]
+    if (!saved || Number(saved.progress_percentage) >= 90) return 0
+    return Math.max(0, Number(saved.playback_time) || 0)
 })
 
 const additionalDetails = computed(() => {
@@ -256,12 +264,21 @@ function revokeOfflineThumbnails() {
     offlineThumbnailJpgUrl.value = null
     offlineThumbnailVttText.value = null
 }
+const offlineCoverUrl = ref(null)
+const offlineCoverRevoke = ref(null)
+const coverSrc = computed(() => offlineCoverUrl.value || anime.value?.image || '')
+
+function revokeOfflineCover() {
+    offlineCoverRevoke.value?.()
+    offlineCoverRevoke.value = null
+    offlineCoverUrl.value = null
+}
 
 async function refreshOfflineEpisodeList() {
     offlineDownloadedKeys.value = anime.value?.refId ? await listDownloadedEpisodeKeys(anime.value.refId) : []
 }
 
-async function handleOfflineDownload(keys) {
+async function handleOfflineDownload(keys, qualityHeight) {
     if (!anime.value || !keys?.length) return
     isOfflineDownloading.value = true
     offlineDownloadProgress.value = 0
@@ -272,6 +289,7 @@ async function handleOfflineDownload(keys) {
             animeTitle: anime.value.title,
             animeSnapshot: anime.value,
             keys,
+            qualityHeight,
             episodes: anime.value.episodes || {},
             setOverallProgress: (v) => {
                 offlineDownloadProgress.value = v
@@ -389,8 +407,6 @@ async function saveWatchHistory(episodeNumber = null) {
     const entry = {
         user_id: id,
         anime_ref_id: anime.value.refId,
-        anime_title: anime.value.title,
-        anime_image: anime.value.image,
         episode_number: String(epNum),
         playback_time: playbackTime,
         video_duration: videoDuration,
@@ -399,8 +415,11 @@ async function saveWatchHistory(episodeNumber = null) {
     }
 
     try {
-        const { error } = await client.from('watch_history').upsert(entry, { onConflict: 'user_id, anime_ref_id, episode_number' })
-        if (error) throw error
+        if (isClientOffline()) await putOfflineWatchHistory(entry)
+        else {
+            const { error } = await client.from('watch_history').upsert(entry, { onConflict: 'user_id, anime_ref_id, episode_number' })
+            if (error) throw error
+        }
         allWatchProgress.value[entry.episode_number] = entry
         lastWatchedData.value = entry
     } catch (err) {
@@ -417,14 +436,23 @@ function handleLeave() {
 async function fetchLastWatched() {
     if (!userSettings.value.id || !anime.value) return
     try {
-        const { data, error } = await client
-            .from('watch_history')
-            .select('*')
-            .eq('anime_ref_id', anime.value.refId)
-            .eq('user_id', userSettings.value.id)
-            .order('updated_at', { ascending: false })
+        let data
+        if (isClientOffline()) {
+            data = (await listOfflineWatchHistory(userSettings.value.id))
+                .filter((row) => String(row.anime_ref_id) === String(anime.value.refId))
+                .sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))
+        } else {
+            const res = await client
+                .from('watch_history')
+                .select('*')
+                .eq('anime_ref_id', anime.value.refId)
+                .eq('user_id', userSettings.value.id)
+                .order('updated_at', { ascending: false })
+            if (res.error) throw res.error
+            data = res.data
+        }
 
-        if (!error && data?.length) {
+        if (data?.length) {
             allWatchProgress.value = Object.fromEntries(
                 data.filter((item, i, arr) => arr.findIndex((x) => x.episode_number === item.episode_number) === i).map((item) => [item.episode_number, item]),
             )
@@ -477,7 +505,7 @@ async function toggleFavorite() {
     const table = client.from('favorites')
     const match = { user_id: userSettings.value.id, anime_ref_id: anime.value.refId }
     const { error } = isFavorite.value
-        ? await table.insert({ ...match, anime_title: anime.value.title, anime_image: anime.value.image })
+        ? await table.insert(match)
         : await table.delete().match(match)
     if (error) {
         isFavorite.value = !isFavorite.value
@@ -485,47 +513,9 @@ async function toggleFavorite() {
     }
 }
 
-// ─── Video ready ──────────────────────────────────────────────────────────────
-async function onVideoReady() {
-    const recoveryTime = streamResumeTime.value
-    if (recoveryTime != null) {
-        streamResumeTime.value = null
-        hasSetInitialTime.value = true
-        const resumePlaying = streamResumePlaying.value
-        streamResumePlaying.value = false
-        const doResume = () => {
-            videoPlayer.value?.seek(recoveryTime)
-            if (resumePlaying) videoPlayer.value?.play()
-        }
-        const videoEl = videoPlayer.value?.videoElement
-        videoEl?.readyState >= 2 ? doResume() : videoEl?.addEventListener('canplay', doResume, { once: true })
-        return
-    }
-
-    if (hasSetInitialTime.value) return
-
-    let startTime = route.query.t ? parseFloat(route.query.t) : null
-
-    if (startTime == null && selectedEpisode.value) {
-        const saved = allWatchProgress.value[String(selectedEpisode.value)]
-        if (saved) startTime = Number(saved.progress_percentage) >= 90 ? 0 : Number(saved.playback_time)
-    }
-
-    if (startTime && !isNaN(startTime) && startTime > 0 && videoPlayer.value) {
-        const videoEl = videoPlayer.value.videoElement
-        const doSeek = () => {
-            if (!hasSetInitialTime.value) {
-                videoPlayer.value?.seek(startTime)
-                hasSetInitialTime.value = true
-            }
-        }
-        videoEl?.readyState >= 2 ? doSeek() : videoEl?.addEventListener('canplay', doSeek, { once: true })
-    } else {
-        hasSetInitialTime.value = true
-    }
-
+function onVideoReady() {
+    streamResumeTime.value = null
     videoPlayer.value?.videoElement && setTimeout(() => videoPlayer.value.videoElement.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100)
-
     if (anime.value && selectedEpisode.value)
         setWatching({ refId: anime.value.refId, title: anime.value.title, image: anime.value.image, episode: selectedEpisode.value })
 }
@@ -559,6 +549,7 @@ function mergeEpisodePlaybackMeta(epKey, res) {
 }
 
 async function fetchOnlineVideoUrl(epNum) {
+    if (isOfflineView.value || isClientOffline()) return false
     const token = anime.value?.episodes[String(epNum)]?.token
     if (!token) {
         videoUrl.value = null
@@ -587,6 +578,8 @@ async function fetchOnlineVideoUrl(epNum) {
 
 async function handleStreamError() {
     if (streamRecovering || !selectedEpisode.value) return
+    if (isOfflineView.value || isClientOffline()) return
+    if (String(videoUrl.value || '').startsWith('blob:')) return
     if (!anime.value?.episodes[String(selectedEpisode.value)]?.token) return
 
     if (streamRecoveryAttempts >= MAX_STREAM_RECOVERY) {
@@ -597,7 +590,6 @@ async function handleStreamError() {
     streamRecovering = true
     streamRecoveryAttempts++
     streamResumeTime.value = videoPlayer.value?.currentTime ?? 0
-    streamResumePlaying.value = videoPlayer.value?.isPlaying ?? false
     showToast('正在重新連線…', 'info')
 
     try {
@@ -618,7 +610,6 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
     if (oldEpNum && oldEpNum !== epNum) {
         streamRecoveryAttempts = 0
         if (videoPlayer.value) saveWatchHistory(oldEpNum)
-        hasSetInitialTime.value = false
         if (route.query.t || route.query.e) {
             const q = { ...route.query }
             delete q.t
@@ -652,9 +643,16 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
             if (playback) {
                 offlinePlaybackRevoke.value = playback.revoke
                 videoUrl.value = playback.url
-                videoIsHls.value = playback.isHls
+                videoIsHls.value = false
                 return
             }
+        }
+
+        if (isOfflineView.value || isClientOffline()) {
+            videoUrl.value = null
+            videoIsHls.value = false
+            showToast('此集尚未下載，離線時無法播放', 'info', 2500)
+            return
         }
 
         showContinuePrompt.value = false
@@ -666,7 +664,7 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
             if (playback) {
                 offlinePlaybackRevoke.value = playback.revoke
                 videoUrl.value = playback.url
-                videoIsHls.value = playback.isHls
+                videoIsHls.value = false
                 showToast('使用離線影片播放', 'info', 2500)
             } else {
                 videoUrl.value = null
@@ -679,20 +677,45 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
 })
 
 // ─── Data fetching ────────────────────────────────────────────────────────────
+function isClientOffline() {
+    return import.meta.client && !navigator.onLine
+}
+
 async function fetchEpisodes(refId) {
     if (!refId) return { episodes: {} }
     episodesLoading.value = true
     try {
         const res = await $fetch(`/api/anime/${refId}/episodes`)
         return { episodes: res?.episodes || {} }
-    } catch (err) {
+    } catch {
         return { episodes: {} }
     } finally {
         episodesLoading.value = false
     }
 }
 
-async function fetchDetail() {
+/** Apply IndexedDB snapshot (saved on download). Returns false if none. */
+async function applyOfflineSnapshot(refId) {
+    const snap = await loadAnimeSnapshot(refId)
+    if (!snap?.episodes || !Object.keys(snap.episodes).length) return false
+
+    revokeOfflineCover()
+    // Keep anime.image as the remote URL (persistable). Blob covers are display-only.
+    anime.value = { ...snap, imageBlob: undefined }
+    if (snap.imageBlob?.size) {
+        const url = URL.createObjectURL(snap.imageBlob)
+        offlineCoverUrl.value = url
+        offlineCoverRevoke.value = () => URL.revokeObjectURL(url)
+    }
+    isOfflineView.value = true
+    useHead({ title: `${snap.title} | ${appConfig.siteName}` })
+    await refreshOfflineEpisodeList()
+    await fetchLastWatched()
+    applyEpisodeQueryFromRoute()
+    return true
+}
+
+function resetDetailState() {
     loading.value = true
     error.value = null
     videoUrl.value = null
@@ -700,15 +723,28 @@ async function fetchDetail() {
     selectedEpisode.value = null
     episodeLoading.value = false
     episodeFetchId++
-    offlineModeBanner.value = false
+    isOfflineView.value = false
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
+    revokeOfflineCover()
+}
 
-    const sourceRefId = String(route.params.id)
+async function fetchDetail() {
+    resetDetailState()
+    const refId = String(route.params.id)
+
+    // Offline: use local snapshot only. SW may cache detail API without episodes.
+    if (isClientOffline()) {
+        if (!(await applyOfflineSnapshot(refId))) {
+            useHead({ title: `載入動漫詳情失敗 | ${appConfig.siteName}` })
+            error.value = '離線模式下找不到此動漫的下載資料'
+        }
+        loading.value = false
+        return
+    }
 
     try {
-        const res = await $fetch(`/api/anime/${sourceRefId}?withRelated=true`)
-
+        const res = await $fetch(`/api/anime/${refId}?withRelated=true`)
         if (!res || !Object.keys(res).length) {
             error.value = '找不到此動漫的詳細資訊'
             return
@@ -719,30 +755,16 @@ async function fetchDetail() {
         useHead({ title: `${res.title} | ${appConfig.siteName}` })
         fetchLastWatched().catch((err) => console.error('Last watched fetch failed:', err))
         refreshOfflineEpisodeList().catch((err) => console.error('Offline episode list refresh failed:', err))
-        fetchEpisodes(sourceRefId)
-            .then(async (earlyEpisodes) => {
-                if (String(route.params.id) !== sourceRefId || !anime.value) return
-                anime.value.episodes = earlyEpisodes?.episodes || {}
+        fetchEpisodes(refId)
+            .then(async ({ episodes }) => {
+                if (String(route.params.id) !== refId || !anime.value) return
+                anime.value.episodes = episodes
                 await nextTick()
                 if (route.query.e && !selectedEpisode.value) applyEpisodeQueryFromRoute()
             })
             .catch((err) => console.error('Episodes fetch flow failed:', err))
-    } catch (err) {
-        if (import.meta.client) {
-            try {
-                const snap = await loadAnimeSnapshot(route.params.id)
-                if (snap?.episodes && Object.keys(snap.episodes).length) {
-                    anime.value = snap
-                    useHead({ title: `${snap.title} | ${appConfig.siteName}` })
-                    offlineModeBanner.value = true
-                    await refreshOfflineEpisodeList()
-                    applyEpisodeQueryFromRoute()
-                    return
-                }
-            } catch (offlineErr) {
-                console.error('Offline snapshot load failed:', offlineErr)
-            }
-        }
+    } catch {
+        if (await applyOfflineSnapshot(refId)) return
         useHead({ title: `載入動漫詳情失敗 | ${appConfig.siteName}` })
         error.value = '載入動漫詳情失敗，請稍後再試'
     } finally {
@@ -778,6 +800,7 @@ onUnmounted(() => {
     toolbarResizeObserver?.disconnect()
     revokeOfflinePlayback()
     revokeOfflineThumbnails()
+    revokeOfflineCover()
     if (toolbarOverflowClickHandler) document.removeEventListener('click', toolbarOverflowClickHandler, true)
     window.removeEventListener('beforeunload', handleLeave)
     window.removeEventListener('keydown', handleShortcutsKeydown)
@@ -816,12 +839,16 @@ onUnmounted(() => {
                     <!-- Video Player -->
                     <section aria-label="Video player" :class="isTheaterMode ? 'lg:col-span-2' : ''">
                         <!-- Thumbnail placeholder (no episode selected) -->
-                        <div v-if="!selectedEpisode && anime?.image"
+                        <div v-if="!selectedEpisode && coverSrc"
                             class="aspect-video relative rounded-lg overflow-hidden bg-gray-900 dark:bg-gray-950">
                             <div class="absolute inset-0">
-                                <NuxtImg :src="anime.image" alt="Anime thumbnail" loading="eager"
-                                    class="w-full h-full object-cover"
-                                    style="filter: blur(2px);" />
+                                <AppImage
+                                    :src="offlineCoverUrl || coverSrc"
+                                    alt="Anime thumbnail"
+                                    class="absolute inset-0"
+                                    loading="eager"
+                                    img-style="filter: blur(2px);"
+                                />
                             </div>
                             <div class="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
                             <div class="absolute inset-0 flex flex-col items-center justify-center z-[1] px-4 sm:px-8">
@@ -838,6 +865,7 @@ onUnmounted(() => {
                             ref="videoPlayer"
                             :src="videoUrl || ''"
                             :is-hls="videoIsHls"
+                            :start-time="playerStartTime"
                             :loading="episodeLoading"
                             :anime-meta="videoPlayerMeta"
                             preload="metadata"
@@ -857,7 +885,7 @@ onUnmounted(() => {
                     </section>
 
                     <!-- Offline Banner -->
-                    <div v-if="offlineModeBanner"
+                    <div v-if="isOfflineView"
                         :class="['flex items-center gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 text-amber-900 dark:text-amber-100 text-sm', isTheaterMode ? 'lg:col-span-2' : '']"
                         role="status">
                         <span class="material-symbols-rounded flex-shrink-0 text-xl">wifi_off</span>
@@ -870,7 +898,8 @@ onUnmounted(() => {
                         :episodes-loading="episodesLoading"
                         :episodes="anime?.episodes"
                         :watch-progress="allWatchProgress"
-                        :anime-image="anime?.image || ''"
+                        :anime-image="coverSrc"
+                        :offline="isOfflineView"
                         :model-value="selectedEpisode"
                         @update:model-value="(n) => (selectedEpisode = n)"
                         @continue-last="continueLast" />
@@ -880,7 +909,7 @@ onUnmounted(() => {
                         <!-- Title + Actions -->
                         <div ref="toolbarHeaderRef" class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                             <h1 class="min-w-0 md:flex-1 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">{{ anime.title }}</h1>
-                            <div v-if="animeToolbarActions.length" class="flex flex-wrap items-center gap-2 w-full md:w-auto md:flex-shrink-0 md:justify-end">
+                            <div v-if="!isOfflineView && animeToolbarActions.length" class="flex flex-wrap items-center gap-2 w-full md:w-auto md:flex-shrink-0 md:justify-end">
                                 <button v-for="action in toolbarActionsSplit.primary" :key="action.key"
                                     type="button"
                                     class="inline-flex items-center gap-1.5 h-10 px-3 bg-black/5 dark:bg-white/10 rounded-full ring-1 ring-black/5 dark:ring-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all focus:outline-none"
@@ -974,13 +1003,14 @@ onUnmounted(() => {
                         :episodes-loading="episodesLoading"
                         :episodes="anime?.episodes"
                         :watch-progress="allWatchProgress"
-                        :anime-image="anime?.image || ''"
+                        :anime-image="coverSrc"
+                        :offline="isOfflineView"
                         :model-value="selectedEpisode"
                         @update:model-value="(n) => (selectedEpisode = n)"
                         @continue-last="continueLast" />
 
                     <AnimeRelatedSection
-                        v-if="anime"
+                        v-if="anime && !isOfflineView"
                         :related-anime="anime.relatedAnime || []"
                         :tags="anime.tags || []"
                         :current-ref-id="anime.refId"

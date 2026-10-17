@@ -1,4 +1,6 @@
 <script setup>
+definePageMeta({ public: true })
+
 const appConfig = useAppConfig()
 useHead({ title: `服務條款 | ${appConfig.siteName}` })
 </script>

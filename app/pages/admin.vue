@@ -1,5 +1,5 @@
 <script setup>
-import { DEFAULT_VIDEO_SOURCE, VIDEO_SOURCES } from '~~/shared/videoSources'
+import { DEFAULT_VIDEO_SOURCE, VIDEO_SOURCES } from '#shared/utils/videoSources'
 
 const appConfig = useAppConfig()
 const route = useRoute()
@@ -174,17 +174,23 @@ function formatValueForInput(value, type) {
                 if (dateOnlyPattern.test(value)) {
                     return value
                 }
-                const date = new Date(value)
+                const date = parseDbTimestamp(value)
                 if (!isNaN(date.getTime())) {
-                    return date.toISOString().slice(0, 10)
+                    const month = String(date.getMonth() + 1).padStart(2, '0')
+                    const day = String(date.getDate()).padStart(2, '0')
+                    return `${date.getFullYear()}-${month}-${day}`
                 }
             }
             return ''
         case 'datetime':
             if (typeof value === 'string') {
-                const date = new Date(value)
+                const date = parseDbTimestamp(value)
                 if (!isNaN(date.getTime())) {
-                    return date.toISOString().slice(0, 16)
+                    const month = String(date.getMonth() + 1).padStart(2, '0')
+                    const day = String(date.getDate()).padStart(2, '0')
+                    const hours = String(date.getHours()).padStart(2, '0')
+                    const minutes = String(date.getMinutes()).padStart(2, '0')
+                    return `${date.getFullYear()}-${month}-${day}T${hours}:${minutes}`
                 }
             }
             return ''
@@ -626,21 +632,16 @@ onMounted(() => {
                                 @click="handleSelect(record)"
                             >
                                 <!-- Thumbnail -->
-                                <div class="flex-shrink-0 w-12 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-white/5">
-                                    <NuxtImg
-                                        v-if="record.thumbnail"
-                                        :src="record.thumbnail"
-                                        :alt="record.title || record.source_id || 'anime thumbnail'"
-                                        class="w-full h-full object-cover"
-                                        loading="lazy"
-                                    />
-                                    <div
-                                        v-else
-                                        class="w-full h-full flex items-center justify-center text-[10px] text-gray-400 dark:text-gray-500"
-                                    >
-                                        無封面
-                                    </div>
-                                </div>
+                                <AppImage
+                                    :src="record.thumbnail"
+                                    :alt="record.title || record.source_id || 'anime thumbnail'"
+                                    class="flex-shrink-0 w-12 aspect-[2/3] rounded-lg bg-gray-100"
+                                    icon-class="text-lg"
+                                >
+                                    <template #error>
+                                        <span class="text-[10px] text-gray-400 dark:text-gray-500">無封面</span>
+                                    </template>
+                                </AppImage>
 
                                 <!-- Text info -->
                                 <div class="flex flex-col gap-0.5 min-w-0">
@@ -740,21 +741,15 @@ onMounted(() => {
                         class="space-y-4"
                     >
                         <div class="flex items-start gap-4">
-                            <div class="w-32 aspect-[2/3] rounded-xl overflow-hidden bg-gray-100 dark:bg-white/5 flex-shrink-0">
-                                <NuxtImg
-                                    v-if="editableRecord.thumbnail"
-                                    :src="editableRecord.thumbnail"
-                                    :alt="editableRecord.title || editableRecord.source_id || 'thumbnail preview'"
-                                    class="w-full h-full object-cover"
-                                    loading="lazy"
-                                />
-                                <div
-                                    v-else
-                                    class="w-full h-full flex flex-col items-center justify-center text-xs text-gray-400 dark:text-gray-500 px-2 text-center"
-                                >
-                                    無封面預覽
-                                </div>
-                            </div>
+                            <AppImage
+                                :src="editableRecord.thumbnail"
+                                :alt="editableRecord.title || editableRecord.source_id || 'thumbnail preview'"
+                                class="w-32 aspect-[2/3] rounded-xl bg-gray-100 flex-shrink-0"
+                            >
+                                <template #error>
+                                    <span class="px-2 text-center text-xs text-gray-400 dark:text-gray-500">無封面預覽</span>
+                                </template>
+                            </AppImage>
                             <div class="flex-1 text-xs text-gray-500 dark:text-gray-400 space-y-1">
                                 <p class="font-medium text-gray-700 dark:text-gray-200">封面預覽</p>
                                 <p>編輯下方「封面圖片連結」欄位後，儲存前亦會即時更新預覽。</p>
@@ -1054,6 +1049,26 @@ onMounted(() => {
            text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500
            focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent
            transition-shadow disabled:opacity-60 disabled:cursor-not-allowed;
+}
+
+/* iOS Safari centers native date/datetime values; force left like other admin fields. */
+.admin-input[type='date'],
+.admin-input[type='datetime-local'] {
+    -webkit-appearance: none;
+    appearance: none;
+    text-align: left;
+}
+
+.admin-input[type='date']::-webkit-date-and-time-value,
+.admin-input[type='datetime-local']::-webkit-date-and-time-value {
+    text-align: left;
+    margin: 0;
+}
+
+.admin-input[type='date']::-webkit-datetime-edit,
+.admin-input[type='datetime-local']::-webkit-datetime-edit {
+    text-align: left;
+    padding: 0;
 }
 
 .admin-textarea {

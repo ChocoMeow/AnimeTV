@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio"
 import { serverSupabaseClient } from "#supabase/server"
-import { CHINESE_WEEKDAY_MAP, GAMER_BASE_URL } from "~~/shared/global"
+import { CHINESE_WEEKDAY_MAP, GAMER_BASE_URL } from "#shared/utils/global"
 import { ANIME_CACHE } from "~~/server/utils/cache"
 import { createLoggedError } from "~~/server/utils/logger"
 
@@ -142,7 +142,7 @@ async function getContinueWatching(client, userId) {
 
     const { data, error } = await client
         .from("watch_history_latest_updates")
-        .select(`anime_ref_id, anime_title, anime_image, episode_number, progress_percentage, updated_at, anime_meta(source_id, premiere_date, views)`)
+        .select(`anime_ref_id, episode_number, progress_percentage, updated_at, anime_meta!anime_ref_id(title, thumbnail, premiere_date, views)`)
         .eq("user_id", userId)
         .lt("progress_percentage", 90)
         .order("updated_at", { ascending: false })
@@ -158,8 +158,8 @@ async function getContinueWatching(client, userId) {
             const premiereDate = meta?.premiere_date?.split("-")
             return {
                 refId: row.anime_ref_id,
-                title: meta?.title ?? row.anime_title,
-                image: meta?.thumbnail ?? row.anime_image,
+                title: meta?.title || '',
+                image: meta?.thumbnail || '',
                 episodes: row.episode_number != null ? `第 ${row.episode_number} 集` : null,
                 year: premiereDate ? `${premiereDate[0]}/${premiereDate[1]}` : null,
                 views: meta?.views ?? null,

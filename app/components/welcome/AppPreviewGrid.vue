@@ -431,11 +431,11 @@ onBeforeUnmount(() => {
                             <article class="home-spotlight">
                                 <Transition name="spot-fade" mode="out-in">
                                     <div :key="activeSpotlight.refId" class="home-spotlight-inner">
-                                        <NuxtImg
+                                        <AppImage
                                             :src="activeSpotlight.image"
                                             :alt="activeSpotlight.title"
-                                            class="home-spotlight-img"
-                                            loading="lazy"
+                                            class="absolute inset-0"
+                                            img-class="object-cover"
                                         />
                                         <div class="home-spotlight-scrim" />
                                         <div class="home-spotlight-copy">
@@ -458,7 +458,12 @@ onBeforeUnmount(() => {
                                 :key="item.refId"
                                 class="home-tile"
                             >
-                                <NuxtImg :src="item.image" :alt="item.title" class="home-tile-img" loading="lazy" />
+                                <AppImage
+                                    :src="item.image"
+                                    :alt="item.title"
+                                    class="absolute inset-0"
+                                    img-class="object-cover"
+                                />
                                 <div class="home-tile-scrim" />
                                 <p class="home-tile-title">{{ item.title }}</p>
                             </article>
@@ -485,9 +490,11 @@ onBeforeUnmount(() => {
                                             class="home-schedule-card"
                                             :style="{ '--card-i': index }"
                                         >
-                                            <div class="home-schedule-thumb">
-                                                <NuxtImg :src="item.thumbnail || item.image" :alt="item.title" loading="lazy" />
-                                            </div>
+                                            <AppImage
+                                                :src="item.thumbnail || item.image"
+                                                :alt="item.title"
+                                                class="home-schedule-thumb"
+                                            />
                                             <p class="home-schedule-title">{{ item.title }}</p>
                                         </article>
                                     </div>
@@ -510,7 +517,12 @@ onBeforeUnmount(() => {
                                 aria-label="Video player"
                                 @mousemove="onPlayerStageMove"
                             >
-                                <NuxtImg :src="demoPlayer.image" :alt="demoPlayer.title" class="player-poster" loading="lazy" />
+                                <AppImage
+                                    :src="demoPlayer.image"
+                                    :alt="demoPlayer.title"
+                                    class="absolute inset-0"
+                                    img-class="object-cover"
+                                />
                                 <Transition name="preview-slide-up">
                                     <PlayerControls
                                         v-show="showControls"
@@ -624,13 +636,12 @@ onBeforeUnmount(() => {
                                             class="related-card group"
                                             role="listitem"
                                         >
-                                            <div class="relative aspect-[2/3] overflow-hidden bg-gray-200 dark:bg-white/5">
-                                                <NuxtImg
-                                                    :src="item.image"
-                                                    :alt="item.title"
-                                                    loading="lazy"
-                                                    class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                                />
+                                            <AppImage
+                                                :src="item.image"
+                                                :alt="item.title"
+                                                class="aspect-[2/3]"
+                                                img-class="w-full h-full object-cover group-hover:scale-105"
+                                            >
                                                 <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
                                                 <div class="absolute bottom-0 left-0 right-0 p-2.5 space-y-1.5">
                                                     <p class="text-[11px] font-medium text-gray-100 line-clamp-2 leading-snug">{{ item.title }}</p>
@@ -642,7 +653,7 @@ onBeforeUnmount(() => {
                                                         <span v-if="item.year" class="leading-none tabular-nums">{{ item.year }}</span>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            </AppImage>
                                         </article>
                                     </div>
                                 </div>
@@ -677,12 +688,16 @@ onBeforeUnmount(() => {
                                     :key="item.refId"
                                     class="history-card"
                                 >
-                                    <div class="history-thumb">
-                                        <NuxtImg :src="item.image" :alt="item.title" loading="lazy" />
+                                    <AppImage
+                                        :src="item.image"
+                                        :alt="item.title"
+                                        class="history-thumb"
+                                        icon-class="text-2xl"
+                                    >
                                         <div class="history-progress">
                                             <div class="history-progress-fill" :style="{ width: `${item.progress}%` }" />
                                         </div>
-                                    </div>
+                                    </AppImage>
                                     <div class="history-info">
                                         <h5 class="history-title">{{ item.title }}</h5>
                                         <p class="history-detail">
@@ -731,7 +746,12 @@ onBeforeUnmount(() => {
                                 }"
                             >
                                 <div v-if="friend.status === 'watching' && friend.anime" class="social-row-bg" aria-hidden="true">
-                                    <NuxtImg :src="friend.anime.image" alt="" class="social-row-bg-img" loading="lazy" />
+                                    <AppImage
+                                        :src="friend.anime.image"
+                                        alt=""
+                                        class="absolute inset-0"
+                                        img-class="object-cover scale-110"
+                                    />
                                     <div class="social-row-bg-scrim" />
                                 </div>
                                 <div class="social-row-content">

@@ -1,4 +1,6 @@
 <script setup>
+import { WATCH_ANIME_META, withAnimeCovers } from '#shared/utils/watchHistory'
+
 const STATUS_MAP = {
     watching: { label: '在線中', dotClass: 'bg-emerald-500' },
     online: { label: '在線中', dotClass: 'bg-emerald-500' },
@@ -84,7 +86,7 @@ function loadBannerFromAvatar(url) {
 }
 
 function inferActivityStatus(lastActivityAt) {
-    const minutesAgo = lastActivityAt ? (Date.now() - new Date(lastActivityAt)) / 60000 : Infinity
+    const minutesAgo = lastActivityAt ? (Date.now() - parseDbTimestamp(lastActivityAt)) / 60000 : Infinity
     if (minutesAgo <= 10) return { label: '在線中', dotClass: 'bg-emerald-500' }
     if (minutesAgo <= 60) return { label: '剛剛有活動', dotClass: 'bg-amber-400' }
     return { label: '離線', dotClass: 'bg-gray-500' }
@@ -130,13 +132,13 @@ async function load() {
         const [{ data: history }, { data: favs }, { count }, mutualRes] = await Promise.all([
             client
                 .from('watch_history_latest_updates')
-                .select('anime_ref_id, anime_title, anime_image, episode_number, updated_at, progress_percentage')
+                .select(`anime_ref_id, episode_number, updated_at, progress_percentage, ${WATCH_ANIME_META}`)
                 .eq('user_id', userId.value)
                 .order('updated_at', { ascending: false })
                 .limit(24),
             client
                 .from('favorites')
-                .select('anime_ref_id, anime_title, anime_image, created_at')
+                .select(`anime_ref_id, created_at, ${WATCH_ANIME_META}`)
                 .eq('user_id', userId.value)
                 .order('created_at', { ascending: false })
                 .limit(24),
@@ -150,8 +152,8 @@ async function load() {
             }),
         ])
 
-        const historyRows = history || []
-        const favRows = favs || []
+        const historyRows = withAnimeCovers(history)
+        const favRows = withAnimeCovers(favs)
         const myId = userSettings.value.id
 
         const [mutualWatchIds, mutualFavIds] = await Promise.all([
@@ -267,10 +269,15 @@ watch(
                 <div v-if="watchingNow" class="space-y-2">
                     <h3 class="text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase">正在觀看</h3>
                     <NuxtLink :to="`/anime/${watchingNow.anime_ref_id}`" class="group relative flex items-center overflow-hidden rounded-xl h-16 ring-1 ring-black/5 dark:ring-white/5 hover:ring-emerald-500/40 transition-all" @click="close">
-                        <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
-                            <NuxtImg :src="watchingNow.anime_image" alt="" class="w-full h-full object-cover scale-110 blur-md" loading="lazy" />
+                        <AppImage
+                            :src="watchingNow.anime_image"
+                            alt=""
+                            class="absolute inset-0 pointer-events-none"
+                            img-class="w-full h-full object-cover scale-110 blur-md"
+                            aria-hidden="true"
+                        >
                             <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/65 to-black/45" />
-                        </div>
+                        </AppImage>
                         <div class="relative z-10 flex flex-1 items-center gap-3 min-w-0 px-4">
                             <span class="material-symbols-rounded text-emerald-400 text-xl shrink-0">play_circle</span>
                             <div class="flex-1 min-w-0">
@@ -323,10 +330,15 @@ watch(
             <div v-if="watchingNow" class="space-y-2">
                 <h3 class="text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase">正在觀看</h3>
                 <NuxtLink :to="`/anime/${watchingNow.anime_ref_id}`" class="group relative flex items-center overflow-hidden rounded-xl h-14 ring-1 ring-black/5 dark:ring-white/10 hover:ring-emerald-500/40 transition-all" @click="close">
-                    <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
-                        <NuxtImg :src="watchingNow.anime_image" alt="" class="w-full h-full object-cover scale-110 blur-md" loading="lazy" />
+                    <AppImage
+                        :src="watchingNow.anime_image"
+                        alt=""
+                        class="absolute inset-0 pointer-events-none"
+                        img-class="w-full h-full object-cover scale-110 blur-md"
+                        aria-hidden="true"
+                    >
                         <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/65 to-black/45" />
-                    </div>
+                    </AppImage>
                     <div class="relative z-10 flex flex-1 items-center gap-2.5 min-w-0 px-3">
                         <span class="material-symbols-rounded text-emerald-400 text-lg shrink-0">play_circle</span>
                         <div class="flex-1 min-w-0">

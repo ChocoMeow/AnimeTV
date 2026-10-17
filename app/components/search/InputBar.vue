@@ -28,7 +28,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
         class="flex w-full min-w-0 items-center gap-2"
         :class="
             embedded
-                ? 'min-h-9 items-center rounded-full bg-white px-4 py-2 shadow-sm ring-1 ring-black/8 focus-within:ring-black/15 dark:bg-gray-950 dark:ring-white/10 dark:focus-within:ring-white/20'
+                ? 'min-h-9 items-center rounded-full bg-white px-4 py-2 shadow-sm ring-1 ring-black/10 focus-within:ring-black/20 dark:bg-gray-950 dark:ring-white/10 dark:focus-within:ring-white/20'
                 : 'px-3 py-3 sm:px-4'
         "
     >

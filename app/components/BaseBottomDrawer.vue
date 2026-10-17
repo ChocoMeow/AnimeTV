@@ -20,6 +20,10 @@ const props = defineProps({
         type: Boolean,
         default: true,
     },
+    zClass: {
+        type: String,
+        default: 'z-50',
+    },
 })
 
 const emit = defineEmits(["update:modelValue"])
@@ -231,7 +235,8 @@ onBeforeUnmount(() => {
             <div 
                 v-if="modelValue" 
                 data-no-ptr
-                class="fixed inset-0 z-50 flex items-end justify-center bg-black/60" 
+                class="fixed inset-0 flex items-end justify-center bg-black/60"
+                :class="zClass" 
                 @click.self="handleBackdropClick"
             >
                 <!-- Drawer Container -->
