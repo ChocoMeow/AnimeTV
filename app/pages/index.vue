@@ -554,10 +554,16 @@ onUnmounted(() => {
 }
 
 .day-rail-btn {
-    @apply relative z-10 flex h-[var(--day-step)] w-full items-center justify-center rounded-full text-base font-semibold text-gray-900
+    @apply relative z-10 flex h-[var(--day-step)] w-full items-center justify-center rounded-full text-base font-semibold leading-none text-gray-900
            transition-colors duration-300
            dark:text-white
            disabled:opacity-50;
+}
+
+.day-rail-btn span {
+    display: block;
+    line-height: 1;
+    transform: translateY(-0.08em);
 }
 
 .day-rail-btn:not(.is-active):hover {
