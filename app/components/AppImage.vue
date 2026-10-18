@@ -57,7 +57,7 @@ onMounted(() => {
     >
         <div
             v-if="placeholder && showImg && !loaded"
-            class="absolute inset-0 animate-pulse bg-gray-200 dark:bg-white/5"
+            class="absolute inset-0 bg-gray-200 dark:bg-white/5"
         />
 
         <component
