@@ -94,6 +94,15 @@ onMounted(() => {
     animation: app-img-in 0.4s ease forwards;
 }
 
+@media (hover: hover) and (pointer: fine) {
+    .app-img {
+        transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .group:hover .app-img:not([class*="blur"]) {
+        transform: scale(1.05);
+    }
+}
+
 @keyframes app-img-in {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -101,5 +110,9 @@ onMounted(() => {
 
 @media (prefers-reduced-motion: reduce) {
     .app-img.is-loaded { animation: none; opacity: 1; }
+    .group:hover .app-img:not([class*="blur"]) {
+        transition: none;
+        transform: none;
+    }
 }
 </style>

@@ -366,7 +366,7 @@ onUnmounted(() => {
                                     :src="item.thumbnail"
                                     alt=""
                                     class="absolute inset-0"
-                                    img-class="h-full w-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-105"
+                                    img-class="h-full w-full object-cover object-top"
                                 />
                                 <div class="daily-scrim" />
                                 <span v-if="item.episode" class="daily-badge">{{ item.episode }}</span>

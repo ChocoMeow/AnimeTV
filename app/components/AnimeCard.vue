@@ -38,7 +38,7 @@ function handleMouseLeave() {
             :src="anime.image"
             :alt="anime.title"
             class="rounded-t-xl aspect-[2/3]"
-            img-class="w-full h-full object-cover group-hover:scale-110"
+            img-class="w-full h-full object-cover"
         >
             <!-- Subtle hover dim (keeps artwork clearly visible) -->
             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300"></div>
@@ -95,8 +95,7 @@ function handleMouseLeave() {
            cursor-pointer transition-all duration-300
            ring-1 ring-black/5 dark:ring-white/10
            hover:ring-black/10 dark:hover:ring-white/20
-           hover:shadow-xl hover:shadow-black/10 dark:hover:shadow-black/60
-           hover:-translate-y-1.5;
+           hover:shadow-xl hover:shadow-black/10 dark:hover:shadow-black/60;
     animation: fadeInUp 0.5s ease-out;
 }
 
