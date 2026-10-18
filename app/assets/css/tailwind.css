@@ -77,6 +77,15 @@ body {
         sans-serif;
 }
 
+/* Noto Sans TC draws CJK about 0.08em low. Shift the text, not the control around it. */
+:where(h1, h2, h3, h4, h5, h6, p, li, label, td, th, figcaption, blockquote, dt, dd, summary, legend) {
+    translate: 0 -0.08em;
+}
+
+:where(button, a) :where(span:not(.material-symbols-rounded)) {
+    translate: 0 -0.08em;
+}
+
 @layer base {
     .material-symbols-rounded {
         font-family: 'Material Symbols Rounded', sans-serif;

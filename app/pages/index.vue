@@ -605,12 +605,6 @@ onUnmounted(() => {
     disabled:opacity-50;
 }
 
-.day-rail-btn span {
-    display: block;
-    line-height: 1;
-    transform: translateY(-0.08em);
-}
-
 .day-rail-btn:not(.is-active):hover {
     @apply bg-black/10 dark:bg-white/15;
 }
