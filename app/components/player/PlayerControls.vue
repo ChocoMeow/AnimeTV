@@ -198,6 +198,7 @@ defineExpose({
                         <span class="material-symbols-rounded text-[1.35rem]">settings</span>
                     </button>
                     <button
+                        v-if="!isFullscreen"
                         type="button"
                         :class="[btnClass, '!hidden sm:!inline-flex']"
                         :title="tooltipLabels.theaterMode"

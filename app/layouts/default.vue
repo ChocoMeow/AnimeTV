@@ -34,6 +34,7 @@ html {
 
 /* Push main content when friend list is open on desktop */
 @media (min-width: 1024px) {
+    main,
     footer {
         transition: padding-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -41,7 +42,6 @@ html {
     body.friend-list-open main,
     body.friend-list-open footer {
         padding-right: 320px;
-        transition: padding-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 }
 
