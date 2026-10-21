@@ -15,6 +15,8 @@ export const SEGMENT_RETRIES = 2
 export const SEGMENT_503_RETRIES = 4
 export const SEGMENT_RETRY_MS = 400
 export const RETRY_STATUSES = new Set([408, 429, 502, 503])
+export const SEGMENT_FETCH_TIMEOUT_MS = 45_000
+export const PROGRESSIVE_IDLE_TIMEOUT_MS = 60_000
 
 export function offlineEpisodeKey(refId, episodeKey) {
     return `${refId}::${String(episodeKey)}`
