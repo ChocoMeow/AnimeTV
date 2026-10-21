@@ -82,7 +82,7 @@ body {
     translate: 0 -0.08em;
 }
 
-:where(button, a) :where(span:not(.material-symbols-rounded)) {
+:where(button, a) > :where(span:not(.material-symbols-rounded):not([aria-hidden='true'])) {
     translate: 0 -0.08em;
 }
 
