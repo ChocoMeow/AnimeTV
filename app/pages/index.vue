@@ -2,6 +2,7 @@
 const appConfig = useAppConfig()
 const { data: home, pending: loading } = await useFetch("/api/anime", {
     key: "home-anime",
+    lazy: import.meta.client,
     default: () => ({ byDay: {}, themes: {}, spotlight: [] }),
     transform: shapeHomeAnime,
 })
