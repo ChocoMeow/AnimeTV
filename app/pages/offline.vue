@@ -5,6 +5,11 @@ const appConfig = useAppConfig()
 const { signedIn, hydrate } = useOfflineAuthCache()
 hydrate()
 
+function retry() {
+    if (navigator.onLine) navigateTo('/')
+    else window.location.reload()
+}
+
 useHead({ title: `離線模式 | ${appConfig.siteName}` })
 </script>
 
@@ -19,9 +24,11 @@ useHead({ title: `離線模式 | ${appConfig.siteName}` })
             <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-6xl mb-4 opacity-60">wifi_off</span>
             <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">已下載的內容仍可觀看</h3>
             <p class="text-gray-500 dark:text-gray-400 mb-6">請檢查網路後再試</p>
-            <div class="flex flex-wrap items-center justify-center gap-3">
+            <div class="flex flex-col items-center gap-3">
                 <NuxtLink v-if="signedIn" to="/offline-downloads" class="btn-primary">開啟下載管理</NuxtLink>
-                <AppChip to="/" variant="ghost">返回首頁</AppChip>
+                <button type="button" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" @click="retry">
+                    點一下重試
+                </button>
             </div>
         </div>
     </div>
