@@ -234,6 +234,10 @@ function focusDay(code) {
     day.scrollIntoView({ behavior: "smooth", block: "start" })
 }
 
+function skipDailySection() {
+    document.getElementById("home-themes")?.scrollIntoView({ behavior: "smooth", block: "start" })
+}
+
 useHead({ title: `每日新番 | ${appConfig.siteName}` })
 
 watch(dailyFeed, (feed) => {
@@ -344,6 +348,15 @@ onUnmounted(() => {
                             <span>{{ day.label }}</span>
                         </button>
                     </div>
+                    <button
+                        type="button"
+                        class="day-rail-btn"
+                        aria-label="跳過每日新番"
+                        :disabled="loading"
+                        @click="skipDailySection"
+                    >
+                        <span class="material-symbols-rounded text-xl" aria-hidden="true">keyboard_arrow_down</span>
+                    </button>
                 </nav>
                 <div v-if="loading" class="daily-feed daily-stack" aria-hidden="true">
                     <div v-for="n in 8" :key="n" class="daily-card-skel" />
@@ -380,7 +393,7 @@ onUnmounted(() => {
             </div>
         </section>
         <!-- Theme Sections (full grids, no side-scrolling) -->
-        <section v-if="loading || Object.keys(themes).length" class="space-y-10 sm:space-y-14">
+        <section v-if="loading || Object.keys(themes).length" id="home-themes" class="scroll-mt-20 space-y-10 sm:space-y-14">
             <template v-if="loading">
                 <div v-for="n in 2" :key="`theme-skel-${n}`">
                     <div class="mb-4 h-7 w-40 animate-pulse rounded-lg bg-gray-200 dark:bg-white/5 sm:mb-6 sm:h-8 sm:w-48" />
@@ -583,12 +596,12 @@ onUnmounted(() => {
 }
 
 .day-rail {
-    @apply sticky top-20 flex w-max shrink-0 flex-col items-start;
+    --day-step: 2.75rem;
+    --day-gap: 0.7rem;
+    @apply sticky top-20 flex w-max shrink-0 flex-col items-start gap-[var(--day-gap)];
 }
 
 .day-rail-list {
-    --day-step: 2.75rem;
-    --day-gap: 0.7rem;
     @apply relative flex w-[var(--day-step)] flex-col items-stretch gap-[var(--day-gap)];
 }
 
