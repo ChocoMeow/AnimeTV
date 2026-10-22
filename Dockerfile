@@ -1,6 +1,9 @@
-ARG BUN_VERSION=1.4.2
+# syntax=docker/dockerfile:1
+ARG BUN_VERSION=1.4
 
-FROM oven/bun:${BUN_VERSION} AS build
+# Build Nuxt/Nitro on the host arch only. `.output` is plain JS and runs on amd64 + arm64;
+# building under QEMU for linux/arm64 routinely stalls for 30+ min on "Bundling server".
+FROM --platform=$BUILDPLATFORM oven/bun:${BUN_VERSION} AS build
 WORKDIR /app
 
 # Placeholders only — NOT your real project keys.
@@ -27,7 +30,7 @@ COPY . .
 
 RUN bun scripts/build-version.mjs write && bun --bun run build
 
-# Copy production dependencies and source code into final image
+# Runtime image is per-target arch (native bun binary); app code comes from the build stage.
 FROM oven/bun:${BUN_VERSION} AS production
 WORKDIR /app
 
