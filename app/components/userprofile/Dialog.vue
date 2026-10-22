@@ -13,7 +13,7 @@ const props = defineProps({
     modelValue: { type: Boolean, required: true },
     data: { type: Object, default: null },
 })
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'select'])
 
 const { isMobile } = useMobile()
 const client = useSupabaseClient()
@@ -36,6 +36,7 @@ const bannerStyle = ref(null)
 
 const tabsRef = ref(null)
 const close = () => emit('update:modelValue', false)
+const onSelect = () => { emit('select'); close() }
 
 function extractDominantColors(img) {
     try {
@@ -268,7 +269,7 @@ watch(
 
                 <div v-if="watchingNow" class="space-y-2">
                     <h3 class="text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase">正在觀看</h3>
-                    <NuxtLink :to="`/anime/${watchingNow.anime_ref_id}`" class="group relative flex items-center overflow-hidden rounded-xl h-16 ring-1 ring-black/5 dark:ring-white/5 hover:ring-emerald-500/40 transition-all" @click="close">
+                    <NuxtLink :to="`/anime/${watchingNow.anime_ref_id}`" class="group relative flex items-center overflow-hidden rounded-xl h-16 ring-1 ring-black/5 dark:ring-white/5 hover:ring-emerald-500/40 transition-all" @click="onSelect">
                         <AppImage
                             :src="watchingNow.anime_image"
                             alt=""
@@ -289,7 +290,7 @@ watch(
                     </NuxtLink>
                 </div>
 
-                <UserprofileTabs ref="tabsRef" :mobile="false" :recently-watched="recentlyWatched" :favorites="favorites" :mutual-friends="mutualFriends" @select="close" />
+                <UserprofileTabs ref="tabsRef" :mobile="false" :recently-watched="recentlyWatched" :favorites="favorites" :mutual-friends="mutualFriends" @select="onSelect" />
             </div>
         </div>
     </LazyBaseDialog>
@@ -329,7 +330,7 @@ watch(
         <div v-else class="pb-4 space-y-4">
             <div v-if="watchingNow" class="space-y-2">
                 <h3 class="text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase">正在觀看</h3>
-                <NuxtLink :to="`/anime/${watchingNow.anime_ref_id}`" class="group relative flex items-center overflow-hidden rounded-xl h-14 ring-1 ring-black/5 dark:ring-white/10 hover:ring-emerald-500/40 transition-all" @click="close">
+                <NuxtLink :to="`/anime/${watchingNow.anime_ref_id}`" class="group relative flex items-center overflow-hidden rounded-xl h-14 ring-1 ring-black/5 dark:ring-white/10 hover:ring-emerald-500/40 transition-all" @click="onSelect">
                     <AppImage
                         :src="watchingNow.anime_image"
                         alt=""
@@ -351,7 +352,7 @@ watch(
             </div>
 
             <div class="sticky top-0 z-[1] -mx-4 px-4 bg-white/90 dark:bg-gray-950/90 backdrop-blur-sm pt-1">
-                <UserprofileTabs ref="tabsRef" :mobile="true" :recently-watched="recentlyWatched" :favorites="favorites" :mutual-friends="mutualFriends" @select="close" />
+                <UserprofileTabs ref="tabsRef" :mobile="true" :recently-watched="recentlyWatched" :favorites="favorites" :mutual-friends="mutualFriends" @select="onSelect" />
             </div>
         </div>
     </BaseBottomDrawer>
