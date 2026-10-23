@@ -5,34 +5,31 @@ const appConfig = useAppConfig()
 const { signedIn, hydrate } = useOfflineAuthCache()
 hydrate()
 
-useHead({
-    title: `離線模式 | ${appConfig.siteName}`,
-})
+function retry() {
+    if (navigator.onLine) navigateTo('/')
+    else window.location.reload()
+}
+
+useHead({ title: `離線模式 | ${appConfig.siteName}` })
 </script>
 
 <template>
-    <div class="min-h-screen bg-white dark:bg-gray-950 flex flex-col items-center justify-center px-6 text-center">
-        <div class="w-20 h-20 bg-black/5 dark:bg-white/10 rounded-full flex items-center justify-center mb-6">
-            <span class="material-symbols-rounded text-gray-500 dark:text-gray-400 text-4xl">wifi_off</span>
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8">
+        <div class="mb-6 sm:mb-8">
+            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">離線模式</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-1">目前無法連上網路</p>
         </div>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3">你目前處於離線模式</h1>
-        <p class="text-gray-600 dark:text-gray-400 max-w-md mb-8 leading-relaxed">
-            請檢查你的網絡連接。某些功能可能無法使用，但已下載的內容仍可觀看。
-        </p>
-        <div class="flex flex-col sm:flex-row items-center gap-3">
-            <NuxtLink
-                v-if="signedIn"
-                to="/offline-downloads"
-                class="px-6 py-3 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black rounded-full font-semibold transition-all"
-            >
-                開啟下載管理
-            </NuxtLink>
-            <NuxtLink
-                to="/"
-                class="px-6 py-3 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-gray-900 dark:text-gray-100 rounded-full font-semibold transition-all"
-            >
-                返回首頁
-            </NuxtLink>
+
+        <div class="empty-state">
+            <span class="material-symbols-rounded text-gray-400 dark:text-gray-500 text-6xl mb-4 opacity-60">wifi_off</span>
+            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">已下載的內容仍可觀看</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-6">請檢查網路後再試</p>
+            <div class="flex flex-col items-center gap-3">
+                <NuxtLink v-if="signedIn" to="/offline-downloads" class="btn-primary">開啟下載管理</NuxtLink>
+                <button type="button" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" @click="retry">
+                    點一下重試
+                </button>
+            </div>
         </div>
     </div>
 </template>

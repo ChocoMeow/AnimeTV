@@ -973,9 +973,9 @@ const features = [
 
 .schedule-poster {
     position: relative;
-    width: 1.5rem;
-    height: 2.15rem;
-    border-radius: 0.25rem;
+    width: 2.35rem;
+    height: 1.35rem;
+    border-radius: 0.3rem;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: linear-gradient(160deg, #3f3f46 0%, #27272a 100%);

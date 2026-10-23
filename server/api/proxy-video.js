@@ -2,6 +2,7 @@ import { DIRECT_HLS_HOST } from '#shared/utils/videoSources'
 import { createLoggedError } from '~~/server/utils/logger'
 import {
     VIDEO_UPSTREAM,
+    armProxySocketTimeout,
     bindClientAbort,
     combinedSignal,
     isHlsPlaylist,
@@ -151,6 +152,7 @@ export default defineEventHandler(async (event) => {
 
         if (isHlsPlaylist(videoUrl)) return await handleM3u8(videoUrl, cookie, clientAbort.signal, event)
         if (isHlsSegment(videoUrl, parsedUrl.pathname)) {
+            armProxySocketTimeout(event, clientAbort)
             return await handleSegment(videoUrl, cookie, clientAbort.signal, event)
         }
         return await handleProgressive(videoUrl, cookie, clientAbort.signal, event)

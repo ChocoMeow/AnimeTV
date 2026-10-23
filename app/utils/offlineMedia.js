@@ -5,8 +5,10 @@
 import { DIRECT_HLS_HOST } from '#shared/utils/videoSources'
 import {
     OFFLINE_CONCURRENCY,
+    PROGRESSIVE_IDLE_TIMEOUT_MS,
     RETRY_STATUSES,
     SEGMENT_503_RETRIES,
+    SEGMENT_FETCH_TIMEOUT_MS,
     SEGMENT_RETRIES,
     SEGMENT_RETRY_MS,
     VIDEO_MP4,
@@ -84,6 +86,30 @@ function linkAbort(parent) {
             parent?.removeEventListener?.('abort', onAbort)
             if (!local.signal.aborted) local.abort()
         },
+    }
+}
+
+/** Parent abort + wall-clock timeout (frees hung same-origin fetches). */
+function timedSignal(parent, ms) {
+    const local = new AbortController()
+    const timer = setTimeout(() => local.abort(abortError()), ms)
+    const onParent = () => local.abort(parent?.reason)
+    parent?.addEventListener?.('abort', onParent)
+    return {
+        signal: local.signal,
+        dispose() {
+            clearTimeout(timer)
+            parent?.removeEventListener?.('abort', onParent)
+        },
+    }
+}
+
+async function fetchWithTimeout(url, { signal, ms = SEGMENT_FETCH_TIMEOUT_MS, ...init } = {}) {
+    const timed = timedSignal(signal, ms)
+    try {
+        return await fetch(url, { ...init, signal: timed.signal })
+    } finally {
+        timed.dispose()
     }
 }
 
@@ -200,7 +226,7 @@ function parseMediaPlaylist(text, baseUrl) {
 }
 
 async function fetchText(url, signal) {
-    return (await fetch(url, { signal })).text()
+    return (await fetchWithTimeout(url, { signal })).text()
 }
 
 async function resolveMediaPlaylistUrl(playlistUrl, signal, preferredHeight) {
@@ -217,7 +243,7 @@ async function resolveMediaPlaylistUrl(playlistUrl, signal, preferredHeight) {
 
 async function fetchBlobWithProgress(url, onProgress, { signal, waitWhilePaused } = {}) {
     await waitReady(waitWhilePaused, signal)
-    const res = await fetch(url, { signal })
+    const res = await fetchWithTimeout(url, { signal })
     if (!res.ok) {
         cancelBody(res)
         throwHttp('下載失敗', res.status)
@@ -235,11 +261,20 @@ async function fetchBlobWithProgress(url, onProgress, { signal, waitWhilePaused 
     const chunks = []
     let loaded = 0
     let lastAt = 0
+    let idle = null
+    const resetIdle = () => {
+        idle?.dispose()
+        idle = timedSignal(signal, PROGRESSIVE_IDLE_TIMEOUT_MS)
+        idle.signal.addEventListener('abort', () => reader.cancel().catch(() => {}), { once: true })
+    }
     try {
+        resetIdle()
         while (true) {
             await waitReady(waitWhilePaused, signal)
             const { done, value } = await reader.read()
+            if (idle.signal.aborted && !signal?.aborted) throw abortError()
             if (done) break
+            resetIdle()
             chunks.push(value)
             loaded += value.byteLength
             const now = Date.now()
@@ -251,6 +286,8 @@ async function fetchBlobWithProgress(url, onProgress, { signal, waitWhilePaused 
     } catch (err) {
         reader.cancel().catch(() => {})
         throw err
+    } finally {
+        idle?.dispose()
     }
     emit(loaded)
     return new Blob(chunks, { type: VIDEO_MP4 })
@@ -319,7 +356,12 @@ async function fetchSegmentBuffer(uri, byterange, { signal, waitWhilePaused } = 
             const headers = {}
             const range = parseByteRange(byterange)
             if (range) headers.Range = `bytes=${range.offset}-${range.offset + range.length - 1}`
-            const res = await fetch(url, { signal, headers, mode: 'cors', credentials: 'omit' })
+            const res = await fetchWithTimeout(url, {
+                signal,
+                headers,
+                mode: 'cors',
+                credentials: 'omit',
+            })
             if (!res.ok) {
                 cancelBody(res)
                 throwHttp('片段下載失敗', res.status)

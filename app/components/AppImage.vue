@@ -10,7 +10,7 @@ const props = defineProps({
     loading: { type: String, default: 'lazy' },
     fetchpriority: { type: String, default: undefined },
     placeholder: { type: Boolean, default: true },
-    /** Fade-in + blur ghost on load. Off for logos/splash where the animation fights the UI. */
+    /** Fade the image in once it has loaded. Off for logos/splash where the animation fights the UI. */
     reveal: { type: Boolean, default: true },
 })
 
@@ -19,11 +19,10 @@ const attrs = useAttrs()
 const img = useTemplateRef('img')
 const loaded = ref(!props.reveal)
 const failed = ref(false)
-const ghost = ref(false) // blurred copy that fades out on reveal
 
 watch(() => props.src, () => {
     loaded.value = !props.reveal
-    failed.value = ghost.value = false
+    failed.value = false
 })
 
 const showImg = computed(() => !!props.src && !failed.value)
@@ -38,7 +37,6 @@ const positioned = computed(() => /\b(absolute|fixed|sticky|relative)\b/.test([a
 function onLoad() {
     if (!props.reveal || loaded.value) return
     loaded.value = true
-    ghost.value = true
 }
 
 // Image may finish before hydration, so the load event is missed
@@ -59,7 +57,7 @@ onMounted(() => {
     >
         <div
             v-if="placeholder && showImg && !loaded"
-            class="absolute inset-0 animate-pulse bg-gray-200 dark:bg-white/5"
+            class="absolute inset-0 bg-gray-200 dark:bg-white/5"
         />
 
         <component
@@ -78,18 +76,6 @@ onMounted(() => {
             @error="failed = true"
         />
 
-        <!-- Blur lives on its own layer with a constant filter (Safari-safe) -->
-        <img
-            v-if="reveal && ghost"
-            :src="src"
-            alt=""
-            aria-hidden="true"
-            referrerpolicy="no-referrer"
-            class="app-img-ghost absolute inset-0 h-full w-full blur-xl"
-            :class="imgClass"
-            @animationend="ghost = false"
-        >
-
         <div v-if="!showImg" class="absolute inset-0 flex items-center justify-center text-gray-400">
             <slot name="error">
                 <span class="material-symbols-rounded" :class="iconClass">{{ errorIcon }}</span>
@@ -103,28 +89,30 @@ onMounted(() => {
 <style scoped>
 .app-img {
     opacity: 0;
-    backface-visibility: hidden;
 }
 .app-img.is-loaded {
-    animation: app-img-in 1.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: app-img-in 0.4s ease forwards;
 }
-.app-img-ghost {
-    transform: scale(1.1);
-    pointer-events: none;
-    backface-visibility: hidden;
-    animation: app-img-out 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+
+@media (hover: hover) and (pointer: fine) {
+    .app-img {
+        transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .group:hover .app-img:not([class*="blur"]) {
+        transform: scale(1.05);
+    }
 }
 
 @keyframes app-img-in {
-    from { opacity: 0; transform: scale(1.05); }
-    to { opacity: 1; transform: none; }
-}
-@keyframes app-img-out {
-    to { opacity: 0; }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .app-img.is-loaded { animation: none; opacity: 1; }
-    .app-img-ghost { display: none; }
+    .group:hover .app-img:not([class*="blur"]) {
+        transition: none;
+        transform: none;
+    }
 }
 </style>

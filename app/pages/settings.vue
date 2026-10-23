@@ -377,6 +377,7 @@ useHead({
                                 aria-label="無痕模式"
                             >
                                 <span
+                                    aria-hidden="true"
                                     :class="isIncognito ? 'translate-x-7' : 'translate-x-1'"
                                     class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-950 shadow ring-0 transition duration-200 ease-in-out mt-1"
                                 ></span>
@@ -394,6 +395,7 @@ useHead({
                                 class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
                             >
                                 <span
+                                    aria-hidden="true"
                                     :class="userSettings.watch_history_enabled ? 'translate-x-7' : 'translate-x-1'"
                                     class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-950 shadow ring-0 transition duration-200 ease-in-out mt-1"
                                 ></span>
@@ -411,6 +413,7 @@ useHead({
                                 class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
                             >
                                 <span
+                                    aria-hidden="true"
                                     :class="userSettings.search_history_enabled ? 'translate-x-7' : 'translate-x-1'"
                                     class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-950 shadow ring-0 transition duration-200 ease-in-out mt-1"
                                 ></span>

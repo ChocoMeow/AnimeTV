@@ -304,7 +304,7 @@ useHead({
                                     :src="item.anime_image"
                                     :alt="item.anime_title"
                                     class="aspect-[2/3] w-full"
-                                    img-class="w-full h-full object-cover group-hover:scale-105"
+                                    img-class="w-full h-full object-cover"
                                     icon-class="text-5xl"
                                 />
 
@@ -345,7 +345,7 @@ useHead({
                             :src="item.anime_image"
                             :alt="item.anime_title"
                             class="aspect-[2/3] w-full"
-                            img-class="w-full h-full object-cover group-hover:scale-105"
+                            img-class="w-full h-full object-cover"
                             icon-class="text-5xl"
                         />
 
@@ -393,6 +393,6 @@ useHead({
            ring-1 ring-black/5 dark:ring-white/10
            hover:ring-black/10 dark:hover:ring-white/20
            hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-black/50
-           hover:-translate-y-1 transition-all duration-300;
+           transition-shadow duration-300;
 }
 </style>
