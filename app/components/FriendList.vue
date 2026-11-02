@@ -44,7 +44,6 @@ const closeFriendList = () => {
     isOpen.value = false
 }
 
-// Function to open friend profile
 const openFriendProfile = (friend) => {
     selectedFriend.value = friend
     showProfileDialog.value = true
@@ -272,8 +271,12 @@ onBeforeUnmount(() => {
         </transition>
     </ClientOnly>
 
-    <!-- User Profile Dialog -->
-    <UserprofileDialog v-if="selectedFriend" v-model="showProfileDialog" :data="selectedFriend" />
+    <UserprofileDialog
+        v-if="selectedFriend"
+        v-model="showProfileDialog"
+        :data="selectedFriend"
+        @select="!isLg && closeFriendList()"
+    />
 </template>
 
 <style scoped>

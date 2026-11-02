@@ -15,6 +15,7 @@ export const VIDEO_UPSTREAM = Object.freeze({
     metaCacheMax: envInt('NUXT_VIDEO_PROXY_META_CACHE', 128),
     metaCacheTtlMs: 600_000,
     timeoutMs: envInt('NUXT_VIDEO_PROXY_TIMEOUT_MS', 25_000),
+    socketIdleMs: envInt('NUXT_VIDEO_PROXY_SOCKET_IDLE_MS', 90_000),
     maxRetries: envInt('NUXT_VIDEO_PROXY_RETRIES', 2),
     retryBaseDelayMs: 400,
     smallFileRedirectBytes: 10 * 1024 * 1024,
@@ -78,6 +79,23 @@ export function bindClientAbort(event) {
     })
     event.node.req.once('error', abort)
     return ac
+}
+
+/** Drop stalled sockets (backgrounded download tabs) instead of waiting on TCP idle. */
+export function armProxySocketTimeout(event, clientAbort, ms = VIDEO_UPSTREAM.socketIdleMs) {
+    const req = event.node?.req
+    const res = event.node?.res
+    if (!(ms > 0) || !req || !res) return
+    const kill = () => {
+        if (!clientAbort.signal.aborted) clientAbort.abort()
+        try {
+            if (!res.writableEnded) res.destroy()
+        } catch { /* ignore */ }
+    }
+    try {
+        req.setTimeout(ms, kill)
+        res.setTimeout(ms, kill)
+    } catch { /* ignore */ }
 }
 
 /**

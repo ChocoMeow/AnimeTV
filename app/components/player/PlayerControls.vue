@@ -66,7 +66,7 @@ const emit = defineEmits([
 
 const progressBarRef = ref(null)
 const settingsRef = ref(null)
-const { isMobile } = useMobile()
+const { isNarrow } = useMobile()
 
 const pillClass = 'h-10 inline-flex items-center gap-0.5 px-1 rounded-full bg-black/40 backdrop-blur-md'
 const btnClass = 'w-12 h-8 inline-flex items-center justify-center rounded-full text-white border-0 cursor-pointer outline-none hover:bg-white/15 transition-colors'
@@ -198,6 +198,7 @@ defineExpose({
                         <span class="material-symbols-rounded text-[1.35rem]">settings</span>
                     </button>
                     <button
+                        v-if="!isFullscreen"
                         type="button"
                         :class="[btnClass, '!hidden sm:!inline-flex']"
                         :title="tooltipLabels.theaterMode"
@@ -221,7 +222,7 @@ defineExpose({
                 </div>
 
                 <PlayerSettingsMenu
-                    v-if="isMobile || showSettings"
+                    v-if="isNarrow || showSettings"
                     :open="showSettings"
                     :page="settingsPage"
                     :autoplay-enabled="autoplayEnabled"

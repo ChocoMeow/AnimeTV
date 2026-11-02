@@ -1,17 +1,6 @@
 <script setup>
 const appConfig = useAppConfig()
 
-const weekdayLabel = {
-    0: '全部',
-    1: '週一',
-    2: '週二',
-    3: '週三',
-    4: '週四',
-    5: '週五',
-    6: '週六',
-    7: '週日',
-}
-
 const views = [
     { id: 'home', label: '每日新番', icon: 'home' },
     { id: 'player', label: '播放器', icon: 'play_circle' },
@@ -26,18 +15,22 @@ const loading = ref(true)
 const byDay = ref({})
 const browse = ref([])
 const spotlight = ref([])
-const selectedDay = ref('0')
+const todayCode = String(new Date().getDay() || 7)
+const selectedDay = ref(todayCode)
 const spotlightIndex = ref(0)
 
-const dayKeys = computed(() => Object.keys(weekdayLabel))
-
-const displayedItems = computed(() => {
-    const pool =
-        selectedDay.value === '0'
-            ? Object.values(byDay.value || {}).flat()
-            : byDay.value[selectedDay.value] || []
-    return pool.slice(0, 8)
+const weekRail = computed(() => {
+    const days = [...'一二三四五六日'].map((label, index) => ({
+        code: String(index + 1),
+        label,
+        zh: `週${label}`,
+        items: byDay.value[String(index + 1)] ?? [],
+    }))
+    const start = Number(todayCode) - 1
+    return [...days.slice(start), ...days.slice(0, start)]
 })
+
+const displayedItems = computed(() => (byDay.value[selectedDay.value] || []).slice(0, 6))
 
 const activeSpotlight = computed(() => {
     if (!spotlight.value.length) return null
@@ -47,10 +40,12 @@ const activeSpotlight = computed(() => {
 const sideSpotlight = computed(() => {
     if (spotlight.value.length < 2) return []
     const start = (spotlightIndex.value + 1) % spotlight.value.length
-    return Array.from({ length: Math.min(4, spotlight.value.length - 1) }, (_, i) =>
+    return Array.from({ length: Math.min(3, spotlight.value.length - 1) }, (_, i) =>
         spotlight.value[(start + i) % spotlight.value.length],
     )
 })
+
+const padIndex = (index) => String(index).padStart(2, '0')
 
 const playerProgress = ref(38)
 const playerBuffered = ref(62)
@@ -354,7 +349,7 @@ async function loadPreviewData() {
 function startTimers() {
     dayTimer = setInterval(() => {
         if (activeView.value !== 'home') return
-        const keys = dayKeys.value
+        const keys = weekRail.value.map((d) => d.code)
         const idx = keys.indexOf(selectedDay.value)
         selectedDay.value = keys[(idx + 1) % keys.length]
     }, 4000)
@@ -427,78 +422,114 @@ onBeforeUnmount(() => {
                         <div class="skeleton-row" />
                     </div>
                     <template v-else-if="activeSpotlight">
-                        <div class="home-bento-grid">
-                            <article class="home-spotlight">
+                        <div class="discover-layout">
+                            <article class="feature-card">
                                 <Transition name="spot-fade" mode="out-in">
-                                    <div :key="activeSpotlight.refId" class="home-spotlight-inner">
-                                        <AppImage
-                                            :src="activeSpotlight.image"
-                                            :alt="activeSpotlight.title"
-                                            class="absolute inset-0"
-                                            img-class="object-cover"
-                                        />
-                                        <div class="home-spotlight-scrim" />
-                                        <div class="home-spotlight-copy">
-                                            <span class="home-badge">
-                                                <span class="material-symbols-rounded text-sm">bolt</span>
+                                    <div :key="activeSpotlight.refId" class="feature-stage">
+                                        <div class="feature-photo">
+                                            <AppImage
+                                                :src="activeSpotlight.image"
+                                                :alt="activeSpotlight.title"
+                                                class="absolute inset-0"
+                                                img-class="object-cover object-top"
+                                            />
+                                        </div>
+                                        <div class="feature-scrim" />
+                                        <div class="feature-top">
+                                            <span class="feature-kicker">
+                                                <span class="kicker-dot" aria-hidden="true" />
                                                 焦點新番
                                             </span>
-                                            <h3 class="home-spotlight-title">{{ activeSpotlight.title }}</h3>
-                                            <span class="home-spotlight-cta">
-                                                <span class="material-symbols-rounded text-base">play_arrow</span>
+                                            <span v-if="activeSpotlight.episode" class="feature-ep">{{ activeSpotlight.episode }}</span>
+                                        </div>
+                                        <div class="feature-copy">
+                                            <h3 class="feature-title">{{ activeSpotlight.title }}</h3>
+                                            <span class="feature-cta">
+                                                <span class="play-orb" aria-hidden="true">
+                                                    <span class="material-symbols-rounded text-[18px]">play_arrow</span>
+                                                </span>
                                                 立即觀看
                                             </span>
                                         </div>
                                     </div>
                                 </Transition>
                             </article>
-
-                            <article
-                                v-for="item in sideSpotlight"
-                                :key="item.refId"
-                                class="home-tile"
-                            >
-                                <AppImage
-                                    :src="item.image"
-                                    :alt="item.title"
-                                    class="absolute inset-0"
-                                    img-class="object-cover"
-                                />
-                                <div class="home-tile-scrim" />
-                                <p class="home-tile-title">{{ item.title }}</p>
-                            </article>
+                            <div v-if="sideSpotlight.length" class="spot-panel">
+                                <div class="spot-rail" :class="{ 'spot-rail-fill': sideSpotlight.length >= 3 }">
+                                    <article
+                                        v-for="(item, index) in sideSpotlight"
+                                        :key="item.refId"
+                                        class="spot-card"
+                                    >
+                                        <div class="spot-media">
+                                            <AppImage
+                                                :src="item.image"
+                                                :alt="item.title"
+                                                class="absolute inset-0"
+                                                img-class="object-cover object-top"
+                                            />
+                                            <span v-if="item.episode" class="spot-ep">{{ item.episode }}</span>
+                                        </div>
+                                        <div class="spot-copy">
+                                            <span class="spot-index" aria-hidden="true">{{ padIndex(index + 1) }}</span>
+                                            <p class="spot-title">{{ item.title }}</p>
+                                            <span class="spot-go">
+                                                觀看
+                                                <span class="material-symbols-rounded text-base" aria-hidden="true">arrow_forward</span>
+                                            </span>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="home-schedule">
                             <div class="home-schedule-head">
                                 <h4 class="home-schedule-label">每日新番</h4>
-                                <div class="home-day-tabs" aria-hidden="true">
-                                    <span
-                                        v-for="d in dayKeys"
-                                        :key="d"
-                                        class="home-day-tab"
-                                        :class="{ 'home-day-tab-active': selectedDay === d }"
-                                    >{{ weekdayLabel[d] }}</span>
-                                </div>
+                                <p class="home-schedule-sub">這週每天更新的動畫都在這裡。</p>
                             </div>
-                            <div class="home-schedule-stage">
-                                <Transition name="schedule-day" mode="out-in">
-                                    <div :key="selectedDay" class="home-schedule-grid">
-                                        <article
-                                            v-for="(item, index) in displayedItems"
-                                            :key="item.refId"
-                                            class="home-schedule-card"
-                                            :style="{ '--card-i': index }"
-                                        >
-                                            <AppImage
-                                                :src="item.thumbnail || item.image"
-                                                :alt="item.title"
-                                                class="home-schedule-thumb"
-                                            />
-                                            <p class="home-schedule-title">{{ item.title }}</p>
-                                        </article>
+                            <div class="daily-layout">
+                                <nav class="day-rail" aria-hidden="true">
+                                    <div class="day-rail-list">
+                                        <div
+                                            class="day-rail-pill"
+                                            :style="{ transform: `translateY(calc(${weekRail.findIndex((d) => d.code === selectedDay)} * (var(--day-step) + var(--day-gap))))` }"
+                                        />
+                                        <span
+                                            v-for="day in weekRail"
+                                            :key="day.code"
+                                            class="day-rail-btn"
+                                            :class="{ 'is-active': selectedDay === day.code }"
+                                        >{{ day.label }}</span>
                                     </div>
-                                </Transition>
+                                </nav>
+                                <div class="home-schedule-stage">
+                                    <Transition name="schedule-day" mode="out-in">
+                                        <div :key="selectedDay" class="daily-stack">
+                                            <article
+                                                v-for="(item, index) in displayedItems"
+                                                :key="item.refId"
+                                                class="daily-card"
+                                                :style="{ '--card-i': index }"
+                                            >
+                                                <AppImage
+                                                    :src="item.thumbnail || item.image"
+                                                    :alt="item.title"
+                                                    class="absolute inset-0"
+                                                    img-class="h-full w-full object-cover object-top"
+                                                />
+                                                <div class="daily-scrim" />
+                                                <span v-if="item.episode" class="daily-badge">{{ item.episode }}</span>
+                                                <div class="daily-copy">
+                                                    <p class="daily-title">{{ item.title }}</p>
+                                                </div>
+                                            </article>
+                                            <p v-if="!displayedItems.length" class="daily-empty">
+                                                {{ weekRail.find((d) => d.code === selectedDay)?.zh }}暫無更新
+                                            </p>
+                                        </div>
+                                    </Transition>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -1071,93 +1102,114 @@ onBeforeUnmount(() => {
     100% { background-position: -200% 0; }
 }
 
-/* Home bento — matches index.vue row heights */
-.home-bento-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-auto-rows: 120px;
-    gap: 0.75rem;
+/* Home — mirrors index.vue discover + daily */
+.discover-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
 }
 
-@media (min-width: 640px) {
-    .home-bento-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        grid-auto-rows: 180px;
-        gap: 1rem;
+@media (min-width: 900px) {
+    .discover-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.7fr) minmax(11rem, 0.9fr);
+        align-items: stretch;
+        gap: 0.85rem;
     }
 }
 
-@media (min-width: 1024px) {
-    .home-bento-grid {
-        grid-auto-rows: 200px;
-    }
-}
-
-.home-spotlight {
-    grid-column: span 2;
-    grid-row: span 2;
+.feature-card {
     position: relative;
     overflow: hidden;
-    border-radius: 1rem;
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.2);
+    min-height: 14rem;
+    aspect-ratio: 16 / 9;
+    border-radius: 1.15rem;
+    background: rgba(0, 0, 0, 0.06);
+    box-shadow: 0 20px 44px -28px rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-@media (min-width: 640px) {
-    .home-spotlight {
-        border-radius: 1.25rem;
+.dark .feature-card {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+@media (min-width: 900px) {
+    .feature-card {
+        aspect-ratio: auto;
+        min-height: 18rem;
+        height: 100%;
+        border-radius: 1.35rem;
     }
 }
 
-.home-spotlight-inner {
+.feature-stage,
+.feature-photo {
     position: absolute;
     inset: 0;
 }
 
-.home-spotlight-img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: top;
+.feature-photo {
+    inset: -8%;
 }
 
-.home-spotlight-scrim {
+.feature-scrim {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.35) 45%, rgba(0, 0, 0, 0.05) 75%);
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.42) 38%, rgba(0, 0, 0, 0.08) 62%, rgba(0, 0, 0, 0.28) 100%);
 }
 
-.home-spotlight-copy {
+.feature-top {
     position: absolute;
-    inset: auto 1rem 1rem;
+    inset: 0.85rem 0.85rem auto;
     z-index: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
 }
 
-@media (min-width: 640px) {
-    .home-spotlight-copy {
-        inset: auto 1.5rem 1.5rem;
-    }
-}
-
-.home-badge {
+.feature-kicker,
+.feature-ep {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    padding: 0.35rem 0.7rem;
+    padding: 0.25rem 0.6rem;
     border-radius: 9999px;
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     font-weight: 600;
     color: #fff;
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.home-spotlight-title {
-    margin-top: 0.75rem;
-    font-size: 1.25rem;
+.feature-kicker {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.feature-ep {
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.kicker-dot {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 9999px;
+    background: #fff;
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+    animation: kicker-pulse 2.2s ease-out infinite;
+}
+
+.feature-copy {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0.9rem 1rem 1rem;
+}
+
+.feature-title {
+    margin: 0 0 0.7rem;
+    font-size: 1.15rem;
     font-weight: 800;
     line-height: 1.15;
     letter-spacing: -0.02em;
@@ -1166,67 +1218,190 @@ onBeforeUnmount(() => {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
+    text-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
 }
 
 @media (min-width: 640px) {
-    .home-spotlight-title {
-        font-size: 1.75rem;
+    .feature-title {
+        font-size: 1.45rem;
     }
 }
 
-.home-spotlight-cta {
+.feature-cta {
     display: inline-flex;
+    width: fit-content;
     align-items: center;
-    gap: 0.35rem;
-    margin-top: 0.875rem;
-    padding: 0.5rem 1rem;
+    gap: 0.45rem;
+    align-self: flex-start;
+    padding: 0.25rem 0.85rem 0.25rem 0.25rem;
     border-radius: 9999px;
-    font-size: 0.8125rem;
-    font-weight: 700;
-    color: #111;
-    background: #fff;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
-}
-
-.home-tile {
-    position: relative;
-    overflow: hidden;
-    border-radius: 0.875rem;
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    background: rgba(0, 0, 0, 0.03);
-}
-
-@media (min-width: 640px) {
-    .home-tile {
-        border-radius: 1rem;
-    }
-}
-
-.home-tile-img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: top;
-}
-
-.home-tile-scrim {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.82) 0%, transparent 55%);
-}
-
-.home-tile-title {
-    position: absolute;
-    left: 0.75rem;
-    right: 0.75rem;
-    bottom: 0.75rem;
-    z-index: 1;
     font-size: 0.75rem;
     font-weight: 600;
+    color: #111;
+    background: #fff;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+}
+
+.play-orb {
+    display: flex;
+    width: 1.75rem;
+    height: 1.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: #111;
+    color: #fff;
+}
+
+.spot-panel {
+    min-width: 0;
+}
+
+@media (min-width: 900px) {
+    .spot-panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        padding: 0.65rem;
+        border-radius: 1.35rem;
+        background: rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .dark .spot-panel {
+        background: rgba(255, 255, 255, 0.035);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+}
+
+.spot-rail {
+    display: flex;
+    gap: 0.65rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.spot-rail::-webkit-scrollbar {
+    display: none;
+}
+
+@media (min-width: 900px) {
+    .spot-rail {
+        flex: 1 1 auto;
+        flex-direction: column;
+        gap: 0.45rem;
+        overflow: hidden;
+    }
+
+    .spot-rail-fill .spot-card {
+        flex: 1 1 0;
+    }
+}
+
+.spot-card {
+    position: relative;
+    display: flex;
+    width: 72%;
+    max-width: 14rem;
+    flex-shrink: 0;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 1rem;
+    background: #0a0a0a;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+@media (min-width: 900px) {
+    .spot-card {
+        width: 100%;
+        max-width: none;
+        min-height: 0;
+        flex-direction: row;
+        align-items: stretch;
+        background: transparent;
+        box-shadow: none;
+        border-radius: 0.95rem;
+    }
+}
+
+.spot-media {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.06);
+}
+
+@media (min-width: 900px) {
+    .spot-media {
+        flex: 0 0 46%;
+        width: 46%;
+        height: 100%;
+        aspect-ratio: auto;
+        border-radius: 0.85rem;
+    }
+}
+
+.spot-ep {
+    position: absolute;
+    left: 0.5rem;
+    top: 0.5rem;
+    z-index: 1;
+    padding: 0.1rem 0.45rem;
+    border-radius: 9999px;
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.spot-copy {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 2rem 0.7rem 0.7rem;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.28) 62%, transparent 100%);
+}
+
+@media (min-width: 900px) {
+    .spot-copy {
+        position: relative;
+        inset: auto;
+        flex: 1 1 auto;
+        justify-content: center;
+        gap: 0.1rem;
+        min-width: 0;
+        overflow: hidden;
+        padding: 0.35rem 0.65rem;
+        background: none;
+    }
+}
+
+.spot-index {
+    margin-bottom: 0.15rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+@media (min-width: 900px) {
+    .spot-index {
+        color: #9ca3af;
+    }
+
+    .dark .spot-index {
+        color: #6b7280;
+    }
+}
+
+.spot-title {
+    font-size: 0.8125rem;
+    font-weight: 700;
     line-height: 1.25;
+    letter-spacing: -0.01em;
     color: #fff;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -1234,24 +1409,42 @@ onBeforeUnmount(() => {
     overflow: hidden;
 }
 
-@media (min-width: 640px) {
-    .home-tile-title {
-        font-size: 0.8125rem;
+@media (min-width: 900px) {
+    .spot-title {
+        color: #111;
+    }
+
+    .dark .spot-title {
+        color: #fff;
     }
 }
 
-/* Schedule — grid like real app */
+.spot-go {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1rem;
+    margin-top: 0.3rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+@media (min-width: 900px) {
+    .spot-go {
+        color: #6b7280;
+    }
+
+    .dark .spot-go {
+        color: #9ca3af;
+    }
+}
+
 .home-schedule {
-    margin-top: 1.5rem;
+    margin-top: 1.35rem;
 }
 
 .home-schedule-head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 0.875rem;
+    margin-bottom: 0.75rem;
 }
 
 .home-schedule-label {
@@ -1264,42 +1457,83 @@ onBeforeUnmount(() => {
     color: #f9fafb;
 }
 
-.home-day-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-}
-
-.home-day-tab {
-    padding: 0.4rem 0.75rem;
-    border-radius: 9999px;
+.home-schedule-sub {
+    margin-top: 0.2rem;
     font-size: 0.75rem;
-    font-weight: 600;
     color: #6b7280;
-    background: rgba(0, 0, 0, 0.05);
-    transition: color 0.3s ease, background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.dark .home-day-tab {
-    color: #d1d5db;
-    background: rgba(255, 255, 255, 0.08);
+.dark .home-schedule-sub {
+    color: #9ca3af;
 }
 
-.home-day-tab-active {
-    color: #fff;
+.daily-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+}
+
+.day-rail {
+    flex-shrink: 0;
+}
+
+.day-rail-list {
+    --day-step: 2.1rem;
+    --day-gap: 0.45rem;
+    position: relative;
+    display: flex;
+    width: var(--day-step);
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--day-gap);
+}
+
+.day-rail-pill {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 0;
+    height: var(--day-step);
+    border-radius: 9999px;
     background: #111;
-    transform: scale(1.04);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.dark .home-day-tab-active {
+.dark .day-rail-pill {
+    background: #fff;
+}
+
+.day-rail-btn {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    height: var(--day-step);
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1;
     color: #111;
-    background: #f5f5f0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.dark .day-rail-btn {
+    color: #fff;
+}
+
+.day-rail-btn.is-active {
+    color: #fff;
+}
+
+.dark .day-rail-btn.is-active {
+    color: #111;
 }
 
 .home-schedule-stage {
     position: relative;
+    min-width: 0;
+    flex: 1;
     overflow: hidden;
 }
 
@@ -1318,7 +1552,7 @@ onBeforeUnmount(() => {
     transform: translateY(-8px);
 }
 
-.schedule-day-enter-active .home-schedule-card {
+.schedule-day-enter-active .daily-card {
     animation: schedule-card-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
     animation-delay: calc(var(--card-i, 0) * 45ms);
 }
@@ -1334,47 +1568,96 @@ onBeforeUnmount(() => {
     }
 }
 
-.home-schedule-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-}
-
-@media (min-width: 640px) {
-    .home-schedule-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 1rem;
+@keyframes kicker-pulse {
+    70% {
+        box-shadow: 0 0 0 6px rgba(255, 255, 255, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
     }
 }
 
-.home-schedule-thumb {
+.daily-stack {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+
+@media (min-width: 640px) {
+    .daily-stack {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.daily-card {
+    position: relative;
+    display: block;
     aspect-ratio: 16 / 9;
-    border-radius: 0.75rem;
     overflow: hidden;
+    border-radius: 0.75rem;
     background: rgba(0, 0, 0, 0.06);
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.1);
 }
 
-.home-schedule-thumb img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+.dark .daily-card {
+    background: rgba(255, 255, 255, 0.05);
 }
 
-.home-schedule-title {
-    margin-top: 0.5rem;
-    font-size: 0.8125rem;
+.daily-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.18) 46%, rgba(0, 0, 0, 0.08) 100%);
+}
+
+.daily-badge {
+    position: absolute;
+    left: 0.45rem;
+    top: 0.45rem;
+    z-index: 1;
+    padding: 0.1rem 0.45rem;
+    border-radius: 9999px;
+    font-size: 0.625rem;
     font-weight: 600;
-    line-height: 1.3;
-    color: #374151;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.daily-copy {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: 1;
+    padding: 0.55rem 0.6rem;
+}
+
+.daily-title {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: #fff;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
 }
 
-.dark .home-schedule-title {
-    color: #e5e7eb;
+.daily-empty {
+    grid-column: 1 / -1;
+    padding: 1.5rem 1rem;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    background: rgba(0, 0, 0, 0.02);
+    text-align: center;
+    font-size: 0.8125rem;
+    color: #6b7280;
+}
+
+.dark .daily-empty {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+    color: #9ca3af;
 }
 
 /* Player — matches anime/[id] normal layout */
@@ -1951,14 +2234,16 @@ onBeforeUnmount(() => {
         transition: none !important;
     }
 
-    .schedule-day-enter-active .home-schedule-card {
+    .schedule-day-enter-active .daily-card {
         animation: none !important;
     }
 
-    .home-day-tab,
-    .home-day-tab-active {
-        transform: none !important;
+    .day-rail-pill {
         transition: none !important;
+    }
+
+    .kicker-dot {
+        animation: none !important;
     }
 
     .preview-slide-up-enter-active,

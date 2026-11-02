@@ -6,7 +6,10 @@ export const OFFLINE_EP_STORE = 'episodes'
 export const OFFLINE_META_STORE = 'animeMeta'
 export const OFFLINE_HISTORY_STORE = 'watchHistory'
 
+/** Episodes downloading at once (keep low — each opens many segment requests). */
 export const OFFLINE_CONCURRENCY = 3
+/** HLS segments / thumbnail sheets in parallel per episode. */
+export const OFFLINE_SEGMENT_CONCURRENCY = 8
 export const BUNNY_MP4_HEIGHTS = Object.freeze([1080, 720, 480, 360, 240])
 export const VIDEO_MP4 = 'video/mp4'
 export const UNTITLED_ANIME = '未命名作品'
@@ -15,6 +18,8 @@ export const SEGMENT_RETRIES = 2
 export const SEGMENT_503_RETRIES = 4
 export const SEGMENT_RETRY_MS = 400
 export const RETRY_STATUSES = new Set([408, 429, 502, 503])
+export const SEGMENT_FETCH_TIMEOUT_MS = 45_000
+export const PROGRESSIVE_IDLE_TIMEOUT_MS = 60_000
 
 export function offlineEpisodeKey(refId, episodeKey) {
     return `${refId}::${String(episodeKey)}`

@@ -1,28 +1,24 @@
-const isMobile = ref(false)
-/** Width-only breakpoint (<768). Use for hover UI that should still work on touch laptops. */
-const isNarrow = ref(false)
-let resizeListenerAdded = false
+const MD = 768 // Tailwind `md`
 
-function checkMobile() {
-    if (typeof window !== 'undefined') {
-        const narrow = window.innerWidth < 768
-        isNarrow.value = narrow
-        // Touch devices still use compact chrome, but hover tooltips key off isNarrow instead.
-        isMobile.value = narrow || 'ontouchstart' in window
-    }
+const isNarrow = ref(false) // width < md — layout, drawer ↔ dialog
+const isMobile = ref(false) // narrow OR touch — PWA chrome, pull-to-refresh
+let listening = false
+
+function sync() {
+    if (typeof window === 'undefined') return
+    const narrow = window.innerWidth < MD
+    isNarrow.value = narrow
+    isMobile.value = narrow || 'ontouchstart' in window
 }
 
-export const useMobile = () => {
-    // Set up global resize listener only once
-    if (import.meta.client && !resizeListenerAdded) {
-        checkMobile()
-        window.addEventListener('resize', checkMobile)
-        resizeListenerAdded = true
+export function useMobile() {
+    if (import.meta.client && !listening) {
+        sync()
+        window.addEventListener('resize', sync)
+        listening = true
     }
-
     return {
-        isMobile: readonly(isMobile),
         isNarrow: readonly(isNarrow),
-        checkMobile,
+        isMobile: readonly(isMobile),
     }
 }

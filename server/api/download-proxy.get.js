@@ -1,6 +1,7 @@
 import { createLoggedError, logError } from '~~/server/utils/logger'
 import {
     VIDEO_UPSTREAM,
+    armProxySocketTimeout,
     bindClientAbort,
     combinedSignal,
     videoUpstreamHeaders,
@@ -18,6 +19,7 @@ export default defineEventHandler(async (event) => {
 
     const cookieHeader = cookie == null ? '' : String(cookie)
     const clientAbort = bindClientAbort(event)
+    armProxySocketTimeout(event, clientAbort)
 
     try {
         if (clientAbort.signal.aborted) return

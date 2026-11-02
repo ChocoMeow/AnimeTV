@@ -37,11 +37,7 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue"])
 
 const { isNarrow } = useMobile()
-
-/** Width-based only so drawer ↔ modal switches correctly on resize (both directions). */
-const useDrawer = computed(() => isNarrow.value)
-
-const effectiveShowClose = computed(() => props.showClose && !useDrawer.value)
+const effectiveShowClose = computed(() => props.showClose && !isNarrow.value)
 
 function close() {
     if (!props.persistent) {
@@ -90,7 +86,7 @@ onBeforeUnmount(() => {
 <template>
     <!-- Narrow: bottom drawer -->
     <BaseBottomDrawer
-        v-if="useDrawer"
+        v-if="isNarrow"
         :key="'drawer'"
         :model-value="modelValue"
         :title="showHeader ? title : ''"

@@ -5,6 +5,7 @@
  */
 const { isMobile } = useMobile()
 const { searchModalOpen } = useMobileSearchState()
+const { activeCount } = useOfflineDownloadQueue()
 const splashDone = useState('app-splash-done', () => false)
 
 const THRESHOLD = 64
@@ -40,9 +41,11 @@ function isStandaloneDisplay() {
 
 function updateEnabled() {
     if (typeof window === 'undefined') return
-    const next = isMobile.value && isStandaloneDisplay()
+    // Never hard-reload while an offline download is writing to IndexedDB
+    const next = isMobile.value && isStandaloneDisplay() && activeCount.value === 0
     enabled.value = next
     document.documentElement.classList.toggle('ptr-enabled', next)
+    if (!next && state.value !== 'idle') resetPull()
 }
 
 function getScrollY() {
@@ -212,7 +215,7 @@ watch(state, (next) => {
     }
 })
 
-watch(isMobile, updateEnabled)
+watch([isMobile, activeCount], updateEnabled)
 </script>
 
 <template>

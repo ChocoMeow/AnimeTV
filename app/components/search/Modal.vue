@@ -8,7 +8,7 @@ const emit = defineEmits(['update:modelValue'])
 
 const router = useRouter()
 const route = useRoute()
-const { isMobile } = useMobile()
+const { isNarrow } = useMobile() // width < md — matches SiteHeader search chrome
 const { aiEnabled } = useRuntimeConfig().public
 const { searchModalMode } = useMobileSearchState()
 const {
@@ -75,23 +75,18 @@ const inputPlaceholder = computed(() =>
     isAskIntent.value ? '輸入想問 AI 的問題…' : '搜尋動漫名稱、簡介…',
 )
 const isShellExpanded = computed(() => isAiMode.value || !isAskIntent.value)
-const panelHeightClass = computed(() => {
-    if (isMobile.value) return 'flex-1 min-h-0'
-    // Both modes use explicit heights so transition-[height] can interpolate.
-    return isShellExpanded.value ? 'h-[min(80vh,720px)]' : 'h-[min(48vh,26rem)]'
-})
 const shellClass = computed(() =>
-    isMobile.value
-        ? 'fixed inset-0 z-[80] flex flex-col bg-white dark:bg-gray-950 md:hidden'
-        : 'absolute inset-x-0 top-0 z-20 hidden overflow-hidden rounded-b-2xl bg-gray-100 shadow-lg ring-1 ring-black/5 dark:bg-[#141414] dark:ring-white/10 md:block',
+    isNarrow.value
+        ? 'fixed inset-0 z-[80] flex flex-col bg-white dark:bg-gray-950'
+        : 'absolute inset-x-0 top-0 z-20 overflow-hidden rounded-b-2xl bg-gray-100 shadow-lg ring-1 ring-black/5 dark:bg-[#141414] dark:ring-white/10',
 )
-const panelClass = computed(() =>
-    [
-        'flex min-h-0 w-full flex-col overflow-hidden transition-[height] duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[height]',
-        isMobile.value ? 'flex-1 bg-white dark:bg-gray-950' : 'bg-transparent',
-        panelHeightClass.value,
-    ].join(' '),
-)
+const panelClass = computed(() => {
+    const base =
+        'flex min-h-0 w-full flex-col overflow-hidden transition-[height] duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[height]'
+    if (isNarrow.value) return `${base} flex-1 bg-white dark:bg-gray-950`
+    const h = isShellExpanded.value ? 'h-[min(80vh,720px)]' : 'h-[min(48vh,26rem)]'
+    return `${base} bg-transparent ${h}`
+})
 
 const flatItems = computed(() => {
     if (isAskIntent.value) {
@@ -110,7 +105,7 @@ const activeItem = computed(() => flatItems.value[activeIndex.value] || null)
 const activeHistoryId = computed(() => (activeItem.value?.type === 'history' ? activeItem.value.history.id : null))
 const activeResult = computed(() => (activeItem.value?.type === 'result' ? activeItem.value.result : null))
 const showResultPreview = computed(
-    () => !isMobile.value && !isAskIntent.value && !!searchResults.value.length,
+    () => !isNarrow.value && !isAskIntent.value && !!searchResults.value.length,
 )
 
 const keyboardHints = computed(() => {
@@ -302,7 +297,7 @@ function onGlobalKeydown(e) {
 }
 
 function onDocumentPointerDown(e) {
-    if (!open.value || isMobile.value) return
+    if (!open.value || isNarrow.value) return
     if (e.target.closest?.('[data-search-shell], [data-search-header]')) return
     close()
 }
@@ -325,7 +320,6 @@ watch(activeResult, (result) => {
 
 watch(open, (isOpen) => {
     if (isOpen) {
-        if (isMobile.value) setBodyScrollLocked(true)
         resetActive()
         if (!isAiMode.value) {
             setInputIntent('search')
@@ -340,12 +334,9 @@ watch(open, (isOpen) => {
     searchModalMode.value = 'search'
     aiSeedPrompt.value = ''
     clearTooltip()
-    setBodyScrollLocked(false)
 })
 
-watch(isMobile, (mobile) => {
-    if (open.value) setBodyScrollLocked(mobile)
-})
+watch([open, isNarrow], ([isOpen, narrow]) => setBodyScrollLocked(isOpen && narrow))
 watch(isAiMode, (ai) => {
     if (ai) clearTooltip()
 })
@@ -371,7 +362,7 @@ onUnmounted(() => {
     <Teleport to="body">
         <Transition name="search-backdrop">
             <div
-                v-if="open && !isMobile"
+                v-if="open && !isNarrow"
                 class="fixed inset-0 z-40 bg-black/60"
                 aria-hidden="true"
                 @click="close"
@@ -381,7 +372,7 @@ onUnmounted(() => {
 
     <!-- Keep Teleport mounted; v-if on content avoids insertBefore races with the header anchor -->
     <Teleport to="#desktop-search-anchor">
-        <div v-if="open && !isMobile && !isAiMode" class="flex w-full items-center justify-center gap-2">
+        <div v-if="open && !isNarrow && !isAiMode" class="flex w-full items-center justify-center gap-2">
             <div class="w-full max-w-xl">
                 <SearchInputBar
                     ref="inputBarRef"
@@ -415,18 +406,18 @@ onUnmounted(() => {
         </div>
     </Teleport>
 
-    <Teleport to="body" :disabled="!isMobile">
+    <Teleport to="body" :disabled="!isNarrow">
         <Transition name="search-dropdown">
             <div
                 v-if="open"
-                :data-search-shell="isMobile ? undefined : ''"
+                :data-search-shell="isNarrow ? undefined : ''"
                 role="dialog"
-                :aria-modal="isMobile ? 'true' : undefined"
+                :aria-modal="isNarrow ? 'true' : undefined"
                 :aria-label="isAiMode ? 'AI 助手' : '搜尋動漫'"
                 :class="shellClass"
             >
                 <SearchInputBar
-                    v-if="isMobile && !isAiMode"
+                    v-if="isNarrow && !isAiMode"
                     ref="inputBarRef"
                     v-model="searchQuery"
                     :placeholder="inputPlaceholder"
@@ -444,7 +435,7 @@ onUnmounted(() => {
                     @mic-toggle="onMicToggle"
                 />
 
-                <div :class="isMobile ? 'flex min-h-0 flex-1 flex-col' : 'pb-3 pt-[4.5rem]'">
+                <div :class="isNarrow ? 'flex min-h-0 flex-1 flex-col' : 'pb-3 pt-[4.5rem]'">
                     <div ref="modalPanelRef" :class="panelClass" @keydown="onInputKeydown">
                         <Transition name="search-pane" mode="out-in">
                             <SearchAiChatPane

@@ -36,7 +36,8 @@ const currentTranslateY = ref(0)
 const drawerHeight = ref(0)
 const initialHeight = ref(0)
 const maxDrawerHeight = ref(0)
-const contentHeight = ref(0)
+// Stay inside fullscreen (player) when active; otherwise body
+const teleportTo = shallowRef('body')
 
 const CLOSE_THRESHOLD = 100
 const VELOCITY_THRESHOLD = 0.5
@@ -44,6 +45,10 @@ const VELOCITY_THRESHOLD = 0.5
 let lastY = 0
 let lastTime = 0
 let velocity = 0
+
+function syncTeleportTarget() {
+    teleportTo.value = document.fullscreenElement || 'body'
+}
 
 function close() {
     if (!props.persistent) {
@@ -72,17 +77,11 @@ function unlockScroll() {
 }
 
 function measureHeights() {
-    if (drawerRef.value) {
-        const rect = drawerRef.value.getBoundingClientRect()
-        drawerHeight.value = rect.height
-        initialHeight.value = rect.height
-        maxDrawerHeight.value = window.innerHeight * 0.9
-    }
-    
-    if (contentRef.value) {
-        // Get the full scrollable content height
-        contentHeight.value = contentRef.value.scrollHeight
-    }
+    if (!drawerRef.value) return
+    const rect = drawerRef.value.getBoundingClientRect()
+    drawerHeight.value = rect.height
+    initialHeight.value = rect.height
+    maxDrawerHeight.value = window.innerHeight * 0.9
 }
 
 function startDrag(event) {
@@ -192,45 +191,46 @@ function resetDrawer() {
     }
 }
 
+watch(
+    () => props.modelValue,
+    (open) => {
+        if (open) {
+            syncTeleportTarget()
+            lockScroll()
+            nextTick(() => {
+                resetDrawer()
+                measureHeights()
+            })
+        } else {
+            unlockScroll()
+            nextTick(resetDrawer)
+        }
+    },
+    { immediate: true },
+)
+
 onMounted(() => {
-    watch(
-        () => props.modelValue,
-        (val) => {
-            if (val) {
-                lockScroll()
-                nextTick(() => {
-                    resetDrawer()
-                    measureHeights()
-                })
-            } else {
-                unlockScroll()
-                nextTick(() => {
-                    resetDrawer()
-                })
-            }
-        },
-        { immediate: true }
-    )
-    
-    document.addEventListener("keydown", handleEscape)
-    document.addEventListener("mousemove", handleDrag)
-    document.addEventListener("mouseup", endDrag)
-    document.addEventListener("touchmove", handleDrag, { passive: false })
-    document.addEventListener("touchend", endDrag)
+    document.addEventListener('keydown', handleEscape)
+    document.addEventListener('mousemove', handleDrag)
+    document.addEventListener('mouseup', endDrag)
+    document.addEventListener('touchmove', handleDrag, { passive: false })
+    document.addEventListener('touchend', endDrag)
+    document.addEventListener('fullscreenchange', syncTeleportTarget)
 })
 
 onBeforeUnmount(() => {
-    document.removeEventListener("keydown", handleEscape)
-    document.removeEventListener("mousemove", handleDrag)
-    document.removeEventListener("mouseup", endDrag)
-    document.removeEventListener("touchmove", handleDrag)
-    document.removeEventListener("touchend", endDrag)
+    document.removeEventListener('keydown', handleEscape)
+    document.removeEventListener('mousemove', handleDrag)
+    document.removeEventListener('mouseup', endDrag)
+    document.removeEventListener('touchmove', handleDrag)
+    document.removeEventListener('touchend', endDrag)
+    document.removeEventListener('fullscreenchange', syncTeleportTarget)
     unlockScroll()
 })
 </script>
 
 <template>
-    <Teleport to="body">
+    <Teleport :to="teleportTo">
         <Transition name="drawer">
             <div 
                 v-if="modelValue" 
