@@ -20,7 +20,11 @@ const {
     getOfflineThumbnailAssets,
 } = useOfflineAnimeDownloads()
 const { runOfflineDownloadBatch } = useOfflineDownloadQueue()
-const { put: putOfflineWatchHistory, list: listOfflineWatchHistory } = useOfflineWatchHistory()
+const {
+    put: putOfflineWatchHistory,
+    listForAnime: listOfflineWatchHistory,
+    sync: syncOfflineWatchHistory,
+} = useOfflineWatchHistory()
 const {
     hoveredAnime,
     animeDetails,
@@ -109,7 +113,7 @@ let streamRecoveryAttempts = 0
 let streamRecovering = false
 let episodeFetchId = 0
 
-const SAVE_INTERVAL = 120_000
+const LOCAL_SAVE_MS = 5_000 // IndexedDB; DB sync is 2 min / online
 let saveTimer = null
 
 // Action Toolbar
@@ -371,9 +375,9 @@ watch(
     },
 )
 
-// ─── Watch history ────────────────────────────────────────────────────────────
+// ─── Watch history (local every 5s → DB every 2 min / online / leave) ─────────
 const startAutoSave = () => {
-    saveTimer ||= setInterval(saveWatchHistory, SAVE_INTERVAL)
+    saveTimer ||= setInterval(saveWatchHistory, LOCAL_SAVE_MS)
 }
 const stopAutoSave = () => {
     clearInterval(saveTimer)
@@ -383,43 +387,30 @@ const stopAutoSave = () => {
 async function saveWatchHistory(episodeNumber = null) {
     const { watch_history_enabled, id } = userSettings.value
     if (isIncognito.value || !watch_history_enabled || !id || !anime.value) return
-    const safeEpisodeNumber =
-        typeof episodeNumber === 'string' || typeof episodeNumber === 'number'
-            ? episodeNumber
-            : null
-    const epNum = safeEpisodeNumber ?? selectedEpisode.value
+    const epNum = (typeof episodeNumber === 'string' || typeof episodeNumber === 'number')
+        ? episodeNumber
+        : selectedEpisode.value
     if (!epNum) return
 
     const el = videoPlayer.value?.videoElement
     const duration = Number(el?.duration) || 0
     if (!duration) return
-    const currentTime = Number(el?.currentTime) || 0
-    const playbackTime = Math.floor(currentTime)
-    const videoDuration = Math.floor(duration)
-    const progress = Math.min(100, Math.floor((currentTime / duration) * 100))
-
+    const playbackTime = Math.floor(Number(el?.currentTime) || 0)
     const prev = allWatchProgress.value[String(epNum)]
     const prevPlayback = Number(prev?.playback_time) || 0
-    let prevTotal = Number(prev?.total_playback_time) || 0
-    if (!prevTotal && prevPlayback) prevTotal = prevPlayback
-    const delta = playbackTime > prevPlayback ? playbackTime - prevPlayback : 0
-
+    const prevTotal = Number(prev?.total_playback_time) || prevPlayback || 0
     const entry = {
         user_id: id,
         anime_ref_id: anime.value.refId,
         episode_number: String(epNum),
         playback_time: playbackTime,
-        video_duration: videoDuration,
-        progress_percentage: progress,
-        total_playback_time: prevTotal + delta,
+        video_duration: Math.floor(duration),
+        progress_percentage: Math.min(100, Math.floor((playbackTime / duration) * 100)),
+        total_playback_time: prevTotal + (playbackTime > prevPlayback ? playbackTime - prevPlayback : 0),
     }
 
     try {
-        if (isClientOffline()) await putOfflineWatchHistory(entry)
-        else {
-            const { error } = await client.from('watch_history').upsert(entry, { onConflict: 'user_id, anime_ref_id, episode_number' })
-            if (error) throw error
-        }
+        await putOfflineWatchHistory(entry)
         allWatchProgress.value[entry.episode_number] = entry
         lastWatchedData.value = entry
     } catch (err) {
@@ -428,7 +419,7 @@ async function saveWatchHistory(episodeNumber = null) {
 }
 
 function handleLeave() {
-    saveWatchHistory()
+    void saveWatchHistory().then(() => navigator.onLine && syncOfflineWatchHistory(client))
     stopAutoSave()
     setOnline()
 }
@@ -436,29 +427,24 @@ function handleLeave() {
 async function fetchLastWatched() {
     if (!userSettings.value.id || !anime.value) return
     try {
-        let data
-        if (isClientOffline()) {
-            data = (await listOfflineWatchHistory(userSettings.value.id))
-                .filter((row) => String(row.anime_ref_id) === String(anime.value.refId))
-                .sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))
-        } else {
-            const res = await client
+        const userId = userSettings.value.id
+        const local = await listOfflineWatchHistory(userId, anime.value.refId)
+        let remote = []
+        if (!isClientOffline()) {
+            const { data, error } = await client
                 .from('watch_history')
                 .select('*')
                 .eq('anime_ref_id', anime.value.refId)
-                .eq('user_id', userSettings.value.id)
+                .eq('user_id', userId)
                 .order('updated_at', { ascending: false })
-            if (res.error) throw res.error
-            data = res.data
+            if (error) throw error
+            remote = data || []
         }
-
-        if (data?.length) {
-            allWatchProgress.value = Object.fromEntries(
-                data.filter((item, i, arr) => arr.findIndex((x) => x.episode_number === item.episode_number) === i).map((item) => [item.episode_number, item]),
-            )
-            lastWatchedData.value = data[0]
-            if (data[0].progress_percentage < 90 && !route.query.e) showContinuePrompt.value = true
-        }
+        const data = mergeWatchHistory(remote, local)
+        if (!data.length) return
+        allWatchProgress.value = Object.fromEntries(data.map((item) => [String(item.episode_number), item]))
+        lastWatchedData.value = data[0]
+        if (data[0].progress_percentage < 90 && !route.query.e) showContinuePrompt.value = true
     } catch (err) {
         console.error('Failed to fetch last watched:', err)
     }
@@ -492,6 +478,7 @@ function handlePlay() {
         setWatching({ refId: anime.value.refId, title: anime.value.title, image: anime.value.image, episode: selectedEpisode.value })
 }
 function handlePause() {
+    void saveWatchHistory()
     stopAutoSave()
 }
 function handleEnded() {
