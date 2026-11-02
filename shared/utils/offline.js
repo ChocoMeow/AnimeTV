@@ -6,7 +6,10 @@ export const OFFLINE_EP_STORE = 'episodes'
 export const OFFLINE_META_STORE = 'animeMeta'
 export const OFFLINE_HISTORY_STORE = 'watchHistory'
 
+/** Episodes downloading at once (keep low — each opens many segment requests). */
 export const OFFLINE_CONCURRENCY = 3
+/** HLS segments / thumbnail sheets in parallel per episode. */
+export const OFFLINE_SEGMENT_CONCURRENCY = 8
 export const BUNNY_MP4_HEIGHTS = Object.freeze([1080, 720, 480, 360, 240])
 export const VIDEO_MP4 = 'video/mp4'
 export const UNTITLED_ANIME = '未命名作品'

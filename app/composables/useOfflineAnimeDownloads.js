@@ -2,9 +2,9 @@
  * Offline IndexedDB: one anime snapshot + one MP4 episode record per key.
  */
 import {
-    OFFLINE_CONCURRENCY,
     OFFLINE_EP_STORE,
     OFFLINE_META_STORE,
+    OFFLINE_SEGMENT_CONCURRENCY,
     downloadVideoApi,
     offlineEpisodeKey,
     offlineMetaKey,
@@ -132,15 +132,24 @@ export function useOfflineAnimeDownloads() {
         throwIfAborted(signal)
 
         const jpgUrl = source.thumbnails_jpg_url || thumbnailsJpgUrl || null
-        let thumbnailVtt = source.thumbnail_vtt_text || null
-        if (!thumbnailVtt && (source.thumbnails_vtt_url || thumbnailsVttUrl)) {
-            thumbnailVtt = await fetchEpisodeThumbnailVtt(source.thumbnails_vtt_url || thumbnailsVttUrl, signal)
-        }
-        const thumbnailSheets = {}
-        await mapPool(collectThumbnailUrls(thumbnailVtt, jpgUrl), OFFLINE_CONCURRENCY, async (url) => {
-            const sheet = await fetchEpisodeThumbnailBlob(url, signal)
-            if (sheet) thumbnailSheets[url] = sheet
-        })
+
+        // Video + thumbs in parallel so thumbnail work doesn't block the MP4 transfer
+        const videoPromise = fetchEpisodeMp4(source, onProgress, { signal, waitWhilePaused }, qualityHeight)
+        const thumbsPromise = (async () => {
+            let thumbnailVtt = source.thumbnail_vtt_text || null
+            if (!thumbnailVtt && (source.thumbnails_vtt_url || thumbnailsVttUrl)) {
+                thumbnailVtt = await fetchEpisodeThumbnailVtt(source.thumbnails_vtt_url || thumbnailsVttUrl, signal)
+            }
+            const thumbnailSheets = {}
+            await mapPool(collectThumbnailUrls(thumbnailVtt, jpgUrl), OFFLINE_SEGMENT_CONCURRENCY, async (url) => {
+                const sheet = await fetchEpisodeThumbnailBlob(url, signal)
+                if (sheet) thumbnailSheets[url] = sheet
+            })
+            return { thumbnailVtt, thumbnailSheets }
+        })()
+
+        const [video, thumbs] = await Promise.all([videoPromise, thumbsPromise])
+        throwIfAborted(signal)
 
         await idbPut(
             OFFLINE_EP_STORE,
@@ -150,9 +159,9 @@ export function useOfflineAnimeDownloads() {
                 episodeKey,
                 animeTitle,
                 videoId,
-                video: await fetchEpisodeMp4(source, onProgress, { signal, waitWhilePaused }, qualityHeight),
-                thumbnailVtt,
-                thumbnailSheets,
+                video,
+                thumbnailVtt: thumbs.thumbnailVtt,
+                thumbnailSheets: thumbs.thumbnailSheets,
                 thumbnailsJpgUrl: jpgUrl,
             }),
         )

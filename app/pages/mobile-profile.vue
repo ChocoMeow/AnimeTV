@@ -7,7 +7,7 @@ const client = useSupabaseClient()
 const { clear: clearOfflineAuthFlag } = useOfflineAuthCache()
 const { userSettings } = useUserSettings()
 const { isAdmin, clearAdmin } = useAdmin()
-const { isMobile } = useMobile()
+const { isNarrow } = useMobile()
 
 const loading = ref(true)
 const historyPreview = ref([])
@@ -72,16 +72,13 @@ async function signOut() {
     navigateTo('/login')
 }
 
-function redirectIfDesktop() {
-    if (!isMobile.value) {
-        navigateTo('/profile', { replace: true })
-    }
+function redirectIfWide() {
+    if (!isNarrow.value) navigateTo('/profile', { replace: true })
 }
 
 onMounted(async () => {
-    redirectIfDesktop()
-    if (!isMobile.value) return
-
+    redirectIfWide()
+    if (!isNarrow.value) return
     loading.value = true
     try {
         await fetchPreviews()
@@ -91,12 +88,11 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
-    if (!isMobile.value) return
-    await fetchPreviews()
+    if (isNarrow.value) await fetchPreviews()
 })
 
-watch(isMobile, (mobile) => {
-    if (!mobile) redirectIfDesktop()
+watch(isNarrow, (narrow) => {
+    if (!narrow) redirectIfWide()
 })
 
 useHead({ title: `帳戶 | ${appConfig.siteName}` })

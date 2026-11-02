@@ -2,7 +2,7 @@
 /**
  * Video player orchestrator — UI lives in sibling player/* components.
  */
-const { isMobile } = useMobile()
+const { isNarrow } = useMobile()
 const { formatShortcutKey } = useUserSettings()
 
 const props = defineProps({
@@ -861,7 +861,7 @@ watch([() => props.src, () => props.isHls, videoRef], ([src, isHls, video]) => {
 }, { immediate: true })
 
 function handleDocumentPointerDown(e) {
-    if (!showSettings.value || isMobile.value) return
+    if (!showSettings.value || isNarrow.value) return // drawer dismisses itself
     const settingsEl = controlsRef.value?.settingsEl
     const clickedInside = e.composedPath?.().includes(settingsEl) ?? settingsEl?.contains?.(e.target)
     if (!clickedInside) closeSettings()

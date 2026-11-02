@@ -1,18 +1,16 @@
-const MD = 768
+const MD = 768 // Tailwind `md`
 
-const isMobile = ref(false)
-const isNarrow = ref(false)
+const isNarrow = ref(false) // width < md — layout, drawer ↔ dialog
+const isMobile = ref(false) // narrow OR touch — PWA chrome, pull-to-refresh
 let listening = false
 
 function sync() {
     if (typeof window === 'undefined') return
     const narrow = window.innerWidth < MD
     isNarrow.value = narrow
-    // Touch OR narrow — PWA chrome, pull-to-refresh, etc.
     isMobile.value = narrow || 'ontouchstart' in window
 }
 
-/** Prefer isNarrow for layout that must match Tailwind `md`. */
 export function useMobile() {
     if (import.meta.client && !listening) {
         sync()
@@ -20,7 +18,7 @@ export function useMobile() {
         listening = true
     }
     return {
-        isMobile: readonly(isMobile),
         isNarrow: readonly(isNarrow),
+        isMobile: readonly(isMobile),
     }
 }

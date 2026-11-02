@@ -128,8 +128,12 @@ export function useOfflineDownloadQueue() {
         } catch { /* unsupported */ }
     }
 
-    /** Abort in-flight fetches so same-origin slots are freed (soft wait blocked the whole API). */
-    function pauseTask(id) {
+    /**
+     * @param {string} id
+     * @param {{ abort?: boolean }} [opts] abort=true cancels the fetch (manual pause);
+     *   abort=false only gates waitWhilePaused so backgrounding does not restart the episode.
+     */
+    function pauseTask(id, { abort = true } = {}) {
         const t = findTask(id)
         if (!t || !ACTIVE.has(t.status) || t.status === 'paused') return
         upsertTask({ ...t, status: 'paused', label: '已暫停' })
@@ -144,7 +148,7 @@ export function useOfflineDownloadQueue() {
                 resolvePause,
             })
         }
-        quietAbort(taskControls.value[id])
+        if (abort) quietAbort(taskControls.value[id])
         syncWakeLock()
     }
 
@@ -158,12 +162,13 @@ export function useOfflineDownloadQueue() {
         syncWakeLock()
     }
 
-    function pauseForBackground(force = false) {
-        if (!import.meta.client || (!force && !document.hidden)) return
+    /** Soft-pause only — keep in-flight bytes so a brief tab hide does not lose progress. */
+    function pauseForBackground() {
+        if (!import.meta.client || !document.hidden) return
         for (const t of tasks.value) {
             if (t.status !== 'downloading' && t.status !== 'queued') continue
             autoPaused.add(t.id)
-            pauseTask(t.id)
+            pauseTask(t.id, { abort: false })
         }
         syncWakeLock()
     }
@@ -175,6 +180,12 @@ export function useOfflineDownloadQueue() {
         syncWakeLock()
     }
 
+    function warnIfDownloading(event) {
+        if (!tasks.value.some((t) => ACTIVE.has(t.status))) return
+        event.preventDefault()
+        event.returnValue = ''
+    }
+
     function ensureLifecycleHooks() {
         if (!import.meta.client || lifecycleBound) return
         lifecycleBound = true
@@ -182,8 +193,7 @@ export function useOfflineDownloadQueue() {
             if (document.hidden) pauseForBackground()
             else resumeAfterBackground()
         })
-        window.addEventListener('pagehide', () => pauseForBackground(true))
-        document.addEventListener('freeze', () => pauseForBackground(true))
+        window.addEventListener('beforeunload', warnIfDownloading)
     }
 
     function cancelDownloadTask(id) {

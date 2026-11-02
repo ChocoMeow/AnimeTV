@@ -4,7 +4,7 @@
  */
 import { DIRECT_HLS_HOST } from '#shared/utils/videoSources'
 import {
-    OFFLINE_CONCURRENCY,
+    OFFLINE_SEGMENT_CONCURRENCY,
     PROGRESSIVE_IDLE_TIMEOUT_MS,
     RETRY_STATUSES,
     SEGMENT_503_RETRIES,
@@ -392,7 +392,7 @@ async function fetchHlsAsMp4(playlistUrl, onProgress, { signal, waitWhilePaused,
         let done = 0
         const parts = await mapPool(
             jobs,
-            OFFLINE_CONCURRENCY,
+            OFFLINE_SEGMENT_CONCURRENCY,
             async (job) => {
                 const buf = await fetchSegmentBuffer(job.uri, job.byterange, { signal: linked.signal, waitWhilePaused })
                 done++

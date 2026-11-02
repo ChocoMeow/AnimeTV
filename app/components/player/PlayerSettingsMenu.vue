@@ -28,7 +28,7 @@ const emit = defineEmits([
     'close',
 ])
 
-const { isMobile } = useMobile()
+const { isNarrow } = useMobile()
 const { style: captionStyle, patch, resetStyle, CAPTION_SIZES, CAPTION_COLORS } = useCaptionStyle()
 
 const rowClass =
@@ -40,22 +40,20 @@ const selectedClass = 'bg-black/5 dark:bg-white/10 font-medium'
 const switchTrackClass = 'relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200 ease-in-out'
 const switchThumbClass =
     'absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white dark:bg-gray-950 shadow transition-transform duration-200 ease-in-out'
+const popupClass =
+    'absolute bottom-full right-0 mb-2 bg-black/80 backdrop-blur-xl rounded-2xl shadow-2xl py-1.5 z-[10] min-w-[14rem] w-[16.5rem] max-h-[min(70vh,26rem)] overflow-x-hidden overflow-y-auto origin-bottom-right dark'
 
-/** Main-page boolean rows (captions / speed / quality stay as nav links below). */
 const mainSwitches = computed(() => [
     { label: '自動播放下一集', on: props.autoplayEnabled, event: 'toggle-autoplay' },
     { label: '播放時自動全螢幕', on: props.autoFullscreenEnabled, event: 'toggle-auto-fullscreen' },
 ])
 
-// Keep drawer mounted on mobile so modelValue false→true plays the enter animation
-const shell = computed(() => (isMobile.value ? resolveComponent('BaseBottomDrawer') : 'div'))
+// Drawer stays mounted when narrow so open can animate; wide uses an in-player popup
+const shell = computed(() => (isNarrow.value ? resolveComponent('BaseBottomDrawer') : 'div'))
 const shellProps = computed(() =>
-    isMobile.value
+    isNarrow.value
         ? { modelValue: props.open, title: '設定', maxHeight: 'max-h-[70vh]' }
-        : {
-            class:
-                'absolute bottom-full right-0 mb-2 bg-black/80 backdrop-blur-xl rounded-2xl shadow-2xl py-1.5 z-[10] min-w-[14rem] w-[16.5rem] max-h-[min(70vh,26rem)] overflow-x-hidden overflow-y-auto origin-bottom-right dark',
-        },
+        : { class: popupClass },
 )
 
 function trackClass(on) {
@@ -69,16 +67,16 @@ function thumbClass(on) {
 <template>
     <component
         :is="shell"
-        v-if="isMobile || open"
+        v-if="isNarrow || open"
         v-bind="shellProps"
         @click.stop
         @update:model-value="(v) => !v && emit('close')"
     >
-        <div :class="isMobile ? '-mx-4 -mt-4' : undefined">
+        <div :class="isNarrow ? '-mx-4 -mt-4' : undefined">
             <transition name="settings-page" mode="out-in">
                 <div :key="page">
                     <template v-if="page === 'main'">
-                        <div :class="isMobile ? 'flex flex-col-reverse' : undefined">
+                        <div :class="isNarrow ? 'flex flex-col-reverse' : undefined">
                             <button
                                 v-for="item in mainSwitches"
                                 :key="item.event"

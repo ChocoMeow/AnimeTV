@@ -5,12 +5,14 @@
  */
 export function usePwaUpdate() {
     const nuxtApp = useNuxtApp()
+    const { activeCount } = useOfflineDownloadQueue()
 
     // $pwa is reactive(); nested refs are unwrapped
     const needRefresh = computed(() => Boolean(nuxtApp.$pwa?.needRefresh))
 
     async function applyUpdate() {
         if (!import.meta.client || !('serviceWorker' in navigator)) return
+        if (activeCount.value > 0) return
 
         const pwa = nuxtApp.$pwa
         let reloaded = false
@@ -54,7 +56,7 @@ export function usePwaUpdate() {
         watch(
             needRefresh,
             (needs) => {
-                if (!needs || !isManualReload || autoApplied) return
+                if (!needs || !isManualReload || autoApplied || activeCount.value > 0) return
                 autoApplied = true
                 applyUpdate()
             },

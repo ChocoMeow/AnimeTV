@@ -1,6 +1,6 @@
 <script setup>
 const { searchModalOpen, openSearchModal } = useMobileSearchState()
-const { isMobile } = useMobile()
+const { isNarrow } = useMobile()
 const { isAdmin, clearAdmin } = useAdmin()
 const { isIncognito } = useIncognitoMode()
 const { needRefresh: pwaNeedRefresh, applyUpdate: applyPwaUpdate } = usePwaUpdate()
@@ -62,7 +62,7 @@ async function signOut() {
 }
 
 function onScroll() {
-    if (!isMobile.value || searchModalOpen.value || mobileMenuOpen.value) {
+    if (!isNarrow.value || searchModalOpen.value || mobileMenuOpen.value) {
         headerHiddenMobile.value = false
         lastScrollY = window.scrollY
         return
@@ -94,7 +94,7 @@ onUnmounted(() => {
     if (hideUserMenuTimeout) clearTimeout(hideUserMenuTimeout)
 })
 
-watch(isMobile, (newValue) => {
+watch(isNarrow, (newValue) => {
     if (!newValue) {
         mobileMenuOpen.value = false
         headerHiddenMobile.value = false
