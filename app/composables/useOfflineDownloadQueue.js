@@ -1,20 +1,22 @@
 import {
-    OFFLINE_CONCURRENCY,
     UNTITLED_ANIME,
     isAbortError,
+    offlineDownloadConcurrency,
     offlineEpisodeKey,
 } from '#shared/utils/offline'
+import { clearJob, getJob, listJobs, putJob } from '~/utils/offlineStaging'
 
 const ACTIVE = new Set(['queued', 'downloading', 'paused'])
 const FINISHED = new Set(['done', 'error'])
+const PROGRESS_PHASES = new Set(['segment', 'progressive', 'remux'])
 
 let wakeLock = null
 let lifecycleBound = false
+let restoreStarted = false
 const autoPaused = new Set()
+const coldRunning = new Set()
 
-function emptyControl() {
-    return { abort: new AbortController(), pausePromise: null, resolvePause: null }
-}
+const emptyControl = () => ({ abort: new AbortController(), pausePromise: null, resolvePause: null })
 
 function quietAbort(ctrl) {
     try {
@@ -28,13 +30,15 @@ function progressOf({ phase, current, total }) {
     return Math.max(0, Math.min(1, current / total))
 }
 
-function progressLabel(ep, p, ratio) {
-    if (p.phase === 'segment') return `第 ${ep} 集：片段 ${p.current}/${p.total}`
-    if (p.phase === 'remux') return `第 ${ep} 集：轉成 MP4`
-    const amount = p.total > 0
-        ? `${Math.floor(ratio * 100)}%`
-        : `${((p.current || 0) / 1024 / 1024).toFixed(1)} MB`
-    return `第 ${ep} 集：${amount}`
+function progressLabel(p, ratio) {
+    if (p.phase === 'segment') return `片段 ${p.current}/${p.total}`
+    if (p.phase === 'remux') return '轉成 MP4'
+    if (!(p.total > 0)) return `${((p.current || 0) / 1024 / 1024).toFixed(1)} MB`
+    return ratio >= 0.99 ? '儲存中' : '下載中'
+}
+
+function jobProgress(job) {
+    return job?.total > 0 ? Math.max(0, Math.min(100, (job.done / job.total) * 100)) : 0
 }
 
 function batchToast({ successCount, failedCount, cancelledCount }, toast) {
@@ -50,6 +54,21 @@ function batchToast({ successCount, failedCount, cancelledCount }, toast) {
         return toast(`部分完成：${parts.join('，')}`, 'warning', 3500)
     }
     if (failedCount) toast('下載失敗', 'error')
+}
+
+function makeJob({ id, refId, episodeKey, token, qualityHeight, animeTitle, done = 0, total = 0, status = 'queued', kind = 'mp4' }) {
+    return {
+        id,
+        refId: String(refId),
+        episodeKey: String(episodeKey),
+        token,
+        kind,
+        qualityHeight: qualityHeight ?? null,
+        animeTitle: animeTitle || UNTITLED_ANIME,
+        done,
+        total,
+        status,
+    }
 }
 
 export function useOfflineDownloadQueue() {
@@ -98,20 +117,16 @@ export function useOfflineDownloadQueue() {
 
     function beginEpisodeControl(id) {
         const prev = taskControls.value[id]
-        setControl(id, {
-            ...emptyControl(),
-            ...(prev?.pausePromise && prev?.resolvePause
-                ? { pausePromise: prev.pausePromise, resolvePause: prev.resolvePause }
-                : {}),
-        })
+        const pause = prev?.pausePromise && prev?.resolvePause
+            ? { pausePromise: prev.pausePromise, resolvePause: prev.resolvePause }
+            : {}
+        setControl(id, { ...emptyControl(), ...pause })
         return taskControls.value[id]
     }
 
     async function syncWakeLock() {
         if (!import.meta.client) return
-        const need =
-            !document.hidden &&
-            tasks.value.some((t) => t.status === 'downloading' || t.status === 'queued')
+        const need = !document.hidden && tasks.value.some((t) => t.status === 'downloading' || t.status === 'queued')
         if (!need) {
             try {
                 await wakeLock?.release?.()
@@ -121,22 +136,23 @@ export function useOfflineDownloadQueue() {
         }
         if (wakeLock) return
         try {
-            wakeLock = await navigator.wakeLock?.request?.('screen') || null
+            wakeLock = (await navigator.wakeLock?.request?.('screen')) || null
             wakeLock?.addEventListener('release', () => {
                 wakeLock = null
             })
         } catch { /* unsupported */ }
     }
 
-    /**
-     * @param {string} id
-     * @param {{ abort?: boolean }} [opts] abort=true cancels the fetch (manual pause);
-     *   abort=false only gates waitWhilePaused so backgrounding does not restart the episode.
-     */
+    async function persistJobStatus(id, status) {
+        const job = await getJob(id)
+        if (job) await putJob({ ...job, status })
+    }
+
     function pauseTask(id, { abort = true } = {}) {
         const t = findTask(id)
         if (!t || !ACTIVE.has(t.status) || t.status === 'paused') return
         upsertTask({ ...t, status: 'paused', label: '已暫停' })
+        void persistJobStatus(id, 'paused')
         if (!taskControls.value[id]) setControl(id, emptyControl())
         if (!taskControls.value[id].pausePromise) {
             let resolvePause
@@ -157,12 +173,136 @@ export function useOfflineDownloadQueue() {
         if (!t || t.status !== 'paused') return
         autoPaused.delete(id)
         upsertTask({ ...t, status: 'downloading', label: '繼續下載…' })
-        taskControls.value[id]?.resolvePause?.()
-        setControl(id, { ...(taskControls.value[id] || {}), resolvePause: null, pausePromise: null })
+        void persistJobStatus(id, 'downloading')
+        if (taskControls.value[id]?.resolvePause) {
+            taskControls.value[id].resolvePause()
+            setControl(id, { ...(taskControls.value[id] || {}), resolvePause: null, pausePromise: null })
+            syncWakeLock()
+            return
+        }
         syncWakeLock()
+        void coldResume(id)
     }
 
-    /** Soft-pause only — keep in-flight bytes so a brief tab hide does not lose progress. */
+    function consumeCancelled(id) {
+        if (!cancelledIds.value[id]) return false
+        const next = { ...cancelledIds.value }
+        delete next[id]
+        cancelledIds.value = next
+        return true
+    }
+
+    const waitWhilePaused = async (id) => {
+        const pause = taskControls.value[id]?.pausePromise
+        if (pause) await pause
+    }
+
+    async function awaitRunnable(id) {
+        while (true) {
+            if (consumeCancelled(id)) return false
+            await waitWhilePaused(id)
+            if (consumeCancelled(id)) return false
+            if (import.meta.client && document.hidden) {
+                pauseForBackground()
+                continue
+            }
+            return true
+        }
+    }
+
+    /** Shared pause/retry loop for batch + cold resume. Returns done|cancelled|error. */
+    async function runEpisodeLoop({
+        id,
+        refId,
+        animeTitle,
+        episodeKey,
+        token,
+        videoId,
+        thumbnailsJpgUrl,
+        thumbnailsVttUrl,
+        qualityHeight,
+        onRatio,
+    }) {
+        const { downloadEpisode } = useOfflineAnimeDownloads()
+        while (true) {
+            if (!(await awaitRunnable(id))) return 'cancelled'
+            const ctrl = beginEpisodeControl(id)
+            syncWakeLock()
+            try {
+                await downloadEpisode({
+                    refId,
+                    animeTitle,
+                    episodeKey,
+                    token,
+                    videoId,
+                    thumbnailsJpgUrl,
+                    thumbnailsVttUrl,
+                    qualityHeight,
+                    signal: ctrl.abort.signal,
+                    waitWhilePaused: () => waitWhilePaused(id),
+                    onProgress: (p) => {
+                        if (cancelledIds.value[id] || !PROGRESS_PHASES.has(p.phase)) return
+                        const ratio = progressOf(p)
+                        if (!isPaused(id)) onRatio?.(ratio, progressLabel(p, ratio))
+                    },
+                })
+                removeControl(id)
+                return consumeCancelled(id) ? 'cancelled' : 'done'
+            } catch (err) {
+                quietAbort(ctrl)
+                if (isPaused(id)) continue
+                removeControl(id)
+                if (consumeCancelled(id)) return 'cancelled'
+                console.error(err)
+                return { error: err }
+            }
+        }
+    }
+
+    function applyEpisodeResult(result, { update, progress = 0 }) {
+        if (result === 'cancelled') return 'cancelledCount'
+        if (result === 'done') {
+            update({ status: 'done', progress: 100, label: '下載完成' })
+            return 'successCount'
+        }
+        const timedOut = isAbortError(result.error)
+        update({
+            status: 'error',
+            progress,
+            label: timedOut ? '下載逾時' : '下載失敗',
+            error: timedOut ? '下載逾時或連線中斷' : result.error?.message || '下載失敗',
+        })
+        return 'failedCount'
+    }
+
+    async function coldResume(id) {
+        if (coldRunning.has(id)) return
+        coldRunning.add(id)
+        try {
+            const job = await getJob(id)
+            const t = findTask(id)
+            if (!job?.token || !t) {
+                if (t) upsertTask({ ...t, status: 'error', label: '無法繼續下載', error: '找不到下載進度' })
+                return
+            }
+            const base = { refId: job.refId, animeTitle: job.animeTitle, episodeKey: job.episodeKey }
+            const result = await runEpisodeLoop({
+                id,
+                ...base,
+                token: job.token,
+                qualityHeight: job.qualityHeight,
+                onRatio: (ratio, label) => upsertTask({ ...base, status: 'downloading', progress: ratio * 100, label }),
+            })
+            applyEpisodeResult(result, {
+                update: (payload) => upsertTask({ ...base, ...payload }),
+                progress: jobProgress(job),
+            })
+        } finally {
+            coldRunning.delete(id)
+            syncWakeLock()
+        }
+    }
+
     function pauseForBackground() {
         if (!import.meta.client || !document.hidden) return
         for (const t of tasks.value) {
@@ -180,10 +320,24 @@ export function useOfflineDownloadQueue() {
         syncWakeLock()
     }
 
-    function warnIfDownloading(event) {
-        if (!tasks.value.some((t) => ACTIVE.has(t.status))) return
-        event.preventDefault()
-        event.returnValue = ''
+    async function restoreJobs() {
+        if (!import.meta.client || restoreStarted) return
+        restoreStarted = true
+        try {
+            for (const job of await listJobs()) {
+                upsertTask({
+                    refId: job.refId,
+                    animeTitle: job.animeTitle,
+                    episodeKey: job.episodeKey,
+                    status: 'paused',
+                    progress: jobProgress(job),
+                    label: '已暫停',
+                })
+                if (job.status !== 'paused') await putJob({ ...job, status: 'paused' })
+            }
+        } catch (err) {
+            console.error(err)
+        }
     }
 
     function ensureLifecycleHooks() {
@@ -193,43 +347,43 @@ export function useOfflineDownloadQueue() {
             if (document.hidden) pauseForBackground()
             else resumeAfterBackground()
         })
-        window.addEventListener('beforeunload', warnIfDownloading)
+        window.addEventListener('beforeunload', (event) => {
+            if (!tasks.value.some((t) => ACTIVE.has(t.status))) return
+            event.preventDefault()
+            event.returnValue = ''
+        })
+        void restoreJobs()
     }
 
     function cancelDownloadTask(id) {
         cancelledIds.value = { ...cancelledIds.value, [id]: true }
         autoPaused.delete(id)
+        coldRunning.delete(id)
         taskControls.value[id]?.resolvePause?.()
         quietAbort(taskControls.value[id])
         removeControl(id)
         removeTask(id)
+        void clearJob(id)
         syncWakeLock()
     }
 
-    function consumeCancelled(id) {
-        if (!cancelledIds.value[id]) return false
-        const next = { ...cancelledIds.value }
-        delete next[id]
-        cancelledIds.value = next
-        return true
-    }
-
-    const waitWhilePaused = async (id) => {
-        const pause = taskControls.value[id]?.pausePromise
-        if (pause) await pause
-    }
-
-    /** Wait out pause / background; return false if cancelled. */
-    async function awaitRunnable(id) {
-        while (true) {
-            if (consumeCancelled(id)) return false
-            await waitWhilePaused(id)
-            if (consumeCancelled(id)) return false
-            if (import.meta.client && document.hidden) {
-                pauseForBackground()
-                continue
+    async function seedQueuedJobs({ refId, animeTitle, keys, episodes, qualityHeight }) {
+        for (const ep of keys) {
+            const token = episodes?.[ep]?.token
+            if (!token) continue
+            const id = offlineEpisodeKey(refId, ep)
+            const existing = await getJob(id)
+            if (!existing) {
+                await putJob(makeJob({ id, refId, episodeKey: ep, token, qualityHeight, animeTitle }))
             }
-            return true
+            upsertTask({
+                refId,
+                animeTitle,
+                episodeKey: ep,
+                status: 'queued',
+                progress: jobProgress(existing),
+                label: '排隊中',
+            })
         }
     }
 
@@ -245,15 +399,16 @@ export function useOfflineDownloadQueue() {
         qualityHeight,
     }) {
         ensureLifecycleHooks()
-        const { downloadEpisode } = useOfflineAnimeDownloads()
+        const { saveAnimeSnapshot } = useOfflineAnimeDownloads()
         if (!refId || !keys?.length) return { successCount: 0, failedCount: 0, cancelledCount: 0 }
 
+        const concurrency = offlineDownloadConcurrency()
         const total = keys.length
         const progressByEpisode = Object.fromEntries(keys.map((ep) => [ep, 0]))
         const counts = { completed: 0, successCount: 0, failedCount: 0, cancelledCount: 0 }
         const updateOverall = () => {
             setOverallProgress?.((keys.reduce((sum, ep) => sum + (progressByEpisode[ep] || 0), 0) / total) * 100)
-            setOverallLabel?.(`下載中 ${counts.completed}/${total}（同時 ${OFFLINE_CONCURRENCY}）`)
+            setOverallLabel?.(`下載中 ${counts.completed}/${total}（同時 ${concurrency}）`)
         }
         const bump = (field) => {
             counts[field]++
@@ -261,6 +416,10 @@ export function useOfflineDownloadQueue() {
             updateOverall()
         }
         const updateTask = (episodeKey, payload) => upsertTask({ refId, animeTitle, episodeKey, ...payload })
+
+        setOverallLabel?.('儲存作品資料…')
+        await saveAnimeSnapshot(animeSnapshot?.refId ? animeSnapshot : { refId, title: animeTitle || UNTITLED_ANIME })
+        await seedQueuedJobs({ refId, animeTitle, keys, episodes, qualityHeight })
         updateOverall()
         syncWakeLock()
 
@@ -270,99 +429,45 @@ export function useOfflineDownloadQueue() {
                 const ep = keys[cursor++]
                 const id = offlineEpisodeKey(refId, ep)
                 const episodeData = episodes[ep] || {}
-                const token = episodeData.token
-
                 if (consumeCancelled(id)) {
                     bump('cancelledCount')
                     continue
                 }
-                if (!token) {
+                if (!episodeData.token) {
                     progressByEpisode[ep] = 1
                     bump('failedCount')
                     continue
                 }
 
-                // Pause aborts the fetch; resume restarts this episode.
-                while (true) {
-                    if (!(await awaitRunnable(id))) {
-                        bump('cancelledCount')
-                        break
-                    }
-
-                    updateTask(ep, {
-                        status: 'downloading',
-                        progress: (progressByEpisode[ep] || 0) * 100,
-                        label: `準備下載第 ${ep} 集`,
-                    })
-                    const ctrl = beginEpisodeControl(id)
-                    syncWakeLock()
-
-                    try {
-                        await downloadEpisode({
-                            refId,
-                            animeTitle,
-                            animeSnapshot,
-                            episodeKey: ep,
-                            token,
-                            videoId: episodeData.video_id || null,
-                            thumbnailsJpgUrl: episodeData.thumbnails_jpg_url || null,
-                            thumbnailsVttUrl: episodeData.thumbnails_vtt_url || null,
-                            qualityHeight,
-                            signal: ctrl.abort.signal,
-                            waitWhilePaused: () => waitWhilePaused(id),
-                            onProgress: (p) => {
-                                if (cancelledIds.value[id] || !['segment', 'progressive', 'remux'].includes(p.phase)) return
-                                const ratio = progressOf(p)
-                                progressByEpisode[ep] = ratio
-                                updateOverall()
-                                if (isPaused(id)) return
-                                updateTask(ep, {
-                                    status: 'downloading',
-                                    progress: ratio * 100,
-                                    label: progressLabel(ep, p, ratio),
-                                })
-                            },
-                        })
-                        if (consumeCancelled(id)) bump('cancelledCount')
-                        else {
-                            progressByEpisode[ep] = 1
-                            updateTask(ep, { status: 'done', progress: 100, label: `第 ${ep} 集下載完成` })
-                            bump('successCount')
-                        }
-                        removeControl(id)
-                        break
-                    } catch (err) {
-                        quietAbort(ctrl)
-                        if (isPaused(id)) continue
-                        removeControl(id)
-                        if (consumeCancelled(id)) {
-                            bump('cancelledCount')
-                        } else {
-                            console.error(err)
-                            progressByEpisode[ep] = 1
-                            const timedOut = isAbortError(err)
-                            updateTask(ep, {
-                                status: 'error',
-                                progress: 0,
-                                label: timedOut ? `第 ${ep} 集下載逾時` : `第 ${ep} 集下載失敗`,
-                                error: timedOut ? '下載逾時或連線中斷' : err?.message || '下載失敗',
-                            })
-                            bump('failedCount')
-                        }
-                        break
-                    }
-                }
+                updateTask(ep, { status: 'downloading', progress: (progressByEpisode[ep] || 0) * 100, label: '準備中' })
+                const result = await runEpisodeLoop({
+                    id,
+                    refId,
+                    animeTitle,
+                    episodeKey: ep,
+                    token: episodeData.token,
+                    videoId: episodeData.video_id || null,
+                    thumbnailsJpgUrl: episodeData.thumbnails_jpg_url || null,
+                    thumbnailsVttUrl: episodeData.thumbnails_vtt_url || null,
+                    qualityHeight,
+                    onRatio: (ratio, label) => {
+                        progressByEpisode[ep] = ratio
+                        updateOverall()
+                        updateTask(ep, { status: 'downloading', progress: ratio * 100, label })
+                    },
+                })
+                if (result === 'done') progressByEpisode[ep] = 1
+                bump(applyEpisodeResult(result, { update: (payload) => updateTask(ep, payload) }))
             }
         }
 
         try {
-            await Promise.all(Array.from({ length: Math.min(OFFLINE_CONCURRENCY, total) }, () => worker()))
+            await Promise.all(Array.from({ length: Math.min(concurrency, total) }, () => worker()))
         } finally {
             syncWakeLock()
         }
-        const { successCount, failedCount, cancelledCount } = counts
-        batchToast({ successCount, failedCount, cancelledCount }, toast)
-        return { successCount, failedCount, cancelledCount }
+        batchToast(counts, toast)
+        return { successCount: counts.successCount, failedCount: counts.failedCount, cancelledCount: counts.cancelledCount }
     }
 
     ensureLifecycleHooks()

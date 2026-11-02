@@ -11,6 +11,7 @@ import {
     SEGMENT_FETCH_TIMEOUT_MS,
     SEGMENT_RETRIES,
     SEGMENT_RETRY_MS,
+    STAGE_CHUNK_BYTES,
     VIDEO_MP4,
     abortError,
     downloadProxyUrl,
@@ -19,6 +20,7 @@ import {
     throwIfAborted,
 } from '#shared/utils/offline'
 import { hlsSegmentsToMp4 } from '~/utils/hlsToMp4'
+import { clearParts, getParts, getPartsExact, hasPart, putPart, stagedBytes } from '~/utils/offlineStaging'
 
 const HTTP_URL = /^https?:\/\//i
 const PROXY_PATH = /\/api\/(?:proxy-video|download-proxy)/
@@ -241,31 +243,64 @@ async function resolveMediaPlaylistUrl(playlistUrl, signal, preferredHeight) {
     return { mediaPlaylistUrl: url, text }
 }
 
-async function fetchBlobWithProgress(url, onProgress, { signal, waitWhilePaused } = {}) {
+function parseContentTotal(res, resumeFrom) {
+    const range = res.headers.get('content-range')
+    const rangeTotal = /\/(\d+)\s*$/.exec(range || '')?.[1]
+    if (rangeTotal) return parseInt(rangeTotal, 10) || 0
+    const len = parseInt(res.headers.get('content-length') || res.headers.get('x-content-length') || '0', 10) || 0
+    return resumeFrom > 0 && res.status === 206 ? resumeFrom + len : len
+}
+
+/** Progressive MP4 → staged ~1MB Blobs; resume via Range. */
+async function fetchBlobWithProgress(url, onProgress, { signal, waitWhilePaused, jobId, onJob } = {}) {
+    if (!jobId) throw new Error('缺少下載任務')
     await waitReady(waitWhilePaused, signal)
-    const res = await fetchWithTimeout(url, { signal })
-    if (!res.ok) {
+    let loaded = await stagedBytes(jobId)
+    let partIndex = (await getParts(jobId)).length
+
+    const headers = loaded > 0 ? { Range: `bytes=${loaded}-` } : {}
+    const res = await fetchWithTimeout(url, { signal, headers })
+    if (!res.ok && res.status !== 206) {
         cancelBody(res)
         throwHttp('下載失敗', res.status)
     }
-    const total = parseInt(res.headers.get('content-length') || res.headers.get('x-content-length') || '0', 10) || 0
-    const emit = (loaded) => onProgress?.({ phase: 'progressive', current: loaded, total })
-
-    if (!res.body) {
-        const buf = await res.arrayBuffer()
-        emit(buf.byteLength)
-        return new Blob([buf], { type: VIDEO_MP4 })
+    if (loaded > 0 && res.status === 200) {
+        cancelBody(res)
+        await clearParts(jobId)
+        return fetchBlobWithProgress(url, onProgress, { signal, waitWhilePaused, jobId, onJob })
     }
 
-    const reader = res.body.getReader()
-    const chunks = []
-    let loaded = 0
+    const total = parseContentTotal(res, loaded)
+    const emit = async (n) => {
+        onProgress?.({ phase: 'progressive', current: n, total })
+        await onJob?.({ done: n, total })
+    }
+    await emit(loaded)
+
+    const reader = res.body?.getReader()
+    if (!reader) {
+        const buf = await res.arrayBuffer()
+        await putPart(jobId, partIndex, new Blob([buf], { type: VIDEO_MP4 }))
+        loaded += buf.byteLength
+        await emit(loaded)
+        return new Blob(await getParts(jobId), { type: VIDEO_MP4 })
+    }
+
+    const pending = []
+    let pendingSize = 0
     let lastAt = 0
     let idle = null
     const resetIdle = () => {
         idle?.dispose()
         idle = timedSignal(signal, PROGRESSIVE_IDLE_TIMEOUT_MS)
         idle.signal.addEventListener('abort', () => reader.cancel().catch(() => {}), { once: true })
+    }
+    const flush = async (force = false) => {
+        if (!pendingSize || (!force && pendingSize < STAGE_CHUNK_BYTES)) return
+        await putPart(jobId, partIndex++, new Blob(pending, { type: VIDEO_MP4 }))
+        pending.length = 0
+        pendingSize = 0
+        await onJob?.({ done: loaded, total })
     }
     try {
         resetIdle()
@@ -275,22 +310,24 @@ async function fetchBlobWithProgress(url, onProgress, { signal, waitWhilePaused 
             if (idle.signal.aborted && !signal?.aborted) throw abortError()
             if (done) break
             resetIdle()
-            chunks.push(value)
+            pending.push(value)
+            pendingSize += value.byteLength
             loaded += value.byteLength
-            const now = Date.now()
-            if (now - lastAt >= 80) {
-                lastAt = now
-                emit(loaded)
+            await flush(false)
+            if (Date.now() - lastAt >= 80) {
+                lastAt = Date.now()
+                onProgress?.({ phase: 'progressive', current: loaded, total })
             }
         }
+        await flush(true)
     } catch (err) {
         reader.cancel().catch(() => {})
         throw err
     } finally {
         idle?.dispose()
     }
-    emit(loaded)
-    return new Blob(chunks, { type: VIDEO_MP4 })
+    await emit(loaded)
+    return new Blob(await getParts(jobId), { type: VIDEO_MP4 })
 }
 
 /**
@@ -381,7 +418,8 @@ async function fetchSegmentBuffer(uri, byterange, { signal, waitWhilePaused } = 
     }
 }
 
-async function fetchHlsAsMp4(playlistUrl, onProgress, { signal, waitWhilePaused, qualityHeight } = {}) {
+async function fetchHlsAsMp4(playlistUrl, onProgress, { signal, waitWhilePaused, qualityHeight, jobId, onJob } = {}) {
+    if (!jobId) throw new Error('缺少下載任務')
     await waitReady(waitWhilePaused, signal)
     const linked = linkAbort(signal)
     try {
@@ -389,21 +427,35 @@ async function fetchHlsAsMp4(playlistUrl, onProgress, { signal, waitWhilePaused,
         const { map, segments } = parseMediaPlaylist(text, mediaPlaylistUrl)
         if (!segments.length) throw new Error('無法解析播放清單')
         const jobs = map ? [map, ...segments] : segments
+        const total = jobs.length
+
         let done = 0
-        const parts = await mapPool(
+        for (let i = 0; i < total; i++) {
+            if (await hasPart(jobId, i)) done++
+        }
+        onProgress?.({ phase: 'segment', current: done, total })
+        await onJob?.({ done, total })
+
+        await mapPool(
             jobs,
             OFFLINE_SEGMENT_CONCURRENCY,
-            async (job) => {
+            async (job, idx) => {
+                if (await hasPart(jobId, idx)) return
                 const buf = await fetchSegmentBuffer(job.uri, job.byterange, { signal: linked.signal, waitWhilePaused })
+                await putPart(jobId, idx, new Blob([buf]))
                 done++
-                onProgress?.({ phase: 'segment', current: done, total: jobs.length })
-                return buf
+                const n = Math.min(done, total)
+                onProgress?.({ phase: 'segment', current: n, total })
+                await onJob?.({ done: n, total })
             },
             { signal: linked.signal, onFail: () => linked.abort() },
         )
+
         onProgress?.({ phase: 'remux', current: 0, total: 1 })
         try {
-            const blob = hlsSegmentsToMp4(parts)
+            const staged = await getPartsExact(jobId, total)
+            if (!staged) throw new Error('片段不完整')
+            const blob = hlsSegmentsToMp4(await Promise.all(staged.map((b) => b.arrayBuffer())))
             onProgress?.({ phase: 'remux', current: 1, total: 1 })
             return blob
         } catch (err) {

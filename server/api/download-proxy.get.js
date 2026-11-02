@@ -18,6 +18,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const cookieHeader = cookie == null ? '' : String(cookie)
+    const range = getRequestHeader(event, 'range') || ''
     const clientAbort = bindClientAbort(event)
     armProxySocketTimeout(event, clientAbort)
 
@@ -38,7 +39,11 @@ export default defineEventHandler(async (event) => {
                 method: 'GET',
                 redirect: 'follow',
                 signal: upstream.signal,
-                headers: videoUpstreamHeaders(parsed, { cookie: cookieHeader, accept: '*/*' }),
+                headers: videoUpstreamHeaders(parsed, {
+                    cookie: cookieHeader,
+                    accept: '*/*',
+                    range: range || undefined,
+                }),
             })
             upstream.clearTimer()
         } catch (err) {
@@ -46,7 +51,7 @@ export default defineEventHandler(async (event) => {
             throw err
         }
 
-        if (!res.ok) {
+        if (!res.ok && res.status !== 206) {
             res.body?.cancel?.().catch(() => {})
             throw createLoggedError(event, {
                 statusCode: res.status >= 400 ? res.status : 502,
@@ -63,13 +68,17 @@ export default defineEventHandler(async (event) => {
             })
         }
 
-        setResponseStatus(event, 200)
+        setResponseStatus(event, res.status)
         setResponseHeader(event, 'Content-Type', res.headers.get('content-type') || 'video/mp4')
         const len = res.headers.get('content-length')
         if (len) {
             setResponseHeader(event, 'Content-Length', len)
             setResponseHeader(event, 'X-Content-Length', len)
         }
+        const contentRange = res.headers.get('content-range')
+        if (contentRange) setResponseHeader(event, 'Content-Range', contentRange)
+        const acceptRanges = res.headers.get('accept-ranges')
+        if (acceptRanges) setResponseHeader(event, 'Accept-Ranges', acceptRanges)
         setResponseHeader(event, 'Cache-Control', 'no-store')
         setResponseHeader(event, 'Access-Control-Allow-Origin', '*')
 

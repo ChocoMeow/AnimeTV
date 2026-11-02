@@ -1,15 +1,18 @@
 /** Shared offline-download constants and keys. */
 
 export const OFFLINE_DB = 'OfflineAnime'
-export const OFFLINE_DB_VERSION = 2
+export const OFFLINE_DB_VERSION = 3
 export const OFFLINE_EP_STORE = 'episodes'
 export const OFFLINE_META_STORE = 'animeMeta'
 export const OFFLINE_HISTORY_STORE = 'watchHistory'
+export const OFFLINE_PARTS_STORE = 'downloadParts'
 
 /** Episodes downloading at once (keep low — each opens many segment requests). */
 export const OFFLINE_CONCURRENCY = 3
 /** HLS segments / thumbnail sheets in parallel per episode. */
 export const OFFLINE_SEGMENT_CONCURRENCY = 8
+/** Coalesce progressive MP4 stream chunks before each IDB put. */
+export const STAGE_CHUNK_BYTES = 1_048_576
 export const BUNNY_MP4_HEIGHTS = Object.freeze([1080, 720, 480, 360, 240])
 export const VIDEO_MP4 = 'video/mp4'
 export const UNTITLED_ANIME = '未命名作品'
@@ -25,8 +28,22 @@ export function offlineEpisodeKey(refId, episodeKey) {
     return `${refId}::${String(episodeKey)}`
 }
 
+export function offlinePartMetaKey(jobId) {
+    return `${jobId}::meta`
+}
+
+export function offlinePartKey(jobId, index) {
+    return `${jobId}::${index}`
+}
+
 export function offlineMetaKey(refId) {
     return `anime::${refId}`
+}
+
+/** iPhone Safari jetsams under multi-episode remux pressure. */
+export function offlineDownloadConcurrency() {
+    if (typeof navigator === 'undefined') return OFFLINE_CONCURRENCY
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 1 : OFFLINE_CONCURRENCY
 }
 
 export function offlineHistoryKey(userId, refId, episodeKey) {

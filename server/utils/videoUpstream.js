@@ -10,12 +10,12 @@ const envInt = (key, fallback) => {
  * Override with NUXT_VIDEO_PROXY_* env vars when needed.
  */
 export const VIDEO_UPSTREAM = Object.freeze({
-    chunkSize: envInt('NUXT_VIDEO_PROXY_CHUNK', 512 * 1024),
-    maxChunk: envInt('NUXT_VIDEO_PROXY_MAX_CHUNK', 1024 * 1024),
+    chunkSize: envInt('NUXT_VIDEO_PROXY_CHUNK', 2 * 1024 * 1024),
+    maxChunk: envInt('NUXT_VIDEO_PROXY_MAX_CHUNK', 4 * 1024 * 1024),
     metaCacheMax: envInt('NUXT_VIDEO_PROXY_META_CACHE', 128),
     metaCacheTtlMs: 600_000,
-    timeoutMs: envInt('NUXT_VIDEO_PROXY_TIMEOUT_MS', 25_000),
-    socketIdleMs: envInt('NUXT_VIDEO_PROXY_SOCKET_IDLE_MS', 90_000),
+    timeoutMs: envInt('NUXT_VIDEO_PROXY_TIMEOUT_MS', 45_000),
+    socketIdleMs: envInt('NUXT_VIDEO_PROXY_SOCKET_IDLE_MS', 120_000),
     maxRetries: envInt('NUXT_VIDEO_PROXY_RETRIES', 2),
     retryBaseDelayMs: 400,
     smallFileRedirectBytes: 10 * 1024 * 1024,

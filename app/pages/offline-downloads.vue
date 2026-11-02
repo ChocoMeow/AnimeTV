@@ -311,15 +311,17 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
             <div v-if="activeTasks.length" class="space-y-3">
                 <p class="text-sm font-medium text-gray-700 dark:text-gray-300">進行中 ({{ activeTasks.length }})</p>
                 <div class="list-box divide-y divide-black/5 dark:divide-white/10">
-                    <div v-for="task in activeTasks" :key="task.id" class="p-4 space-y-3">
+                    <div v-for="task in activeTasks" :key="task.id" class="px-4 py-3.5 space-y-2.5">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ task.animeTitle }}</p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                    第 {{ task.episodeKey }} 集 · {{ task.label || (task.status === 'paused' ? '已暫停' : '下載中…') }}
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                                    第 {{ task.episodeKey }} 集
+                                    <span class="text-black/25 dark:text-white/25 mx-1">·</span>
+                                    {{ task.label || (task.status === 'paused' ? '已暫停' : '下載中') }}
                                 </p>
                             </div>
-                            <div class="flex items-center gap-1 shrink-0">
+                            <div class="flex items-center gap-0.5 shrink-0 -mr-1">
                                 <button
                                     type="button"
                                     class="icon-btn"
@@ -340,15 +342,15 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                                 </button>
                             </div>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <div class="flex-1 min-w-0 h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                        <div class="flex items-center gap-2.5">
+                            <div class="flex-1 min-w-0 h-1 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
                                 <div
                                     class="h-full rounded-full transition-all duration-300 ease-out"
                                     :class="task.status === 'paused' ? 'bg-amber-500' : 'bg-gray-900 dark:bg-white'"
                                     :style="{ width: `${taskPercent(task)}%` }"
                                 />
                             </div>
-                            <span class="text-xs tabular-nums font-medium text-gray-500 dark:text-gray-400 shrink-0 w-8 text-right">
+                            <span class="text-[11px] tabular-nums text-gray-500 dark:text-gray-400 shrink-0 w-7 text-right">
                                 {{ taskPercent(task) }}%
                             </span>
                         </div>

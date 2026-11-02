@@ -229,7 +229,7 @@ export default defineNuxtConfig({
                 midi: [],
                 payment: [],
                 'publickey-credentials-get': [],
-                'screen-wake-lock': [],
+                'screen-wake-lock': ['self'],
                 'sync-xhr': [],
                 usb: [],
                 'xr-spatial-tracking': [],
