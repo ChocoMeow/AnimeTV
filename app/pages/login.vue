@@ -312,7 +312,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                     </div>
 
                     <div class="flex justify-center gap-2">
-                        <div v-for="i in 3" :key="i" class="w-2 h-2 bg-gray-600 dark:bg-gray-400 rounded-full animate-bounce" :style="`animation-delay: ${(i-1)*150}ms`"></div>
+                        <div v-for="i in 3" :key="i" class="w-2 h-2 bg-gray-600 dark:bg-gray-400 rounded-full animate-verify-dot" :style="`animation-delay: ${(i-1)*150}ms`"></div>
                     </div>
                 </div>
 
@@ -366,7 +366,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
                         </div>
                     </div>
 
-                    <button @click="resetAuthError" class="w-full px-6 py-3 rounded-xl font-semibold text-base bg-gray-950 dark:bg-white text-white dark:text-gray-950 hover:bg-gray-800 dark:hover:bg-gray-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-white focus:ring-offset-2">
+                    <button @click="resetAuthError" class="w-full px-6 py-3 rounded-full font-semibold text-base bg-gray-950 dark:bg-white text-white dark:text-gray-950 hover:bg-gray-800 dark:hover:bg-gray-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-white focus:ring-offset-2">
                         返回登入
                     </button>
                 </div>
@@ -476,7 +476,7 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
 }
 
 .modern-login-btn {
-    @apply px-6 py-4 rounded-xl font-semibold text-base flex items-center justify-center gap-3 transition-all duration-200
+    @apply px-6 py-4 rounded-full font-semibold text-base flex items-center justify-center gap-3 transition-all duration-200
             bg-white dark:bg-white border-2 border-gray-300 dark:border-transparent
             hover:bg-gray-50 dark:hover:bg-gray-50 hover:shadow-lg dark:hover:shadow-none
            active:bg-gray-100 dark:active:bg-gray-100
@@ -485,12 +485,21 @@ useHead({ title: `登入 | ${appConfig.siteName}` })
 }
 
 .modern-login-btn-discord {
-    @apply px-6 py-4 rounded-xl font-semibold text-base flex items-center justify-center gap-3 transition-all duration-200
+    @apply px-6 py-4 rounded-full font-semibold text-base flex items-center justify-center gap-3 transition-all duration-200
             bg-[#5865F2] dark:bg-[#5865F2] border-2 border-[#5865F2] dark:border-[#5865F2]
             hover:bg-[#4752C4] dark:hover:bg-[#4752C4] hover:shadow-lg dark:hover:shadow-lg
            active:bg-[#3C45A5] dark:active:bg-[#3C45A5]
            focus:outline-none focus:ring-2 focus:ring-[#5865F2] dark:focus:ring-[#5865F2] focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-950
             disabled:opacity-50 disabled:cursor-not-allowed text-white;
+}
+
+@keyframes verify-dot {
+    0%, 100% { opacity: 0.35; transform: scale(0.85); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
+.animate-verify-dot {
+    animation: verify-dot 1s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
 @keyframes scrollDown {
