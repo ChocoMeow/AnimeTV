@@ -23,7 +23,7 @@ function onEnter(e) {
         class="flex cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 transition-colors sm:px-4 sm:py-3"
         :class="active ? 'bg-white shadow-sm dark:bg-white/10 dark:shadow-none' : 'hover:bg-white/90 dark:hover:bg-white/[0.08]'"
         @mouseenter="onEnter"
-        @mousedown.prevent="emit('select')"
+        @mousedown.left.prevent="emit('select')"
     >
         <AppImage
             :src="result.image"

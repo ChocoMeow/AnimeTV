@@ -191,7 +191,7 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
                         type="button"
                         class="flex min-w-0 flex-1 items-center gap-3 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gray-900 dark:focus-visible:ring-white"
                         :class="i === 0 ? 'px-3' : 'py-2 pl-1'"
-                        @mousedown.prevent="emit('select-history', item)"
+                        @mousedown.left.prevent="emit('select-history', item)"
                     >
                         <span
                             class="inline-flex shrink-0 items-center justify-center rounded-xl"
@@ -218,7 +218,7 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
                         </span>
                     </button>
                     <span class="flex shrink-0 items-center gap-0.5 pr-3">
-                        <button type="button" :class="REMOVE_BTN" title="移除紀錄" @mousedown.prevent.stop="emit('remove-history', item.id)">
+                        <button type="button" :class="REMOVE_BTN" title="移除紀錄" @mousedown.left.prevent.stop="emit('remove-history', item.id)">
                             <span class="material-symbols-rounded text-[18px]">close</span>
                         </button>
                         <span v-if="i === 0" :class="HOVER_ARROW" aria-hidden="true">arrow_forward</span>

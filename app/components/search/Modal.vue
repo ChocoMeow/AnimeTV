@@ -496,7 +496,7 @@ onUnmounted(() => {
                                                             :style="{ '--stagger': `${Math.min(i, 8) * 40}ms` }"
                                                             :class="suggestionCardClass(item.text)"
                                                             @mouseenter="setActive(i)"
-                                                            @mousedown.prevent="useAskSuggestion(item)"
+                                                            @mousedown.left.prevent="useAskSuggestion(item)"
                                                         >
                                                             <span
                                                                 class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-black/5 text-gray-700 transition-colors group-hover:bg-black/8 dark:bg-white/10 dark:text-gray-200 dark:group-hover:bg-white/15"
@@ -534,7 +534,7 @@ onUnmounted(() => {
                                                                     class="flex min-w-0 cursor-pointer items-center gap-3 rounded-xl px-4 py-3 transition-colors"
                                                                     :class="rowClass(activeItem?.type === 'askAi')"
                                                                     @mouseenter="setActive(0)"
-                                                                    @mousedown.prevent="selectAskAi()"
+                                                                    @mousedown.left.prevent="selectAskAi()"
                                                                 >
                                                                     <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900">
                                                                         <span class="material-symbols-rounded">smart_toy</span>
