@@ -259,7 +259,8 @@ onBeforeUnmount(() => {
     <!-- Toggle when closed (all widths) -->
     <ClientOnly>
         <div class="fixed right-4 top-1/2 z-30 -translate-y-1/2">
-            <transition name="fade-slide">
+            <!-- Desktop panel → horizontal; mobile drawer → vertical -->
+            <transition :name="isLg ? 'fade-slide-x' : 'fade-slide-y'">
                 <button
                     v-if="showToggleButton"
                     type="button"
@@ -293,19 +294,28 @@ onBeforeUnmount(() => {
     opacity: 0;
 }
 
-.fade-slide-enter-active,
-.fade-slide-leave-active {
+.fade-slide-x-enter-active,
+.fade-slide-x-leave-active,
+.fade-slide-y-enter-active,
+.fade-slide-y-leave-active {
     transition: opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.fade-slide-enter-active {
+.fade-slide-x-enter-active,
+.fade-slide-y-enter-active {
     transition-delay: 0.15s;
 }
 
-.fade-slide-enter-from,
-.fade-slide-leave-to {
+.fade-slide-x-enter-from,
+.fade-slide-x-leave-to {
     opacity: 0;
     transform: translateX(-2rem);
+}
+
+.fade-slide-y-enter-from,
+.fade-slide-y-leave-to {
+    opacity: 0;
+    transform: translateY(2rem);
 }
 
 .anime-background {
