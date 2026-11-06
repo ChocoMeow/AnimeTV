@@ -258,17 +258,19 @@ onBeforeUnmount(() => {
 
     <!-- Toggle when closed (all widths) -->
     <ClientOnly>
-        <transition name="fade">
-            <button
-                v-if="showToggleButton"
-                type="button"
-                class="fixed right-4 top-1/2 -translate-y-1/2 z-30 flex bg-white dark:bg-gray-950 ring-1 ring-black/10 dark:ring-white/15 p-2.5 rounded-full hover:ring-black/20 dark:hover:ring-white/25 transition-all duration-300 shadow-md"
-                title="顯示好友列表"
-                @click="openFriendList"
-            >
-                <span class="material-symbols-rounded text-gray-600 dark:text-gray-300 text-xl">group</span>
-            </button>
-        </transition>
+        <div class="fixed right-4 top-1/2 z-30 -translate-y-1/2">
+            <transition name="fade-slide">
+                <button
+                    v-if="showToggleButton"
+                    type="button"
+                    class="flex bg-white dark:bg-gray-950 ring-1 ring-black/10 dark:ring-white/15 p-2.5 rounded-full hover:ring-black/20 dark:hover:ring-white/25 shadow-md"
+                    title="顯示好友列表"
+                    @click="openFriendList"
+                >
+                    <span class="material-symbols-rounded text-gray-600 dark:text-gray-300 text-xl">group</span>
+                </button>
+            </transition>
+        </div>
     </ClientOnly>
 
     <UserprofileDialog
@@ -280,51 +282,41 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* Slide animation for the desktop friend list panel */
 .slide-left-enter-active,
 .slide-left-leave-active {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-out;
 }
 
-.slide-left-enter-from {
-    transform: translateX(100%);
-    opacity: 0;
-}
-
+.slide-left-enter-from,
 .slide-left-leave-to {
     transform: translateX(100%);
     opacity: 0;
 }
 
-/* Fade animation for the floating button */
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+    transition: opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.fade-enter-from,
-.fade-leave-to {
+.fade-slide-enter-active {
+    transition-delay: 0.15s;
+}
+
+.fade-slide-enter-from,
+.fade-slide-leave-to {
     opacity: 0;
-    transform: scale(0.8);
+    transform: translateX(-2rem);
 }
 
-/* Anime background with fade-in and opacity */
 .anime-background {
     opacity: 0;
     animation: fadeInBackground 0.8s ease-in-out forwards;
 }
 
 @keyframes fadeInBackground {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 0.35;
-    }
+    to { opacity: 0.35; }
 }
 
-/* Smooth touch interactions on mobile */
 @media (max-width: 1023px) {
     .friend-card {
         -webkit-tap-highlight-color: transparent;
