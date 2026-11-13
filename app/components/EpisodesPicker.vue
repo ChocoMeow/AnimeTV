@@ -91,7 +91,7 @@ function isCompleted(ep) {
 
 function hasPreviewSource(ep) {
     const data = props.episodes[String(ep)]
-    return !!(data?.thumbnail_vtt_text || data?.thumbnails_vtt_url || data?.token)
+    return !!(data?.thumbnails_vtt_text || data?.thumbnails_vtt_url || data?.token)
 }
 
 function clearPreviewTimers() {

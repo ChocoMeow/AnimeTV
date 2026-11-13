@@ -77,15 +77,3 @@ export function httpStatusFromError(err) {
 export function downloadVideoApi(token) {
     return `/api/download-video/${token}`
 }
-
-export function mediaProxyApi(path, upstream, cookie = '') {
-    return `/api/${path}?url=${encodeURIComponent(upstream)}&cookie=${encodeURIComponent(cookie || '')}`
-}
-
-export function downloadProxyUrl(upstream, cookie = '') {
-    return mediaProxyApi('download-proxy', upstream, cookie)
-}
-
-export function proxyVideoUrl(upstream, cookie = '') {
-    return mediaProxyApi('proxy-video', upstream, cookie)
-}

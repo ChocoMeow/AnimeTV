@@ -1,5 +1,5 @@
 /**
- * Unified OfflineAnime records. anime1 and twxgct share one MP4 episode shape.
+ * Unified OfflineAnime records. All sources share one progressive MP4 episode shape.
  * HLS is a download transport only and is never stored.
  *
  * @typedef {{ refId: string, title: string, image: string, imageBlob: Blob|null, description: string, episodes: Record<string, object>, tags: any[], views: number, userRating: any, relatedAnime: any[], detailId: string|null, isFavorite: boolean }} OfflineAnimeMeta

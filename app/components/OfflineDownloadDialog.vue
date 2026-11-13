@@ -1,6 +1,5 @@
 <script setup>
 import { BUNNY_MP4_HEIGHTS, bunnyQualityOptions } from '#shared/utils/offline'
-import { isTwxgctToken } from '#shared/utils/videoSources'
 
 const props = defineProps({
     modelValue: { type: Boolean, required: true },
@@ -23,7 +22,7 @@ const pendingKeys = computed(() => props.episodeKeys.filter(isReady))
 const selectedReady = computed(() => [...selected.value].filter(isReady))
 const progress = computed(() => Math.min(100, Math.max(0, props.downloadProgress)))
 const showQualityPicker = computed(() =>
-    Object.values(props.episodes || {}).some((ep) => isTwxgctToken(ep?.token)),
+    Object.values(props.episodes || {}).some((ep) => ep?.offlineQuality),
 )
 
 watch(() => props.modelValue, (open) => {
@@ -199,16 +198,16 @@ function emitPending(event, keys) {
     @apply rounded-xl border border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] overflow-hidden;
 }
 .link-quiet {
-    @apply shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors;
+    @apply shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors;
 }
 .chip-btn {
-    @apply px-3 py-1 text-xs font-medium rounded-full text-gray-600 dark:text-gray-400 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors disabled:opacity-40;
+    @apply px-3 py-1 text-xs font-medium rounded-full text-black/60 dark:text-white/60 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors disabled:opacity-40;
 }
 .icon-btn-danger {
-    @apply shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors;
+    @apply shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-black/40 dark:text-white/40 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors;
 }
 .pill-btn {
-    @apply flex-1 px-3 py-2 text-sm rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-gray-900 dark:text-white font-medium transition-colors flex items-center justify-center gap-1.5;
+    @apply flex-1 px-3 py-2 text-sm rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-black dark:text-white font-medium transition-colors flex items-center justify-center gap-1.5;
 }
 .pill-btn-solid {
     @apply flex-1 px-3 py-2 text-sm rounded-full bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black font-semibold transition-all flex items-center justify-center gap-1.5;

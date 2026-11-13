@@ -1,12 +1,12 @@
-import { DIRECT_HLS_HOST } from '#shared/utils/videoSources'
+import { isDirectHlsHost } from '#shared/utils/videoSources'
 
-/** True for bzcdn (and proxied `?url=` wrappers). Aggressive HLS loaders trip its rate limits. */
+/** True for CORS-direct HLS CDNs (proxied `/api/proxy-video?t=` is never direct). */
 export function isDirectHlsSrc(src) {
     if (!src) return false
     try {
         const page = new URL(src, typeof location !== 'undefined' ? location.origin : 'http://localhost')
         const raw = page.searchParams.get('url') || page.href
-        return DIRECT_HLS_HOST.test(new URL(raw, page).hostname)
+        return isDirectHlsHost(new URL(raw, page).hostname)
     } catch {
         return false
     }

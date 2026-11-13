@@ -7,7 +7,7 @@ Welcome to **AnimeTV**, a project designed for anime enthusiasts in Taiwan and H
 ## Features
 
 -   **Anime Metadata**: Fetches detailed information about various anime from [ani.gamer.com.tw](https://ani.gamer.com.tw).
--   **Video Streaming**: Streams from configurable sources — [anime1.me](https://anime1.me) (MP4) and [twxgct.com](https://www.twxgct.com) (HLS).
+-   **Video Streaming**: Streams from drop-in providers under `server/lib/videoProviders/sources/` — currently [anime1.me](https://anime1.me) (MP4).
 -   **User-Friendly Interface**: Built with Nuxt 4 for a seamless and responsive experience, including light / dark / system themes.
 -   **Browse & Search**: Weekday schedule, spotlight, genre themes, filters, pagination, and header search with suggestions.
 -   **Custom Video Player**: Theater mode, autoplay next episode, skip OP, playback speed, HLS quality picker, scrub thumbnails, fullscreen, and customizable keyboard shortcuts.
@@ -76,6 +76,10 @@ Make sure you have the following installed:
         NUXT_PUBLIC_SUPABASE_URL=your_supabase_url
         NUXT_PUBLIC_SUPABASE_KEY=your_supabase_key
         NUXT_SUPABASE_SECRET_KEY=your_supabase_secret_key
+
+        # Media/episode opaque tokens (required; keep separate from Supabase keys)
+        # Generate: openssl rand -base64 32
+        NUXT_MEDIA_PROXY_SECRET=your_random_secret
 
         # Optional: AI assistant
         # NUXT_PUBLIC_AI_ENABLED=true
@@ -192,7 +196,6 @@ This project is licensed under the GPL 3.0 License. See the [LICENSE](LICENSE) f
 -   [Supabase](https://supabase.io) for the backend database services.
 -   [ani.gamer.com.tw](https://ani.gamer.com.tw) for anime metadata.
 -   [anime1.me](https://anime1.me) for video content.
--   [twxgct.com](https://www.twxgct.com) for alternate HLS video content.
 
 ## Disclaimer
 

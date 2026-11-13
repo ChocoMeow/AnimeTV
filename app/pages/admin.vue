@@ -1,6 +1,4 @@
 <script setup>
-import { DEFAULT_VIDEO_SOURCE, VIDEO_SOURCES } from '#shared/utils/videoSources'
-
 const appConfig = useAppConfig()
 const route = useRoute()
 
@@ -12,6 +10,8 @@ const errorMessage = ref('')
 const records = ref([])
 const fields = ref([])
 const formSections = ref([])
+const videoSources = ref([])
+const defaultVideoSource = ref('')
 
 const selectedRecord = ref(null)
 const editableRecord = ref(null)
@@ -279,6 +279,8 @@ async function loadRecords() {
         fields.value = res.fields || []
         formSections.value = res.formSections || []
         total.value = res.total || records.value.length
+        videoSources.value = res.videoSources || []
+        defaultVideoSource.value = res.defaultVideoSource || ''
 
         // Initialize default search field, but
         // do NOT auto-select any record in the editor.
@@ -652,7 +654,7 @@ onMounted(() => {
                                         外部編號：{{ record.source_id || record.id || '—' }}
                                     </p>
                                     <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                        片源：{{ record.video_source || DEFAULT_VIDEO_SOURCE }} · ID：{{ record.video_id || '未綁定' }} · 季數：{{ record.season || '—' }}
+                                        片源：{{ record.video_source || defaultVideoSource }} · ID：{{ record.video_id || '未綁定' }} · 季數：{{ record.season || '—' }}
                                     </p>
                                 </div>
                             </li>
@@ -833,7 +835,7 @@ onMounted(() => {
                                     <div v-else-if="field.name === 'video_source'">
                                         <Dropdown
                                             v-model="editableRecord[field.name]"
-                                            :options="VIDEO_SOURCES"
+                                            :options="videoSources"
                                             placeholder="選擇片源"
                                         />
                                     </div>

@@ -6,7 +6,14 @@ const SUPABASE_KEY = process.env.NUXT_PUBLIC_SUPABASE_KEY || 'placeholder-anon-k
 
 export default defineNuxtConfig({
     css: ['~/assets/css/tailwind.css'],
-    modules: ['@nuxtjs/tailwindcss', '@nuxtjs/supabase', '@vite-pwa/nuxt', '@nuxt/image', 'nuxt-security'],
+    modules: [
+        '@nuxtjs/tailwindcss',
+        '@nuxtjs/supabase',
+        '@vite-pwa/nuxt',
+        '@nuxt/image',
+        'nuxt-security',
+        './modules/video-providers',
+    ],
     compatibilityDate: '2025-07-15',
     devtools: { enabled: process.env.NODE_ENV !== 'production' },
     // Vite 8: use postcss-nesting (ESM) instead of CJS tailwindcss/nesting
@@ -23,6 +30,7 @@ export default defineNuxtConfig({
     },
     runtimeConfig: {
         supabaseSecretKey: process.env.NUXT_SUPABASE_SECRET_KEY,
+        mediaProxySecret: process.env.NUXT_MEDIA_PROXY_SECRET,
         cfFetchFlaresolverr: process.env.NUXT_CF_FETCH_FLARESOLVERR,
         aiApiKey: process.env.NUXT_AI_API_KEY,
         aiBaseUrl: process.env.NUXT_AI_BASE_URL,
@@ -240,12 +248,11 @@ export default defineNuxtConfig({
                 'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
                 'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
                 'img-src': ["'self'", 'data:', 'blob:', 'https:'],
-                'media-src': ["'self'", 'blob:', 'https://*.bzcdn.net'],
+                'media-src': ["'self'", 'blob:'],
                 'connect-src': [
                     "'self'",
                     'https://*.supabase.co',
                     'wss://*.supabase.co',
-                    'https://*.bzcdn.net',
                     'https://*.anime1.me',
                     'https://fonts.googleapis.com',
                     'https://fonts.gstatic.com',

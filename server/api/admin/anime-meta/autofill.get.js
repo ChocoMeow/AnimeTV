@@ -1,6 +1,6 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { CUSTOM_SOURCE_ID_MIN } from '#shared/utils/global'
-import { DEFAULT_VIDEO_SOURCE } from '#shared/utils/videoSources'
+import { DEFAULT_VIDEO_SOURCE } from '~~/server/lib/videoProviders'
 import { createLoggedError, moduleLogger } from '~~/server/utils/logger'
 
 const log = moduleLogger('admin-anime-meta-autofill')

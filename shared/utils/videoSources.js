@@ -1,25 +1,19 @@
-/** Client + server shared video-source ids (open for new entries). */
-export const VIDEO_SOURCE = Object.freeze({
-    ANIME1: 'anime1',
-    TWXGCT: 'twxgct',
-})
+/**
+ * Client-safe helpers. Registered source ids are server-discovered from
+ * `server/lib/videoProviders/sources/*.js` (admin loads them via API).
+ */
 
-export const VIDEO_SOURCES = Object.freeze(Object.values(VIDEO_SOURCE))
+/**
+ * Optional browser CORS CDN allowlist. Prefer `directHlsHosts` on the server
+ * provider; fill this only if the client must fetch the CDN directly.
+ */
+export const DIRECT_HLS_HOSTS = Object.freeze([])
 
-export const DEFAULT_VIDEO_SOURCE = VIDEO_SOURCE.ANIME1
-
-/** HLS CDNs with CORS * — browser may fetch segments directly (skip proxy hop). */
-export const DIRECT_HLS_HOST = /(?:^|\.)bzcdn\.net$/i
-
-export function isValidVideoSource(value) {
-    return VIDEO_SOURCES.includes(value)
-}
-
-export function normalizeVideoSource(value) {
-    if (!value || typeof value !== 'string') return DEFAULT_VIDEO_SOURCE
-    return isValidVideoSource(value) ? value : null
-}
-
-export function isTwxgctToken(token) {
-    return typeof token === 'string' && token.startsWith(`${VIDEO_SOURCE.TWXGCT}.`)
+export function isDirectHlsHost(hostname) {
+    if (!hostname || !DIRECT_HLS_HOSTS.length) return false
+    const host = String(hostname).toLowerCase()
+    return DIRECT_HLS_HOSTS.some((h) => {
+        const base = String(h).toLowerCase()
+        return host === base || host.endsWith(`.${base}`)
+    })
 }

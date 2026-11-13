@@ -2,7 +2,7 @@
  * Download transport: always returns a progressive MP4 Blob.
  * HLS vs MP4 is fetch-only — nothing here is stored.
  */
-import { DIRECT_HLS_HOST } from '#shared/utils/videoSources'
+import { isDirectHlsHost } from '#shared/utils/videoSources'
 import {
     OFFLINE_SEGMENT_CONCURRENCY,
     PROGRESSIVE_IDLE_TIMEOUT_MS,
@@ -14,7 +14,6 @@ import {
     STAGE_CHUNK_BYTES,
     VIDEO_MP4,
     abortError,
-    downloadProxyUrl,
     heightLabel,
     httpStatusFromError,
     throwIfAborted,
@@ -29,36 +28,29 @@ function pageUrl(uri) {
     return new URL(uri, typeof location !== 'undefined' ? location.origin : 'http://localhost')
 }
 
+/** Sealed proxy URLs (`?t=`) stay as-is; absolute CORS CDNs may unwrap. */
 function unwrapMediaUrl(uri, cookie = '') {
     if (cookie || !uri) return uri
     try {
         const page = pageUrl(uri)
-        const upstream = PROXY_PATH.test(page.pathname) ? page.searchParams.get('url') || uri : uri
-        return DIRECT_HLS_HOST.test(new URL(upstream, page).hostname) ? upstream : uri
+        if (PROXY_PATH.test(page.pathname)) return uri
+        return isDirectHlsHost(page.hostname) ? page.href : uri
     } catch {
         return uri
     }
 }
 
-function isDirectCdn(url) {
-    try {
-        const page = pageUrl(url)
-        const upstream = PROXY_PATH.test(page.pathname) ? page.searchParams.get('url') || url : url
-        return DIRECT_HLS_HOST.test(new URL(upstream, page).hostname)
-    } catch {
-        return false
-    }
-}
-
-/** bzcdn: CORS. Other CDNs: one hop through download-proxy (no CORS probe). */
+/**
+ * Thumbnails/media: prefer sealed `/api/download-proxy?t=` from the server.
+ * Raw http(s) only for CORS-direct CDNs (client cannot seal).
+ */
 function assetUrl(url) {
     if (!url) return url
     try {
-        if (PROXY_PATH.test(pageUrl(url).pathname) || isDirectCdn(url)) return url
-    } catch {
-        /* proxy */
-    }
-    return downloadProxyUrl(url, '')
+        const page = pageUrl(url)
+        if (PROXY_PATH.test(page.pathname) || isDirectHlsHost(page.hostname)) return url
+    } catch { /* keep */ }
+    return url
 }
 
 function cancelBody(res) {
@@ -331,8 +323,8 @@ async function fetchBlobWithProgress(url, onProgress, { signal, waitWhilePaused,
 }
 
 /**
- * Cover hosts are often outside connect-src, so requests go through same-origin
- * download-proxy (session cookies required). Non-image responses are rejected.
+ * Cover hosts are often outside connect-src, so the server returns sealed
+ * same-origin download-proxy URLs. Non-image responses are rejected.
  */
 export async function fetchEpisodeThumbnailBlob(jpgUrl, signal) {
     if (!jpgUrl || String(jpgUrl).startsWith('blob:') || String(jpgUrl).startsWith('data:')) return null

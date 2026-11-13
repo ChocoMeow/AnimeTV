@@ -2,8 +2,22 @@ import * as cheerio from 'cheerio'
 import { EPISODE_LIST_CACHE_LIFETIME } from '#shared/utils/global'
 import { cfFetch } from '~~/server/utils/anime'
 import { getRequestLogger } from '~~/server/utils/logger'
-import { ANIME1 } from './constants'
-import { episodeRecord, normalizeEpisodeId } from './helpers'
+import { episodeRecord, normalizeEpisodeId } from '../helpers'
+
+const HOST = 'anime1.me'
+const SITE = `https://${HOST}`
+
+/** Endpoints for this provider only — keep co-located with the plugin. */
+export const ANIME1 = Object.freeze({
+    id: 'anime1',
+    baseUrl: `${SITE}/`,
+    apiUrl: `https://v.${HOST}/api`,
+    catalogUrl: `https://${HOST}/animelist.json`,
+    referer: `${SITE}/`,
+    defaultTserver: 'pt',
+    hostMatchers: Object.freeze([HOST]),
+    thumbBase: (tserver, vid) => `https://${tserver || 'pt'}.${HOST}/${vid}`,
+})
 
 function episodeKeyFromTitle(title) {
     const matches = title.match(/\[([^\]]+)\]/g)
@@ -91,11 +105,13 @@ async function resolvePlayback(token) {
     return { ...result, videoCookie: videoCookieFromSetCookie(response.headers.get('set-cookie')) }
 }
 
+/** Auto-registered by ../index.js via import.meta.glob. */
 export default {
     id: ANIME1.id,
-    tokenPrefix: null,
+    default: true,
     referer: ANIME1.referer,
     hostMatchers: ANIME1.hostMatchers,
+    videoIdHelp: '分類 cat ID（數字）',
     listEpisodes,
     resolvePlayback,
 }

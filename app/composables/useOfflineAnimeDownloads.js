@@ -159,7 +159,7 @@ export function useOfflineAnimeDownloads() {
         const [video, thumbs] = await Promise.all([
             fetchEpisodeMp4(source, onProgress, { signal, waitWhilePaused, jobId, onJob }, qualityHeight),
             (async () => {
-                let thumbnailVtt = source.thumbnail_vtt_text || null
+                let thumbnailVtt = source.thumbnails_vtt_text || null
                 if (!thumbnailVtt && (source.thumbnails_vtt_url || thumbnailsVttUrl)) {
                     thumbnailVtt = await fetchEpisodeThumbnailVtt(source.thumbnails_vtt_url || thumbnailsVttUrl, signal)
                 }

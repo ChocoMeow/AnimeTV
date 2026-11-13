@@ -1,5 +1,6 @@
-import { DIRECT_HLS_HOST } from '#shared/utils/videoSources'
+import { isDirectHlsHost } from '~~/server/lib/videoProviders'
 import { createLoggedError } from '~~/server/utils/logger'
+import { openMediaProxy, sealMediaProxy } from '~~/server/utils/mediaTokens'
 import {
     VIDEO_UPSTREAM,
     armProxySocketTimeout,
@@ -11,15 +12,15 @@ import {
     videoUpstreamHeaders,
 } from '~~/server/utils/videoUpstream'
 
-/** Cookie / non-CORS → proxy URLs; CORS CDN with no cookie → absolute upstream. */
-function rewriteHlsPlaylist(body, playlistUrl, { proxyBase, cookie = '' } = {}) {
+/** Cookie / non-CORS → sealed proxy URLs; CORS CDN with no cookie → absolute upstream. */
+function rewriteHlsPlaylist(body, playlistUrl, { proxyBase, cookie = '', exp, userId } = {}) {
     const baseUrl = new URL(playlistUrl)
-    const viaProxy = Boolean(cookie) || !DIRECT_HLS_HOST.test(baseUrl.hostname)
+    const viaProxy = Boolean(cookie) || !isDirectHlsHost(baseUrl.hostname)
     const mapUri = (raw) => {
         const abs = new URL(raw, baseUrl).toString()
         if (!viaProxy) return abs
-        const q = cookie ? `&cookie=${encodeURIComponent(cookie)}` : ''
-        return `${proxyBase}?url=${encodeURIComponent(abs)}${q}`
+        const t = sealMediaProxy({ url: abs, cookie, exp, userId })
+        return `${proxyBase}?t=${encodeURIComponent(t)}`
     }
     return body.split(/\r?\n/).map((line) => {
         const t = line.trim()
@@ -133,12 +134,12 @@ function cacheHeadInfo(key, info) {
 }
 
 export default defineEventHandler(async (event) => {
+    let userId
     try {
-        await authUser(event)
-
-        const { url: videoUrl, cookie: cookieRaw, redirect: wantsRedirect } = getQuery(event)
-        if (!videoUrl) throw createError({ statusCode: 400, statusMessage: 'Missing parameters' })
-        const cookie = cookieRaw == null ? '' : String(cookieRaw)
+        // Auth via sealed media token (capability URL) — no session; needed for AirPlay-style clients.
+        const { t, redirect: wantsRedirect } = getQuery(event)
+        const { url: videoUrl, cookie, exp, userId: uid } = openMediaProxy(typeof t === 'string' ? t : '')
+        userId = uid
         const clientAbort = bindClientAbort(event)
 
         if (wantsRedirect === 'true') return await handleRedirect(event, videoUrl, cookie, clientAbort.signal)
@@ -150,7 +151,9 @@ export default defineEventHandler(async (event) => {
             throw createError({ statusCode: 400, statusMessage: 'Invalid URL' })
         }
 
-        if (isHlsPlaylist(videoUrl)) return await handleM3u8(videoUrl, cookie, clientAbort.signal, event)
+        if (isHlsPlaylist(videoUrl)) {
+            return await handleM3u8(videoUrl, cookie, exp, userId, clientAbort.signal, event)
+        }
         if (isHlsSegment(videoUrl, parsedUrl.pathname)) {
             armProxySocketTimeout(event, clientAbort)
             return await handleSegment(videoUrl, cookie, clientAbort.signal, event)
@@ -165,7 +168,7 @@ export default defineEventHandler(async (event) => {
             statusCode: err?.statusCode || 502,
             statusMessage: err?.statusMessage || 'Video proxy error',
             err,
-            context: { module: 'proxy-video' },
+            context: { module: 'proxy-video', userId },
         })
     }
 })
@@ -289,13 +292,13 @@ function resilientRangeStream(url, cookie, start, end, signal) {
     })
 }
 
-async function handleM3u8(playlistUrl, cookie, signal, event) {
+async function handleM3u8(playlistUrl, cookie, exp, userId, signal, event) {
     const res = await fetchWithRetry(playlistUrl, { cookie, signal, accept: '*/*' })
     if (!res.ok) {
         throw createLoggedError(event, {
             statusCode: 502,
             statusMessage: 'Failed to fetch m3u8',
-            context: { module: 'proxy-video', stage: 'm3u8', status: res.status },
+            context: { module: 'proxy-video', stage: 'm3u8', status: res.status, userId },
         })
     }
 
@@ -303,6 +306,8 @@ async function handleM3u8(playlistUrl, cookie, signal, event) {
     const out = rewriteHlsPlaylist(body, playlistUrl, {
         proxyBase: `${getRequestURL(event).origin}/api/proxy-video`,
         cookie,
+        exp,
+        userId,
     })
 
     setResponseHeader(event, 'Content-Type', 'application/vnd.apple.mpegurl')

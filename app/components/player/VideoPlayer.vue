@@ -778,7 +778,7 @@ async function applyVideoSource(src, isHls, video) {
     }
 
     try {
-        // bzcdn rate-limits parallel prefetch / ABR retry storms — use stock loader there.
+        // Direct-CORS HLS CDNs may rate-limit parallel prefetch / ABR retry storms — use stock loader there.
         const limited = isDirectHlsSrc(src)
         const parallel = limited ? null : createParallelFragLoader(Hls)
         hlsPrefetchReset = parallel?.reset ?? null

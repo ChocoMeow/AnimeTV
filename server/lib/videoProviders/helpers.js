@@ -1,4 +1,4 @@
-/** Shared episode / token helpers for video providers. */
+/** Shared episode / token helpers for provider plugins. */
 
 export function normalizeEpisodeId(id) {
     return /^\d+$/.test(id) ? String(Number(id)) : id
@@ -13,6 +13,7 @@ export function episodeRecord(token, { videoId = null, thumbJpg = null, thumbVtt
     }
 }
 
+/** `prefix` + base64url(parts joined by sep) — for non-default providers. */
 export function encodePrefixedToken(prefix, parts, sep = '|') {
     return `${prefix}${Buffer.from(parts.join(sep), 'utf8').toString('base64url')}`
 }

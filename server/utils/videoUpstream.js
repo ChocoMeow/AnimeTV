@@ -51,6 +51,15 @@ export function isHlsPlaylist(url) {
     return /\.m3u8(\?|$)/i.test(url)
 }
 
+export function absoluteMediaUrl(src) {
+    if (!src || typeof src !== 'string') return null
+    return src.startsWith('http') ? src : `https:${src}`
+}
+
+export function urlLooksHls(url) {
+    return isHlsPlaylist(url) || String(url).toLowerCase().includes('m3u8')
+}
+
 /** HLS media parts only — do not match progressive anime1 .mp4. */
 export function isHlsSegment(url, pathname = '') {
     let path = pathname

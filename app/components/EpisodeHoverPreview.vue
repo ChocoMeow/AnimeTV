@@ -32,7 +32,7 @@ let leaveAfterScrub = false
 let metadataResolveId = 0
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
-const hasThumbnailMeta = (data) => !!(data?.thumbnail_vtt_text || data?.thumbnails_vtt_url)
+const hasThumbnailMeta = (data) => !!(data?.thumbnails_vtt_text || data?.thumbnails_vtt_url)
 
 const episodeMeta = computed(() => ({
     ...props.episodeData,
@@ -41,7 +41,7 @@ const episodeMeta = computed(() => ({
 const animeMeta = computed(() => ({
     videoId: episodeMeta.value.video_id || null,
     thumbnailJpgUrl: episodeMeta.value.thumbnails_jpg_url || null,
-    thumbnailVttText: episodeMeta.value.thumbnail_vtt_text || null,
+    thumbnailsVttText: episodeMeta.value.thumbnails_vtt_text || null,
     thumbnailsVttUrl: episodeMeta.value.thumbnails_vtt_url || null,
 }))
 
@@ -184,7 +184,7 @@ function fetchPreviewMeta(token) {
 
     request = $fetch(`/api/episode/${encodeURIComponent(token)}`).then((result) => ({
         video_id: result?.video_id || null,
-        thumbnail_vtt_text: result?.thumbnail_vtt_text || null,
+        thumbnails_vtt_text: result?.thumbnails_vtt_text || null,
         thumbnails_jpg_url: result?.thumbnails_jpg_url || null,
         thumbnails_vtt_url: result?.thumbnails_vtt_url || null,
     }))
@@ -364,10 +364,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .preview-track,
 .preview-thumb {
-    transition: height 160ms ease, transform 160ms ease, opacity 160ms ease;
-}
-.preview-timeline {
-    transition: padding 160ms ease;
+    transition: transform 160ms ease, opacity 160ms ease;
 }
 .preview-timeline:hover,
 .preview-timeline:focus-within {

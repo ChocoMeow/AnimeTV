@@ -1,46 +1,35 @@
-import { DIRECT_HLS_HOST } from '#shared/utils/videoSources'
-import { downloadProxyUrl, proxyVideoUrl } from '#shared/utils/offline'
+import { isDirectHlsHost, resolvePlaybackForSource } from '~~/server/lib/videoProviders'
 import { logError } from '~~/server/utils/logger'
-import { resolvePlaybackForToken } from '~~/server/lib/videoProviders'
-import { isHlsPlaylist } from '~~/server/utils/videoUpstream'
+import { mediaProxyUrl, openOwnedEpisodeToken, playbackMetaFrom } from '~~/server/utils/mediaTokens'
+import { absoluteMediaUrl, urlLooksHls } from '~~/server/utils/videoUpstream'
 
-function downloadSource(finalUrl, cookie) {
-    const hls = isHlsPlaylist(finalUrl) || finalUrl.toLowerCase().includes('m3u8')
-    let host = ''
+function proxyOrDirect(url, cookie, userId) {
+    if (!urlLooksHls(url)) {
+        return { kind: 'mp4', downloadUrl: mediaProxyUrl('download-proxy', { url, cookie, userId }) }
+    }
     try {
-        host = new URL(finalUrl).hostname
-    } catch {
-        /* ignore */
-    }
-    if (hls) {
-        const direct = !cookie && DIRECT_HLS_HOST.test(host)
-        return { kind: 'hls', playlistUrl: direct ? finalUrl : proxyVideoUrl(finalUrl, cookie) }
-    }
-    return { kind: 'mp4', downloadUrl: downloadProxyUrl(finalUrl, cookie) }
+        if (!cookie && isDirectHlsHost(new URL(url).hostname)) {
+            return { kind: 'hls', playlistUrl: url }
+        }
+    } catch { /* proxy */ }
+    return { kind: 'hls', playlistUrl: mediaProxyUrl('proxy-video', { url, cookie, userId }) }
 }
 
 export default defineEventHandler(async (event) => {
-    await authUser(event)
-    const { token } = event.context.params
-
+    const userId = (await authUser(event)).sub
     try {
-        const result = await resolvePlaybackForToken(token)
-        if (!result?.s?.length) {
-            throw createError({ statusCode: 404, statusMessage: 'No available source' })
-        }
+        const sealed = openOwnedEpisodeToken(getRouterParam(event, 'token'), userId)
+        const result = await resolvePlaybackForSource(sealed.source, sealed.token)
+        const url = absoluteMediaUrl(result?.s?.[0]?.src)
+        if (!url) throw createError({ statusCode: 404, statusMessage: 'No available source' })
 
-        const raw = result.s[0].src
-        const finalUrl = raw.startsWith('http') ? raw : `https:${raw}`
         return {
-            ...downloadSource(finalUrl, result.videoCookie || ''),
-            thumbnail_vtt_text: result.thumbnail_vtt_text || null,
-            thumbnails_jpg_url: result.thumbnails_jpg_url || null,
-            thumbnails_vtt_url: result.thumbnails_vtt_url || null,
+            ...proxyOrDirect(url, result.videoCookie || '', userId),
+            ...playbackMetaFrom(sealed, result),
         }
     } catch (err) {
-        logError(event, err, { module: 'download-video' })
-        return {
-            error: err?.statusMessage || err?.message || 'Failed to resolve download source',
-        }
+        if (err?.statusCode && err.statusCode < 500) throw err
+        logError(event, err, { module: 'download-video', userId })
+        return { error: err?.statusMessage || err?.message || 'Failed to resolve download source' }
     }
 })

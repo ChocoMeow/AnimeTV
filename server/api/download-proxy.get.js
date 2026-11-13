@@ -1,4 +1,5 @@
 import { createLoggedError, logError } from '~~/server/utils/logger'
+import { openMediaProxy } from '~~/server/utils/mediaTokens'
 import {
     VIDEO_UPSTREAM,
     armProxySocketTimeout,
@@ -10,14 +11,10 @@ import {
 const { timeoutMs } = VIDEO_UPSTREAM
 
 export default defineEventHandler(async (event) => {
-    await authUser(event)
+    // Auth via sealed media token — no session (same as proxy-video).
+    const { t } = getQuery(event)
+    const { url, cookie: cookieHeader, userId } = openMediaProxy(typeof t === 'string' ? t : '')
 
-    const { url, cookie } = getQuery(event)
-    if (!url) {
-        return sendError(event, createError({ statusCode: 400, statusMessage: 'Missing parameters' }))
-    }
-
-    const cookieHeader = cookie == null ? '' : String(cookie)
     const range = getRequestHeader(event, 'range') || ''
     const clientAbort = bindClientAbort(event)
     armProxySocketTimeout(event, clientAbort)
@@ -56,7 +53,7 @@ export default defineEventHandler(async (event) => {
             throw createLoggedError(event, {
                 statusCode: res.status >= 400 ? res.status : 502,
                 statusMessage: 'Upstream download failed',
-                context: { module: 'download-proxy', stage: 'upstream', status: res.status },
+                context: { module: 'download-proxy', stage: 'upstream', status: res.status, userId },
             })
         }
 
@@ -64,7 +61,7 @@ export default defineEventHandler(async (event) => {
             throw createLoggedError(event, {
                 statusCode: 502,
                 statusMessage: 'Empty upstream body',
-                context: { module: 'download-proxy', stage: 'upstream' },
+                context: { module: 'download-proxy', stage: 'upstream', userId },
             })
         }
 
@@ -94,10 +91,10 @@ export default defineEventHandler(async (event) => {
                     statusCode: err?.statusCode || 502,
                     statusMessage: err?.message || 'Proxy error',
                     err,
-                    context: { module: 'download-proxy' },
+                    context: { module: 'download-proxy', userId },
                 }),
             )
         }
-        logError(event, err, { module: 'download-proxy', stage: 'after_headers' })
+        logError(event, err, { module: 'download-proxy', stage: 'after_headers', userId })
     }
 })
