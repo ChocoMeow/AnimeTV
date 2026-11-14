@@ -1,34 +1,66 @@
 /**
- * Remux HLS media (fMP4 fragments or MPEG-TS AVC+AAC) into a progressive MP4
- * that native <video src> can play. No third-party libraries.
- *
- * @param {ArrayBuffer[]} parts init segment (if any) followed by media segments
- * @returns {Blob}
+ * Remux HLS (fMP4 or MPEG-TS AVC+AAC) → progressive MP4 for native <video src>.
+ * @param {ArrayBuffer[]} parts init (optional) + media segments
  */
 export function hlsSegmentsToMp4(parts) {
     if (!parts?.length) throw new Error('沒有可轉檔的片段')
-    const buffers = parts.map((p) => (p instanceof Uint8Array ? p : new Uint8Array(p)))
-    const probe = buffers.find((b) => b.byteLength >= 8)
-    if (!probe) throw new Error('片段是空的')
+    const buffers = parts
+        .map((p) => (p instanceof Uint8Array ? p : new Uint8Array(p)))
+        .filter((b) => b.byteLength >= 8 && !isJunkPart(b))
+    if (!buffers.length) throw new Error('片段是空的')
 
-    if (isFmp4(probe)) return buildProgressiveMp4(collectFmp4Tracks(buffers))
-    if (isMpegTs(probe)) return buildProgressiveMp4(collectTsTracks(buffers))
-    throw new Error('不支援的 HLS 片段格式')
+    const fmp4 = buffers.filter(isFmp4Part)
+    if (fmp4.length) return buildProgressiveMp4(collectFmp4Tracks(fmp4))
+
+    const ts = buffers.filter((b) => tsSyncAt(b) >= 0).map(stripToTs)
+    if (ts.length) return buildProgressiveMp4(collectTsTracks(ts))
+
+    const hex = [...buffers[0].subarray(0, 8)].map((n) => n.toString(16).padStart(2, '0')).join(' ')
+    throw new Error(`不支援的 HLS 片段格式 (${hex})`)
 }
 
-function isFmp4(bytes) {
-    if (bytes.byteLength < 8) return false
-    const type = str4(bytes, 4)
-    if (type === 'ftyp' || type === 'moof' || type === 'moov' || type === 'sidx' || type === 'styp') return true
+const FMP4_BOX = new Set(['ftyp', 'moof', 'moov', 'sidx', 'styp', 'mdat'])
+const STSD_CODEC = new Set(['avc1', 'avc3', 'encv', 'hvc1', 'hev1', 'av01', 'mp4a'])
+
+/** Skip captions / playlists / HTML error bodies mixed into segment downloads. */
+function isJunkPart(bytes) {
+    const head = new TextDecoder('utf-8', { fatal: false })
+        .decode(bytes.subarray(0, Math.min(64, bytes.byteLength)))
+        .trimStart()
+    return /^(WEBVTT|#EXTM3U|<!DOCTYPE|<html|\{)/i.test(head)
+}
+
+function isFmp4Part(bytes) {
     if (bytes[0] === 0x47) return false
-    const boxes = readBoxes(bytes)
-    return boxes.some((b) => b.type === 'moof' || b.type === 'moov' || b.type === 'ftyp')
+    const type = str4(bytes, 4)
+    if (FMP4_BOX.has(type)) return true
+    return readBoxes(bytes).some((b) => FMP4_BOX.has(b.type))
 }
 
-function isMpegTs(bytes) {
-    if (bytes[0] === 0x47 && bytes.byteLength >= 188) return true
-    if (bytes.byteLength >= 192 && bytes[4] === 0x47) return true
-    return false
+/** Index of first MPEG-TS sync (0x47), or -1. Handles ID3 / padding prefix. */
+function tsSyncAt(bytes) {
+    if (bytes.byteLength < 188) return -1
+    if (bytes[0] === 0x47) return 0
+    if (bytes.byteLength >= 192 && bytes[4] === 0x47) return 0
+    const limit = Math.min(bytes.byteLength - 188, 2048)
+    for (let i = 1; i < limit; i++) {
+        if (bytes[i] === 0x47 && (i + 188 >= bytes.byteLength || bytes[i + 188] === 0x47)) return i
+    }
+    return -1
+}
+
+function stripToTs(bytes) {
+    const i = tsSyncAt(bytes)
+    return i > 0 ? bytes.subarray(i) : bytes
+}
+
+function stsdCodec(stsd) {
+    if (!stsd || stsd.byteLength < 16) return ''
+    for (let i = 0; i + 4 <= stsd.byteLength; i++) {
+        const t = str4(stsd, i)
+        if (STSD_CODEC.has(t)) return t
+    }
+    return ''
 }
 
 function str4(bytes, offset) {
@@ -180,6 +212,12 @@ function collectFmp4Tracks(buffers) {
     }
     const list = [...tracks.values()].filter((t) => t.samples.length)
     if (!list.length) throw new Error('fMP4 沒有可用樣本')
+    for (const t of list) {
+        if (t.handler !== 'vide' || !t.stsd) continue
+        const codec = stsdCodec(t.stsd)
+        if (codec === 'hvc1' || codec === 'hev1') throw new Error('不支援 HEVC 離線轉檔')
+        if (codec === 'av01') throw new Error('不支援 AV1 離線轉檔')
+    }
     return list
 }
 

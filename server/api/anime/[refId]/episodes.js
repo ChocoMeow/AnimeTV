@@ -23,11 +23,12 @@ export default defineEventHandler(async (event) => {
     const episodes = Object.fromEntries(
         Object.entries(raw || {}).map(([key, ep]) => {
             if (!ep?.token) return [key, ep]
+            const { token: _raw, ...rest } = ep
             return [
                 key,
                 {
-                    ...ep,
-                    token: sealEpisodeToken(videoSource, ep, userId),
+                    ...rest,
+                    token: sealEpisodeToken(videoSource, ep, userId, { sourceId: refId, episode: key }),
                     ...(offlineQuality ? { offlineQuality: true } : {}),
                 },
             ]

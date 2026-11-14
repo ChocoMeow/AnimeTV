@@ -212,6 +212,10 @@ function parseMediaPlaylist(text, baseUrl) {
         } else if (line.startsWith('#EXTINF:')) {
             pendingDuration = parseFloat(/^#EXTINF:([\d.]+)/.exec(line)?.[1] || '10')
         } else if (line && !line.startsWith('#')) {
+            if (/\.(vtt|srt)(?:\?|$)/i.test(line)) {
+                pendingDuration = pendingRange = null
+                continue // captions are not remuxable
+            }
             segments.push({ uri: resolveUri(line, baseUrl), byterange: pendingRange, duration: pendingDuration ?? 10 })
             pendingDuration = pendingRange = null
         }

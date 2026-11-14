@@ -446,7 +446,7 @@ export function useOfflineDownloadQueue() {
                     animeTitle,
                     episodeKey: ep,
                     token: episodeData.token,
-                    videoId: episodeData.video_id || null,
+                    videoId: null,
                     thumbnailsJpgUrl: episodeData.thumbnails_jpg_url || null,
                     thumbnailsVttUrl: episodeData.thumbnails_vtt_url || null,
                     qualityHeight,

@@ -56,19 +56,20 @@ function ifSet(key, value) {
 }
 
 /**
- * Seal provider episode credentials (+ list-time meta so /api/episode can return thumbs/video_id).
- * Thumbs/video_id are plain when returned — only the provider token + stream proxy are sensitive.
+ * Seal provider episode credentials + list-time thumbs.
+ * `sourceId` / `episode` are server-only (caption cache) — not returned in API JSON.
  */
-export function sealEpisodeToken(source, ep, userId) {
+export function sealEpisodeToken(source, ep, userId, { sourceId, episode } = {}) {
     if (!userId) throw new Error('sealEpisodeToken: userId required')
     if (!ep?.token) throw new Error('sealEpisodeToken: token required')
     return seal('ep', {
         s: source,
         t: ep.token,
         i: userId,
-        ...ifSet('v', ep.video_id),
         ...ifSet('j', ep.thumbnails_jpg_url),
         ...ifSet('w', ep.thumbnails_vtt_url),
+        ...ifSet('a', sourceId),
+        ...ifSet('n', episode),
     })
 }
 
@@ -77,38 +78,102 @@ export function openOwnedEpisodeToken(sealed, userId) {
     const p = open('ep', sealed)
     if (!p.s || !p.t || !p.i) throw createError({ statusCode: 400, statusMessage: 'Invalid episode token' })
     if (p.i !== userId) throw createError({ statusCode: 403, statusMessage: 'Episode token user mismatch' })
+    const sourceId = p.a != null && p.a !== '' ? Number(p.a) : null
     return {
         source: p.s,
         token: p.t,
         userId: p.i,
-        videoId: p.v ?? null,
         thumbJpg: p.j || null,
         thumbVtt: p.w || null,
+        sourceId: Number.isFinite(sourceId) ? sourceId : null,
+        episode: p.n || null,
     }
 }
 
-/** List-time meta merged with resolvePlayback (thumbs stay plain URLs). */
+/** Thumb meta for the client — never includes video_id / source_id. */
 export function playbackMetaFrom(sealed, result) {
     return {
-        video_id: result?.video_id || sealed.videoId || null,
-        thumbnails_vtt_text: result?.thumbnails_vtt_text || result?.thumbnail_vtt_text || null,
+        thumbnails_vtt_text: result?.thumbnails_vtt_text || null,
         thumbnails_jpg_url: result?.thumbnails_jpg_url || sealed.thumbJpg || null,
         thumbnails_vtt_url: result?.thumbnails_vtt_url || sealed.thumbVtt || null,
     }
 }
 
-/** @param {{ url: string, cookie?: string, exp?: number, userId: string }} payload */
-export function sealMediaProxy({ url, cookie = '', exp, userId } = {}) {
+/**
+ * @param {{ url: string, cookie?: string, referer?: string, hls?: boolean, exp?: number, userId: string }} payload
+ * `hls: true` — treat non-m3u8 URLs as HLS parts (segments/keys); skip progressive Content-Length path.
+ */
+export function sealMediaProxy({ url, cookie = '', referer = '', hls = false, exp, userId } = {}) {
     if (!userId) throw new Error('sealMediaProxy: userId required')
-    return seal('media', { u: url, c: cookie || undefined, i: userId }, exp)
+    return seal('media', {
+        u: url,
+        c: cookie || undefined,
+        r: referer || undefined,
+        h: hls ? 1 : undefined,
+        i: userId,
+    }, exp)
 }
 
 export function openMediaProxy(token) {
     const p = open('media', token)
     if (!p.u || !p.i) throw createError({ statusCode: 400, statusMessage: 'Invalid media token' })
-    return { url: p.u, cookie: p.c || '', exp: p.e || 0, userId: p.i }
+    return {
+        url: p.u,
+        cookie: p.c || '',
+        referer: p.r || '',
+        hls: p.h === 1 || p.h === true,
+        exp: p.e || 0,
+        userId: p.i,
+    }
 }
 
 export function mediaProxyUrl(api, payload) {
     return `/api/${api}?t=${encodeURIComponent(sealMediaProxy(payload))}`
+}
+
+/** Sealed `caption_translations` row id → `/api/caption-cache`. */
+export function captionCacheUrl(id, userId) {
+    if (!id || !userId) throw new Error('captionCacheUrl: id and userId required')
+    return `/api/caption-cache?t=${encodeURIComponent(seal('cap', { id: String(id), i: userId }))}`
+}
+
+export function openCaptionCache(token, userId) {
+    const p = open('cap', token)
+    if (!p.id || !p.i) throw createError({ statusCode: 400, statusMessage: 'Invalid caption token' })
+    if (userId && p.i !== userId) throw createError({ statusCode: 403, statusMessage: 'Caption token user mismatch' })
+    return { id: p.id, userId: p.i }
+}
+
+/**
+ * Rewrite seek-thumbnail WebVTT image URLs → download-proxy.
+ * Seals each distinct URL once; keeps #xywh= for client crops.
+ */
+export function rewriteThumbnailsVtt(text, vttUrl, { api = 'download-proxy', cookie = '', referer = '', userId } = {}) {
+    if (!text || !userId || !vttUrl) return text || ''
+    let base
+    try {
+        base = new URL(vttUrl)
+    } catch {
+        return text
+    }
+
+    const sealedByAbs = new Map()
+    const tokenRe =
+        /(?:https?:\/\/[^\s"'<>#]+|(?:[\w.~+-]+\/)*[\w.~+-]+\.(?:jpe?g|png|webp|gif|avif))(?=(?:#xywh=[\d,]+)?(?:\s|$))/gi
+
+    return String(text).replace(tokenRe, (raw) => {
+        try {
+            const abs = new URL(raw, base)
+            abs.hash = ''
+            const key = abs.toString()
+            let proxied = sealedByAbs.get(key)
+            if (!proxied) {
+                proxied = mediaProxyUrl(api, { url: key, cookie, referer, userId })
+                sealedByAbs.set(key, proxied)
+            }
+            return proxied
+        } catch {
+            return raw
+        }
+    })
 }

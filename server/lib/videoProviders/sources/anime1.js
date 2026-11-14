@@ -64,7 +64,6 @@ async function listEpisodes(event, categoryId) {
 
                 for (const part of identifier.split('+')) {
                     episodes[normalizeEpisodeId(part.trim())] = episodeRecord(token, {
-                        videoId,
                         thumbJpg: thumbBase ? `${thumbBase}/thumbnails.jpg` : null,
                         thumbVtt: thumbBase ? `${thumbBase}/thumbnails.vtt` : null,
                     })
@@ -105,7 +104,7 @@ async function resolvePlayback(token) {
     return { ...result, videoCookie: videoCookieFromSetCookie(response.headers.get('set-cookie')) }
 }
 
-/** Auto-registered by ../index.js via import.meta.glob. */
+/** Auto-registered via modules/video-providers.ts → #video-providers. */
 export default {
     id: ANIME1.id,
     default: true,

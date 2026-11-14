@@ -1,10 +1,11 @@
-const STYLE_KEY = 'videoCaptionStyle'
+const STYLE_KEY = 'videoCaptionStyle.v2'
 
+/** Size ≈ player height × heightRatio (scales in fullscreen). */
 export const CAPTION_SIZES = Object.freeze([
-    { id: 'sm', label: '小', class: 'text-xl sm:text-2xl' },
-    { id: 'md', label: '中', class: 'text-2xl sm:text-3xl' },
-    { id: 'lg', label: '大', class: 'text-3xl sm:text-4xl' },
-    { id: 'xl', label: '特大', class: 'text-4xl sm:text-5xl' },
+    { id: 'sm', label: '小', heightRatio: 0.032 },
+    { id: 'md', label: '中', heightRatio: 0.042 },
+    { id: 'lg', label: '大', heightRatio: 0.055 },
+    { id: 'xl', label: '特大', heightRatio: 0.07 },
 ])
 
 export const CAPTION_COLORS = Object.freeze([
@@ -19,11 +20,14 @@ export const CAPTION_COLORS = Object.freeze([
 ])
 
 const DEFAULTS = Object.freeze({
-    size: 'lg',
+    size: 'md',
     background: true,
     color: '#ffffff',
     opacity: 1,
 })
+
+const MIN_PX = 12
+const MAX_PX = 96
 
 function load() {
     try {
@@ -40,27 +44,55 @@ function load() {
     }
 }
 
-function save(style) {
-    try { localStorage.setItem(STYLE_KEY, JSON.stringify(style)) } catch { /* ignore */ }
+function save(next) {
+    try { localStorage.setItem(STYLE_KEY, JSON.stringify(next)) } catch { /* ignore */ }
 }
 
-/** Shared across overlay + settings menu. */
 const style = ref(load())
+/** Session drag override; null = auto Y (lifts with controls). */
+const customPos = ref(null)
 
+function fontSizePx(box, sizeId = style.value.size) {
+    const s = CAPTION_SIZES.find((x) => x.id === sizeId)
+        || CAPTION_SIZES.find((x) => x.id === DEFAULTS.size)
+    const w = Number(box?.width) || 0
+    const h = Number(box?.height) || (w ? w * 9 / 16 : 360)
+    return Math.min(MAX_PX, Math.max(MIN_PX, Math.round(h * s.heightRatio)))
+}
+
+/** Shared by overlay + settings menu. */
 export function useCaptionStyle() {
+    const hasCustomPos = computed(() => !!customPos.value)
+
     function patch(partial) {
         style.value = { ...style.value, ...partial }
         save(style.value)
     }
 
+    function setCustomPos(pos) {
+        customPos.value = pos ? { x: pos.x, y: pos.y } : null
+    }
+
+    function resetPos() {
+        customPos.value = null
+    }
+
     function resetStyle() {
         style.value = { ...DEFAULTS }
         save(style.value)
+        resetPos()
     }
 
-    const sizeClass = computed(
-        () => CAPTION_SIZES.find((s) => s.id === style.value.size)?.class || CAPTION_SIZES[2].class,
-    )
-
-    return { style, sizeClass, patch, resetStyle, CAPTION_SIZES, CAPTION_COLORS }
+    return {
+        style,
+        customPos,
+        hasCustomPos,
+        patch,
+        setCustomPos,
+        resetPos,
+        resetStyle,
+        fontSizePx,
+        CAPTION_SIZES,
+        CAPTION_COLORS,
+    }
 }

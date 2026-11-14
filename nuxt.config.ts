@@ -76,6 +76,7 @@ export default defineNuxtConfig({
             '/api/proxy-video': { security: { rateLimiter: false } },
             '/api/download-proxy': { security: { rateLimiter: false } },
             '/api/download-video/**': { security: { rateLimiter: false } },
+            '/api/caption-cache': { security: { rateLimiter: false } },
             '/api/user-status-ws': { security: { rateLimiter: false } },
         },
         experimental: {
@@ -253,7 +254,6 @@ export default defineNuxtConfig({
                     "'self'",
                     'https://*.supabase.co',
                     'wss://*.supabase.co',
-                    'https://*.anime1.me',
                     'https://fonts.googleapis.com',
                     'https://fonts.gstatic.com',
                 ],

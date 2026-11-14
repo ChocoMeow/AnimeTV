@@ -29,7 +29,7 @@ const emit = defineEmits([
 ])
 
 const { isNarrow } = useMobile()
-const { style: captionStyle, patch, resetStyle, CAPTION_SIZES, CAPTION_COLORS } = useCaptionStyle()
+const { style: captionStyle, hasCustomPos, patch, resetPos, resetStyle, CAPTION_SIZES, CAPTION_COLORS } = useCaptionStyle()
 
 const rowClass =
     'w-full flex items-center px-3.5 py-3.5 sm:py-2.5 text-base sm:text-sm text-left text-gray-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors'
@@ -285,6 +285,14 @@ function thumbClass(on) {
                                 />
                             </div>
 
+                            <button
+                                v-if="hasCustomPos"
+                                type="button"
+                                class="w-full rounded-lg py-2 text-sm text-gray-600 dark:text-white/80 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                                @click="resetPos"
+                            >
+                                重設位置
+                            </button>
                             <button
                                 type="button"
                                 class="w-full rounded-lg py-2 text-sm text-gray-600 dark:text-white/80 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
