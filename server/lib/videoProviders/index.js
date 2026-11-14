@@ -13,7 +13,8 @@
  *   hostMatchers: ['cdn.example'], // hostname.includes(matcher) — prefer full hosts
  *   directHlsHosts?: ['cdn.example'], // CORS * CDNs — skip proxy hop
  *   offlineQuality?: true,       // HLS quality ladder in offline download UI
- *   ensureTwCaptions?: true,     // core: AI-translate → TW WebVTT, Supabase ~1y cache
+ *   aiCaptions?: true,           // core: on-demand AI captions (allowlisted langs)
+ *   ensureTwCaptions?: true,     // legacy alias of aiCaptions
  *   videoIdHelp?: '分類 cat ID（數字）', // plain format hint; admin formats the tooltip
  *   listEpisodes(event, videoId),
  *   resolvePlayback(tokenOrPayload),

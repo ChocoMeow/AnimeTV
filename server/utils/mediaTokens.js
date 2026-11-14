@@ -131,19 +131,6 @@ export function mediaProxyUrl(api, payload) {
     return `/api/${api}?t=${encodeURIComponent(sealMediaProxy(payload))}`
 }
 
-/** Sealed `caption_translations` row id → `/api/caption-cache`. */
-export function captionCacheUrl(id, userId) {
-    if (!id || !userId) throw new Error('captionCacheUrl: id and userId required')
-    return `/api/caption-cache?t=${encodeURIComponent(seal('cap', { id: String(id), i: userId }))}`
-}
-
-export function openCaptionCache(token, userId) {
-    const p = open('cap', token)
-    if (!p.id || !p.i) throw createError({ statusCode: 400, statusMessage: 'Invalid caption token' })
-    if (userId && p.i !== userId) throw createError({ statusCode: 403, statusMessage: 'Caption token user mismatch' })
-    return { id: p.id, userId: p.i }
-}
-
 /**
  * Rewrite seek-thumbnail WebVTT image URLs → download-proxy.
  * Seals each distinct URL once; keeps #xywh= for client crops.

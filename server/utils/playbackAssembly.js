@@ -3,7 +3,7 @@
  * Provider-agnostic: sealed contract from resolvePlayback only.
  */
 import { resolvePlaybackForSource } from '~~/server/lib/videoProviders'
-import { ensureTwCaptions } from '~~/server/utils/captionTranslate'
+import { availableAiCaptionLangs } from '~~/server/utils/captionTranslate'
 import {
     mediaProxyUrl,
     openOwnedEpisodeToken,
@@ -28,13 +28,12 @@ export async function resolveOwnedPlayback(sealedToken, userId) {
     }
 }
 
-/** Seal upstream caption URLs; leave `/api/caption-cache` as-is. */
+/** Seal upstream caption URLs via download-proxy. */
 export function proxyCaptionTracks(captions, { cookie, referer, userId }) {
     if (!Array.isArray(captions) || !captions.length) return []
     return captions
         .map((c) => {
             if (!c?.src) return null
-            if (c.src.startsWith('/api/caption-cache')) return { ...c }
             const src = absoluteMediaUrl(c.src)
             if (!src) return null
             return { ...c, src: mediaProxyUrl('download-proxy', { url: src, cookie, referer, userId }) }
@@ -42,9 +41,12 @@ export function proxyCaptionTracks(captions, { cookie, referer, userId }) {
         .filter(Boolean)
 }
 
-/** Upstream captions → optional AI TW → sealed URLs. */
-export async function assembleCaptions(event, captions, ctx) {
-    return proxyCaptionTracks(await ensureTwCaptions(event, captions, ctx), ctx)
+/** Upstream captions → sealed proxy URLs. AI langs listed for on-demand UI. */
+export function assembleCaptions(captions, ctx) {
+    return {
+        captions: proxyCaptionTracks(captions, ctx),
+        aiCaptionLangs: availableAiCaptionLangs(captions, { source: ctx?.source }),
+    }
 }
 
 /** Fetch seek-thumbnail VTT; rewrite relative sprites → sealed download-proxy. */

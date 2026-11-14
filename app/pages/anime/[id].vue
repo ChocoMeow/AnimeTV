@@ -159,6 +159,8 @@ const videoPlayerMeta = computed(() => {
         thumbnailsVttText: offlineThumbnailVttText.value || ep?.thumbnails_vtt_text || null,
         thumbnailsVttUrl: ep?.thumbnails_vtt_url || null,
         captions: Array.isArray(ep?.captions) ? ep.captions : [],
+        episodeToken: ep?.token || null,
+        aiCaptionLangs: Array.isArray(ep?.aiCaptionLangs) ? ep.aiCaptionLangs : [],
     }
 })
 
@@ -532,7 +534,21 @@ function mergeEpisodePlaybackMeta(epKey, res) {
     if (res.thumbnails_jpg_url) patch.thumbnails_jpg_url = res.thumbnails_jpg_url
     if (res.thumbnails_vtt_url) patch.thumbnails_vtt_url = res.thumbnails_vtt_url
     if (Array.isArray(res.captions)) patch.captions = res.captions
+    if (Array.isArray(res.aiCaptionLangs)) patch.aiCaptionLangs = res.aiCaptionLangs
     if (Object.keys(patch).length) anime.value.episodes[epKey] = { ...ep, ...patch }
+}
+
+function handleCaptionAdded(track) {
+    const epKey = String(selectedEpisode.value ?? '')
+    const ep = anime.value?.episodes?.[epKey]
+    if (!ep || typeof ep !== 'object' || !track?.srclang || !(track?.src || track?.vttText)) return
+    const captions = Array.isArray(ep.captions) ? [...ep.captions] : []
+    if (!captions.some((c) => c?.srclang === track.srclang)) captions.push(track)
+    anime.value.episodes[epKey] = {
+        ...ep,
+        captions,
+        aiCaptionLangs: (ep.aiCaptionLangs || []).filter((code) => code !== track.srclang),
+    }
 }
 
 async function fetchOnlineVideoUrl(epNum) {
@@ -866,6 +882,7 @@ onUnmounted(() => {
                             @loadeddata="onVideoReady"
                             @stream-error="handleStreamError"
                             @toggle-theater-mode="isTheaterMode = !isTheaterMode"
+                            @caption-added="handleCaptionAdded"
                         />
                     </section>
 

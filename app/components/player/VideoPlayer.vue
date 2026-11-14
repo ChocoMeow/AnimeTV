@@ -21,6 +21,7 @@ const props = defineProps({
 const emit = defineEmits([
     'play', 'pause', 'ended', 'volumechange', 'loadstart', 'loadeddata', 'timeupdate',
     'next-episode', 'previous-episode', 'toggle-theater-mode', 'stream-error',
+    'caption-added',
 ])
 
 const AUTOPLAY_TRIGGER_SECS = 100
@@ -162,6 +163,9 @@ function showNotification(message, icon, persistent = false) {
 const {
     hasCaptions,
     captionTracks,
+    pendingAiLangs,
+    aiLoadingLang,
+    aiError,
     resolvedCaptionTracks,
     selectedCaptionLang,
     captionLabel,
@@ -169,10 +173,14 @@ const {
     applyCaptionTracks,
     setCaptionLang: selectCaptionLang,
     toggleCaptions,
+    requestAiCaption,
 } = useVideoCaptions({
     videoRef,
     captions: computed(() => props.animeMeta?.captions),
+    aiCaptionLangs: computed(() => props.animeMeta?.aiCaptionLangs),
+    episodeToken: computed(() => props.animeMeta?.episodeToken),
     notify: showNotification,
+    onCaptionAdded: (track) => emit('caption-added', track),
 })
 
 const progress = computed(() => {
@@ -400,6 +408,14 @@ function setCaptionLang(lang) {
     selectCaptionLang(lang)
     settingsPage.value = 'main'
     resetControlsTimeout()
+}
+
+async function handleRequestAiCaption(lang) {
+    const ok = await requestAiCaption(lang)
+    if (ok) {
+        settingsPage.value = 'main'
+        resetControlsTimeout()
+    }
 }
 
 function formatQualityLabel(level, index) {
@@ -1073,6 +1089,9 @@ onUnmounted(() => {
                 :caption-label="captionLabel"
                 :caption-tracks="captionTracks"
                 :selected-caption-lang="selectedCaptionLang || ''"
+                :pending-ai-langs="pendingAiLangs"
+                :ai-loading-lang="aiLoadingLang || ''"
+                :ai-error="aiError || ''"
                 @progress-pointerdown="handleProgressPointerDown"
                 @progress-pointermove="handleProgressPointerMove"
                 @progress-pointerup="handleProgressPointerUp"
@@ -1097,6 +1116,7 @@ onUnmounted(() => {
                 @set-speed="setPlaybackRate"
                 @set-quality="setQuality"
                 @set-caption="setCaptionLang"
+                @request-ai-caption="handleRequestAiCaption"
             />
         </transition>
     </div>

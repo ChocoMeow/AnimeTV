@@ -316,8 +316,26 @@ const LANG_MAP = Object.freeze({
     spanish: 'es',
     pt: 'pt',
     portuguese: 'pt',
-    tw: 'TW', 'zh-tw': 'TW', 'zh-hant': 'TW', 'zh-hk': 'TW', chinese: 'TW', traditional: 'TW',
+    tw: 'TW',
+    'zh-tw': 'TW',
+    'zh-hant': 'TW',
+    'zh-hk': 'TW',
+    traditional: 'TW',
+    cn: 'CN',
+    'zh-cn': 'CN',
+    'zh-hans': 'CN',
+    simplified: 'CN',
 })
+
+/** Prefer full-label hints so "Chinese (Traditional)" ≠ "Chinese (Simplified)". */
+function srclangFromLabel(label) {
+    const l = String(label || '').toLowerCase()
+    if (/traditional|zh-hant|zh-tw|zh-hk|繁體|繁体/.test(l)) return 'TW'
+    if (/simplified|zh-hans|zh-cn|简体|簡體/.test(l)) return 'CN'
+    if (/\bchinese\b|中文/.test(l)) return 'TW' // bare "Chinese" → TW default for this audience
+    const key = l.split(/[\s(/_-]+/).filter(Boolean)[0] || ''
+    return LANG_MAP[key] || LANG_MAP[l] || key || 'en'
+}
 
 function decodeEntities(s = '') {
     return s
@@ -414,8 +432,7 @@ function mapCaptionTrack(t) {
     const file = t?.file || t?.url
     if (!file || typeof file !== 'string') return null
     const label = String(t.label || 'English')
-    const langKey = label.toLowerCase().split(' ')[0]
-    return { src: file, label, srclang: LANG_MAP[langKey] ?? 'en' }
+    return { src: file, label, srclang: srclangFromLabel(label) }
 }
 
 function mapThumbnailTrack(t) {
@@ -690,10 +707,12 @@ async function resolvePlayback(payload) {
     if (!best?.url) throw new Error('No HLS stream from AniKoto')
 
     const thumbUrl = thumbnails?.find((t) => t?.url)?.url || null
+    // Prefer accumulated tracks across servers (richer than the best HLS server alone).
+    const captionTracks = subtitles.length ? subtitles : best.subtitles
 
     return {
         s: [{ src: best.url, type: 'hls' }],
-        captions: mapCaptions(best.subtitles?.length ? best.subtitles : subtitles),
+        captions: mapCaptions(captionTracks),
         thumbnails_vtt_url: thumbUrl,
         videoCookie: '',
         videoReferer: best.referer || `${SITE}/`,
@@ -706,8 +725,8 @@ export default {
     referer: ANIKOTO.referer,
     hostMatchers: ANIKOTO.hostMatchers,
     offlineQuality: true,
-    /** Core AI-translates missing TW captions and caches in Supabase (~1 year). */
-    ensureTwCaptions: true,
+    /** Core: on-demand AI captions (allowlisted langs), cached in Supabase (~1 year). */
+    aiCaptions: true,
     videoIdHelp: 'AniKoto watch slug（網址 /watch/ 後段）；可加 :sub / :dub',
     listEpisodes,
     decodeToken,

@@ -76,7 +76,6 @@ export default defineNuxtConfig({
             '/api/proxy-video': { security: { rateLimiter: false } },
             '/api/download-proxy': { security: { rateLimiter: false } },
             '/api/download-video/**': { security: { rateLimiter: false } },
-            '/api/caption-cache': { security: { rateLimiter: false } },
             '/api/user-status-ws': { security: { rateLimiter: false } },
         },
         experimental: {

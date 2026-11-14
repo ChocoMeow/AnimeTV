@@ -717,6 +717,17 @@ async function callAiProvider(config, body) {
     return data
 }
 
+/** Shared chat/completions helper (proxy + auth) for captions and other non-agent callers. */
+export async function completeAiChat({ messages, temperature = 0.2 } = {}) {
+    const config = useRuntimeConfig()
+    requireAiConfig(config)
+    return callAiProvider(config, {
+        model: config.aiModel,
+        temperature,
+        messages,
+    })
+}
+
 async function streamText(send, value) {
     const chars = Array.from(value || '')
     const size = chars.length > 80 ? 4 : 2

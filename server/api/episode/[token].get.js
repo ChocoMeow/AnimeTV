@@ -19,19 +19,15 @@ export default defineEventHandler(async (event) => {
 
         log.debug({ source: sealed.source, isHls, userId }, 'Video resolve ok')
 
-        const ctx = { cookie, referer, userId }
+        const ctx = { cookie, referer, userId, source: sealed.source }
         const meta = await withProxiedThumbnails(sealed, result, ctx)
+        const captionBundle = assembleCaptions(result.captions, ctx)
         // Never return upstream stream / caption / sprite URLs — only sealed proxies.
         return {
             proxyUrl: mediaProxyUrl('proxy-video', { url, cookie, referer, hls: isHls, userId }),
             isHls,
             ...meta,
-            captions: await assembleCaptions(event, result.captions, {
-                ...ctx,
-                source: sealed.source,
-                sourceId: sealed.sourceId,
-                episode: sealed.episode,
-            }),
+            ...captionBundle,
         }
     } catch (err) {
         if (err?.statusCode && err.statusCode < 500) throw err

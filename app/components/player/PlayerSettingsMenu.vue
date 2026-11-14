@@ -14,6 +14,9 @@ const props = defineProps({
     captionLabel: { type: String, default: '關閉' },
     captionTracks: { type: Array, default: () => [] },
     selectedCaptionLang: { type: String, default: '' },
+    pendingAiLangs: { type: Array, default: () => [] },
+    aiLoadingLang: { type: String, default: '' },
+    aiError: { type: String, default: '' },
 })
 
 const emit = defineEmits([
@@ -24,6 +27,7 @@ const emit = defineEmits([
     'set-speed',
     'set-quality',
     'set-caption',
+    'request-ai-caption',
     'open-page',
     'close',
 ])
@@ -200,6 +204,24 @@ function thumbClass(on) {
                                 class="material-symbols-rounded text-base"
                             >check</span>
                         </button>
+                        <button
+                            v-for="ai in pendingAiLangs"
+                            :key="`ai:${ai.srclang}`"
+                            type="button"
+                            :class="menuItemClass"
+                            :disabled="Boolean(aiLoadingLang)"
+                            @click="emit('request-ai-caption', ai.srclang)"
+                        >
+                            <span>
+                                {{ ai.label }} (AI)
+                                <span v-if="aiLoadingLang === ai.srclang" :class="mutedClass"> · 產生中…</span>
+                            </span>
+                            <span
+                                class="material-symbols-rounded text-base"
+                                :class="aiLoadingLang === ai.srclang ? 'animate-spin' : mutedClass"
+                            >{{ aiLoadingLang === ai.srclang ? 'progress_activity' : 'auto_awesome' }}</span>
+                        </button>
+                        <p v-if="aiError" class="px-3.5 py-1.5 text-xs text-red-600 dark:text-red-400">{{ aiError }}</p>
 
                         <div class="mx-3.5 my-1.5 border-t border-black/10 dark:border-white/10" />
 
