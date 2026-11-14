@@ -3,6 +3,8 @@ import { aiCaptionLang } from '#shared/utils/aiCaptions'
 const LANG_KEY = 'videoCaptionLang'
 const LAST_KEY = 'videoCaptionLangLast'
 const OFF = 'off'
+const AI_POLL_MS = 4_000
+const AI_POLL_MAX_MS = 6 * 60_000
 
 function storageGet(key) {
     try { return localStorage.getItem(key) } catch { return null }
@@ -190,7 +192,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         aiError.value = ''
         const req = {
             method: 'POST',
-            timeout: 180_000,
+            timeout: 30_000,
             body: {
                 token,
                 lang: meta.srclang,
@@ -198,15 +200,15 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
                 sourceLang: source.srclang,
             },
         }
+        const g = gen
+        const startedAt = Date.now()
         try {
-            let res
-            try {
-                res = await $fetch('/api/caption-ai', req)
-            } catch (err) {
-                // Retry upstream busy only — never our 429 quota/cooldown.
-                const status = Number(err?.statusCode || err?.status || err?.data?.statusCode) || 0
-                if (status !== 503) throw err
-                await new Promise((r) => setTimeout(r, 1500))
+            // Server translates in the background; poll until the cached caption is ready.
+            let res = await $fetch('/api/caption-ai', req)
+            while (res?.status === 'pending') {
+                if (Date.now() - startedAt > AI_POLL_MAX_MS) throw new Error('AI 字幕產生逾時，請稍後再試')
+                await new Promise((r) => setTimeout(r, AI_POLL_MS))
+                if (g !== gen) return false // episode changed
                 res = await $fetch('/api/caption-ai', req)
             }
             const caption = res?.caption

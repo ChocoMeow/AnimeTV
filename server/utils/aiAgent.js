@@ -718,13 +718,15 @@ async function callAiProvider(config, body) {
 }
 
 /** Shared chat/completions helper (proxy + auth) for captions and other non-agent callers. */
-export async function completeAiChat({ messages, temperature = 0.2 } = {}) {
+export async function completeAiChat({ messages, temperature, responseFormat, reasoningEffort } = {}) {
     const config = useRuntimeConfig()
     requireAiConfig(config)
     return callAiProvider(config, {
         model: config.aiModel,
-        temperature,
         messages,
+        ...(temperature != null && { temperature }),
+        ...(responseFormat && { response_format: responseFormat }),
+        ...(reasoningEffort && { reasoning_effort: reasoningEffort }),
     })
 }
 

@@ -2,7 +2,10 @@ import { getRequestLogger, logError } from '~~/server/utils/logger'
 import { generateAiCaption } from '~~/server/utils/captionTranslate'
 import { openOwnedEpisodeToken } from '~~/server/utils/mediaTokens'
 
-/** On-demand AI caption — body `{ token, lang, sourceSrc, sourceLang? }`. */
+/**
+ * On-demand AI caption — body `{ token, lang, sourceSrc, sourceLang? }`.
+ * Returns `{ status: 'ready', caption }` or `{ status: 'pending' }` (client polls).
+ */
 export default defineEventHandler(async (event) => {
     const userId = (await authUser(event)).sub
     const log = getRequestLogger(event)
@@ -18,7 +21,7 @@ export default defineEventHandler(async (event) => {
 
     try {
         const sealed = openOwnedEpisodeToken(token, userId)
-        const caption = await generateAiCaption(event, {
+        const result = await generateAiCaption(event, {
             source: sealed.source,
             sourceId: sealed.sourceId,
             episode: sealed.episode,
@@ -27,8 +30,8 @@ export default defineEventHandler(async (event) => {
             userId,
             targetLang: lang,
         })
-        log.info({ source: sealed.source, episode: sealed.episode, lang: caption.srclang }, 'AI caption ok')
-        return { caption }
+        if (result.caption) log.info({ source: sealed.source, episode: sealed.episode, lang }, 'AI caption ready')
+        return result
     } catch (err) {
         const status = Number(err?.statusCode) || 500
         if (status >= 500 && status !== 503) logError(event, err, { module: 'caption-ai', userId, lang })
