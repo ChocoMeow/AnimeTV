@@ -188,23 +188,37 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
 
         aiLoadingLang.value = meta.srclang
         aiError.value = ''
+        const req = {
+            method: 'POST',
+            timeout: 180_000,
+            body: {
+                token,
+                lang: meta.srclang,
+                sourceSrc: source.src,
+                sourceLang: source.srclang,
+            },
+        }
         try {
-            const { caption } = await $fetch('/api/caption-ai', {
-                method: 'POST',
-                body: {
-                    token,
-                    lang: meta.srclang,
-                    sourceSrc: source.src,
-                    sourceLang: source.srclang,
-                },
-            })
+            let res
+            try {
+                res = await $fetch('/api/caption-ai', req)
+            } catch (err) {
+                // Retry upstream busy only — never our 429 quota/cooldown.
+                const status = Number(err?.statusCode || err?.status || err?.data?.statusCode) || 0
+                if (status !== 503) throw err
+                await new Promise((r) => setTimeout(r, 1500))
+                res = await $fetch('/api/caption-ai', req)
+            }
+            const caption = res?.caption
             if (!caption?.vttText || !caption?.srclang) throw new Error('empty caption')
             const track = {
                 srclang: String(caption.srclang),
                 label: String(caption.label || caption.srclang),
                 vttText: String(caption.vttText),
             }
-            if (!localExtras.value.some((t) => t.srclang === track.srclang)) localExtras.value = [...localExtras.value, track]
+            if (!localExtras.value.some((t) => t.srclang === track.srclang)) {
+                localExtras.value = [...localExtras.value, track]
+            }
             onCaptionAdded?.(track)
             await nextTick()
             setCaptionLang(track.srclang)
