@@ -214,7 +214,7 @@ function thumbClass(on) {
                         >
                             <span>
                                 {{ ai.label }} (AI)
-                                <span v-if="aiLoadingLang === ai.srclang" :class="mutedClass"> · 產生中…</span>
+                                <span v-if="aiLoadingLang === ai.srclang" :class="mutedClass"> · 生成中…</span>
                             </span>
                             <span
                                 class="material-symbols-rounded text-base"
