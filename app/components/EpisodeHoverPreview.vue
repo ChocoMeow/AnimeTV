@@ -39,7 +39,6 @@ const episodeMeta = computed(() => ({
     ...resolvedEpisodeData.value,
 }))
 const animeMeta = computed(() => ({
-    videoId: episodeMeta.value.video_id || null,
     thumbnailJpgUrl: episodeMeta.value.thumbnails_jpg_url || null,
     thumbnailsVttText: episodeMeta.value.thumbnails_vtt_text || null,
     thumbnailsVttUrl: episodeMeta.value.thumbnails_vtt_url || null,
@@ -183,7 +182,6 @@ function fetchPreviewMeta(token) {
     if (request) return request
 
     request = $fetch(`/api/episode/${encodeURIComponent(token)}`).then((result) => ({
-        video_id: result?.video_id || null,
         thumbnails_vtt_text: result?.thumbnails_vtt_text || null,
         thumbnails_jpg_url: result?.thumbnails_jpg_url || null,
         thumbnails_vtt_url: result?.thumbnails_vtt_url || null,
@@ -289,7 +287,7 @@ onBeforeUnmount(() => {
                         <span class="material-symbols-rounded animate-pulse text-4xl text-white/25">movie</span>
                     </div>
                     <div
-                        v-if="thumbnailPreview"
+                        v-if="thumbnailPreview && activeThumbnailSrc"
                         class="absolute overflow-hidden"
                         :style="thumbnailPreview.viewport"
                     >
@@ -299,7 +297,7 @@ onBeforeUnmount(() => {
                             :style="thumbnailPreview.image"
                             alt=""
                             draggable="false"
-                        />
+                        >
                     </div>
                     <img
                         v-else-if="activeThumbnail && activeThumbnailSrc"

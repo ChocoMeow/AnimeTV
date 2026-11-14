@@ -1,3 +1,5 @@
+import { aiCaptionLang } from '#shared/utils/aiCaptions'
+
 const LANG_KEY = 'videoCaptionLang'
 const LAST_KEY = 'videoCaptionLangLast'
 const OFF = 'off'
@@ -11,11 +13,13 @@ function storageSet(key, value) {
 
 function normalizeList(raw) {
     if (!Array.isArray(raw)) return []
-    return raw.filter((c) => c?.src && c?.srclang).map((c) => ({
-        srclang: String(c.srclang),
-        label: String(c.label || c.srclang),
-        src: String(c.src),
-    }))
+    return raw
+        .filter((c) => c?.srclang && (c?.src || c?.vttText))
+        .map((c) => ({
+            srclang: String(c.srclang),
+            label: String(c.label || c.srclang),
+            ...(c.vttText ? { vttText: String(c.vttText) } : { src: String(c.src) }),
+        }))
 }
 
 function pickLang(tracks, allowOff = true) {
@@ -28,17 +32,45 @@ function pickLang(tracks, allowOff = true) {
     return tracks.find((t) => t.srclang === 'TW')?.srclang || tracks[0].srclang
 }
 
+/** Prefer English upstream track as AI translation source. */
+function pickAiSourceTrack(tracks, targetLang) {
+    const candidates = tracks.filter((t) => t?.src && t.srclang !== targetLang)
+    return candidates.find((t) => String(t.srclang).toLowerCase() === 'en') || candidates[0] || null
+}
+
 function cueText(cue) {
     return String(cue?.text || '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/?[^>]+>/g, '').trim()
 }
 
-/** External WebVTT captions — fetch only the selected language. */
-export function useVideoCaptions({ videoRef, captions, notify }) {
-    const available = computed(() => normalizeList(toValue(captions)))
-    const hasCaptions = computed(() => available.value.length > 0)
+/** External / inline WebVTT captions — materialize only the selected language. */
+export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeToken, notify, onCaptionAdded }) {
+    const baseTracks = computed(() => normalizeList(toValue(captions)))
+    /** Optimistic AI tracks until parent merges into `captions`. */
+    const localExtras = ref([])
+    const available = computed(() => {
+        const seen = new Set()
+        const out = []
+        for (const t of [...baseTracks.value, ...localExtras.value]) {
+            if (!t?.srclang || seen.has(t.srclang)) continue
+            seen.add(t.srclang)
+            out.push(t)
+        }
+        return out
+    })
+
+    const pendingAiLangs = computed(() => {
+        const have = new Set(available.value.map((t) => t.srclang))
+        return (toValue(aiCaptionLangs) || [])
+            .map((code) => aiCaptionLang(code))
+            .filter((m) => m && !have.has(m.srclang))
+    })
+    const hasCaptions = computed(() => available.value.length > 0 || pendingAiLangs.value.length > 0)
+
     const tracks = ref([])
     const selectedLang = ref(null)
     const activeCaptionText = ref('')
+    const aiLoadingLang = ref(null)
+    const aiError = ref('')
     const captionLabel = computed(() => {
         if (!selectedLang.value) return '關閉'
         return available.value.find((c) => c.srclang === selectedLang.value)?.label || selectedLang.value
@@ -90,6 +122,12 @@ export function useVideoCaptions({ videoRef, captions, notify }) {
         if (!meta) return
         const g = gen
         try {
+            if (meta.vttText) {
+                const url = URL.createObjectURL(new Blob([meta.vttText], { type: 'text/vtt;charset=utf-8' }))
+                if (g !== gen) return URL.revokeObjectURL(url)
+                cache.set(lang, url)
+                return
+            }
             const res = await fetch(meta.src)
             if (!res.ok || g !== gen) return
             const url = URL.createObjectURL(await res.blob())
@@ -107,7 +145,7 @@ export function useVideoCaptions({ videoRef, captions, notify }) {
             await ensure(lang)
             const src = cache.get(lang)
             const meta = available.value.find((t) => t.srclang === lang)
-            tracks.value = src && meta ? [{ ...meta, src }] : []
+            tracks.value = src && meta ? [{ srclang: meta.srclang, label: meta.label, src }] : []
         }
         await nextTick()
         applyModes()
@@ -132,9 +170,60 @@ export function useVideoCaptions({ videoRef, captions, notify }) {
         setCaptionLang(selectedLang.value ? null : pickLang(available.value, false))
     }
 
-    watch(available, (list) => {
+    async function requestAiCaption(lang) {
+        const meta = aiCaptionLang(lang)
+        const token = String(toValue(episodeToken) || '').trim()
+        if (!meta || !token || aiLoadingLang.value) return false
+        if (available.value.some((t) => t.srclang === meta.srclang)) {
+            setCaptionLang(meta.srclang)
+            return true
+        }
+
+        const source = pickAiSourceTrack(available.value, meta.srclang)
+        if (!source?.src) {
+            aiError.value = '找不到可翻譯的原始字幕'
+            notify?.(aiError.value, 'error')
+            return false
+        }
+
+        aiLoadingLang.value = meta.srclang
+        aiError.value = ''
+        try {
+            const { caption } = await $fetch('/api/caption-ai', {
+                method: 'POST',
+                body: {
+                    token,
+                    lang: meta.srclang,
+                    sourceSrc: source.src,
+                    sourceLang: source.srclang,
+                },
+            })
+            if (!caption?.vttText || !caption?.srclang) throw new Error('empty caption')
+            const track = {
+                srclang: String(caption.srclang),
+                label: String(caption.label || caption.srclang),
+                vttText: String(caption.vttText),
+            }
+            if (!localExtras.value.some((t) => t.srclang === track.srclang)) localExtras.value = [...localExtras.value, track]
+            onCaptionAdded?.(track)
+            await nextTick()
+            setCaptionLang(track.srclang)
+            return true
+        } catch (err) {
+            const msg = err?.data?.message || err?.statusMessage || err?.message || 'AI 字幕產生失敗'
+            aiError.value = msg
+            notify?.(msg, 'error')
+            return false
+        } finally {
+            aiLoadingLang.value = null
+        }
+    }
+
+    watch(baseTracks, (list) => {
         gen++
         revokeCache()
+        localExtras.value = []
+        aiError.value = ''
         show(pickLang(list))
     }, { immediate: true })
 
@@ -150,6 +239,9 @@ export function useVideoCaptions({ videoRef, captions, notify }) {
     return {
         hasCaptions,
         captionTracks: available,
+        pendingAiLangs,
+        aiLoadingLang,
+        aiError,
         resolvedCaptionTracks: tracks,
         selectedCaptionLang: selectedLang,
         captionLabel,
@@ -157,5 +249,6 @@ export function useVideoCaptions({ videoRef, captions, notify }) {
         applyCaptionTracks: applyModes,
         setCaptionLang,
         toggleCaptions,
+        requestAiCaption,
     }
 }

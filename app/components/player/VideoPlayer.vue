@@ -21,6 +21,7 @@ const props = defineProps({
 const emit = defineEmits([
     'play', 'pause', 'ended', 'volumechange', 'loadstart', 'loadeddata', 'timeupdate',
     'next-episode', 'previous-episode', 'toggle-theater-mode', 'stream-error',
+    'caption-added',
 ])
 
 const AUTOPLAY_TRIGGER_SECS = 100
@@ -136,9 +137,11 @@ function shortcutLabel(action, fallback) {
     return (typeof entry === 'object' && entry?.label) || fallback
 }
 
+// Seek preview = thumbnail VTT/sprites only (no second video decoder).
 const {
     THUMB_PREVIEW_W,
     THUMB_PREVIEW_H,
+    hasThumbnails,
     activeThumbnail,
     activeThumbnailSrc,
     thumbnailPreview,
@@ -160,6 +163,9 @@ function showNotification(message, icon, persistent = false) {
 const {
     hasCaptions,
     captionTracks,
+    pendingAiLangs,
+    aiLoadingLang,
+    aiError,
     resolvedCaptionTracks,
     selectedCaptionLang,
     captionLabel,
@@ -167,10 +173,14 @@ const {
     applyCaptionTracks,
     setCaptionLang: selectCaptionLang,
     toggleCaptions,
+    requestAiCaption,
 } = useVideoCaptions({
     videoRef,
     captions: computed(() => props.animeMeta?.captions),
+    aiCaptionLangs: computed(() => props.animeMeta?.aiCaptionLangs),
+    episodeToken: computed(() => props.animeMeta?.episodeToken),
     notify: showNotification,
+    onCaptionAdded: (track) => emit('caption-added', track),
 })
 
 const progress = computed(() => {
@@ -400,6 +410,14 @@ function setCaptionLang(lang) {
     resetControlsTimeout()
 }
 
+async function handleRequestAiCaption(lang) {
+    const ok = await requestAiCaption(lang)
+    if (ok) {
+        settingsPage.value = 'main'
+        resetControlsTimeout()
+    }
+}
+
 function formatQualityLabel(level, index) {
     if (level?.height) return `${level.height}p`
     const res = level?.attrs?.RESOLUTION || level?.attrs?.resolution
@@ -481,15 +499,39 @@ function calculateTimeFromPosition(e) {
     return clamp((e.clientX - rect.left) / rect.width, 0, 1) * duration.value
 }
 
+function clearSeekPreview() {
+    isHoveringProgress.value = false
+    clearActiveThumbnail()
+}
+
+function syncSeekPreview(t, barRect) {
+    if (t == null || !Number.isFinite(t)) return
+    hoverPreviewTime.value = t
+    if (hasThumbnails.value) updateActiveThumbnailForTime(t)
+    const rect = barRect || progressApi()?.getBoundingClientRect?.()
+    if (!rect?.width || duration.value <= 0) return
+    const pos = clamp(t / duration.value, 0, 1)
+    const halfThumb = THUMB_PREVIEW_W / 2
+    const centerPx = pos * rect.width
+    const clampedPx = Math.max(halfThumb, Math.min(centerPx, rect.width - halfThumb))
+    hoverPreviewPosition.value = (clampedPx / rect.width) * 100
+}
+
+function scrubToPointer(e) {
+    const t = calculateTimeFromPosition(e)
+    if (t === null) return null
+    dragPreviewTime.value = t
+    syncSeekPreview(t)
+    return t
+}
+
 function handleProgressPointerDown(e) {
     if (e.pointerType === 'mouse' && e.button !== 0) return
     e.preventDefault()
     progressApi()?.setPointerCapture?.(e.pointerId)
     isDraggingProgress.value = true
-    isHoveringProgress.value = false
-    clearActiveThumbnail()
-    const t = calculateTimeFromPosition(e)
-    if (t !== null) dragPreviewTime.value = t
+    isHoveringProgress.value = true
+    scrubToPointer(e)
     showControls.value = true
     controlsTimeout = clearTimer(controlsTimeout)
 }
@@ -500,8 +542,7 @@ function handleProgressPointerMove(e) {
         return
     }
     e.preventDefault()
-    const t = calculateTimeFromPosition(e)
-    if (t !== null) dragPreviewTime.value = t
+    scrubToPointer(e)
 }
 
 function handleProgressPointerUp(e) {
@@ -516,28 +557,26 @@ function handleProgressPointerUp(e) {
         seekTo(t)
     }
     isDraggingProgress.value = false
+    const rect = progressApi()?.getBoundingClientRect?.()
+    const overBar = !!rect &&
+        e.clientX >= rect.left && e.clientX <= rect.right &&
+        e.clientY >= rect.top && e.clientY <= rect.bottom
+    if (!overBar) clearSeekPreview()
     if (isPlaying.value) resetControlsTimeout()
 }
 
 function handleProgressHover(e) {
     if (isDraggingProgress.value) return
-    const bar = progressApi()
-    const rect = bar?.getBoundingClientRect?.()
+    const rect = progressApi()?.getBoundingClientRect?.()
     if (!rect?.width) return
-    const pos = clamp((e.clientX - rect.left) / rect.width, 0, 1)
-    hoverPreviewTime.value = pos * duration.value
     isHoveringProgress.value = true
-    updateActiveThumbnailForTime(hoverPreviewTime.value)
-    const halfThumb = THUMB_PREVIEW_W / 2
-    const centerPx = pos * rect.width
-    const clampedPx = Math.max(halfThumb, Math.min(centerPx, rect.width - halfThumb))
-    hoverPreviewPosition.value = rect.width > 0 ? (clampedPx / rect.width) * 100 : pos * 100
+    syncSeekPreview(clamp((e.clientX - rect.left) / rect.width, 0, 1) * duration.value, rect)
 }
 
 function handleProgressMouseEnter() { isHoveringProgress.value = true }
 function handleProgressMouseLeaveBar() {
-    isHoveringProgress.value = false
-    clearActiveThumbnail()
+    // Pointer capture during drag can fire leave while scrubbing — keep the preview up.
+    if (!isDraggingProgress.value) clearSeekPreview()
 }
 
 function onPlay() {
@@ -779,8 +818,9 @@ async function applyVideoSource(src, isHls, video) {
 
     try {
         // Direct-CORS HLS CDNs may rate-limit parallel prefetch / ABR retry storms — use stock loader there.
+        // Proxied streams: every segment is `/api/proxy-video` — keep ahead window modest.
         const limited = isDirectHlsSrc(src)
-        const parallel = limited ? null : createParallelFragLoader(Hls)
+        const parallel = limited ? null : createParallelFragLoader(Hls, { minAhead: 1, maxAhead: 3 })
         hlsPrefetchReset = parallel?.reset ?? null
 
         const startPosition = Number(props.startTime) > 0 ? Number(props.startTime) : -1
@@ -803,10 +843,25 @@ async function applyVideoSource(src, isHls, video) {
             if (alive()) syncQualityLevelsFromHls(hls)
         })
         if (parallel) {
-            hls.on(Hls.Events.LEVEL_LOADED, (_, { details }) => {
-                if (!alive()) return
-                parallel.clear()
-                parallel.warmAhead(details?.fragments, 0)
+            // Prefer playhead (not SN 0) so level reload / ABR does not re-fetch early segments via proxy.
+            const fragIndexNearPlayhead = (details) => {
+                const frags = details?.fragments
+                if (!frags?.length) return 0
+                let t = hls.media?.currentTime
+                if (!(Number.isFinite(t) && t > 0) && startPosition > 0) t = startPosition
+                if (!(Number.isFinite(t) && t > 0)) return 0
+                const i = frags.findIndex((f) => f.start + f.duration > t)
+                return i >= 0 ? i : Math.max(0, frags.length - 1)
+            }
+            let prefetchLevel = -1
+            hls.on(Hls.Events.LEVEL_LOADED, (_, { details, level }) => {
+                if (!alive() || !details?.fragments?.length) return
+                const from = fragIndexNearPlayhead(details)
+                if (level !== prefetchLevel) {
+                    parallel.clear()
+                    prefetchLevel = level
+                }
+                parallel.warmAhead(details.fragments, from)
             })
             hls.on(Hls.Events.FRAG_LOADED, (_, { frag }) => {
                 if (!alive() || frag?.type !== 'main') return
@@ -971,7 +1026,10 @@ onUnmounted(() => {
             />
         </video>
 
-        <PlayerCaptionOverlay :text="activeCaptionText" />
+        <PlayerCaptionOverlay
+            :text="activeCaptionText"
+            :controls-visible="showControls"
+        />
 
         <PlayerOverlays
             :src="src"
@@ -1031,6 +1089,9 @@ onUnmounted(() => {
                 :caption-label="captionLabel"
                 :caption-tracks="captionTracks"
                 :selected-caption-lang="selectedCaptionLang || ''"
+                :pending-ai-langs="pendingAiLangs"
+                :ai-loading-lang="aiLoadingLang || ''"
+                :ai-error="aiError || ''"
                 @progress-pointerdown="handleProgressPointerDown"
                 @progress-pointermove="handleProgressPointerMove"
                 @progress-pointerup="handleProgressPointerUp"
@@ -1055,6 +1116,7 @@ onUnmounted(() => {
                 @set-speed="setPlaybackRate"
                 @set-quality="setQuality"
                 @set-caption="setCaptionLang"
+                @request-ai-caption="handleRequestAiCaption"
             />
         </transition>
     </div>

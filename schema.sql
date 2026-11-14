@@ -454,6 +454,22 @@ ALTER TABLE "public"."watch_history" OWNER TO "postgres";
 
 COMMENT ON TABLE "public"."watch_history" IS 'Stores user watch history for anime episodes with progress tracking';
 
+CREATE TABLE IF NOT EXISTS "public"."caption_translations" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "source_id" bigint NOT NULL,
+    "episode_number" "text" NOT NULL,
+    "source_lang" "text",
+    "target_lang" "text" DEFAULT 'TW'::"text" NOT NULL,
+    "source_vtt_hash" "text" NOT NULL,
+    "vtt_text" "text" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "expires_at" timestamp with time zone NOT NULL
+);
+
+ALTER TABLE "public"."caption_translations" OWNER TO "postgres";
+
+COMMENT ON TABLE "public"."caption_translations" IS 'AI WebVTT (→TW) per anime episode; FK anime_meta.source_id; ~1y TTL; service_role only';
+
 CREATE OR REPLACE VIEW "public"."watch_history_latest_updates" WITH ("security_invoker"='on') AS
  WITH "latestupdates" AS (
          SELECT "watch_history"."anime_ref_id",
@@ -520,7 +536,15 @@ ALTER TABLE ONLY "public"."user_status"
 ALTER TABLE ONLY "public"."watch_history"
     ADD CONSTRAINT "watch_history_pkey" PRIMARY KEY ("id");
 
+ALTER TABLE ONLY "public"."caption_translations"
+    ADD CONSTRAINT "caption_translations_pkey" PRIMARY KEY ("id");
+
+ALTER TABLE ONLY "public"."caption_translations"
+    ADD CONSTRAINT "caption_translations_source_episode_lang_key" UNIQUE ("source_id", "episode_number", "target_lang");
+
 CREATE INDEX "anime_meta_premiere_date_idx" ON "public"."anime_meta" USING "btree" ("premiere_date");
+
+CREATE INDEX "caption_translations_expires_at_idx" ON "public"."caption_translations" USING "btree" ("expires_at");
 
 CREATE INDEX "favorites_anime_ref_id_idx" ON "public"."favorites" USING "btree" ("anime_ref_id");
 
@@ -578,6 +602,9 @@ ALTER TABLE ONLY "public"."watch_history"
 
 ALTER TABLE ONLY "public"."watch_history"
     ADD CONSTRAINT "watch_history_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+ALTER TABLE ONLY "public"."caption_translations"
+    ADD CONSTRAINT "caption_translations_source_id_fkey" FOREIGN KEY ("source_id") REFERENCES "public"."anime_meta"("source_id") ON DELETE CASCADE;
 
 CREATE POLICY "Enable all for users based on id" ON "public"."user_settings" TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "id")) WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "id"));
 
@@ -650,6 +677,8 @@ ALTER TABLE "public"."user_settings" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."user_status" ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE "public"."watch_history" ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE "public"."caption_translations" ENABLE ROW LEVEL SECURITY;
 
 ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
 
@@ -885,6 +914,9 @@ GRANT ALL ON TABLE "public"."user_status" TO "service_role";
 
 GRANT ALL ON TABLE "public"."watch_history" TO "authenticated";
 GRANT ALL ON TABLE "public"."watch_history" TO "service_role";
+
+GRANT ALL ON TABLE "public"."caption_translations" TO "service_role";
+GRANT ALL ON TABLE "public"."caption_translations" TO "postgres";
 
 GRANT ALL ON TABLE "public"."watch_history_latest_updates" TO "authenticated";
 GRANT ALL ON TABLE "public"."watch_history_latest_updates" TO "service_role";

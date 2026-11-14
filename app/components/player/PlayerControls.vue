@@ -35,6 +35,9 @@ defineProps({
     captionLabel: { type: String, default: '關閉' },
     captionTracks: { type: Array, default: () => [] },
     selectedCaptionLang: { type: String, default: '' },
+    pendingAiLangs: { type: Array, default: () => [] },
+    aiLoadingLang: { type: String, default: '' },
+    aiError: { type: String, default: '' },
 })
 
 const emit = defineEmits([
@@ -62,6 +65,7 @@ const emit = defineEmits([
     'set-speed',
     'set-quality',
     'set-caption',
+    'request-ai-caption',
 ])
 
 const progressBarRef = ref(null)
@@ -237,6 +241,9 @@ defineExpose({
                     :caption-label="captionLabel"
                     :caption-tracks="captionTracks"
                     :selected-caption-lang="selectedCaptionLang"
+                    :pending-ai-langs="pendingAiLangs"
+                    :ai-loading-lang="aiLoadingLang"
+                    :ai-error="aiError"
                     @update:page="emit('update:settingsPage', $event)"
                     @toggle-autoplay="emit('toggle-autoplay')"
                     @toggle-auto-fullscreen="emit('toggle-auto-fullscreen')"
@@ -245,6 +252,7 @@ defineExpose({
                     @set-speed="emit('set-speed', $event)"
                     @set-quality="emit('set-quality', $event)"
                     @set-caption="emit('set-caption', $event)"
+                    @request-ai-caption="emit('request-ai-caption', $event)"
                     @close="emit('toggle-settings')"
                 />
             </div>

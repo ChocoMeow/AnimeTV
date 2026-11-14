@@ -24,8 +24,8 @@ export const VIDEO_UPSTREAM = Object.freeze({
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 
-/** Provider-aware upstream headers (Referer from registry; Cookie only when set). */
-export function videoUpstreamHeaders(targetUrl, { cookie = '', accept = '*/*', range } = {}) {
+/** Provider-aware upstream headers (explicit referer, else registry; Cookie only when set). */
+export function videoUpstreamHeaders(targetUrl, { cookie = '', referer = '', accept = '*/*', range } = {}) {
     let hostname = ''
     let origin = ''
     try {
@@ -40,7 +40,7 @@ export function videoUpstreamHeaders(targetUrl, { cookie = '', accept = '*/*', r
         'User-Agent': UA,
         Accept: accept,
         'Accept-Encoding': 'identity',
-        Referer: resolveVideoReferer(hostname, origin),
+        Referer: referer || resolveVideoReferer(hostname, origin),
     }
     if (cookie) headers.Cookie = String(cookie)
     if (range) headers.Range = range
@@ -60,7 +60,7 @@ export function urlLooksHls(url) {
     return isHlsPlaylist(url) || String(url).toLowerCase().includes('m3u8')
 }
 
-/** HLS media parts only — do not match progressive anime1 .mp4. */
+/** HLS media parts only — do not match progressive .mp4. */
 export function isHlsSegment(url, pathname = '') {
     let path = pathname
     if (!path) {

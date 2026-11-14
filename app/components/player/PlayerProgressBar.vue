@@ -25,6 +25,73 @@ const emit = defineEmits([
 
 const progressRef = ref(null)
 
+/** Hold last sprite frame until the next sheet decodes (avoids blank flashes). */
+const painted = ref(null)
+const fullFrameSrc = ref(null)
+let paintGen = 0
+
+const showPreview = computed(() =>
+    (props.isHovering || props.isDragging) && props.duration > 0,
+)
+
+function clearLayers() {
+    paintGen++
+    painted.value = null
+    fullFrameSrc.value = null
+}
+
+watch(
+    () => ({
+        src: props.activeThumbnailSrc,
+        preview: props.thumbnailPreview,
+        thumb: props.activeThumbnail,
+        show: showPreview.value,
+    }),
+    ({ src, preview, thumb, show }) => {
+        if (!show || !thumb || !src) {
+            clearLayers()
+            return
+        }
+
+        // Full-frame thumbs (no #xywh).
+        if (!preview) {
+            if (thumb.xywh) {
+                fullFrameSrc.value = null
+                return
+            }
+            paintGen++
+            painted.value = null
+            fullFrameSrc.value = src
+            return
+        }
+
+        fullFrameSrc.value = null
+        const frame = { src, viewport: preview.viewport, image: preview.image }
+
+        // Same sheet — crop-only update.
+        if (painted.value?.src === src) {
+            paintGen++
+            painted.value = frame
+            return
+        }
+
+        const gen = ++paintGen
+        if (!painted.value) {
+            painted.value = frame
+            return
+        }
+
+        // Keep current frame until the next sprite sheet is ready.
+        const img = new Image()
+        img.onload = () => {
+            if (gen === paintGen) painted.value = frame
+        }
+        img.src = src
+        if (img.complete && img.naturalWidth > 0) painted.value = frame
+    },
+    { flush: 'post' },
+)
+
 defineExpose({
     el: computed(() => progressRef.value),
     getBoundingClientRect: () => progressRef.value?.getBoundingClientRect?.() ?? null,
@@ -64,56 +131,53 @@ defineExpose({
                     />
                 </div>
 
-                <transition name="player-fade">
+                <div
+                    v-show="showPreview"
+                    class="absolute bottom-full mb-2.5 -translate-x-1/2 pointer-events-none z-[9]"
+                    :style="{ left: `${hoverPreviewPosition}%` }"
+                >
                     <div
-                        v-if="isHovering && !isDragging && duration > 0"
-                        class="absolute bottom-full mb-2.5 -translate-x-1/2 pointer-events-none z-[9]"
-                        :style="{ left: `${hoverPreviewPosition}%` }"
+                        v-if="painted || fullFrameSrc"
+                        class="flex flex-col items-center"
+                        :style="{ width: `${thumbPreviewW}px` }"
                     >
                         <div
-                            v-if="activeThumbnail && activeThumbnailSrc"
-                            class="flex flex-col items-center"
-                            :style="{ width: `${thumbPreviewW}px` }"
+                            class="thumb-preview-frame relative overflow-hidden rounded-lg shadow-xl bg-black"
+                            :style="{ width: `${thumbPreviewW}px`, height: `${thumbPreviewH}px` }"
                         >
                             <div
-                                class="thumb-preview-frame relative overflow-hidden rounded-lg shadow-xl bg-black"
-                                :style="{ width: `${thumbPreviewW}px`, height: `${thumbPreviewH}px` }"
+                                v-if="painted"
+                                class="absolute overflow-hidden"
+                                :style="painted.viewport"
                             >
-                                <!-- Sprite crops need a raw <img> (custom left/top/size); full-frame uses AppImage. -->
-                                <div
-                                    v-if="thumbnailPreview"
-                                    class="absolute overflow-hidden"
-                                    :style="thumbnailPreview.viewport"
-                                >
-                                    <img
-                                        :src="activeThumbnailSrc"
-                                        class="absolute top-0 left-0 block max-w-none select-none"
-                                        :style="thumbnailPreview.image"
-                                        alt=""
-                                        draggable="false"
-                                    />
-                                </div>
-                                <AppImage
-                                    v-else
-                                    :src="activeThumbnailSrc"
+                                <img
+                                    :src="painted.src"
+                                    class="absolute left-0 top-0 block max-w-none select-none"
+                                    :style="painted.image"
                                     alt=""
-                                    class="absolute inset-0"
-                                    :placeholder="false"
-                                    :reveal="false"
-                                />
+                                    draggable="false"
+                                >
                             </div>
-                            <div class="mt-1.5 bg-black/70 backdrop-blur-md text-white px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap tabular-nums text-center">
-                                {{ formatTime(hoverPreviewTime) }}
-                            </div>
+                            <AppImage
+                                v-if="fullFrameSrc"
+                                :src="fullFrameSrc"
+                                alt=""
+                                class="absolute inset-0"
+                                :placeholder="false"
+                                :reveal="false"
+                            />
                         </div>
-                        <div
-                            v-else
-                            class="bg-black/70 backdrop-blur-md text-white px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap tabular-nums"
-                        >
+                        <div class="mt-1.5 bg-black/70 backdrop-blur-md text-white px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap tabular-nums text-center">
                             {{ formatTime(hoverPreviewTime) }}
                         </div>
                     </div>
-                </transition>
+                    <div
+                        v-else
+                        class="bg-black/70 backdrop-blur-md text-white px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap tabular-nums"
+                    >
+                        {{ formatTime(hoverPreviewTime) }}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -121,6 +185,4 @@ defineExpose({
 
 <style scoped>
 .thumb-preview-frame { clip-path: inset(0 round 0.5rem); }
-.player-fade-enter-active, .player-fade-leave-active { transition: opacity 0.3s ease; }
-.player-fade-enter-from, .player-fade-leave-to { opacity: 0; }
 </style>

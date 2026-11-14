@@ -7,7 +7,7 @@ Welcome to **AnimeTV**, a project designed for anime enthusiasts in Taiwan and H
 ## Features
 
 -   **Anime Metadata**: Fetches detailed information about various anime from [ani.gamer.com.tw](https://ani.gamer.com.tw).
--   **Video Streaming**: Streams from drop-in providers under `server/lib/videoProviders/sources/` — currently [anime1.me](https://anime1.me) (MP4).
+-   **Video Streaming**: Streams from drop-in providers under `server/lib/videoProviders/sources/` — [anime1.me](https://anime1.me) (MP4) and AniKoto / [anikototv.to](https://anikototv.to) (HLS via `proxy-video`).
 -   **User-Friendly Interface**: Built with Nuxt 4 for a seamless and responsive experience, including light / dark / system themes.
 -   **Browse & Search**: Weekday schedule, spotlight, genre themes, filters, pagination, and header search with suggestions.
 -   **Custom Video Player**: Theater mode, autoplay next episode, skip OP, playback speed, HLS quality picker, scrub thumbnails, fullscreen, and customizable keyboard shortcuts.
@@ -196,6 +196,7 @@ This project is licensed under the GPL 3.0 License. See the [LICENSE](LICENSE) f
 -   [Supabase](https://supabase.io) for the backend database services.
 -   [ani.gamer.com.tw](https://ani.gamer.com.tw) for anime metadata.
 -   [anime1.me](https://anime1.me) for video content.
+-   [Anivexa API](https://github.com/walterwhite-69/Anivexa-API) / AniKoto for HLS streaming reference.
 
 ## Disclaimer
 

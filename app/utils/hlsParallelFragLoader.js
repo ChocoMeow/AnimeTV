@@ -55,7 +55,11 @@ export function createParallelFragLoader(Hls, { minAhead = 1, maxAhead = 6, gapM
 
     function abortEntry(url, entry) {
         pending.delete(url)
-        entry.controller.abort()
+        try {
+            entry.controller.abort()
+        } catch {
+            /* AbortController.abort is sync-safe in browsers; ignore stubborn runtimes. */
+        }
     }
 
     function warm(frag, index) {
@@ -69,6 +73,8 @@ export function createParallelFragLoader(Hls, { minAhead = 1, maxAhead = 6, gapM
         pending.set(url, entry)
         inFlight++
 
+        // Prefetch-only promises must not rethrow AbortError — nothing awaits them
+        // until hls.js load() claims the entry, which would leave an unhandled rejection.
         entry.promise = fetch(url, { signal: controller.signal })
             .then(async (res) => {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -79,6 +85,7 @@ export function createParallelFragLoader(Hls, { minAhead = 1, maxAhead = 6, gapM
             })
             .catch((err) => {
                 dropIfCurrent(url, entry)
+                if (err?.name === 'AbortError' || controller.signal.aborted) return null
                 throw err
             })
             .finally(() => {
@@ -156,7 +163,10 @@ export function createParallelFragLoader(Hls, { minAhead = 1, maxAhead = 6, gapM
             entry.promise
                 .then((result) => {
                     dropIfCurrent(context.url, entry)
-                    if (this.stats.aborted) return
+                    if (!result || this.stats.aborted) {
+                        if (!this.stats.aborted) super.load(context, config, callbacks)
+                        return
+                    }
                     Object.assign(this.stats.loading, {
                         start: result.started,
                         first: result.started,

@@ -12,14 +12,16 @@ import {
     videoUpstreamHeaders,
 } from '~~/server/utils/videoUpstream'
 
-/** Cookie / non-CORS → sealed proxy URLs; CORS CDN with no cookie → absolute upstream. */
-function rewriteHlsPlaylist(body, playlistUrl, { proxyBase, cookie = '', exp, userId } = {}) {
+/** Cookie / referer / non-CORS → sealed proxy URLs; CORS CDN with no cookie → absolute upstream. */
+function rewriteHlsPlaylist(body, playlistUrl, { proxyBase, cookie = '', referer = '', exp, userId } = {}) {
     const baseUrl = new URL(playlistUrl)
-    const viaProxy = Boolean(cookie) || !isDirectHlsHost(baseUrl.hostname)
+    const viaProxy = Boolean(cookie) || Boolean(referer) || !isDirectHlsHost(baseUrl.hostname)
     const mapUri = (raw) => {
         const abs = new URL(raw, baseUrl).toString()
         if (!viaProxy) return abs
-        const t = sealMediaProxy({ url: abs, cookie, exp, userId })
+        // Always mark rewritten children as HLS parts — CDN segments are often extensionless
+        // and must not hit the progressive path (HEAD + Content-Length).
+        const t = sealMediaProxy({ url: abs, cookie, referer, hls: true, exp, userId })
         return `${proxyBase}?t=${encodeURIComponent(t)}`
     }
     return body.split(/\r?\n/).map((line) => {
@@ -72,14 +74,14 @@ function setHeaders(event, headers) {
     for (const [k, v] of Object.entries(headers)) setResponseHeader(event, k, v)
 }
 
-async function upstreamFetch(url, { method = 'GET', cookie, range, accept, signal, timeout = UPSTREAM_TIMEOUT }) {
+async function upstreamFetch(url, { method = 'GET', cookie, referer, range, accept, signal, timeout = UPSTREAM_TIMEOUT }) {
     const upstream = combinedSignal(signal, timeout)
     try {
         const res = await fetch(url, {
             method,
             redirect: 'follow',
             signal: upstream.signal,
-            headers: videoUpstreamHeaders(url, { cookie, accept, range }),
+            headers: videoUpstreamHeaders(url, { cookie, referer, accept, range }),
         })
         // Headers arrived — keep client abort, drop connect wall-clock so large bodies can finish.
         upstream.clearTimer()
@@ -138,11 +140,11 @@ export default defineEventHandler(async (event) => {
     try {
         // Auth via sealed media token (capability URL) — no session; needed for AirPlay-style clients.
         const { t, redirect: wantsRedirect } = getQuery(event)
-        const { url: videoUrl, cookie, exp, userId: uid } = openMediaProxy(typeof t === 'string' ? t : '')
+        const { url: videoUrl, cookie, referer, hls, exp, userId: uid } = openMediaProxy(typeof t === 'string' ? t : '')
         userId = uid
         const clientAbort = bindClientAbort(event)
 
-        if (wantsRedirect === 'true') return await handleRedirect(event, videoUrl, cookie, clientAbort.signal)
+        if (wantsRedirect === 'true') return await handleRedirect(event, videoUrl, cookie, referer, clientAbort.signal)
 
         let parsedUrl
         try {
@@ -152,13 +154,14 @@ export default defineEventHandler(async (event) => {
         }
 
         if (isHlsPlaylist(videoUrl)) {
-            return await handleM3u8(videoUrl, cookie, exp, userId, clientAbort.signal, event)
+            return await handleM3u8(videoUrl, cookie, referer, exp, userId, clientAbort.signal, event)
         }
-        if (isHlsSegment(videoUrl, parsedUrl.pathname)) {
+        // HLS playlist children (segments / keys / init) — including extensionless CDN URLs.
+        if (hls || isHlsSegment(videoUrl, parsedUrl.pathname)) {
             armProxySocketTimeout(event, clientAbort)
-            return await handleSegment(videoUrl, cookie, clientAbort.signal, event)
+            return await handleSegment(videoUrl, cookie, referer, clientAbort.signal, event)
         }
-        return await handleProgressive(videoUrl, cookie, clientAbort.signal, event)
+        return await handleProgressive(videoUrl, cookie, referer, clientAbort.signal, event)
     } catch (err) {
         // Client seek / skip / tab close cancels in-flight HLS segments — not a server fault.
         if (isAbortError(err)) return
@@ -173,12 +176,12 @@ export default defineEventHandler(async (event) => {
     }
 })
 
-async function handleProgressive(videoUrl, cookie, signal, event) {
-    const cacheKey = cookie ? `${videoUrl}\0${cookie}` : videoUrl
+async function handleProgressive(videoUrl, cookie, referer, signal, event) {
+    const cacheKey = cookie || referer ? `${videoUrl}\0${cookie}\0${referer}` : videoUrl
     let headInfo = metadataCache.get(cacheKey)
 
     if (!headInfo || Date.now() - headInfo.timestamp > METADATA_CACHE_TTL) {
-        headInfo = await getVideoInfo(videoUrl, cookie, signal)
+        headInfo = await getVideoInfo(videoUrl, cookie, referer, signal)
         if (headInfo.success) cacheHeadInfo(cacheKey, headInfo)
     }
 
@@ -225,11 +228,11 @@ async function handleProgressive(videoUrl, cookie, signal, event) {
         setResponseHeader(event, 'Content-Length', String(chunkSize))
     }
 
-    return sendStream(event, resilientRangeStream(videoUrl, cookie, start, end, signal))
+    return sendStream(event, resilientRangeStream(videoUrl, cookie, referer, start, end, signal))
 }
 
 /** One read per pull() so backpressure works (critical on low-RAM hosts). */
-function resilientRangeStream(url, cookie, start, end, signal) {
+function resilientRangeStream(url, cookie, referer, start, end, signal) {
     const total = end - start + 1
     let delivered = 0
     let cursor = start
@@ -243,6 +246,7 @@ function resilientRangeStream(url, cookie, start, end, signal) {
             try {
                 const res = await fetchWithRetry(url, {
                     cookie,
+                    referer,
                     signal,
                     range: `bytes=${cursor}-${end}`,
                     accept: 'video/*',
@@ -292,8 +296,8 @@ function resilientRangeStream(url, cookie, start, end, signal) {
     })
 }
 
-async function handleM3u8(playlistUrl, cookie, exp, userId, signal, event) {
-    const res = await fetchWithRetry(playlistUrl, { cookie, signal, accept: '*/*' })
+async function handleM3u8(playlistUrl, cookie, referer, exp, userId, signal, event) {
+    const res = await fetchWithRetry(playlistUrl, { cookie, referer, signal, accept: '*/*' })
     if (!res.ok) {
         throw createLoggedError(event, {
             statusCode: 502,
@@ -306,6 +310,7 @@ async function handleM3u8(playlistUrl, cookie, exp, userId, signal, event) {
     const out = rewriteHlsPlaylist(body, playlistUrl, {
         proxyBase: `${getRequestURL(event).origin}/api/proxy-video`,
         cookie,
+        referer,
         exp,
         userId,
     })
@@ -316,8 +321,8 @@ async function handleM3u8(playlistUrl, cookie, exp, userId, signal, event) {
     return out
 }
 
-async function handleSegment(segmentUrl, cookie, signal, event) {
-    const res = await fetchWithRetry(segmentUrl, { cookie, signal, accept: '*/*' })
+async function handleSegment(segmentUrl, cookie, referer, signal, event) {
+    const res = await fetchWithRetry(segmentUrl, { cookie, referer, signal, accept: '*/*' })
     if (!res.ok) {
         throw createLoggedError(event, {
             statusCode: res.status >= 400 ? res.status : 502,
@@ -345,9 +350,9 @@ async function handleSegment(segmentUrl, cookie, signal, event) {
     return sendStream(event, res.body)
 }
 
-async function handleRedirect(event, videoUrl, cookie, signal) {
+async function handleRedirect(event, videoUrl, cookie, referer, signal) {
     try {
-        const res = await fetchWithRetry(videoUrl, { cookie, signal, method: 'HEAD', accept: 'video/*' })
+        const res = await fetchWithRetry(videoUrl, { cookie, referer, signal, method: 'HEAD', accept: 'video/*' })
         if (!res.ok) {
             throw createLoggedError(event, {
                 statusCode: 502,
@@ -371,10 +376,11 @@ async function handleRedirect(event, videoUrl, cookie, signal) {
     }
 }
 
-async function getVideoInfo(videoUrl, cookie, signal) {
+async function getVideoInfo(videoUrl, cookie, referer, signal) {
     try {
         const res = await fetchWithRetry(videoUrl, {
             cookie,
+            referer,
             signal,
             method: 'HEAD',
             accept: 'video/*',

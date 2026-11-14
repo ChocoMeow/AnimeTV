@@ -1,7 +1,9 @@
 const VTT_CACHE_LIMIT = 20
-const SHEET_LIMIT = 48
+const SHEET_LIMIT = 96
 const THUMB_PREVIEW_W = 280
 const THUMB_PREVIEW_H = Math.round(THUMB_PREVIEW_W * 9 / 16)
+const WARM_RADIUS = 4
+
 function parseVttTimeToSeconds(timeStr) {
     const parts = String(timeStr).trim().split(':')
     if (parts.length === 3) {
@@ -47,7 +49,8 @@ function parseThumbnailsVtt(vttText) {
     for (const block of String(vttText || '').replace(/\r/g, '').split(/\n\s*\n/)) {
         const timeMatch = block.match(/((?:\d{2}:)?\d{2}:\d{2}\.\d{3})\s*-->\s*((?:\d{2}:)?\d{2}:\d{2}\.\d{3})/)
         if (!timeMatch) continue
-        const src = block.match(/((?:blob:|https?:)[^\s#]+)/i)?.[1]
+        // Absolute CDN URLs, blob: URLs, or same-origin proxied paths (/api/download-proxy?…).
+        const src = block.match(/((?:blob:|https?:|\/)[^\s#]+)/i)?.[1]
         const xywh = parseXywh(block)
         if (!src && !xywh) continue
         const seg = {
@@ -64,12 +67,8 @@ function parseThumbnailsVtt(vttText) {
 }
 
 /**
- * Seek-bar thumbnails. Sheet images are cached (never aborted on hover).
- * @param {{
- *   animeMeta: import('vue').Ref|import('vue').ComputedRef,
- *   previewWidth?: number,
- *   previewHeight?: number
- * }} options
+ * Seek-bar / episode-hover thumbnails. Sheets stay cached (never aborted on hover).
+ * @param {{ animeMeta: import('vue').Ref|import('vue').ComputedRef, previewWidth?: number, previewHeight?: number }} options
  */
 export function usePlayerThumbnails({
     animeMeta,
@@ -90,14 +89,9 @@ export function usePlayerThumbnails({
     const sheetSizesVersion = ref(0)
 
     const meta = computed(() => toValue(animeMeta) || {})
-    const videoId = computed(() => {
-        const id = meta.value.videoId
-        return id != null ? String(id).trim() || null : null
-    })
     const jpgUrl = computed(() => meta.value.thumbnailJpgUrl || null)
     const hasThumbnails = computed(() => segments.value.length > 0)
     const thumbnailDuration = computed(() => segments.value.at(-1)?.end || 0)
-
     const activeThumbnailSrc = computed(() => activeThumbnail.value?.src || jpgUrl.value || null)
 
     const thumbnailPreview = computed(() => {
@@ -105,11 +99,15 @@ export function usePlayerThumbnails({
         const seg = activeThumbnail.value
         if (!seg?.xywh) return null
         const src = seg.src || jpgUrl.value
-        const crop = seg.xywh
         const sheet = src ? sheetSizes.get(src) : null
+        const crop = seg.xywh
         if (!crop?.w || !crop?.h || !sheet?.w || !sheet?.h) return null
         return spritePreviewStyles(crop, sheet, previewWidth, previewHeight)
     })
+
+    function sheetUrl(seg) {
+        return seg?.src || jpgUrl.value || null
+    }
 
     function findAtTime(t) {
         const list = segments.value
@@ -126,11 +124,12 @@ export function usePlayerThumbnails({
         }
         if (ans < 0) return null
         const seg = list[ans]
-        return t >= seg.start && t <= seg.end ? seg : null
+        return t >= seg.start && t <= seg.end ? { seg, index: ans } : null
     }
 
     function preload(url) {
         if (!url) return null
+        if (sheetSizes.has(url)) return Promise.resolve(true)
         let p = sheets.get(url)
         if (p) return p
         p = new Promise((resolve) => {
@@ -139,39 +138,62 @@ export function usePlayerThumbnails({
                 if (img.naturalWidth > 0 && img.naturalHeight > 0) {
                     sheetSizes.set(url, { w: img.naturalWidth, h: img.naturalHeight })
                     sheetSizesVersion.value++
+                    resolve(true)
+                    return
                 }
-                resolve(true)
+                sheets.delete(url)
+                resolve(false)
             }
-            img.onerror = () => resolve(false)
+            img.onerror = () => {
+                sheets.delete(url)
+                resolve(false)
+            }
             img.src = url
         })
         sheets.set(url, p)
         while (sheets.size > SHEET_LIMIT) {
             const stale = sheets.keys().next().value
+            if (stale === wantSrc || stale === activeThumbnail.value?.src) break
             sheets.delete(stale)
             sheetSizes.delete(stale)
         }
         return p
     }
 
+    function applySegment(seg, src) {
+        if (seg.xywh && !sheetSizes.has(src)) return false
+        activeThumbnail.value = { ...seg, src }
+        return true
+    }
+
+    function warmAround(index) {
+        if (index < 0) return
+        for (let d = -WARM_RADIUS; d <= WARM_RADIUS; d++) {
+            preload(sheetUrl(segments.value[index + d]))
+        }
+    }
+
     function updateActiveThumbnailForTime(t) {
-        const seg = findAtTime(t)
-        if (!seg || seg === requestedSegment) return
+        const hit = findAtTime(t)
+        if (!hit) return
+        const { seg, index } = hit
+        const src = sheetUrl(seg)
+        if (seg === requestedSegment && activeThumbnail.value?.src === src) return
         requestedSegment = seg
-        const src = seg.src || jpgUrl.value
+
         if (!src) {
             activeThumbnail.value = seg.xywh ? seg : null
             return
         }
+
         wantSrc = src
-        // Warm current + nearby cues (same sheet is a cache hit).
-        const i = segments.value.indexOf(seg)
-        for (const j of [i - 1, i, i + 1]) {
-            const u = segments.value[j]?.src || jpgUrl.value
-            if (u) preload(u)
-        }
+        warmAround(index)
+        if (applySegment(seg, src)) return
+
+        // Keep prior frame until this sheet finishes decoding.
         preload(src)?.then((ok) => {
-            if (ok && wantSrc === src) activeThumbnail.value = { ...seg, src }
+            if (!ok || wantSrc !== src) return
+            applySegment(seg, src)
         })
     }
 
@@ -190,11 +212,12 @@ export function usePlayerThumbnails({
         try {
             if (typeof window === 'undefined') return
 
-            const inline = meta.value.thumbnailsVttText
-            let parsed = inline ? parseThumbnailsVtt(inline) : null
+            let parsed = meta.value.thumbnailsVttText
+                ? parseThumbnailsVtt(meta.value.thumbnailsVttText)
+                : null
             const url = meta.value.thumbnailsVttUrl
 
-            if (!parsed && videoId.value && url) {
+            if (!parsed && url) {
                 if (vttCache.has(url)) {
                     parsed = vttCache.get(url)
                 } else {
@@ -208,7 +231,16 @@ export function usePlayerThumbnails({
 
             if (id !== loadId) return
             segments.value = parsed || []
-            if (segments.value.length && jpgUrl.value) preload(jpgUrl.value)
+
+            // Prefetch unique sheets so scrubbing doesn't wait on first hover.
+            const seen = new Set()
+            for (const seg of segments.value) {
+                const u = sheetUrl(seg)
+                if (!u || seen.has(u) || seen.size >= SHEET_LIMIT) continue
+                seen.add(u)
+                preload(u)
+            }
+            if (jpgUrl.value) preload(jpgUrl.value)
         } catch {
             if (id === loadId) segments.value = []
         } finally {
@@ -217,7 +249,7 @@ export function usePlayerThumbnails({
     }
 
     watch(
-        [videoId, jpgUrl, () => meta.value.thumbnailsVttText, () => meta.value.thumbnailsVttUrl],
+        [jpgUrl, () => meta.value.thumbnailsVttText, () => meta.value.thumbnailsVttUrl],
         load,
         { immediate: true },
     )

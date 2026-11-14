@@ -253,7 +253,6 @@ export default defineNuxtConfig({
                     "'self'",
                     'https://*.supabase.co',
                     'wss://*.supabase.co',
-                    'https://*.anime1.me',
                     'https://fonts.googleapis.com',
                     'https://fonts.gstatic.com',
                 ],

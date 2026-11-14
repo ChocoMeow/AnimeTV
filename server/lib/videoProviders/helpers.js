@@ -4,9 +4,9 @@ export function normalizeEpisodeId(id) {
     return /^\d+$/.test(id) ? String(Number(id)) : id
 }
 
-export function episodeRecord(token, { videoId = null, thumbJpg = null, thumbVtt = null } = {}) {
+/** List-time episode fields. Provider video ids stay out of the client JSON. */
+export function episodeRecord(token, { thumbJpg = null, thumbVtt = null } = {}) {
     return {
-        video_id: videoId,
         token,
         thumbnails_jpg_url: thumbJpg,
         thumbnails_vtt_url: thumbVtt,
