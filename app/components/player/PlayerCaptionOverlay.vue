@@ -27,9 +27,9 @@ const clampPct = (n) => Math.min(95, Math.max(5, n))
 const fontSize = computed(() => `${fontSizePx(playerBox.value, captionStyle.value.size)}px`)
 
 const autoY = computed(() => {
-    if (!props.controlsVisible) return DEFAULT_Y
     const h = playerBox.value.height || 360
-    return clampPct(DEFAULT_Y - (CONTROLS_LIFT_PX / h) * 100)
+    const lift = props.controlsVisible ? CONTROLS_LIFT_PX : 0
+    return clampPct(DEFAULT_Y - (lift / h) * 100)
 })
 
 const displayPos = computed(() => {

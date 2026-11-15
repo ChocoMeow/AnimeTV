@@ -7,6 +7,7 @@
  */
 import crypto from 'node:crypto'
 import vm from 'node:vm'
+import { CAPTION_CANONICAL, resolveCaptionSrclang } from '#shared/utils/aiCaptions'
 import { getRequestLogger } from '~~/server/utils/logger'
 import {
     decodePrefixedToken,
@@ -303,9 +304,9 @@ async function extractMegaPlayDetails(embedUrl, { fetchImpl = fetch, userAgent =
 
 /* ─── AniKoto site client ──────────────────────────────────────────── */
 
+/** European codes local; TW / CN / en from shared CAPTION_CANONICAL. */
 const LANG_MAP = Object.freeze({
-    en: 'en',
-    english: 'en',
+    ...CAPTION_CANONICAL,
     ja: 'ja',
     japanese: 'ja',
     fr: 'fr',
@@ -316,26 +317,10 @@ const LANG_MAP = Object.freeze({
     spanish: 'es',
     pt: 'pt',
     portuguese: 'pt',
-    tw: 'TW',
-    'zh-tw': 'TW',
-    'zh-hant': 'TW',
-    'zh-hk': 'TW',
-    traditional: 'TW',
-    cn: 'CN',
-    'zh-cn': 'CN',
-    'zh-hans': 'CN',
-    simplified: 'CN',
 })
 
 /** Prefer full-label hints so "Chinese (Traditional)" ≠ "Chinese (Simplified)". */
-function srclangFromLabel(label) {
-    const l = String(label || '').toLowerCase()
-    if (/traditional|zh-hant|zh-tw|zh-hk|繁體|繁体/.test(l)) return 'TW'
-    if (/simplified|zh-hans|zh-cn|简体|簡體/.test(l)) return 'CN'
-    if (/\bchinese\b|中文/.test(l)) return 'TW' // bare "Chinese" → TW default for this audience
-    const key = l.split(/[\s(/_-]+/).filter(Boolean)[0] || ''
-    return LANG_MAP[key] || LANG_MAP[l] || key || 'en'
-}
+const srclangFromLabel = (label) => resolveCaptionSrclang(label, LANG_MAP)
 
 function decodeEntities(s = '') {
     return s

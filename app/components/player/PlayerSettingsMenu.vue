@@ -41,6 +41,8 @@ const menuItemClass = `${rowClass} justify-between gap-3`
 const backClass = `${rowClass} gap-1`
 const mutedClass = 'text-xs text-gray-500 dark:text-white/55'
 const selectedClass = 'bg-black/5 dark:bg-white/10 font-medium'
+/** Extra bottom inset on caption pages inside the mobile drawer. */
+const drawerSafeClass = computed(() => (isNarrow.value ? 'pb-[env(safe-area-inset-bottom,0px)]' : undefined))
 const switchTrackClass = 'relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200 ease-in-out'
 const switchThumbClass =
     'absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white dark:bg-gray-950 shadow transition-transform duration-200 ease-in-out'
@@ -96,18 +98,6 @@ function thumbClass(on) {
                                 </span>
                             </button>
                             <button
-                                v-if="hasCaptions"
-                                type="button"
-                                :class="menuItemClass"
-                                @click.stop="emit('open-page', 'captions')"
-                            >
-                                <span>字幕</span>
-                                <span class="inline-flex items-center gap-0.5 leading-none" :class="mutedClass">
-                                    {{ captionLabel }}
-                                    <span class="material-symbols-rounded text-base leading-none">chevron_right</span>
-                                </span>
-                            </button>
-                            <button
                                 type="button"
                                 role="switch"
                                 :aria-checked="theaterMode"
@@ -117,6 +107,18 @@ function thumbClass(on) {
                                 <span>劇院模式</span>
                                 <span :class="trackClass(theaterMode)" aria-hidden="true">
                                     <span :class="thumbClass(theaterMode)" />
+                                </span>
+                            </button>
+                            <button
+                                v-if="hasCaptions"
+                                type="button"
+                                :class="menuItemClass"
+                                @click.stop="emit('open-page', 'captions')"
+                            >
+                                <span>字幕</span>
+                                <span class="inline-flex items-center gap-0.5 leading-none" :class="mutedClass">
+                                    {{ captionLabel }}
+                                    <span class="material-symbols-rounded text-base leading-none">chevron_right</span>
                                 </span>
                             </button>
                             <button type="button" :class="menuItemClass" @click.stop="emit('open-page', 'speed')">
@@ -179,149 +181,153 @@ function thumbClass(on) {
                     </template>
 
                     <template v-else-if="page === 'captions'">
-                        <button type="button" :class="backClass" @click="emit('update:page', 'main')">
-                            <span class="material-symbols-rounded text-lg">chevron_left</span>
-                            <span>字幕</span>
-                        </button>
-                        <button
-                            type="button"
-                            :class="[menuItemClass, !selectedCaptionLang ? selectedClass : '']"
-                            @click="emit('set-caption', null)"
-                        >
-                            <span>關閉</span>
-                            <span v-if="!selectedCaptionLang" class="material-symbols-rounded text-base">check</span>
-                        </button>
-                        <button
-                            v-for="cap in captionTracks"
-                            :key="cap.srclang"
-                            type="button"
-                            :class="[menuItemClass, selectedCaptionLang === cap.srclang ? selectedClass : '']"
-                            @click="emit('set-caption', cap.srclang)"
-                        >
-                            <span>{{ cap.label }}</span>
-                            <span
-                                v-if="selectedCaptionLang === cap.srclang"
-                                class="material-symbols-rounded text-base"
-                            >check</span>
-                        </button>
-                        <button
-                            v-for="ai in pendingAiLangs"
-                            :key="`ai:${ai.srclang}`"
-                            type="button"
-                            :class="menuItemClass"
-                            :disabled="Boolean(aiLoadingLang)"
-                            @click="emit('request-ai-caption', ai.srclang)"
-                        >
-                            <span>
-                                {{ ai.label }} (AI)
-                                <span v-if="aiLoadingLang === ai.srclang" :class="mutedClass"> · 生成中…</span>
-                            </span>
-                            <span
-                                class="material-symbols-rounded text-base"
-                                :class="aiLoadingLang === ai.srclang ? 'animate-spin' : mutedClass"
-                            >{{ aiLoadingLang === ai.srclang ? 'progress_activity' : 'auto_awesome' }}</span>
-                        </button>
-                        <p v-if="aiError" class="px-3.5 py-1.5 text-xs text-red-600 dark:text-red-400">{{ aiError }}</p>
+                        <div :class="drawerSafeClass">
+                            <button type="button" :class="backClass" @click="emit('update:page', 'main')">
+                                <span class="material-symbols-rounded text-lg">chevron_left</span>
+                                <span>字幕</span>
+                            </button>
+                            <button
+                                type="button"
+                                :class="[menuItemClass, !selectedCaptionLang ? selectedClass : '']"
+                                @click="emit('set-caption', null)"
+                            >
+                                <span>關閉</span>
+                                <span v-if="!selectedCaptionLang" class="material-symbols-rounded text-base">check</span>
+                            </button>
+                            <button
+                                v-for="cap in captionTracks"
+                                :key="cap.srclang"
+                                type="button"
+                                :class="[menuItemClass, selectedCaptionLang === cap.srclang ? selectedClass : '']"
+                                @click="emit('set-caption', cap.srclang)"
+                            >
+                                <span>{{ cap.label }}</span>
+                                <span
+                                    v-if="selectedCaptionLang === cap.srclang"
+                                    class="material-symbols-rounded text-base"
+                                >check</span>
+                            </button>
+                            <button
+                                v-for="ai in pendingAiLangs"
+                                :key="`ai:${ai.srclang}`"
+                                type="button"
+                                :class="menuItemClass"
+                                :disabled="Boolean(aiLoadingLang)"
+                                @click="emit('request-ai-caption', ai.srclang)"
+                            >
+                                <span>
+                                    {{ ai.label }}（AI）
+                                    <span v-if="aiLoadingLang === ai.srclang" :class="mutedClass"> · 生成中…</span>
+                                </span>
+                                <span
+                                    class="material-symbols-rounded text-base"
+                                    :class="aiLoadingLang === ai.srclang ? 'animate-spin' : mutedClass"
+                                >{{ aiLoadingLang === ai.srclang ? 'progress_activity' : 'auto_awesome' }}</span>
+                            </button>
+                            <p v-if="aiError" class="px-3.5 py-1.5 text-xs text-red-600 dark:text-red-400">{{ aiError }}</p>
 
-                        <div class="mx-3.5 my-1.5 border-t border-black/10 dark:border-white/10" />
+                            <div class="mx-3.5 my-1.5 border-t border-black/10 dark:border-white/10" />
 
-                        <button
-                            type="button"
-                            :class="menuItemClass"
-                            @click.stop="emit('open-page', 'caption-style')"
-                        >
-                            <span>樣式</span>
-                            <span class="material-symbols-rounded text-base leading-none" :class="mutedClass">chevron_right</span>
-                        </button>
+                            <button
+                                type="button"
+                                :class="menuItemClass"
+                                @click.stop="emit('open-page', 'caption-style')"
+                            >
+                                <span>樣式</span>
+                                <span class="material-symbols-rounded text-base leading-none" :class="mutedClass">chevron_right</span>
+                            </button>
+                        </div>
                     </template>
 
                     <template v-else-if="page === 'caption-style'">
-                        <button type="button" :class="backClass" @click="emit('update:page', 'captions')">
-                            <span class="material-symbols-rounded text-lg">chevron_left</span>
-                            <span>樣式</span>
-                        </button>
+                        <div :class="drawerSafeClass">
+                            <button type="button" :class="backClass" @click="emit('update:page', 'captions')">
+                                <span class="material-symbols-rounded text-lg">chevron_left</span>
+                                <span>樣式</span>
+                            </button>
 
-                        <div class="px-3.5 py-2">
-                            <p class="mb-1.5" :class="mutedClass">文字大小</p>
-                            <div class="flex gap-1">
-                                <button
-                                    v-for="s in CAPTION_SIZES"
-                                    :key="s.id"
-                                    type="button"
-                                    class="flex-1 rounded-lg py-1.5 text-xs transition-colors"
-                                    :class="captionStyle.size === s.id
-                                        ? 'bg-black/10 dark:bg-white/20 font-medium text-gray-900 dark:text-white'
-                                        : 'bg-black/5 dark:bg-white/5 text-gray-700 dark:text-white hover:bg-black/10 dark:hover:bg-white/10'"
-                                    @click="patch({ size: s.id })"
-                                >
-                                    {{ s.label }}
-                                </button>
-                            </div>
-                        </div>
-
-                        <button
-                            type="button"
-                            role="switch"
-                            :aria-checked="captionStyle.background"
-                            :class="menuItemClass"
-                            @click="patch({ background: !captionStyle.background })"
-                        >
-                            <span>背景</span>
-                            <span :class="trackClass(captionStyle.background)" aria-hidden="true">
-                                <span :class="thumbClass(captionStyle.background)" />
-                            </span>
-                        </button>
-
-                        <div class="px-3.5 py-2 space-y-3">
-                            <div>
-                                <p class="mb-1.5" :class="mutedClass">文字顏色</p>
-                                <div class="flex flex-wrap gap-2">
+                            <div class="px-3.5 py-2">
+                                <p class="mb-1.5" :class="mutedClass">文字大小</p>
+                                <div class="flex gap-1">
                                     <button
-                                        v-for="c in CAPTION_COLORS"
-                                        :key="c.id"
+                                        v-for="s in CAPTION_SIZES"
+                                        :key="s.id"
                                         type="button"
-                                        class="w-8 h-8 rounded-full border-2 transition-transform"
-                                        :class="captionStyle.color === c.id
-                                            ? 'border-gray-900 dark:border-white scale-110'
-                                            : 'border-black/20 dark:border-white/20'"
-                                        :style="{ backgroundColor: c.id }"
-                                        :title="c.label"
-                                        @click="patch({ color: c.id })"
+                                        class="flex-1 rounded-lg py-1.5 text-xs transition-colors"
+                                        :class="captionStyle.size === s.id
+                                            ? 'bg-black/10 dark:bg-white/20 font-medium text-gray-900 dark:text-white'
+                                            : 'bg-black/5 dark:bg-white/5 text-gray-700 dark:text-white hover:bg-black/10 dark:hover:bg-white/10'"
+                                        @click="patch({ size: s.id })"
+                                    >
+                                        {{ s.label }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                role="switch"
+                                :aria-checked="captionStyle.background"
+                                :class="menuItemClass"
+                                @click="patch({ background: !captionStyle.background })"
+                            >
+                                <span>背景</span>
+                                <span :class="trackClass(captionStyle.background)" aria-hidden="true">
+                                    <span :class="thumbClass(captionStyle.background)" />
+                                </span>
+                            </button>
+
+                            <div class="px-3.5 py-2 space-y-3">
+                                <div>
+                                    <p class="mb-1.5" :class="mutedClass">文字顏色</p>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button
+                                            v-for="c in CAPTION_COLORS"
+                                            :key="c.id"
+                                            type="button"
+                                            class="w-8 h-8 rounded-full border-2 transition-transform"
+                                            :class="captionStyle.color === c.id
+                                                ? 'border-gray-900 dark:border-white scale-110'
+                                                : 'border-black/20 dark:border-white/20'"
+                                            :style="{ backgroundColor: c.id }"
+                                            :title="c.label"
+                                            @click="patch({ color: c.id })"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="flex items-center justify-between mb-1.5">
+                                        <p :class="mutedClass">不透明度</p>
+                                        <span class="tabular-nums" :class="mutedClass">{{ Math.round(captionStyle.opacity * 100) }}%</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0.3"
+                                        max="1"
+                                        step="0.05"
+                                        class="w-full accent-gray-900 dark:accent-white"
+                                        :value="captionStyle.opacity"
+                                        @input="patch({ opacity: Number($event.target.value) })"
                                     />
                                 </div>
-                            </div>
 
-                            <div>
-                                <div class="flex items-center justify-between mb-1.5">
-                                    <p :class="mutedClass">不透明度</p>
-                                    <span class="tabular-nums" :class="mutedClass">{{ Math.round(captionStyle.opacity * 100) }}%</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0.3"
-                                    max="1"
-                                    step="0.05"
-                                    class="w-full accent-gray-900 dark:accent-white"
-                                    :value="captionStyle.opacity"
-                                    @input="patch({ opacity: Number($event.target.value) })"
-                                />
+                                <button
+                                    v-if="hasCustomPos"
+                                    type="button"
+                                    class="w-full rounded-lg py-2 text-sm text-gray-600 dark:text-white/80 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                                    @click="resetPos"
+                                >
+                                    重設位置
+                                </button>
+                                <button
+                                    type="button"
+                                    class="w-full rounded-lg py-2 text-sm text-gray-600 dark:text-white/80 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                                    @click="resetStyle"
+                                >
+                                    重設樣式
+                                </button>
                             </div>
-
-                            <button
-                                v-if="hasCustomPos"
-                                type="button"
-                                class="w-full rounded-lg py-2 text-sm text-gray-600 dark:text-white/80 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-                                @click="resetPos"
-                            >
-                                重設位置
-                            </button>
-                            <button
-                                type="button"
-                                class="w-full rounded-lg py-2 text-sm text-gray-600 dark:text-white/80 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-                                @click="resetStyle"
-                            >
-                                重設樣式
-                            </button>
                         </div>
                     </template>
                 </div>

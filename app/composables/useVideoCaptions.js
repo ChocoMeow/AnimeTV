@@ -1,54 +1,69 @@
-import { aiCaptionLang } from '#shared/utils/aiCaptions'
+import {
+    aiCaptionLang,
+    captionDisplayLabel,
+    isEnCaptionCode,
+    isEnCaptionTrack,
+    isTwCaptionTrack,
+    normCaptionCode,
+    pickPreferredCaptionLang,
+} from '#shared/utils/aiCaptions'
 
 const LANG_KEY = 'videoCaptionLang'
 const LAST_KEY = 'videoCaptionLangLast'
 const OFF = 'off'
 const AI_POLL_MS = 4_000
 const AI_POLL_MAX_MS = 6 * 60_000
+const VTT_TYPE = 'text/vtt;charset=utf-8'
 
-function storageGet(key) {
-    try { return localStorage.getItem(key) } catch { return null }
-}
-function storageSet(key, value) {
-    try { localStorage.setItem(key, value) } catch { /* ignore */ }
-}
+const storageGet = (key) => { try { return localStorage.getItem(key) } catch { return null } }
+const storageSet = (key, value) => { try { localStorage.setItem(key, value) } catch { /* ignore */ } }
+const sameLang = (a, b) => normCaptionCode(a) === normCaptionCode(b)
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+const findMeta = (tracks, lang) => tracks.find((t) => sameLang(t.srclang, lang))
 
 function normalizeList(raw) {
     if (!Array.isArray(raw)) return []
     return raw
         .filter((c) => c?.srclang && (c?.src || c?.vttText))
-        .map((c) => ({
-            srclang: String(c.srclang),
-            label: String(c.label || c.srclang),
-            ...(c.vttText ? { vttText: String(c.vttText) } : { src: String(c.src) }),
-        }))
+        .map((c) => {
+            const srclang = String(c.srclang)
+            return {
+                srclang,
+                label: captionDisplayLabel(srclang, c.label),
+                ...(c.vttText ? { vttText: String(c.vttText) } : { src: String(c.src) }),
+            }
+        })
 }
 
 function pickLang(tracks, allowOff = true) {
     if (!tracks.length) return null
     const saved = storageGet(LANG_KEY)
     if (allowOff && saved === OFF) return null
-    if (saved && saved !== OFF && tracks.some((t) => t.srclang === saved)) return saved
-    const last = storageGet(LAST_KEY)
-    if (last && tracks.some((t) => t.srclang === last)) return last
-    return tracks.find((t) => t.srclang === 'TW')?.srclang || tracks[0].srclang
+    if (saved && saved !== OFF) {
+        const hit = findMeta(tracks, saved)
+        if (hit) return hit.srclang
+    }
+    const last = findMeta(tracks, storageGet(LAST_KEY))?.srclang
+    // Remembered English loses to 繁中 when available.
+    if (last && !(isEnCaptionCode(last) && tracks.some(isTwCaptionTrack))) return last
+    return pickPreferredCaptionLang(tracks) // 繁中 → en → first
 }
 
-/** Prefer English upstream track as AI translation source. */
 function pickAiSourceTrack(tracks, targetLang) {
-    const candidates = tracks.filter((t) => t?.src && t.srclang !== targetLang)
-    return candidates.find((t) => String(t.srclang).toLowerCase() === 'en') || candidates[0] || null
+    const candidates = tracks.filter((t) => t?.src && !sameLang(t.srclang, targetLang))
+    return candidates.find(isEnCaptionTrack) || candidates[0] || null
 }
 
 function cueText(cue) {
     return String(cue?.text || '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/?[^>]+>/g, '').trim()
 }
 
-/** External / inline WebVTT captions — materialize only the selected language. */
+/** Materialize the selected WebVTT language into a blob URL + custom overlay text. */
 export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeToken, notify, onCaptionAdded }) {
     const baseTracks = computed(() => normalizeList(toValue(captions)))
-    /** Optimistic AI tracks until parent merges into `captions`. */
+    /** Optimistic AI tracks until the parent merges them into `captions`. */
     const localExtras = ref([])
+
     const available = computed(() => {
         const seen = new Set()
         const out = []
@@ -66,8 +81,8 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
             .map((code) => aiCaptionLang(code))
             .filter((m) => m && !have.has(m.srclang))
     })
-    const hasCaptions = computed(() => available.value.length > 0 || pendingAiLangs.value.length > 0)
 
+    const hasCaptions = computed(() => available.value.length > 0 || pendingAiLangs.value.length > 0)
     const tracks = ref([])
     const selectedLang = ref(null)
     const activeCaptionText = ref('')
@@ -75,7 +90,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
     const aiError = ref('')
     const captionLabel = computed(() => {
         if (!selectedLang.value) return '關閉'
-        return available.value.find((c) => c.srclang === selectedLang.value)?.label || selectedLang.value
+        return findMeta(available.value, selectedLang.value)?.label || selectedLang.value
     })
 
     const cache = new Map()
@@ -89,13 +104,19 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         cache.clear()
     }
 
+    function clearCueListeners() {
+        const video = videoRef.value
+        if (!onCueChange || !video?.textTracks) return
+        for (const t of video.textTracks) t.removeEventListener('cuechange', onCueChange)
+    }
+
     function syncCues() {
         const video = videoRef.value
         const lang = selectedLang.value
         activeCaptionText.value = ''
         if (!video?.textTracks || !lang) return
         for (const track of video.textTracks) {
-            if (track.language !== lang) continue
+            if (!sameLang(track.language, lang)) continue
             const cues = track.activeCues
             if (cues?.length) activeCaptionText.value = Array.from(cues).map(cueText).filter(Boolean).join('\n')
             return
@@ -105,14 +126,13 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
     function applyModes() {
         const video = videoRef.value
         if (!video?.textTracks) return
-        if (onCueChange) {
-            for (const t of video.textTracks) t.removeEventListener('cuechange', onCueChange)
-        }
+        clearCueListeners()
         onCueChange = syncCues
         const lang = selectedLang.value
         for (const track of video.textTracks) {
             if (track.kind !== 'subtitles' && track.kind !== 'captions') continue
-            track.mode = lang && track.language === lang ? 'hidden' : 'disabled'
+            // `hidden` = cues for JS only. Safari may still paint — VideoPlayer CSS hides native cues.
+            track.mode = lang && sameLang(track.language, lang) ? 'hidden' : 'disabled'
             track.addEventListener('cuechange', onCueChange)
         }
         syncCues()
@@ -120,19 +140,20 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
 
     async function ensure(lang) {
         if (!lang || cache.has(lang)) return
-        const meta = available.value.find((t) => t.srclang === lang)
+        const meta = findMeta(available.value, lang)
         if (!meta) return
         const g = gen
         try {
+            let blob
             if (meta.vttText) {
-                const url = URL.createObjectURL(new Blob([meta.vttText], { type: 'text/vtt;charset=utf-8' }))
-                if (g !== gen) return URL.revokeObjectURL(url)
-                cache.set(lang, url)
-                return
+                blob = new Blob([meta.vttText], { type: VTT_TYPE })
+            } else {
+                const res = await fetch(meta.src)
+                if (!res.ok || g !== gen) return
+                blob = await res.blob()
             }
-            const res = await fetch(meta.src)
-            if (!res.ok || g !== gen) return
-            const url = URL.createObjectURL(await res.blob())
+            if (g !== gen) return
+            const url = URL.createObjectURL(blob)
             if (g !== gen) return URL.revokeObjectURL(url)
             cache.set(lang, url)
         } catch { /* skip */ }
@@ -146,7 +167,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         } else {
             await ensure(lang)
             const src = cache.get(lang)
-            const meta = available.value.find((t) => t.srclang === lang)
+            const meta = findMeta(available.value, lang)
             tracks.value = src && meta ? [{ srclang: meta.srclang, label: meta.label, src }] : []
         }
         await nextTick()
@@ -161,10 +182,8 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
             storageSet(LANG_KEY, OFF)
         }
         show(lang || null)
-        notify?.(
-            `字幕 ${lang ? (available.value.find((c) => c.srclang === lang)?.label || lang) : '關閉'}`,
-            lang ? 'closed_caption' : 'closed_caption_disabled',
-        )
+        const name = lang ? (findMeta(available.value, lang)?.label || lang) : '關閉'
+        notify?.(`字幕 ${name}`, lang ? 'closed_caption' : 'closed_caption_disabled')
     }
 
     function toggleCaptions() {
@@ -176,7 +195,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         const meta = aiCaptionLang(lang)
         const token = String(toValue(episodeToken) || '').trim()
         if (!meta || !token || aiLoadingLang.value) return false
-        if (available.value.some((t) => t.srclang === meta.srclang)) {
+        if (findMeta(available.value, meta.srclang)) {
             setCaptionLang(meta.srclang)
             return true
         }
@@ -190,6 +209,8 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
 
         aiLoadingLang.value = meta.srclang
         aiError.value = ''
+        const g = gen
+        const startedAt = Date.now()
         const req = {
             method: 'POST',
             timeout: 30_000,
@@ -200,25 +221,25 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
                 sourceLang: source.srclang,
             },
         }
-        const g = gen
-        const startedAt = Date.now()
+
         try {
-            // Server translates in the background; poll until the cached caption is ready.
+            // Server translates in the background; poll until cached.
             let res = await $fetch('/api/caption-ai', req)
             while (res?.status === 'pending') {
                 if (Date.now() - startedAt > AI_POLL_MAX_MS) throw new Error('AI 字幕產生逾時，請稍後再試')
-                await new Promise((r) => setTimeout(r, AI_POLL_MS))
-                if (g !== gen) return false // episode changed
+                await sleep(AI_POLL_MS)
+                if (g !== gen) return false
                 res = await $fetch('/api/caption-ai', req)
             }
             const caption = res?.caption
             if (!caption?.vttText || !caption?.srclang) throw new Error('empty caption')
+            const srclang = String(caption.srclang)
             const track = {
-                srclang: String(caption.srclang),
-                label: String(caption.label || caption.srclang),
+                srclang,
+                label: captionDisplayLabel(srclang, caption.label),
                 vttText: String(caption.vttText),
             }
-            if (!localExtras.value.some((t) => t.srclang === track.srclang)) {
+            if (!findMeta(localExtras.value, track.srclang)) {
                 localExtras.value = [...localExtras.value, track]
             }
             onCaptionAdded?.(track)
@@ -245,10 +266,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
 
     onScopeDispose(() => {
         gen++
-        const video = videoRef.value
-        if (onCueChange && video?.textTracks) {
-            for (const t of video.textTracks) t.removeEventListener('cuechange', onCueChange)
-        }
+        clearCueListeners()
         revokeCache()
     })
 

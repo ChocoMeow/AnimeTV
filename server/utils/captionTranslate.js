@@ -8,7 +8,7 @@
 import { createHash } from 'node:crypto'
 import { createError } from 'h3'
 import { serverSupabaseServiceRole } from '#supabase/server'
-import { AI_CAPTION_LANGS, aiCaptionLang } from '#shared/utils/aiCaptions'
+import { AI_CAPTION_LANGS, CAPTION_EN, aiCaptionLang, trackMatchesAiLang } from '#shared/utils/aiCaptions'
 import { getProvider } from '~~/server/lib/videoProviders'
 import { completeAiChat } from '~~/server/utils/aiAgent'
 import { moduleLogger } from '~~/server/utils/logger'
@@ -34,20 +34,12 @@ let nextAiSlot = 0
 
 const sha = (t) => createHash('sha256').update(String(t || '')).digest('hex')
 const alive = (exp) => !exp || Date.parse(exp) > Date.now()
-const normLang = (s) => String(s || '').trim().replace(/_/g, '-').toLowerCase()
 const fail = (statusCode, statusMessage, message) => createError({ statusCode, statusMessage, message })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const preview = (s) => String(s || '').replace(/\s+/g, ' ').slice(0, 160)
 
 function isTimeoutErr(err) {
     return err?.name === 'TimeoutError' || err?.code === 23 || /timed? out/i.test(String(err?.message || ''))
-}
-
-function trackMatchesTarget(track, langDef) {
-    const n = normLang(track?.srclang)
-    if (!n) return false
-    if (n === normLang(langDef.srclang)) return true
-    return (langDef.aliases || []).some((a) => n === String(a).toLowerCase())
 }
 
 export function providerSupportsAiCaptions(source) {
@@ -62,7 +54,7 @@ export function availableAiCaptionLangs(captions, { source } = {}) {
     if (!list.length) return []
     return Object.keys(AI_CAPTION_LANGS).filter((code) => {
         const def = AI_CAPTION_LANGS[code]
-        return !list.some((c) => trackMatchesTarget(c, def))
+        return !list.some((c) => trackMatchesAiLang(c, def))
     })
 }
 
@@ -164,25 +156,26 @@ async function translateIds(items, { promptName, ...meta }) {
     ]
 
     let useThinking = true
+    async function callAi() {
+        try {
+            return await completeAiChat({
+                messages,
+                ...(useThinking ? { reasoningEffort: 'low' } : {}),
+            })
+        } catch (err) {
+            if (err?.statusCode === 400 && useThinking) {
+                useThinking = false
+                return callAi()
+            }
+            throw err
+        }
+    }
+
     let lastErr = null
     for (let attempt = 1; attempt <= AI_BUSY_ATTEMPTS; attempt++) {
         await waitAiSlot()
         try {
-            let data
-            try {
-                data = await completeAiChat({
-                    messages,
-                    ...(useThinking ? { reasoningEffort: 'low' } : {}),
-                })
-            } catch (err) {
-                if (err?.statusCode === 400 && useThinking) {
-                    useThinking = false
-                    data = await completeAiChat({ messages })
-                } else {
-                    throw err
-                }
-            }
-
+            const data = await callAi()
             const map = parseLines(data?.choices?.[0]?.message?.content, validIds)
             if (map.size) {
                 if (map.size < validIds.size) {
@@ -190,8 +183,9 @@ async function translateIds(items, { promptName, ...meta }) {
                 }
                 return map
             }
+            // Don't retry empty — missing-id pass / source fallback handles it.
             log.warn({ ...meta, attempt, preview: preview(data?.choices?.[0]?.message?.content) }, 'AI caption empty parse')
-            return new Map() // don't retry empty — missing-id pass / source fallback handles it
+            return new Map()
         } catch (err) {
             lastErr = err
             const status = isTimeoutErr(err) ? 408 : err?.statusCode || 0
@@ -301,7 +295,7 @@ async function runJob(client, { media, sourceId, ep, sourceLang, langDef }) {
         {
             source_id: sourceId,
             episode_number: ep,
-            source_lang: sourceLang || 'en',
+            source_lang: sourceLang || CAPTION_EN.srclang,
             target_lang: langDef.srclang,
             source_vtt_hash: sha(`v${TRANSLATOR_VERSION}:${sourceVtt}`),
             vtt_text: vttText,
@@ -322,7 +316,7 @@ export async function generateAiCaption(event, {
     sourceId,
     episode,
     sourceSrc,
-    sourceLang = 'en',
+    sourceLang = CAPTION_EN.srclang,
     userId,
     targetLang,
 } = {}) {

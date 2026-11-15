@@ -1,6 +1,9 @@
+import { CAPTION_EN } from '#shared/utils/aiCaptions'
 import { getRequestLogger, logError } from '~~/server/utils/logger'
 import { generateAiCaption } from '~~/server/utils/captionTranslate'
 import { openOwnedEpisodeToken } from '~~/server/utils/mediaTokens'
+
+const str = (v) => (typeof v === 'string' ? v.trim() : '')
 
 /**
  * On-demand AI caption — body `{ token, lang, sourceSrc, sourceLang? }`.
@@ -10,10 +13,10 @@ export default defineEventHandler(async (event) => {
     const userId = (await authUser(event)).sub
     const log = getRequestLogger(event)
     const body = await readBody(event).catch(() => ({}))
-    const token = typeof body?.token === 'string' ? body.token.trim() : ''
-    const lang = typeof body?.lang === 'string' ? body.lang.trim() : ''
-    const sourceSrc = typeof body?.sourceSrc === 'string' ? body.sourceSrc.trim() : ''
-    const sourceLang = typeof body?.sourceLang === 'string' ? body.sourceLang.trim() : 'en'
+    const token = str(body?.token)
+    const lang = str(body?.lang)
+    const sourceSrc = str(body?.sourceSrc)
+    const sourceLang = str(body?.sourceLang) || CAPTION_EN.srclang
 
     if (!token) throw createError({ statusCode: 400, statusMessage: 'Missing episode token', message: '缺少集數憑證。' })
     if (!lang) throw createError({ statusCode: 400, statusMessage: 'Missing lang', message: '請指定字幕語言。' })
@@ -33,9 +36,8 @@ export default defineEventHandler(async (event) => {
         if (result.caption) log.info({ source: sealed.source, episode: sealed.episode, lang }, 'AI caption ready')
         return result
     } catch (err) {
-        const status = Number(err?.statusCode) || 500
         // 502/503 from the model are expected user-facing failures — don't treat as unhandled.
-        if (status === 500) logError(event, err, { module: 'caption-ai', userId, lang })
+        if ((Number(err?.statusCode) || 500) === 500) logError(event, err, { module: 'caption-ai', userId, lang })
         if (err?.statusCode) throw err
         throw createError({ statusCode: 500, statusMessage: 'AI caption failed', message: 'AI 字幕產生失敗。' })
     }

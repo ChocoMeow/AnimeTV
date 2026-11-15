@@ -1125,4 +1125,17 @@ onUnmounted(() => {
 <style scoped>
 .slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s ease; }
 .slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(1rem); }
+
+/* Custom overlay owns captions — hide Safari/Apple native cue chrome (double subtitles). */
+:deep(video::cue) {
+    opacity: 0;
+    color: transparent;
+}
+:deep(video::-webkit-media-text-track-container),
+:deep(video::-webkit-media-text-track-display),
+:deep(video::-webkit-media-text-track-background) {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
 </style>
