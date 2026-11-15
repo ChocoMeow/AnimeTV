@@ -5,10 +5,7 @@ import { openOwnedEpisodeToken } from '~~/server/utils/mediaTokens'
 
 const str = (v) => (typeof v === 'string' ? v.trim() : '')
 
-/**
- * On-demand AI caption — body `{ token, lang, sourceSrc, sourceLang? }`.
- * Returns `{ status: 'ready', caption }` or `{ status: 'pending' }` (client polls).
- */
+/** Body `{ token, lang, sourceSrc, sourceLang? }` → ready | pending (+ optional partial caption). */
 export default defineEventHandler(async (event) => {
     const userId = (await authUser(event)).sub
     const log = getRequestLogger(event)

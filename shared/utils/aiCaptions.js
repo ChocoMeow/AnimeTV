@@ -12,23 +12,31 @@ export const AI_CAPTION_LANGS = Object.freeze({
         promptName: 'Traditional Chinese (繁體中文)',
         aliases: Object.freeze(['tw', 'zh-hant', 'zh-tw', 'zh-hk']),
         labelHint: /traditional|zh-hant|zh-tw|zh-hk|繁體|繁体/i,
+        /** Cue looks translated when it contains this script. */
+        okScript: /[\u4e00-\u9fff\u3400-\u4dbf]/,
+        /** Leftover scripts / tokens → re-translate. */
+        badScripts: Object.freeze([
+            /[\u3040-\u309f\u30a0-\u30ff]/, // JP kana
+            /[\uac00-\ud7af\u1100-\u11ff]/, // KR hangul
+            /\b(?:I'm|I've|I'll|I'd|I)\b/, // EN "I" left in Chinese
+        ]),
+        promptHint: 'Always translate pronouns (I/I\'m → 我, you → 你, we → 我們). Never leave English "I".',
+        /** Applied after the model reply (order matters: I'm before I). */
+        postReplace: Object.freeze([
+            [/\bI'm\b/g, '我'],
+            [/\bI've\b/g, '我已經'],
+            [/\bI'll\b/g, '我會'],
+            [/\bI'd\b/g, '我'],
+            [/\bI\b/g, '我'],
+        ]),
     }),
 })
 
-/** Default after 繁中. */
 export const CAPTION_EN = Object.freeze({
     srclang: 'en',
     label: '英文',
     aliases: Object.freeze(['en', 'eng', 'english']),
     labelHint: /english|\beng\b/i,
-})
-
-/** Labels / upstream normalize only — never preferred over 繁中 or en. */
-export const CAPTION_CN = Object.freeze({
-    srclang: 'CN',
-    label: '簡體中文',
-    aliases: Object.freeze(['cn', 'zh-cn', 'zh-hans', 'simplified']),
-    labelHint: /simplified|zh-hans|zh-cn|简体|簡體/i,
 })
 
 const TW = AI_CAPTION_LANGS.TW
@@ -38,20 +46,19 @@ const canonMap = (def) => Object.fromEntries([...codesOf(def)].map((c) => [c, de
 
 const TW_CODES = codesOf(TW)
 const EN_CODES = codesOf(CAPTION_EN)
-const CN_CODES = codesOf(CAPTION_CN)
+/** Upstream 简体 only — never preferred (site is 繁中). */
+const CN_HINT = /simplified|zh-hans|zh-cn|简体|簡體/i
+const CN_CODES = new Set(['cn', 'zh-cn', 'zh-hans', 'simplified'].map(normCaptionCode))
 
-/** alias → canonical srclang (TW / CN / en). Providers may spread into a wider map. */
 export const CAPTION_CANONICAL = Object.freeze({
     ...canonMap(TW),
-    ...canonMap(CAPTION_CN),
     ...canonMap(CAPTION_EN),
 })
 
-/** srclang / English name → 中文 menu label. */
 const LABEL_ZH = Object.freeze({
     ...labelMap(TW),
-    ...labelMap(CAPTION_CN),
     ...labelMap(CAPTION_EN),
+    cn: '中文', 'zh-cn': '中文', 'zh-hans': '中文',
     ja: '日文', jp: '日文', jpn: '日文', japanese: '日文',
     ko: '韓文', kr: '韓文', kor: '韓文', korean: '韓文',
     zh: '中文', chinese: '中文',
@@ -74,11 +81,10 @@ const LABEL_ZH = Object.freeze({
     fil: '菲律賓文', tl: '菲律賓文', filipino: '菲律賓文',
 })
 
-/** Match language names inside upstream labels like "Spanish (CR Spanish(Latin America))". */
 const LABEL_NAME_HINTS = Object.freeze([
     [TW.labelHint, TW.label],
-    [CAPTION_CN.labelHint, CAPTION_CN.label],
     [CAPTION_EN.labelHint, CAPTION_EN.label],
+    [CN_HINT, LABEL_ZH.zh],
     [/japanese|\bja\b|\bjpn\b/i, LABEL_ZH.ja],
     [/korean|\bko\b|\bkor\b/i, LABEL_ZH.ko],
     [/portuguese|portugu/i, LABEL_ZH.pt],
@@ -116,28 +122,21 @@ export const isTwCaptionTrack = (t) => matchesTrack(t, TW_CODES, TW.labelHint)
 export const isEnCaptionTrack = (t) => matchesTrack(t, EN_CODES, CAPTION_EN.labelHint)
 export const isEnCaptionCode = (code) => matchesCode(code, EN_CODES)
 
-export function isCnCaptionTrack(track) {
-    return matchesTrack(track, CN_CODES, CAPTION_CN.labelHint)
-}
-
-/** Sort key: 繁中 → 簡中 → en → other (stable within group). */
+/** Sort key: 繁中 → en → other. */
 export function captionMenuRank(track) {
     if (isTwCaptionTrack(track)) return 0
-    if (isCnCaptionTrack(track)) return 1
-    if (isEnCaptionTrack(track)) return 2
-    return 3
+    if (isEnCaptionTrack(track)) return 1
+    return 2
 }
 
-/**
- * Resolve upstream track label → srclang.
- * Bare "Chinese" / 中文 → TW. Pass a wider `map` for provider-specific langs.
- */
+/** Bare "Chinese" / 中文 → TW. Simplified tagged CN (never preferred). */
 export function resolveCaptionSrclang(label, map = CAPTION_CANONICAL) {
     const l = String(label || '')
     if (TW.labelHint.test(l)) return TW.srclang
-    if (CAPTION_CN.labelHint.test(l)) return CAPTION_CN.srclang
+    if (CN_HINT.test(l)) return 'CN'
     if (/\bchinese\b|中文/i.test(l)) return TW.srclang
     const key = normCaptionCode(l.split(/[\s(/_-]+/).filter(Boolean)[0] || '')
+    if (CN_CODES.has(key)) return 'CN'
     return map[key] || map[normCaptionCode(l)] || key || CAPTION_EN.srclang
 }
 
@@ -157,18 +156,15 @@ function labelFromHint(text) {
     return ''
 }
 
-/** Prefer Chinese names in the player caption menu (drop "CR …" English titles). */
+/** Prefer Chinese names in the player caption menu. */
 export function captionDisplayLabel(srclang, label) {
     const raw = String(label || '').trim()
-    // Already a short Chinese name (not a bilingual "Foo (中文)" CR-style title).
     if (raw && /^[\u4e00-\u9fff（）()]+$/.test(raw)) return raw
 
     const code = normCaptionCode(srclang)
-    const byCode = LABEL_ZH[code] || LABEL_ZH[code.split('-')[0]]
-    if (byCode) return byCode
-
-    const fromLabel = labelFromHint(raw)
-    if (fromLabel) return fromLabel
-
-    return raw || String(srclang || '')
+    return LABEL_ZH[code]
+        || LABEL_ZH[code.split('-')[0]]
+        || labelFromHint(raw)
+        || raw
+        || String(srclang || '')
 }

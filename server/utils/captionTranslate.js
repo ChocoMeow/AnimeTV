@@ -2,8 +2,8 @@
  * On-demand AI captions (provider `aiCaptions`).
  * Cached per source_id + episode + lang (~1y). Source VTT via sealed download-proxy.
  *
- * Background job per episode+lang; API returns pending until cached.
- * Server owns WebVTT timings — Gemini only returns `id|translated text` lines.
+ * Background job per episode+lang; polls get `{ status:'pending', caption? }` (partial VTT)
+ * then `{ status:'ready', caption }`. Server owns timings — model returns `id|text` lines.
  */
 import { createHash } from 'node:crypto'
 import { createError } from 'h3'
@@ -17,9 +17,10 @@ import { absoluteMediaUrl, videoUpstreamHeaders } from '~~/server/utils/videoUps
 
 const TABLE = 'caption_translations'
 const TTL_MS = 365 * 24 * 60 * 60 * 1000
-const TRANSLATOR_VERSION = 4 // line format id|text
+const TRANSLATOR_VERSION = 5
 const CHUNK = 30
-const AI_MIN_INTERVAL_MS = 6_500 // shared free-tier pacing (~10 RPM)
+const CHUNK_PASSES = 3
+const AI_MIN_INTERVAL_MS = 6_500
 const AI_BUSY_ATTEMPTS = 2
 const MAX_RETRY_DELAY_MS = 60_000
 const USER_GEN_LIMIT = 20
@@ -28,18 +29,23 @@ const FAIL_COOLDOWN_MS = 60_000
 
 const log = moduleLogger('caption-translate')
 const inflight = new Map()
+const partials = new Map() // jobKey → progressive VTT
 const failures = new Map()
 const userGenAt = new Map()
 let nextAiSlot = 0
 
 const sha = (t) => createHash('sha256').update(String(t || '')).digest('hex')
+const cacheKey = (vtt) => `v${TRANSLATOR_VERSION}:${sha(vtt)}`
 const alive = (exp) => !exp || Date.parse(exp) > Date.now()
 const fail = (statusCode, statusMessage, message) => createError({ statusCode, statusMessage, message })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const preview = (s) => String(s || '').replace(/\s+/g, ' ').slice(0, 160)
+const plain = (s) => String(s || '').replace(/<\/?[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+const isTimeoutErr = (err) =>
+    err?.name === 'TimeoutError' || err?.code === 23 || /timed? out/i.test(String(err?.message || ''))
 
-function isTimeoutErr(err) {
-    return err?.name === 'TimeoutError' || err?.code === 23 || /timed? out/i.test(String(err?.message || ''))
+function captionOut(langDef, vttText) {
+    return { srclang: langDef.srclang, label: langDef.label, vttText }
 }
 
 export function providerSupportsAiCaptions(source) {
@@ -103,12 +109,10 @@ function buildVtt({ header, cues }, bodies) {
     return `${blocks.join('\n\n')}\n`
 }
 
-/** Encode cues as stable `id|text` lines (`\n` in text → `\\n`). */
 function encodeLines(items) {
     return items.map((x) => `${x.id}|${String(x.text).replace(/\n/g, '\\n')}`).join('\n')
 }
 
-/** Parse `id|text` lines; incomplete trailing line is ignored (truncation-safe). */
 function parseLines(raw, validIds) {
     const out = new Map()
     for (const line of String(raw || '').split(/\n/)) {
@@ -140,18 +144,48 @@ function userFacingAiError(err) {
     return fail(502, 'AI provider error', err?.message || 'AI 字幕產生失敗。')
 }
 
-/** One Gemini call → Map<id, text>. Retries only busy/timeout. */
-async function translateIds(items, { promptName, ...meta }) {
+/** SFX / empty — skip language checks. Standalone "I"/"A" are real words. */
+function isNonlinguistic(text) {
+    const t = plain(text)
+    if (!t || /^[IA]$/i.test(t)) return !t
+    return t.replace(/[^A-Za-z0-9\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '').length <= 1
+}
+
+function postProcess(text, langDef) {
+    let out = String(text || '')
+    for (const [re, to] of langDef?.postReplace || []) out = out.replace(re, to)
+    return out
+}
+
+/** Uses langDef.okScript / badScripts — no per-language branches here. */
+function looksUntranslated(text, source, langDef) {
+    if (!langDef?.okScript) return false
+    const t = plain(text)
+    if (!t || isNonlinguistic(t)) return false
+    if ((langDef.badScripts || []).some((re) => re.test(t))) return true
+    if (langDef.okScript.test(t)) return false
+    if (/[A-Za-z]/.test(t)) return true
+    const src = plain(source)
+    return Boolean(src && t === src)
+}
+
+function systemPrompt(langDef, repair) {
+    const target = langDef?.promptName || 'the target language'
+    const head = repair
+        ? `These cues are still NOT in ${target}. Rewrite each fully into ${target} only.`
+        : `Translate every anime subtitle cue fully into ${target}.`
+    const hint = langDef?.promptHint ? ` ${langDef.promptHint}` : ''
+    return (
+        `${head} No Japanese, English, Korean, or mixed leftovers.${hint} `
+        + 'Input/output lines: `id|text`. Keep every id. Use \\n for cue line breaks. '
+        + 'Translate questions, never answer them. No commentary.'
+    )
+}
+
+async function translateIds(items, { langDef, repair = false, ...meta }) {
     const validIds = new Set(items.map((x) => x.id))
     const messages = [
-        {
-            role: 'system',
-            content:
-                `Translate anime subtitle cues to ${promptName || 'the target language'}. `
-                + 'Each input line is `id|text`. Reply with the same lines: `id|translated`. '
-                + 'Keep every id, even when texts repeat. Use \\n for line breaks inside a cue. '
-                + 'Translate questions, never answer them. No extra commentary.',
-        },
+        { role: 'system', content: systemPrompt(langDef, repair) },
         { role: 'user', content: encodeLines(items) },
     ]
 
@@ -183,7 +217,6 @@ async function translateIds(items, { promptName, ...meta }) {
                 }
                 return map
             }
-            // Don't retry empty — missing-id pass / source fallback handles it.
             log.warn({ ...meta, attempt, preview: preview(data?.choices?.[0]?.message?.content) }, 'AI caption empty parse')
             return new Map()
         } catch (err) {
@@ -202,19 +235,24 @@ async function translateIds(items, { promptName, ...meta }) {
     throw userFacingAiError(lastErr)
 }
 
-/** Translate a chunk; one follow-up for missing ids. Gaps keep source text (timings safe). */
+/** Translate one chunk; retry missing / wrong-language ids. Unresolved keep source. */
 async function translateChunk(bodies, meta) {
+    const langDef = aiCaptionLang(meta?.targetLang)
     const out = bodies.map((t) => (t.trim() ? undefined : t))
     let pending = bodies.map((text, id) => ({ id, text })).filter((x) => out[x.id] === undefined)
 
-    for (let pass = 1; pass <= 2 && pending.length; pass++) {
-        const map = await translateIds(pending, { ...meta, pass })
+    for (let pass = 1; pass <= CHUNK_PASSES && pending.length; pass++) {
+        const map = await translateIds(pending, { ...meta, langDef, pass, repair: pass > 1 })
         for (const { id } of pending) {
-            if (map.has(id)) out[id] = map.get(id)
+            if (!map.has(id)) continue
+            const text = postProcess(map.get(id), langDef)
+            if (!looksUntranslated(text, bodies[id], langDef)) out[id] = text
         }
-        pending = pending.filter((x) => out[x.id] === undefined)
-        if (pending.length) log.warn({ ...meta, pass, missing: pending.length }, 'AI caption missing ids')
-        if (pass === 1 && map.size < Math.ceil(bodies.length * 0.3)) break
+        pending = bodies
+            .map((text, id) => ({ id, text }))
+            .filter(({ id, text }) => text.trim() && (out[id] === undefined || looksUntranslated(out[id], text, langDef)))
+        if (pending.length) log.warn({ ...meta, pass, pending: pending.length }, 'AI caption retry wrong/missing lang')
+        if (pass === 1 && map.size === 0) break
     }
 
     const got = out.filter((t) => t != null).length
@@ -224,18 +262,20 @@ async function translateChunk(bodies, meta) {
     return out.map((t, i) => t ?? bodies[i])
 }
 
-async function translateVtt(sourceVtt, meta) {
+async function translateVtt(sourceVtt, meta, onPartial) {
     const parsed = parseVtt(sourceVtt)
     if (!parsed) throw fail(502, 'Caption parse failed', '原始字幕格式錯誤。')
 
     const chunks = Math.ceil(parsed.cues.length / CHUNK)
     log.info({ ...meta, cues: parsed.cues.length, chunks, chunkSize: CHUNK }, 'AI caption translate start')
-    const bodies = []
+    const bodies = parsed.cues.map((c) => c.body)
     for (let i = 0; i < parsed.cues.length; i += CHUNK) {
-        bodies.push(...await translateChunk(
+        const slice = await translateChunk(
             parsed.cues.slice(i, i + CHUNK).map((c) => c.body),
             { ...meta, chunk: i / CHUNK + 1, chunks },
-        ))
+        )
+        for (let j = 0; j < slice.length; j++) bodies[i + j] = slice[j]
+        onPartial?.(buildVtt(parsed, bodies))
     }
     return buildVtt(parsed, bodies)
 }
@@ -267,12 +307,14 @@ async function fetchVtt(url, cookie, referer, meta) {
 async function readCachedVtt(client, { sourceId, ep, lang }) {
     const { data } = await client
         .from(TABLE)
-        .select('expires_at, vtt_text')
+        .select('expires_at, vtt_text, source_vtt_hash')
         .eq('source_id', sourceId)
         .eq('episode_number', ep)
         .eq('target_lang', lang)
         .maybeSingle()
-    return data?.vtt_text && alive(data.expires_at) ? data.vtt_text : null
+    if (!data?.vtt_text || !alive(data.expires_at)) return null
+    if (!String(data.source_vtt_hash || '').startsWith(`v${TRANSLATOR_VERSION}:`)) return null
+    return data.vtt_text
 }
 
 function claimUserQuota(userId) {
@@ -285,19 +327,21 @@ function claimUserQuota(userId) {
     userGenAt.set(userId, times)
 }
 
-async function runJob(client, { media, sourceId, ep, sourceLang, langDef }) {
+async function runJob(client, { media, sourceId, ep, sourceLang, langDef, jobKey }) {
     const meta = { sourceId, episode: ep, targetLang: langDef.srclang, promptName: langDef.promptName }
     const sourceVtt = await fetchVtt(media.url, media.cookie, media.referer, meta)
     if (!sourceVtt) throw fail(502, 'Caption source fetch failed', '無法取得原始字幕。')
 
-    const vttText = await translateVtt(sourceVtt, meta)
+    const vttText = await translateVtt(sourceVtt, meta, (partial) => {
+        if (jobKey) partials.set(jobKey, partial)
+    })
     const { error } = await client.from(TABLE).upsert(
         {
             source_id: sourceId,
             episode_number: ep,
             source_lang: sourceLang || CAPTION_EN.srclang,
             target_lang: langDef.srclang,
-            source_vtt_hash: sha(`v${TRANSLATOR_VERSION}:${sourceVtt}`),
+            source_vtt_hash: cacheKey(sourceVtt),
             vtt_text: vttText,
             expires_at: new Date(Date.now() + TTL_MS).toISOString(),
         },
@@ -307,7 +351,15 @@ async function runJob(client, { media, sourceId, ep, sourceLang, langDef }) {
         log.warn({ err: error, ...meta }, 'caption upsert failed')
         throw fail(500, 'Caption save failed', '無法儲存翻譯字幕。')
     }
+    if (jobKey) partials.delete(jobKey)
     log.info(meta, 'AI caption saved')
+}
+
+function pendingResult(langDef, jobKey) {
+    const vttText = partials.get(jobKey)
+    return vttText
+        ? { status: 'pending', caption: captionOut(langDef, vttText) }
+        : { status: 'pending' }
 }
 
 /** Cached → ready; else start/join job and return pending (client polls). */
@@ -334,24 +386,26 @@ export async function generateAiCaption(event, {
     const media = openSealedCaptionSource(sourceSrc, userId)
     const job = { sourceId: Number(sourceId), ep: String(episode), lang: langDef.srclang }
     const jobKey = `${job.sourceId}|${job.ep}|${job.lang}|v${TRANSLATOR_VERSION}`
-    const pending = { status: 'pending' }
 
-    if (inflight.has(jobKey)) return pending
+    if (inflight.has(jobKey)) return pendingResult(langDef, jobKey)
+
     const client = await serverSupabaseServiceRole(event)
     const cached = await readCachedVtt(client, job)
     if (cached) {
-        return { status: 'ready', caption: { srclang: job.lang, label: langDef.label, vttText: cached } }
+        partials.delete(jobKey)
+        return { status: 'ready', caption: captionOut(langDef, cached) }
     }
-    if (inflight.has(jobKey)) return pending
+    if (inflight.has(jobKey)) return pendingResult(langDef, jobKey)
 
     const failed = failures.get(jobKey)
     if (failed && failed.until > Date.now()) throw failed.error
     failures.delete(jobKey)
     claimUserQuota(userId)
 
-    const work = runJob(client, { media, sourceId: job.sourceId, ep: job.ep, sourceLang, langDef })
+    const work = runJob(client, { media, sourceId: job.sourceId, ep: job.ep, sourceLang, langDef, jobKey })
         .catch((err) => {
             log.warn({ err, ...job }, 'AI caption failed')
+            partials.delete(jobKey)
             failures.set(jobKey, {
                 until: Date.now() + FAIL_COOLDOWN_MS,
                 error: err?.statusCode ? err : fail(502, 'Caption generate failed', 'AI 字幕產生失敗。'),
@@ -359,5 +413,5 @@ export async function generateAiCaption(event, {
         })
         .finally(() => inflight.delete(jobKey))
     inflight.set(jobKey, work)
-    return pending
+    return pendingResult(langDef, jobKey)
 }

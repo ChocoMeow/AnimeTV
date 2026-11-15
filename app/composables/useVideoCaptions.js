@@ -48,7 +48,7 @@ function pickLang(tracks, allowOff = true) {
     const last = findMeta(tracks, storageGet(LAST_KEY))?.srclang
     // Remembered English loses to 繁中 when available.
     if (last && !(isEnCaptionCode(last) && tracks.some(isTwCaptionTrack))) return last
-    return pickPreferredCaptionLang(tracks) // 繁中 → en → first
+    return pickPreferredCaptionLang(tracks)
 }
 
 function pickAiSourceTrack(tracks, targetLang) {
@@ -59,7 +59,7 @@ function pickAiSourceTrack(tracks, targetLang) {
 /**
  * Selected WebVTT → blob URL + overlay text.
  * Inline: track `hidden` + PlayerCaptionOverlay.
- * iOS native FS: track `showing` so Safari paints the same language (YouTube-style).
+ * iOS native FS: track `showing` so Safari paints the same language.
  */
 export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeToken, notify, onCaptionAdded }) {
     const baseTracks = computed(() => normalizeList(toValue(captions)))
@@ -73,7 +73,6 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
             seen.add(t.srclang)
             out.push(t)
         }
-        // 繁中 → 簡中 → en → other
         return out.sort((a, b) => captionMenuRank(a) - captionMenuRank(b) || a.label.localeCompare(b.label, 'zh'))
     })
     const pendingAiLangs = computed(() => {
@@ -119,7 +118,6 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         activeCaptionText.value = ''
         const video = videoRef.value
         const lang = selectedLang.value
-        // Native FS: Safari paints cues; keep overlay empty.
         if (nativeVideoFs.value || !video?.textTracks || !lang) return
         for (const track of video.textTracks) {
             if (!sameLang(track.language, lang)) continue
@@ -157,9 +155,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         if (!meta) return
         const g = gen
         try {
-            let blob = meta.vttText
-                ? new Blob([meta.vttText], { type: VTT_TYPE })
-                : null
+            let blob = meta.vttText ? new Blob([meta.vttText], { type: VTT_TYPE }) : null
             if (!blob) {
                 const res = await fetch(meta.src)
                 if (!res.ok || g !== gen) return
@@ -204,7 +200,35 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         setCaptionLang(selectedLang.value ? null : pickLang(available.value, false))
     }
 
-    async function requestAiCaption(lang) {
+    function revokeLang(lang) {
+        const url = cache.get(lang)
+        if (!url) return
+        try { URL.revokeObjectURL(url) } catch { /* ignore */ }
+        cache.delete(lang)
+    }
+
+    /** Apply AI VTT locally; `persist` merges into parent only on final ready. */
+    async function applyAiCaption(caption, { persist = false, notifyReady = false } = {}) {
+        if (!caption?.vttText || !caption?.srclang) return null
+        const srclang = String(caption.srclang)
+        const track = {
+            srclang,
+            label: captionDisplayLabel(srclang, caption.label),
+            vttText: String(caption.vttText),
+        }
+        const rest = localExtras.value.filter((t) => !sameLang(t.srclang, srclang))
+        localExtras.value = [...rest, track]
+        revokeLang(srclang)
+        if (persist) onCaptionAdded?.(track)
+        storageSet(LANG_KEY, srclang)
+        storageSet(LAST_KEY, srclang)
+        if (notifyReady) notify?.(`字幕 ${track.label}`, 'closed_caption')
+        await nextTick()
+        await show(srclang)
+        return track
+    }
+
+    async function requestAiCaption(lang, { silent = false } = {}) {
         const meta = aiCaptionLang(lang)
         const token = String(toValue(episodeToken) || '').trim()
         if (!meta || !token || aiLoadingLang.value) return false
@@ -216,7 +240,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         const source = pickAiSourceTrack(available.value, meta.srclang)
         if (!source?.src) {
             aiError.value = '找不到可翻譯的原始字幕'
-            notify?.(aiError.value, 'error')
+            if (!silent) notify?.(aiError.value, 'error')
             return false
         }
 
@@ -236,33 +260,25 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         }
 
         try {
-            // Server translates in the background; poll until cached.
             let res = await $fetch('/api/caption-ai', req)
+            let applied = false
             while (res?.status === 'pending') {
+                if (res?.caption?.vttText) {
+                    await applyAiCaption(res.caption)
+                    applied = true
+                }
                 if (Date.now() - startedAt > AI_POLL_MAX_MS) throw new Error('AI 字幕產生逾時，請稍後再試')
                 await sleep(AI_POLL_MS)
                 if (g !== gen) return false
                 res = await $fetch('/api/caption-ai', req)
             }
-            const caption = res?.caption
-            if (!caption?.vttText || !caption?.srclang) throw new Error('empty caption')
-            const srclang = String(caption.srclang)
-            const track = {
-                srclang,
-                label: captionDisplayLabel(srclang, caption.label),
-                vttText: String(caption.vttText),
-            }
-            if (!findMeta(localExtras.value, track.srclang)) {
-                localExtras.value = [...localExtras.value, track]
-            }
-            onCaptionAdded?.(track)
-            await nextTick()
-            setCaptionLang(track.srclang)
+            if (!res?.caption?.vttText || !res?.caption?.srclang) throw new Error('empty caption')
+            await applyAiCaption(res.caption, { persist: true, notifyReady: !silent && !applied })
             return true
         } catch (err) {
             const msg = err?.data?.message || err?.statusMessage || err?.message || 'AI 字幕產生失敗'
             aiError.value = msg
-            notify?.(msg, 'error')
+            if (!silent) notify?.(msg, 'error')
             return false
         } finally {
             aiLoadingLang.value = null
@@ -275,6 +291,11 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         localExtras.value = []
         aiError.value = ''
         show(pickLang(list))
+        // No 繁中 → auto AI (unless user turned captions off).
+        const canAiTw = (toValue(aiCaptionLangs) || []).some((c) => aiCaptionLang(c)?.srclang === 'TW')
+        if (storageGet(LANG_KEY) !== OFF && !list.some(isTwCaptionTrack) && canAiTw) {
+            requestAiCaption('TW', { silent: true })
+        }
     }, { immediate: true })
 
     watch(() => videoRef.value, (video) => {

@@ -304,7 +304,7 @@ async function extractMegaPlayDetails(embedUrl, { fetchImpl = fetch, userAgent =
 
 /* ─── AniKoto site client ──────────────────────────────────────────── */
 
-/** European codes local; TW / CN / en from shared CAPTION_CANONICAL. */
+/** European codes local; TW / en from shared CAPTION_CANONICAL. */
 const LANG_MAP = Object.freeze({
     ...CAPTION_CANONICAL,
     ja: 'ja',
