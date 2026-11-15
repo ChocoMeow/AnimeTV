@@ -239,17 +239,17 @@ onBeforeUnmount(() => {
                 :class="zClass" 
                 @click.self="handleBackdropClick"
             >
-                <!-- Drawer Container -->
+                <!-- Drawer Container: flex so long lists scroll; safe-area on scroll padding (all pages). -->
                 <div 
                     ref="drawerRef"
-                    class="bg-white dark:bg-gray-950 rounded-t-3xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 w-full will-change-transform" 
+                    class="bg-white dark:bg-gray-950 rounded-t-3xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 w-full will-change-transform flex flex-col"
                     :class="maxHeight"
                     @click.stop
                 >
                     <!-- Drag Handle -->
                     <div 
                         v-if="showDragHandle" 
-                        class="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing select-none touch-none" 
+                        class="shrink-0 flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing select-none touch-none" 
                         @mousedown="startDrag"
                         @touchstart="startDrag"
                     >
@@ -258,7 +258,7 @@ onBeforeUnmount(() => {
 
                     <!-- Header -->
                     <div 
-                        class="flex items-center justify-between px-4 pt-2 pb-4 cursor-grab active:cursor-grabbing select-none touch-none"
+                        class="shrink-0 flex items-center justify-between px-4 pt-2 pb-4 cursor-grab active:cursor-grabbing select-none touch-none"
                         @mousedown="startDrag"
                         @touchstart="startDrag"
                     >
@@ -272,9 +272,8 @@ onBeforeUnmount(() => {
                     <!-- Content -->
                     <div 
                         ref="contentRef"
-                        class="overflow-y-auto px-4 pt-4"
+                        class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4"
                         :class="$slots.footer ? 'pb-4' : 'pb-[calc(1rem+env(safe-area-inset-bottom,0px))]'"
-                        style="max-height: calc(90vh - 120px);"
                     >
                         <slot />
                     </div>
@@ -282,7 +281,7 @@ onBeforeUnmount(() => {
                     <!-- Footer -->
                     <div
                         v-if="$slots.footer"
-                        class="px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
+                        class="shrink-0 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
                     >
                         <slot name="footer" />
                     </div>

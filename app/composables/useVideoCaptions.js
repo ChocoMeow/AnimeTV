@@ -1,6 +1,7 @@
 import {
     aiCaptionLang,
     captionDisplayLabel,
+    captionMenuRank,
     isEnCaptionCode,
     isEnCaptionTrack,
     isTwCaptionTrack,
@@ -20,6 +21,7 @@ const storageSet = (key, value) => { try { localStorage.setItem(key, value) } ca
 const sameLang = (a, b) => normCaptionCode(a) === normCaptionCode(b)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const findMeta = (tracks, lang) => tracks.find((t) => sameLang(t.srclang, lang))
+const cueText = (cue) => String(cue?.text || '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/?[^>]+>/g, '').trim()
 
 function normalizeList(raw) {
     if (!Array.isArray(raw)) return []
@@ -54,16 +56,15 @@ function pickAiSourceTrack(tracks, targetLang) {
     return candidates.find(isEnCaptionTrack) || candidates[0] || null
 }
 
-function cueText(cue) {
-    return String(cue?.text || '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/?[^>]+>/g, '').trim()
-}
-
-/** Materialize the selected WebVTT language into a blob URL + custom overlay text. */
+/**
+ * Selected WebVTT → blob URL + overlay text.
+ * Inline: track `hidden` + PlayerCaptionOverlay.
+ * iOS native FS: track `showing` so Safari paints the same language (YouTube-style).
+ */
 export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeToken, notify, onCaptionAdded }) {
     const baseTracks = computed(() => normalizeList(toValue(captions)))
     /** Optimistic AI tracks until the parent merges them into `captions`. */
     const localExtras = ref([])
-
     const available = computed(() => {
         const seen = new Set()
         const out = []
@@ -72,30 +73,34 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
             seen.add(t.srclang)
             out.push(t)
         }
-        return out
+        // 繁中 → 簡中 → en → other
+        return out.sort((a, b) => captionMenuRank(a) - captionMenuRank(b) || a.label.localeCompare(b.label, 'zh'))
     })
-
     const pendingAiLangs = computed(() => {
         const have = new Set(available.value.map((t) => t.srclang))
         return (toValue(aiCaptionLangs) || [])
             .map((code) => aiCaptionLang(code))
             .filter((m) => m && !have.has(m.srclang))
+            .sort((a, b) => captionMenuRank(a) - captionMenuRank(b))
     })
-
     const hasCaptions = computed(() => available.value.length > 0 || pendingAiLangs.value.length > 0)
+
     const tracks = ref([])
     const selectedLang = ref(null)
     const activeCaptionText = ref('')
     const aiLoadingLang = ref(null)
     const aiError = ref('')
-    const captionLabel = computed(() => {
-        if (!selectedLang.value) return '關閉'
-        return findMeta(available.value, selectedLang.value)?.label || selectedLang.value
-    })
+    const nativeVideoFs = ref(false)
+    const captionLabel = computed(() =>
+        selectedLang.value
+            ? (findMeta(available.value, selectedLang.value)?.label || selectedLang.value)
+            : '關閉',
+    )
 
     const cache = new Map()
     let gen = 0
     let onCueChange = null
+    let unbindNativeFs = null
 
     function revokeCache() {
         for (const url of cache.values()) {
@@ -105,16 +110,17 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
     }
 
     function clearCueListeners() {
-        const video = videoRef.value
-        if (!onCueChange || !video?.textTracks) return
-        for (const t of video.textTracks) t.removeEventListener('cuechange', onCueChange)
+        const list = videoRef.value?.textTracks
+        if (!onCueChange || !list) return
+        for (const t of list) t.removeEventListener('cuechange', onCueChange)
     }
 
     function syncCues() {
+        activeCaptionText.value = ''
         const video = videoRef.value
         const lang = selectedLang.value
-        activeCaptionText.value = ''
-        if (!video?.textTracks || !lang) return
+        // Native FS: Safari paints cues; keep overlay empty.
+        if (nativeVideoFs.value || !video?.textTracks || !lang) return
         for (const track of video.textTracks) {
             if (!sameLang(track.language, lang)) continue
             const cues = track.activeCues
@@ -124,18 +130,25 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
     }
 
     function applyModes() {
-        const video = videoRef.value
-        if (!video?.textTracks) return
+        const list = videoRef.value?.textTracks
+        if (!list) return
         clearCueListeners()
         onCueChange = syncCues
         const lang = selectedLang.value
-        for (const track of video.textTracks) {
+        const onMode = nativeVideoFs.value ? 'showing' : 'hidden'
+        for (const track of list) {
             if (track.kind !== 'subtitles' && track.kind !== 'captions') continue
-            // `hidden` = cues for JS only. Safari may still paint — VideoPlayer CSS hides native cues.
-            track.mode = lang && sameLang(track.language, lang) ? 'hidden' : 'disabled'
+            track.mode = lang && sameLang(track.language, lang) ? onMode : 'disabled'
             track.addEventListener('cuechange', onCueChange)
         }
         syncCues()
+    }
+
+    /** Call before `webkitEnterFullscreen` so the selected track is already showing. */
+    function setNativeVideoFullscreen(active) {
+        if (nativeVideoFs.value === Boolean(active)) return
+        nativeVideoFs.value = Boolean(active)
+        applyModes()
     }
 
     async function ensure(lang) {
@@ -144,10 +157,10 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         if (!meta) return
         const g = gen
         try {
-            let blob
-            if (meta.vttText) {
-                blob = new Blob([meta.vttText], { type: VTT_TYPE })
-            } else {
+            let blob = meta.vttText
+                ? new Blob([meta.vttText], { type: VTT_TYPE })
+                : null
+            if (!blob) {
                 const res = await fetch(meta.src)
                 if (!res.ok || g !== gen) return
                 blob = await res.blob()
@@ -264,8 +277,23 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         show(pickLang(list))
     }, { immediate: true })
 
+    watch(() => videoRef.value, (video) => {
+        unbindNativeFs?.()
+        unbindNativeFs = null
+        if (!video) return
+        const onBegin = () => setNativeVideoFullscreen(true)
+        const onEnd = () => setNativeVideoFullscreen(false)
+        video.addEventListener('webkitbeginfullscreen', onBegin)
+        video.addEventListener('webkitendfullscreen', onEnd)
+        unbindNativeFs = () => {
+            video.removeEventListener('webkitbeginfullscreen', onBegin)
+            video.removeEventListener('webkitendfullscreen', onEnd)
+        }
+    }, { immediate: true })
+
     onScopeDispose(() => {
         gen++
+        unbindNativeFs?.()
         clearCueListeners()
         revokeCache()
     })
@@ -280,9 +308,11 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         selectedCaptionLang: selectedLang,
         captionLabel,
         activeCaptionText,
+        nativeVideoFullscreen: nativeVideoFs,
         applyCaptionTracks: applyModes,
         setCaptionLang,
         toggleCaptions,
         requestAiCaption,
+        setNativeVideoFullscreen,
     }
 }

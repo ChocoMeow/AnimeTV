@@ -174,6 +174,8 @@ const {
     setCaptionLang: selectCaptionLang,
     toggleCaptions,
     requestAiCaption,
+    nativeVideoFullscreen,
+    setNativeVideoFullscreen,
 } = useVideoCaptions({
     videoRef,
     captions: computed(() => props.animeMeta?.captions),
@@ -299,13 +301,17 @@ function adjustPlaybackRate(direction) {
 async function toggleFullscreen() {
     const video = videoRef.value
     try {
+        // iOS Safari: native player — flip selected track to `showing` first (YouTube-style sync).
         if (typeof video?.webkitEnterFullscreen === 'function' && !document.fullscreenEnabled) {
+            setNativeVideoFullscreen(true)
             video.webkitEnterFullscreen()
             return
         }
         if (!document.fullscreenElement) await containerRef.value?.requestFullscreen()
         else await document.exitFullscreen()
-    } catch { /* ignore */ }
+    } catch {
+        setNativeVideoFullscreen(false)
+    }
 }
 
 function handleFullscreenChange() { isFullscreen.value = !!document.fullscreenElement }
@@ -980,6 +986,7 @@ onUnmounted(() => {
             'relative w-full rounded-lg',
             showSettings ? 'overflow-visible' : 'overflow-hidden',
             hidePlaybackCursor ? 'cursor-none' : 'cursor-default',
+            nativeVideoFullscreen ? 'native-video-fs' : 'custom-caption-overlay',
             theaterMode
                 ? 'aspect-video bg-black lg:max-h-[calc(100vh-8rem)]'
                 : 'aspect-video bg-black/5 dark:bg-white/10',
@@ -1027,6 +1034,7 @@ onUnmounted(() => {
         </video>
 
         <PlayerCaptionOverlay
+            v-if="!nativeVideoFullscreen"
             :text="activeCaptionText"
             :controls-visible="showControls"
         />
@@ -1126,14 +1134,14 @@ onUnmounted(() => {
 .slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s ease; }
 .slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(1rem); }
 
-/* Custom overlay owns captions — hide Safari/Apple native cue chrome (double subtitles). */
-:deep(video::cue) {
+/* Inline only: custom overlay owns captions. Off during iOS native FS so Safari paints the track. */
+.custom-caption-overlay :deep(video::cue) {
     opacity: 0;
     color: transparent;
 }
-:deep(video::-webkit-media-text-track-container),
-:deep(video::-webkit-media-text-track-display),
-:deep(video::-webkit-media-text-track-background) {
+.custom-caption-overlay :deep(video::-webkit-media-text-track-container),
+.custom-caption-overlay :deep(video::-webkit-media-text-track-display),
+.custom-caption-overlay :deep(video::-webkit-media-text-track-background) {
     display: none !important;
     opacity: 0 !important;
     visibility: hidden !important;
