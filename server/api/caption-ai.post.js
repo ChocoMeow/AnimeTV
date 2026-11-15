@@ -34,7 +34,8 @@ export default defineEventHandler(async (event) => {
         return result
     } catch (err) {
         const status = Number(err?.statusCode) || 500
-        if (status >= 500 && status !== 503) logError(event, err, { module: 'caption-ai', userId, lang })
+        // 502/503 from the model are expected user-facing failures — don't treat as unhandled.
+        if (status === 500) logError(event, err, { module: 'caption-ai', userId, lang })
         if (err?.statusCode) throw err
         throw createError({ statusCode: 500, statusMessage: 'AI caption failed', message: 'AI 字幕產生失敗。' })
     }

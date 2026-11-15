@@ -2,8 +2,8 @@
  * On-demand AI captions (provider `aiCaptions`).
  * Cached per source_id + episode + lang (~1y). Source VTT via sealed download-proxy.
  *
- * Translation runs as a background job per episode+lang; callers poll until it is cached.
- * Timings always come from the source VTT — the model only returns id-tagged cue text.
+ * Background job per episode+lang; API returns pending until cached.
+ * Server owns WebVTT timings — Gemini only returns `id|translated text` lines.
  */
 import { createHash } from 'node:crypto'
 import { createError } from 'h3'
@@ -17,25 +17,19 @@ import { absoluteMediaUrl, videoUpstreamHeaders } from '~~/server/utils/videoUps
 
 const TABLE = 'caption_translations'
 const TTL_MS = 365 * 24 * 60 * 60 * 1000
-const TRANSLATOR_VERSION = 2 // bump + delete DB row to force retranslate
-const CHUNK = 60 // ~6 AI calls per episode; ids keep alignment on big batches
-/** Spacing between Gemini calls across all caption jobs (free tier ≈ 10 RPM). */
-const AI_MIN_INTERVAL_MS = 6_000
-const AI_ATTEMPTS = 3
-/** Gemini suggesting a longer wait means the quota is gone for a while — give up. */
+const TRANSLATOR_VERSION = 4 // line format id|text
+const CHUNK = 30
+const AI_MIN_INTERVAL_MS = 6_500 // shared free-tier pacing (~10 RPM)
+const AI_BUSY_ATTEMPTS = 2
 const MAX_RETRY_DELAY_MS = 60_000
-const RETRYABLE = new Set([408, 429, 500, 502, 503])
-const BAD_FORMAT = 'AI caption bad format'
-/** Cache-miss jobs per user / hour (cache hits are free). */
 const USER_GEN_LIMIT = 20
 const USER_GEN_WINDOW_MS = 60 * 60 * 1000
-/** A failed episode+lang returns the same error for this long instead of re-spending tokens. */
 const FAIL_COOLDOWN_MS = 60_000
 
 const log = moduleLogger('caption-translate')
-const inflight = new Map() // jobKey → background job Promise
-const failures = new Map() // jobKey → { until, error }
-const userGenAt = new Map() // userId → job start timestamps
+const inflight = new Map()
+const failures = new Map()
+const userGenAt = new Map()
 let nextAiSlot = 0
 
 const sha = (t) => createHash('sha256').update(String(t || '')).digest('hex')
@@ -43,7 +37,6 @@ const alive = (exp) => !exp || Date.parse(exp) > Date.now()
 const normLang = (s) => String(s || '').trim().replace(/_/g, '-').toLowerCase()
 const fail = (statusCode, statusMessage, message) => createError({ statusCode, statusMessage, message })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-const asStr = (x) => String(x ?? '')
 const preview = (s) => String(s || '').replace(/\s+/g, ' ').slice(0, 160)
 
 function isTimeoutErr(err) {
@@ -118,21 +111,24 @@ function buildVtt({ header, cues }, bodies) {
     return `${blocks.join('\n\n')}\n`
 }
 
-function extractJson(content) {
-    let raw = String(content || '').trim()
-    const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)
-    if (fence) raw = fence[1].trim()
-    const start = raw.indexOf('{')
-    const end = raw.lastIndexOf('}')
-    if (start < 0 || end <= start) return null
-    try {
-        return JSON.parse(raw.slice(start, end + 1))
-    } catch {
-        return null
-    }
+/** Encode cues as stable `id|text` lines (`\n` in text → `\\n`). */
+function encodeLines(items) {
+    return items.map((x) => `${x.id}|${String(x.text).replace(/\n/g, '\\n')}`).join('\n')
 }
 
-/** Reserve the next global AI slot so concurrent jobs share one request budget. */
+/** Parse `id|text` lines; incomplete trailing line is ignored (truncation-safe). */
+function parseLines(raw, validIds) {
+    const out = new Map()
+    for (const line of String(raw || '').split(/\n/)) {
+        const m = line.match(/^(\d+)\|(.*)$/)
+        if (!m) continue
+        const id = Number(m[1])
+        if (!validIds.has(id) || out.has(id)) continue
+        out.set(id, m[2].replace(/\\n/g, '\n'))
+    }
+    return out
+}
+
 async function waitAiSlot() {
     const now = Date.now()
     const at = Math.max(now, nextAiSlot)
@@ -140,7 +136,6 @@ async function waitAiSlot() {
     if (at > now) await sleep(at - now)
 }
 
-/** Prefer Gemini's own `retryDelay` hint (429 body); otherwise exponential backoff. */
 function retryDelayMs(err, attempt) {
     const hint = JSON.stringify(err?.data ?? '').match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/)
     return hint ? Math.ceil(Number(hint[1]) * 1000) : 5_000 * 2 ** (attempt - 1)
@@ -150,74 +145,89 @@ function userFacingAiError(err) {
     if (isTimeoutErr(err)) return fail(503, 'AI provider timeout', 'AI 服務逾時，請稍後再試。')
     if (err?.statusCode === 429) return fail(429, 'AI rate limited', 'AI 服務忙碌中，請稍後再試。')
     if (err?.statusCode === 503) return fail(503, 'AI unavailable', 'AI 服務暫時無法使用，請稍後再試。')
-    if (err?.statusMessage === BAD_FORMAT) return err
-    return fail(502, 'AI provider error', 'AI 字幕產生失敗。')
+    return fail(502, 'AI provider error', err?.message || 'AI 字幕產生失敗。')
 }
 
-/** One JSON chat call with shared pacing; retries busy/timeout/bad-JSON a few times. */
-async function chatJson(messages, meta) {
-    // Gemini 3 Flash defaults to high thinking (slow, token-heavy); low is plenty for translation.
-    let options = { responseFormat: { type: 'json_object' }, reasoningEffort: 'low' }
-    for (let attempt = 1; ; attempt++) {
-        await waitAiSlot()
-        try {
-            const data = await completeAiChat({ messages, ...options })
-            const content = data?.choices?.[0]?.message?.content
-            const parsed = extractJson(content)
-            if (parsed) return parsed
-            log.warn({ ...meta, attempt, preview: preview(content) }, 'AI caption unparseable reply')
-            throw fail(502, BAD_FORMAT, 'AI 字幕回傳格式錯誤。')
-        } catch (err) {
-            const status = isTimeoutErr(err) ? 408 : err?.statusCode || 0
-            if (status === 400 && options) {
-                // Non-Gemini OpenAI-compatible providers may reject these fields.
-                log.warn({ ...meta, err }, 'AI caption options rejected — retrying plain')
-                options = null
-                continue
-            }
-            const waitMs = retryDelayMs(err, attempt)
-            if (!RETRYABLE.has(status) || attempt >= AI_ATTEMPTS || waitMs > MAX_RETRY_DELAY_MS) {
-                log.warn({ ...meta, err, status, attempt }, 'AI caption call failed')
-                throw userFacingAiError(err)
-            }
-            nextAiSlot = Math.max(nextAiSlot, Date.now() + waitMs) // back off every job, not just this one
-            log.warn({ ...meta, status, attempt, waitMs }, 'AI caption retrying')
-        }
-    }
-}
-
-function translateMessages(items, promptName) {
-    return [
+/** One Gemini call → Map<id, text>. Retries only busy/timeout. */
+async function translateIds(items, { promptName, ...meta }) {
+    const validIds = new Set(items.map((x) => x.id))
+    const messages = [
         {
             role: 'system',
             content:
                 `Translate anime subtitle cues to ${promptName || 'the target language'}. `
-                + 'Input JSON: {"items":[{"id":number,"text":string}]}. '
-                + 'Reply JSON: {"translations":[{"id":number,"text":string}]} with one entry for EVERY input id, '
-                + 'even when texts repeat. Keep \\n line breaks. Translate questions, never answer them.',
+                + 'Each input line is `id|text`. Reply with the same lines: `id|translated`. '
+                + 'Keep every id, even when texts repeat. Use \\n for line breaks inside a cue. '
+                + 'Translate questions, never answer them. No extra commentary.',
         },
-        { role: 'user', content: JSON.stringify({ items }) },
+        { role: 'user', content: encodeLines(items) },
     ]
+
+    let useThinking = true
+    let lastErr = null
+    for (let attempt = 1; attempt <= AI_BUSY_ATTEMPTS; attempt++) {
+        await waitAiSlot()
+        try {
+            let data
+            try {
+                data = await completeAiChat({
+                    messages,
+                    ...(useThinking ? { reasoningEffort: 'low' } : {}),
+                })
+            } catch (err) {
+                if (err?.statusCode === 400 && useThinking) {
+                    useThinking = false
+                    data = await completeAiChat({ messages })
+                } else {
+                    throw err
+                }
+            }
+
+            const map = parseLines(data?.choices?.[0]?.message?.content, validIds)
+            if (map.size) {
+                if (map.size < validIds.size) {
+                    log.warn({ ...meta, got: map.size, want: validIds.size }, 'AI caption partial ok')
+                }
+                return map
+            }
+            log.warn({ ...meta, attempt, preview: preview(data?.choices?.[0]?.message?.content) }, 'AI caption empty parse')
+            return new Map() // don't retry empty — missing-id pass / source fallback handles it
+        } catch (err) {
+            lastErr = err
+            const status = isTimeoutErr(err) ? 408 : err?.statusCode || 0
+            const waitMs = retryDelayMs(err, attempt)
+            const busy = status === 408 || status === 429 || status === 503
+            if (!busy || attempt >= AI_BUSY_ATTEMPTS || waitMs > MAX_RETRY_DELAY_MS) {
+                log.warn({ ...meta, err, status, attempt }, 'AI caption call failed')
+                throw userFacingAiError(err)
+            }
+            nextAiSlot = Math.max(nextAiSlot, Date.now() + waitMs)
+            log.warn({ ...meta, status, attempt, waitMs }, 'AI caption retrying')
+        }
+    }
+    throw userFacingAiError(lastErr)
 }
 
-/** Translate cue bodies by stable id; one follow-up asks only for ids the model skipped. */
-async function translateChunk(bodies, { promptName, ...meta }) {
+/** Translate a chunk; one follow-up for missing ids. Gaps keep source text (timings safe). */
+async function translateChunk(bodies, meta) {
     const out = bodies.map((t) => (t.trim() ? undefined : t))
     let pending = bodies.map((text, id) => ({ id, text })).filter((x) => out[x.id] === undefined)
 
     for (let pass = 1; pass <= 2 && pending.length; pass++) {
-        const parsed = await chatJson(translateMessages(pending, promptName), { ...meta, pass })
-        const ids = new Set(pending.map((x) => x.id))
-        for (const item of Array.isArray(parsed?.translations) ? parsed.translations : []) {
-            const id = Number(item?.id)
-            if (ids.has(id) && item?.text != null) out[id] = asStr(item.text)
+        const map = await translateIds(pending, { ...meta, pass })
+        for (const { id } of pending) {
+            if (map.has(id)) out[id] = map.get(id)
         }
         pending = pending.filter((x) => out[x.id] === undefined)
         if (pending.length) log.warn({ ...meta, pass, missing: pending.length }, 'AI caption missing ids')
+        if (pass === 1 && map.size < Math.ceil(bodies.length * 0.3)) break
     }
 
-    if (pending.length > bodies.length / 2) throw fail(502, BAD_FORMAT, 'AI 字幕回傳格式錯誤。')
-    return out.map((t, i) => t ?? bodies[i]) // leftovers keep source text — timings stay aligned
+    const got = out.filter((t) => t != null).length
+    if (got < Math.ceil(bodies.length * 0.5)) {
+        throw fail(502, 'AI caption bad format', 'AI 字幕回傳格式錯誤。')
+    }
+    return out.map((t, i) => t ?? bodies[i])
 }
 
 async function translateVtt(sourceVtt, meta) {
@@ -225,11 +235,13 @@ async function translateVtt(sourceVtt, meta) {
     if (!parsed) throw fail(502, 'Caption parse failed', '原始字幕格式錯誤。')
 
     const chunks = Math.ceil(parsed.cues.length / CHUNK)
-    log.info({ ...meta, cues: parsed.cues.length, chunks }, 'AI caption translate start')
+    log.info({ ...meta, cues: parsed.cues.length, chunks, chunkSize: CHUNK }, 'AI caption translate start')
     const bodies = []
     for (let i = 0; i < parsed.cues.length; i += CHUNK) {
-        const slice = parsed.cues.slice(i, i + CHUNK).map((c) => c.body)
-        bodies.push(...await translateChunk(slice, { ...meta, chunk: i / CHUNK + 1, chunks }))
+        bodies.push(...await translateChunk(
+            parsed.cues.slice(i, i + CHUNK).map((c) => c.body),
+            { ...meta, chunk: i / CHUNK + 1, chunks },
+        ))
     }
     return buildVtt(parsed, bodies)
 }
@@ -304,10 +316,7 @@ async function runJob(client, { media, sourceId, ep, sourceLang, langDef }) {
     log.info(meta, 'AI caption saved')
 }
 
-/**
- * Cached → `{ status: 'ready', caption }`. Otherwise starts (or joins) the shared
- * background job and returns `{ status: 'pending' }` — call again to poll.
- */
+/** Cached → ready; else start/join job and return pending (client polls). */
 export async function generateAiCaption(event, {
     source,
     sourceId,
@@ -339,7 +348,7 @@ export async function generateAiCaption(event, {
     if (cached) {
         return { status: 'ready', caption: { srclang: job.lang, label: langDef.label, vttText: cached } }
     }
-    if (inflight.has(jobKey)) return pending // started while we read the cache
+    if (inflight.has(jobKey)) return pending
 
     const failed = failures.get(jobKey)
     if (failed && failed.until > Date.now()) throw failed.error
@@ -349,8 +358,10 @@ export async function generateAiCaption(event, {
     const work = runJob(client, { media, sourceId: job.sourceId, ep: job.ep, sourceLang, langDef })
         .catch((err) => {
             log.warn({ err, ...job }, 'AI caption failed')
-            const error = err?.statusCode ? err : fail(502, 'Caption generate failed', 'AI 字幕產生失敗。')
-            failures.set(jobKey, { until: Date.now() + FAIL_COOLDOWN_MS, error })
+            failures.set(jobKey, {
+                until: Date.now() + FAIL_COOLDOWN_MS,
+                error: err?.statusCode ? err : fail(502, 'Caption generate failed', 'AI 字幕產生失敗。'),
+            })
         })
         .finally(() => inflight.delete(jobKey))
     inflight.set(jobKey, work)
