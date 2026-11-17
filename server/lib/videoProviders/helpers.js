@@ -4,12 +4,15 @@ export function normalizeEpisodeId(id) {
     return /^\d+$/.test(id) ? String(Number(id)) : id
 }
 
-/** List-time episode fields. Provider video ids stay out of the client JSON. */
-export function episodeRecord(token, { thumbJpg = null, thumbVtt = null } = {}) {
+/** List-time episode. Upstream thumbs only — core seals as client `thumbnails.{vttSrc,sheetSrc}`. */
+export function episodeRecord(token, { sheetUrl = null, vttUrl = null } = {}) {
+    if (!sheetUrl && !vttUrl) return { token }
     return {
         token,
-        thumbnails_jpg_url: thumbJpg,
-        thumbnails_vtt_url: thumbVtt,
+        thumbnails: {
+            ...(sheetUrl ? { sheetUrl } : {}),
+            ...(vttUrl ? { vttUrl } : {}),
+        },
     }
 }
 

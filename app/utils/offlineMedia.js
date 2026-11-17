@@ -22,7 +22,7 @@ import { hlsSegmentsToMp4 } from '~/utils/hlsToMp4'
 import { clearParts, getParts, getPartsExact, hasPart, putPart, stagedBytes } from '~/utils/offlineStaging'
 
 const HTTP_URL = /^https?:\/\//i
-const PROXY_PATH = /\/api\/(?:proxy-video|download-proxy)/
+const PROXY_PATH = /\/api\/(?:proxy-video|media\/(?:file|seek-vtt))/
 
 function pageUrl(uri) {
     return new URL(uri, typeof location !== 'undefined' ? location.origin : 'http://localhost')
@@ -41,7 +41,7 @@ function unwrapMediaUrl(uri, cookie = '') {
 }
 
 /**
- * Thumbnails/media: prefer sealed `/api/download-proxy?t=` from the server.
+ * Thumbnails/media: prefer sealed `/api/media/file?t=` from the server.
  * Raw http(s) only for CORS-direct CDNs (client cannot seal).
  */
 function assetUrl(url) {
@@ -328,7 +328,7 @@ async function fetchBlobWithProgress(url, onProgress, { signal, waitWhilePaused,
 
 /**
  * Cover hosts are often outside connect-src, so the server returns sealed
- * same-origin download-proxy URLs. Non-image responses are rejected.
+ * same-origin `/api/media/file` URLs. Non-image responses are rejected.
  */
 export async function fetchEpisodeThumbnailBlob(jpgUrl, signal) {
     if (!jpgUrl || String(jpgUrl).startsWith('blob:') || String(jpgUrl).startsWith('data:')) return null
@@ -364,14 +364,15 @@ export async function fetchEpisodeThumbnailVtt(vttUrl, signal) {
 
 const SEEK_FRAME = /_\d+\.(jpe?g|png|webp)(\?|$)/i
 
-export function collectThumbnailUrls(vttText, jpgUrl) {
+export function collectThumbnailUrls(vttText, sheetSrc) {
     const urls = new Set()
-    if (jpgUrl && HTTP_URL.test(jpgUrl)) urls.add(jpgUrl)
-    const re = /https?:\/\/[^\s#]+/gi
+    if (sheetSrc && (HTTP_URL.test(sheetSrc) || PROXY_PATH.test(sheetSrc))) urls.add(sheetSrc)
+    // Sealed proxy paths or absolute CDN URLs inside the VTT.
+    const re = /(?:https?:\/\/[^\s#]+|\/api\/media\/(?:file|seek-vtt)\?[^\s#]+)/gi
     let m
     while ((m = re.exec(String(vttText || '')))) {
         const url = m[0]
-        if (jpgUrl && SEEK_FRAME.test(url) && url !== jpgUrl) continue
+        if (sheetSrc && SEEK_FRAME.test(url) && url !== sheetSrc) continue
         urls.add(url)
     }
     return [...urls]

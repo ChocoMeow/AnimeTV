@@ -64,8 +64,8 @@ async function listEpisodes(event, categoryId) {
 
                 for (const part of identifier.split('+')) {
                     episodes[normalizeEpisodeId(part.trim())] = episodeRecord(token, {
-                        thumbJpg: thumbBase ? `${thumbBase}/thumbnails.jpg` : null,
-                        thumbVtt: thumbBase ? `${thumbBase}/thumbnails.vtt` : null,
+                        sheetUrl: thumbBase ? `${thumbBase}/thumbnails.jpg` : null,
+                        vttUrl: thumbBase ? `${thumbBase}/thumbnails.vtt` : null,
                     })
                 }
             })

@@ -91,7 +91,8 @@ function isCompleted(ep) {
 
 function hasPreviewSource(ep) {
     const data = props.episodes[String(ep)]
-    return !!(data?.thumbnails_vtt_text || data?.thumbnails_vtt_url || data?.token)
+    // Only when seals already exist — never trigger a playback resolve just for hover.
+    return !!(data?.thumbnails?.vttSrc || data?.thumbnails?.sheetSrc)
 }
 
 function clearPreviewTimers() {

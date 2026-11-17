@@ -1,12 +1,12 @@
 import { isDirectHlsHost } from '~~/server/lib/videoProviders'
 import { logError } from '~~/server/utils/logger'
 import { mediaProxyUrl } from '~~/server/utils/mediaTokens'
-import { resolveOwnedPlayback, withProxiedThumbnails } from '~~/server/utils/playbackAssembly'
+import { assembleThumbnailsFromPlayback, resolveOwnedPlayback } from '~~/server/utils/playbackAssembly'
 import { urlLooksHls } from '~~/server/utils/videoUpstream'
 
 function proxyOrDirect(url, cookie, referer, userId) {
     if (!urlLooksHls(url)) {
-        return { kind: 'mp4', downloadUrl: mediaProxyUrl('download-proxy', { url, cookie, referer, userId }) }
+        return { kind: 'mp4', downloadUrl: mediaProxyUrl('media/file', { url, cookie, referer, userId }) }
     }
     try {
         if (!cookie && !referer && isDirectHlsHost(new URL(url).hostname)) {
@@ -16,6 +16,7 @@ function proxyOrDirect(url, cookie, referer, userId) {
     return { kind: 'hls', playlistUrl: mediaProxyUrl('proxy-video', { url, cookie, referer, hls: true, userId }) }
 }
 
+/** Offline source + seek thumbnails (same resolve, one response). */
 export default defineEventHandler(async (event) => {
     const userId = (await authUser(event)).sub
     try {
@@ -25,10 +26,9 @@ export default defineEventHandler(async (event) => {
         )
         if (!url) throw createError({ statusCode: 404, statusMessage: 'No available source' })
 
-        const meta = await withProxiedThumbnails(sealed, result, { cookie, referer, userId })
         return {
             ...proxyOrDirect(url, cookie, referer, userId),
-            ...meta,
+            ...assembleThumbnailsFromPlayback(sealed, result, { cookie, referer, userId }),
         }
     } catch (err) {
         if (err?.statusCode && err.statusCode < 500) throw err

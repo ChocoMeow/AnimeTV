@@ -5,7 +5,7 @@
  * @typedef {{ refId: string, title: string, image: string, imageBlob: Blob|null, description: string, episodes: Record<string, object>, tags: any[], views: number, userRating: any, relatedAnime: any[], detailId: string|null, isFavorite: boolean }} OfflineAnimeMeta
  * @typedef {{ refId: string, episodeKey: string, animeTitle: string, videoId: string|null, video: Blob, thumbnailVtt: string|null, thumbnailSheets: Record<string, Blob>, thumbnailsJpgUrl: string|null, savedAt: number }} OfflineEpisode
  * @typedef {{ url: string, revoke: () => void }} OfflinePlayback
- * @typedef {{ jpgUrl: string|null, vttText: string|null, revoke: () => void }} OfflineThumbnails
+ * @typedef {{ thumbnails: { vttSrc: string|null, sheetSrc: string|null }, revoke: () => void }} OfflineThumbnails
  */
 
 import { UNTITLED_ANIME } from '#shared/utils/offline'
@@ -107,6 +107,7 @@ export function playbackFromVideo(video) {
     return { url, revoke: () => URL.revokeObjectURL(url) }
 }
 
+/** Offline seek thumbs as the same `{ vttSrc, sheetSrc }` contract as the online API. */
 export function thumbnailAssetsFromEpisode(episode) {
     const created = []
     const urlMap = {}
@@ -116,19 +117,24 @@ export function thumbnailAssetsFromEpisode(episode) {
         created.push(url)
         urlMap[remote] = url
     }
-    const jpgUrl = (episode.thumbnailsJpgUrl && urlMap[episode.thumbnailsJpgUrl]) || Object.values(urlMap)[0] || null
+    const sheetSrc = (episode.thumbnailsJpgUrl && urlMap[episode.thumbnailsJpgUrl]) || Object.values(urlMap)[0] || null
     let vttText = episode.thumbnailVtt || null
     if (vttText) {
         for (const remote of Object.keys(urlMap).sort((a, b) => b.length - a.length)) {
             vttText = vttText.split(remote).join(urlMap[remote])
         }
     }
+    let vttSrc = null
+    if (vttText) {
+        vttSrc = URL.createObjectURL(new Blob([vttText], { type: 'text/vtt;charset=utf-8' }))
+        created.push(vttSrc)
+    }
     const revoke = () => created.forEach((url) => URL.revokeObjectURL(url))
-    if (!jpgUrl && !vttText) {
+    if (!sheetSrc && !vttSrc) {
         revoke()
         return null
     }
-    return { jpgUrl, vttText, revoke }
+    return { thumbnails: { vttSrc, sheetSrc }, revoke }
 }
 
 export function needsEpisodeRewrite(raw) {

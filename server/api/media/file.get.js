@@ -10,11 +10,10 @@ import {
 
 const { timeoutMs } = VIDEO_UPSTREAM
 
+/** Sealed opaque bytes: captions, sprites, progressive MP4. Seek VTT → `/api/media/seek-vtt`. */
 export default defineEventHandler(async (event) => {
-    // Auth via sealed media token — no session (same as proxy-video).
     const { t } = getQuery(event)
-    const { url, cookie: cookieHeader, referer, userId } = openMediaProxy(typeof t === 'string' ? t : '')
-
+    const { url, cookie, referer, userId } = openMediaProxy(typeof t === 'string' ? t : '')
     const range = getRequestHeader(event, 'range') || ''
     const clientAbort = bindClientAbort(event)
     armProxySocketTimeout(event, clientAbort)
@@ -37,7 +36,7 @@ export default defineEventHandler(async (event) => {
                 redirect: 'follow',
                 signal: upstream.signal,
                 headers: videoUpstreamHeaders(parsed, {
-                    cookie: cookieHeader,
+                    cookie,
                     referer,
                     accept: '*/*',
                     range: range || undefined,
@@ -53,21 +52,20 @@ export default defineEventHandler(async (event) => {
             res.body?.cancel?.().catch(() => {})
             throw createLoggedError(event, {
                 statusCode: res.status >= 400 ? res.status : 502,
-                statusMessage: 'Upstream download failed',
-                context: { module: 'download-proxy', stage: 'upstream', status: res.status, userId },
+                statusMessage: 'Upstream media fetch failed',
+                context: { module: 'media-file', stage: 'upstream', status: res.status, userId },
             })
         }
-
         if (!res.body) {
             throw createLoggedError(event, {
                 statusCode: 502,
                 statusMessage: 'Empty upstream body',
-                context: { module: 'download-proxy', stage: 'upstream', userId },
+                context: { module: 'media-file', stage: 'upstream', userId },
             })
         }
 
+        const contentType = res.headers.get('content-type') || 'application/octet-stream'
         setResponseStatus(event, res.status)
-        const contentType = res.headers.get('content-type') || 'video/mp4'
         setResponseHeader(event, 'Content-Type', contentType)
         const len = res.headers.get('content-length')
         if (len) {
@@ -78,7 +76,7 @@ export default defineEventHandler(async (event) => {
         if (contentRange) setResponseHeader(event, 'Content-Range', contentRange)
         const acceptRanges = res.headers.get('accept-ranges')
         if (acceptRanges) setResponseHeader(event, 'Accept-Ranges', acceptRanges)
-        // Sprites / VTT are public CDN-style assets; video downloads stay no-store.
+
         const cacheable =
             /^image\//i.test(contentType)
             || /^text\/vtt/i.test(contentType)
@@ -90,7 +88,6 @@ export default defineEventHandler(async (event) => {
         )
         if (cacheable) setResponseHeader(event, 'CDN-Cache-Control', 'public, max-age=86400')
         setResponseHeader(event, 'Access-Control-Allow-Origin', '*')
-
         return sendStream(event, res.body)
     } catch (err) {
         if (err?.name === 'AbortError' || clientAbort.signal.aborted) return
@@ -101,12 +98,12 @@ export default defineEventHandler(async (event) => {
                 event,
                 createLoggedError(event, {
                     statusCode: err?.statusCode || 502,
-                    statusMessage: err?.message || 'Proxy error',
+                    statusMessage: err?.message || 'Media file proxy error',
                     err,
-                    context: { module: 'download-proxy', userId },
+                    context: { module: 'media-file', userId },
                 }),
             )
         }
-        logError(event, err, { module: 'download-proxy', stage: 'after_headers', userId })
+        logError(event, err, { module: 'media-file', stage: 'after_headers', userId })
     }
 })

@@ -1,6 +1,6 @@
 /**
  * On-demand AI captions (provider `aiCaptions`).
- * Cached per source_id + episode + lang (~1y). Source VTT via sealed download-proxy.
+ * Cached per source_id + episode + lang (~1y). Source VTT via sealed `/api/media/file`.
  *
  * Background job per episode+lang; polls get `{ status:'pending', caption? }` (partial VTT)
  * then `{ status:'ready', caption }`. Server owns timings — model returns `id|text` lines.
@@ -72,7 +72,7 @@ function openSealedCaptionSource(src, userId) {
         path = u.pathname
         token = u.searchParams.get('t') || ''
     } catch { /* ignore */ }
-    if (!token || !path.endsWith('/download-proxy')) {
+    if (!token || !path.endsWith('/media/file')) {
         throw fail(400, 'Invalid caption source', '無效的字幕來源。')
     }
     const media = openMediaProxy(token)

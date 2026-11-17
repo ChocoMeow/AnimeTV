@@ -2,10 +2,11 @@ import { getRequestLogger, logError } from '~~/server/utils/logger'
 import { mediaProxyUrl } from '~~/server/utils/mediaTokens'
 import {
     assembleCaptions,
+    assembleThumbnailsFromPlayback,
     resolveOwnedPlayback,
-    withProxiedThumbnails,
 } from '~~/server/utils/playbackAssembly'
 
+/** Standard playback body: stream + captions + seek thumbnails. */
 export default defineEventHandler(async (event) => {
     const userId = (await authUser(event)).sub
     const log = getRequestLogger(event)
@@ -20,14 +21,11 @@ export default defineEventHandler(async (event) => {
         log.debug({ source: sealed.source, isHls, userId }, 'Video resolve ok')
 
         const ctx = { cookie, referer, userId, source: sealed.source }
-        const meta = await withProxiedThumbnails(sealed, result, ctx)
-        const captionBundle = assembleCaptions(result.captions, ctx)
-        // Never return upstream stream / caption / sprite URLs — only sealed proxies.
         return {
             proxyUrl: mediaProxyUrl('proxy-video', { url, cookie, referer, hls: isHls, userId }),
             isHls,
-            ...meta,
-            ...captionBundle,
+            ...assembleCaptions(result.captions, ctx),
+            ...assembleThumbnailsFromPlayback(sealed, result, ctx),
         }
     } catch (err) {
         if (err?.statusCode && err.statusCode < 500) throw err

@@ -17,7 +17,6 @@ const showDeleteConfirm = ref(false)
 const showDownloadProgress = ref(false)
 const animeToDelete = ref(null)
 const managingRefId = ref(null)
-
 const episodeAnime = computed(() => items.value.find((i) => i.refId === managingRefId.value) || null)
 const showEpisodes = computed({
     get: () => !!managingRefId.value,
@@ -366,12 +365,15 @@ useHead({ title: `下載管理 | ${appConfig.siteName}` })
                             <p class="text-sm text-gray-900 dark:text-white truncate">{{ task.animeTitle }}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">第 {{ task.episodeKey }} 集</p>
                         </div>
-                        <span
-                            class="inline-flex items-center gap-1 text-xs font-medium shrink-0"
-                            :class="task.status === 'error' ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'"
-                        >
-                            <span class="material-symbols-rounded text-base">{{ task.status === 'error' ? 'error' : 'check_circle' }}</span>
-                            {{ task.status === 'error' ? (task.error || '失敗') : '完成' }}
+                        <AppTooltip v-if="task.status === 'error'" :text="task.error || '失敗'">
+                            <span class="inline-flex items-center gap-1 text-xs font-medium shrink-0 text-red-600 dark:text-red-400 cursor-help">
+                                <span class="material-symbols-rounded text-base">error</span>
+                                失敗
+                            </span>
+                        </AppTooltip>
+                        <span v-else class="inline-flex items-center gap-1 text-xs font-medium shrink-0 text-emerald-600 dark:text-emerald-400">
+                            <span class="material-symbols-rounded text-base">check_circle</span>
+                            完成
                         </span>
                     </div>
                 </div>

@@ -12,8 +12,8 @@ import {
 const LANG_KEY = 'videoCaptionLang'
 const LAST_KEY = 'videoCaptionLangLast'
 const OFF = 'off'
-const AI_POLL_MS = 4_000
-const AI_POLL_MAX_MS = 6 * 60_000
+const AI_POLL_MS = 20_000
+const AI_POLL_MAX_MS = 10 * 60_000
 const VTT_TYPE = 'text/vtt;charset=utf-8'
 
 const storageGet = (key) => { try { return localStorage.getItem(key) } catch { return null } }

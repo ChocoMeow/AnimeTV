@@ -7,7 +7,7 @@ const STORAGE_KEY = 'cf-waf-reload-at'
 const COOLDOWN_MS = 12_000
 
 /** Video/HLS traffic must never trigger a full-page reload. */
-const SKIP_API_PATH = /^\/api\/(?:proxy-video|download-proxy|download-video)/
+const SKIP_API_PATH = /^\/api\/(?:proxy-video|media\/(?:file|seek-vtt)|download-video)/
 
 const CF_CHALLENGE_RE = /cf-challenge|challenge-platform|cdn-cgi\/challenge|__cf_chl/i
 

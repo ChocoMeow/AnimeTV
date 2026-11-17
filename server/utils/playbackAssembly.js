@@ -1,16 +1,14 @@
 /**
  * Shared playback assembly — /api/episode + /api/download-video.
- * Provider-agnostic: sealed contract from resolvePlayback only.
+ * Seals upstream URLs; never returns raw provider media links.
  */
 import { resolvePlaybackForSource } from '~~/server/lib/videoProviders'
 import { availableAiCaptionLangs } from '~~/server/utils/captionTranslate'
-import {
-    mediaProxyUrl,
-    openOwnedEpisodeToken,
-    playbackMetaFrom,
-    rewriteThumbnailsVtt,
-} from '~~/server/utils/mediaTokens'
-import { absoluteMediaUrl, urlLooksHls, videoUpstreamHeaders } from '~~/server/utils/videoUpstream'
+import { mediaProxyUrl, openOwnedEpisodeToken } from '~~/server/utils/mediaTokens'
+import { absoluteMediaUrl, urlLooksHls } from '~~/server/utils/videoUpstream'
+
+const FILE = 'media/file'
+const SEEK_VTT = 'media/seek-vtt'
 
 /** Open owned episode token and resolve upstream playback once. */
 export async function resolveOwnedPlayback(sealedToken, userId) {
@@ -28,50 +26,42 @@ export async function resolveOwnedPlayback(sealedToken, userId) {
     }
 }
 
-/** Seal upstream caption URLs via download-proxy. */
-export function proxyCaptionTracks(captions, { cookie, referer, userId }) {
-    if (!Array.isArray(captions) || !captions.length) return []
-    return captions
+/** Captions → sealed `/api/media/file`. Omits empty fields. */
+export function assembleCaptions(captions, { cookie, referer, userId, source } = {}) {
+    const sealed = (Array.isArray(captions) ? captions : [])
         .map((c) => {
             if (!c?.src) return null
             const src = absoluteMediaUrl(c.src)
             if (!src) return null
-            return { ...c, src: mediaProxyUrl('download-proxy', { url: src, cookie, referer, userId }) }
+            return { ...c, src: mediaProxyUrl(FILE, { url: src, cookie, referer, userId }) }
         })
         .filter(Boolean)
-}
-
-/** Upstream captions → sealed proxy URLs. AI langs listed for on-demand UI. */
-export function assembleCaptions(captions, ctx) {
+    const aiCaptionLangs = availableAiCaptionLangs(captions, { source })
     return {
-        captions: proxyCaptionTracks(captions, ctx),
-        aiCaptionLangs: availableAiCaptionLangs(captions, { source: ctx?.source }),
+        ...(sealed.length ? { captions: sealed } : {}),
+        ...(aiCaptionLangs.length ? { aiCaptionLangs } : {}),
     }
 }
 
-/** Fetch seek-thumbnail VTT; rewrite relative sprites → sealed download-proxy. */
-export async function materializeThumbnailsVtt(url, { cookie, referer, userId }) {
-    if (!url || !userId) return null
-    try {
-        const abs = absoluteMediaUrl(url)
-        if (!abs) return null
-        const res = await fetch(abs, {
-            headers: videoUpstreamHeaders(abs, { cookie, referer, accept: 'text/vtt,*/*' }),
-        })
-        if (!res.ok) return null
-        const text = (await res.text()).replace(/^\uFEFF/, '')
-        if (!text || !/WEBVTT/i.test(text)) return null
-        return rewriteThumbnailsVtt(text, abs, { cookie, referer, userId })
-    } catch {
-        return null
-    }
+/**
+ * Seek thumbs → sealed URLs. Omits `thumbnails` when empty.
+ * `vttSrc` → `/api/media/seek-vtt`, `sheetSrc` → `/api/media/file`.
+ */
+export function assembleThumbnails(raw = {}, { cookie = '', referer = '', userId } = {}) {
+    if (!userId) return {}
+    const vtt = absoluteMediaUrl(raw?.vttUrl)
+    const sheet = absoluteMediaUrl(raw?.sheetUrl)
+    if (!vtt && !sheet) return {}
+    const thumbnails = {}
+    if (vtt) thumbnails.vttSrc = mediaProxyUrl(SEEK_VTT, { url: vtt, cookie, referer, userId })
+    if (sheet) thumbnails.sheetSrc = mediaProxyUrl(FILE, { url: sheet, cookie, referer, userId })
+    return { thumbnails }
 }
 
-/** Inline rewritten VTT when possible — never leave raw upstream thumbnails_vtt_url. */
-export async function withProxiedThumbnails(sealed, result, ctx) {
-    const meta = playbackMetaFrom(sealed, result)
-    const thumbText =
-        meta.thumbnails_vtt_text
-        || (await materializeThumbnailsVtt(meta.thumbnails_vtt_url, ctx))
-    return { ...meta, thumbnails_vtt_text: thumbText || null, thumbnails_vtt_url: null }
+/** Provider result thumbs, else list-time URLs sealed in the episode token. */
+export function assembleThumbnailsFromPlayback(sealed, result, ctx) {
+    return assembleThumbnails({
+        vttUrl: result?.thumbnails?.vttUrl || sealed?.thumbVtt || null,
+        sheetUrl: result?.thumbnails?.sheetUrl || sealed?.thumbJpg || null,
+    }, ctx)
 }

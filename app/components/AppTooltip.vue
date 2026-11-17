@@ -49,22 +49,33 @@ function placeTip() {
     ready.value = true
 }
 
+async function showNow() {
+    ready.value = false
+    visible.value = true
+    await nextTick()
+    placeTip()
+}
+
+function hideNow() {
+    visible.value = false
+    ready.value = false
+}
+
 function onEnter() {
     clearTimeout(hideTimer)
-    showTimer = setTimeout(async () => {
-        ready.value = false
-        visible.value = true
-        await nextTick()
-        placeTip()
-    }, props.delay)
+    showTimer = setTimeout(showNow, props.delay)
 }
 
 function onLeave() {
     clearTimeout(showTimer)
-    hideTimer = setTimeout(() => {
-        visible.value = false
-        ready.value = false
-    }, 80)
+    hideTimer = setTimeout(hideNow, 80)
+}
+
+function onClick() {
+    if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
+    clearTimeout(showTimer)
+    clearTimeout(hideTimer)
+    visible.value ? hideNow() : showNow()
 }
 
 onUnmounted(() => {
@@ -74,14 +85,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <span ref="anchorRef" class="inline-flex" @mouseenter="onEnter" @mouseleave="onLeave" @focusin="onEnter" @focusout="onLeave">
+    <span ref="anchorRef" class="inline-flex" @mouseenter="onEnter" @mouseleave="onLeave" @focusin="onEnter" @focusout="onLeave" @click="onClick">
         <slot />
         <Teleport to="body">
             <Transition name="app-tip">
                 <div
                     v-if="visible"
                     ref="tipRef"
-                    class="pointer-events-none fixed z-[10050] max-w-[min(24rem,calc(100vw-1rem))] whitespace-pre-line rounded-md bg-gray-900 px-2.5 py-1.5 text-xs leading-relaxed text-white shadow-lg dark:bg-gray-100 dark:text-gray-900"
+                    class="pointer-events-none fixed z-[10050] max-w-[min(24rem,calc(100vw-1rem))] break-words whitespace-pre-line rounded-md bg-gray-900 px-2.5 py-1.5 text-xs leading-relaxed text-white shadow-lg dark:bg-gray-100 dark:text-gray-900"
                     :class="{ 'opacity-0': !ready }"
                     :style="{ left: pos.left + 'px', top: pos.top + 'px' }"
                     role="tooltip"

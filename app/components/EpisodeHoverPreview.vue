@@ -1,7 +1,4 @@
 <script setup>
-const resolvedPreviewMetaCache = new Map()
-const PREVIEW_META_CACHE_LIMIT = 30
-
 const props = defineProps({
     open: { type: Boolean, default: false },
     episode: { type: [String, Number], default: null },
@@ -23,25 +20,16 @@ const previewTime = ref(0)
 const isScrubbing = ref(false)
 const placement = ref('top')
 const position = ref({ left: VIEWPORT_INSET, top: VIEWPORT_INSET })
-const resolvedEpisodeData = ref(null)
-const metaSettled = ref(false)
 
 let animationFrame = 0
 let lastFrameTime = 0
 let leaveAfterScrub = false
-let metadataResolveId = 0
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
-const hasThumbnailMeta = (data) => !!(data?.thumbnails_vtt_text || data?.thumbnails_vtt_url)
 
-const episodeMeta = computed(() => ({
-    ...props.episodeData,
-    ...resolvedEpisodeData.value,
-}))
+/** List/play seals only - never call /api/episode just for hover. */
 const animeMeta = computed(() => ({
-    thumbnailJpgUrl: episodeMeta.value.thumbnails_jpg_url || null,
-    thumbnailsVttText: episodeMeta.value.thumbnails_vtt_text || null,
-    thumbnailsVttUrl: episodeMeta.value.thumbnails_vtt_url || null,
+    thumbnails: props.episodeData?.thumbnails || null,
 }))
 
 const {
@@ -63,10 +51,8 @@ const hasDisplayFrame = computed(() =>
     !!(thumbnailPreview.value || (activeThumbnail.value && activeThumbnailSrc.value)),
 )
 
-/** Open shell while loading; hide once we know there are no thumbnails. */
-const isVisible = computed(() =>
-    props.open && !(metaSettled.value && !isLoading.value && !hasThumbnails.value),
-)
+/** Show while loading or when frames exist. */
+const isVisible = computed(() => props.open && (isLoading.value || hasThumbnails.value))
 
 const progress = computed(() =>
     thumbnailDuration.value
@@ -177,53 +163,10 @@ function onCardPointerLeave() {
     emit('pointerleave')
 }
 
-function fetchPreviewMeta(token) {
-    let request = resolvedPreviewMetaCache.get(token)
-    if (request) return request
-
-    request = $fetch(`/api/episode/${encodeURIComponent(token)}`).then((result) => ({
-        thumbnails_vtt_text: result?.thumbnails_vtt_text || null,
-        thumbnails_jpg_url: result?.thumbnails_jpg_url || null,
-        thumbnails_vtt_url: result?.thumbnails_vtt_url || null,
-    }))
-    resolvedPreviewMetaCache.set(token, request)
-    if (resolvedPreviewMetaCache.size > PREVIEW_META_CACHE_LIMIT) {
-        resolvedPreviewMetaCache.delete(resolvedPreviewMetaCache.keys().next().value)
-    }
-    return request
-}
-
-async function resolvePreviewMetadata() {
-    const id = ++metadataResolveId
-    resolvedEpisodeData.value = null
-    metaSettled.value = false
-
-    if (props.episode == null) {
-        metaSettled.value = true
-        return
-    }
-
-    const token = props.episodeData?.token
-    if (hasThumbnailMeta(props.episodeData) || !token) {
-        metaSettled.value = true
-        return
-    }
-
-    try {
-        const result = await fetchPreviewMeta(token)
-        if (id !== metadataResolveId) return
-        resolvedEpisodeData.value = result
-    } catch {
-        resolvedPreviewMetaCache.delete(token)
-    } finally {
-        if (id === metadataResolveId) metaSettled.value = true
-    }
-}
-
 watch(
-    [() => props.open, hasThumbnails, isLoading, metaSettled],
-    ([open, available, loading, settled]) => {
-        if (open && settled && !loading && !available) emit('unavailable')
+    [() => props.open, hasThumbnails, isLoading],
+    ([open, available, loading]) => {
+        if (open && !loading && !available) emit('unavailable')
     },
 )
 
@@ -233,7 +176,6 @@ watch(
         previewTime.value = 0
         isScrubbing.value = false
         clearActiveThumbnail()
-        resolvePreviewMetadata()
     },
     { immediate: true },
 )
@@ -258,7 +200,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-    metadataResolveId++
     stopAnimation()
     window.removeEventListener('resize', updatePosition)
     window.removeEventListener('scroll', updatePosition, true)

@@ -698,7 +698,7 @@ async function resolvePlayback(payload) {
     return {
         s: [{ src: best.url, type: 'hls' }],
         captions: mapCaptions(captionTracks),
-        thumbnails_vtt_url: thumbUrl,
+        ...(thumbUrl ? { thumbnails: { vttUrl: thumbUrl } } : {}),
         videoCookie: '',
         videoReferer: best.referer || `${SITE}/`,
     }

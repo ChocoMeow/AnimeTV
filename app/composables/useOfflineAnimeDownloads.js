@@ -121,8 +121,6 @@ export function useOfflineAnimeDownloads() {
         episodeKey,
         token,
         videoId,
-        thumbnailsJpgUrl,
-        thumbnailsVttUrl,
         onProgress,
         signal,
         waitWhilePaused,
@@ -155,16 +153,14 @@ export function useOfflineAnimeDownloads() {
         await putJob(job)
         const onJob = async (patch) => putJob((job = { ...job, ...patch, status: 'downloading' }))
 
-        const jpgUrl = source.thumbnails_jpg_url || thumbnailsJpgUrl || null
+        const sheetSrc = source.thumbnails?.sheetSrc || null
+        const vttSrc = source.thumbnails?.vttSrc || null
         const [video, thumbs] = await Promise.all([
             fetchEpisodeMp4(source, onProgress, { signal, waitWhilePaused, jobId, onJob }, qualityHeight),
             (async () => {
-                let thumbnailVtt = source.thumbnails_vtt_text || null
-                if (!thumbnailVtt && (source.thumbnails_vtt_url || thumbnailsVttUrl)) {
-                    thumbnailVtt = await fetchEpisodeThumbnailVtt(source.thumbnails_vtt_url || thumbnailsVttUrl, signal)
-                }
+                const thumbnailVtt = vttSrc ? await fetchEpisodeThumbnailVtt(vttSrc, signal) : null
                 const thumbnailSheets = {}
-                await mapPool(collectThumbnailUrls(thumbnailVtt, jpgUrl), OFFLINE_SEGMENT_CONCURRENCY, async (url) => {
+                await mapPool(collectThumbnailUrls(thumbnailVtt, sheetSrc), OFFLINE_SEGMENT_CONCURRENCY, async (url) => {
                     const sheet = await fetchEpisodeThumbnailBlob(url, signal)
                     if (sheet) thumbnailSheets[url] = sheet
                 })
@@ -184,7 +180,7 @@ export function useOfflineAnimeDownloads() {
                 video,
                 thumbnailVtt: thumbs.thumbnailVtt,
                 thumbnailSheets: thumbs.thumbnailSheets,
-                thumbnailsJpgUrl: jpgUrl,
+                thumbnailsJpgUrl: sheetSrc,
             }),
         )
         if (!(await loadAnimeSnapshot(refId))) {

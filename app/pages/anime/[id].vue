@@ -94,8 +94,7 @@ const offlineDownloadProgress = ref(0)
 const offlineDownloadLabel = ref('')
 const offlinePlaybackRevoke = ref(null)
 const offlineThumbRevoke = ref(null)
-const offlineThumbnailJpgUrl = ref(null)
-const offlineThumbnailVttText = ref(null)
+const offlineThumbnails = ref(null)
 const isOfflineView = ref(false)
 
 // Watch history
@@ -155,9 +154,7 @@ const videoPlayerMeta = computed(() => {
     return {
         title: anime.value?.title ?? null,
         episode: selectedEpisode.value ?? null,
-        thumbnailJpgUrl: offlineThumbnailJpgUrl.value || ep?.thumbnails_jpg_url || null,
-        thumbnailsVttText: offlineThumbnailVttText.value || ep?.thumbnails_vtt_text || null,
-        thumbnailsVttUrl: ep?.thumbnails_vtt_url || null,
+        thumbnails: offlineThumbnails.value || ep?.thumbnails || null,
         captions: Array.isArray(ep?.captions) ? ep.captions : [],
         episodeToken: ep?.token || null,
         aiCaptionLangs: Array.isArray(ep?.aiCaptionLangs) ? ep.aiCaptionLangs : [],
@@ -266,8 +263,7 @@ function revokeOfflinePlayback() {
 function revokeOfflineThumbnails() {
     offlineThumbRevoke.value?.()
     offlineThumbRevoke.value = null
-    offlineThumbnailJpgUrl.value = null
-    offlineThumbnailVttText.value = null
+    offlineThumbnails.value = null
 }
 const offlineCoverUrl = ref(null)
 const offlineCoverRevoke = ref(null)
@@ -525,16 +521,16 @@ function applyEpisodeQueryFromRoute() {
     return false
 }
 
-/** Merge resolve-time fields (seek VTT / captions) into the episode list entry. */
+/** Merge resolve-time fields (seek thumbs / captions) into the episode list entry. */
 function mergeEpisodePlaybackMeta(epKey, res) {
     const ep = anime.value?.episodes?.[epKey]
-    if (!ep || typeof ep !== 'object') return
+    if (!ep || typeof ep !== 'object' || !res) return
     const patch = {}
-    if (res.thumbnails_vtt_text) patch.thumbnails_vtt_text = res.thumbnails_vtt_text
-    if (res.thumbnails_jpg_url) patch.thumbnails_jpg_url = res.thumbnails_jpg_url
-    if (res.thumbnails_vtt_url) patch.thumbnails_vtt_url = res.thumbnails_vtt_url
-    if (Array.isArray(res.captions)) patch.captions = res.captions
-    if (Array.isArray(res.aiCaptionLangs)) patch.aiCaptionLangs = res.aiCaptionLangs
+    // Keep list-time seals when present — resealing on play causes a duplicate seek-vtt fetch.
+    const hasListThumbs = !!(ep.thumbnails?.vttSrc || ep.thumbnails?.sheetSrc)
+    if (res.thumbnails && !hasListThumbs) patch.thumbnails = res.thumbnails
+    if (Array.isArray(res.captions) && res.captions.length) patch.captions = res.captions
+    if (Array.isArray(res.aiCaptionLangs) && res.aiCaptionLangs.length) patch.aiCaptionLangs = res.aiCaptionLangs
     if (Object.keys(patch).length) anime.value.episodes[epKey] = { ...ep, ...patch }
 }
 
@@ -633,9 +629,8 @@ watch(selectedEpisode, async (epNum, oldEpNum) => {
         if (import.meta.client && refId) {
             const thumb = await getOfflineThumbnailAssets(refId, epNum)
             if (fetchId !== episodeFetchId) return
-            if (thumb) {
-                offlineThumbnailJpgUrl.value = thumb.jpgUrl || null
-                offlineThumbnailVttText.value = thumb.vttText || null
+            if (thumb?.thumbnails) {
+                offlineThumbnails.value = thumb.thumbnails
                 offlineThumbRevoke.value = thumb.revoke
             }
 

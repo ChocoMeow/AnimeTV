@@ -24,10 +24,9 @@
  * resolvePlayback / episodeRecord should return only this contract (core wires the rest):
  *   s: [{ src, type? }]          // stream URLs (HLS or progressive)
  *   videoCookie?, videoReferer?  // upstream auth/headers for proxy
- *   captions?                    // [{ src, label, srclang }] — sealed by core via download-proxy
- *   thumbnails_vtt_url? | thumbnails_vtt_text?, thumbnails_jpg_url?
- *   // video_id stays server-side (sealed in episode token) — never return to client
- *   // relative VTT sprite paths are fine — core rewrites + seals them
+ *   captions?                    // [{ src, label, srclang }] → /api/media/file
+ *   thumbnails?: { vttUrl?, sheetUrl? }  // upstream → client thumbnails.{vttSrc,sheetSrc}
+ *   // video_id stays in episode token — never return to client
  *
  * Restart the server after adding a source.
  * Plugins are discovered by modules/video-providers.ts → `#video-providers`.

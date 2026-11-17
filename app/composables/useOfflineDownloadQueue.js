@@ -218,8 +218,6 @@ export function useOfflineDownloadQueue() {
         episodeKey,
         token,
         videoId,
-        thumbnailsJpgUrl,
-        thumbnailsVttUrl,
         qualityHeight,
         onRatio,
     }) {
@@ -235,8 +233,6 @@ export function useOfflineDownloadQueue() {
                     episodeKey,
                     token,
                     videoId,
-                    thumbnailsJpgUrl,
-                    thumbnailsVttUrl,
                     qualityHeight,
                     signal: ctrl.abort.signal,
                     waitWhilePaused: () => waitWhilePaused(id),
@@ -447,8 +443,6 @@ export function useOfflineDownloadQueue() {
                     episodeKey: ep,
                     token: episodeData.token,
                     videoId: null,
-                    thumbnailsJpgUrl: episodeData.thumbnails_jpg_url || null,
-                    thumbnailsVttUrl: episodeData.thumbnails_vtt_url || null,
                     qualityHeight,
                     onRatio: (ratio, label) => {
                         progressByEpisode[ep] = ratio

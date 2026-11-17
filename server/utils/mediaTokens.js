@@ -66,8 +66,8 @@ export function sealEpisodeToken(source, ep, userId, { sourceId, episode } = {})
         s: source,
         t: ep.token,
         i: userId,
-        ...ifSet('j', ep.thumbnails_jpg_url),
-        ...ifSet('w', ep.thumbnails_vtt_url),
+        ...ifSet('j', ep.thumbnails?.sheetUrl),
+        ...ifSet('w', ep.thumbnails?.vttUrl),
         ...ifSet('a', sourceId),
         ...ifSet('n', episode),
     })
@@ -87,15 +87,6 @@ export function openOwnedEpisodeToken(sealed, userId) {
         thumbVtt: p.w || null,
         sourceId: Number.isFinite(sourceId) ? sourceId : null,
         episode: p.n || null,
-    }
-}
-
-/** Thumb meta for the client — never includes video_id / source_id. */
-export function playbackMetaFrom(sealed, result) {
-    return {
-        thumbnails_vtt_text: result?.thumbnails_vtt_text || null,
-        thumbnails_jpg_url: result?.thumbnails_jpg_url || sealed.thumbJpg || null,
-        thumbnails_vtt_url: result?.thumbnails_vtt_url || sealed.thumbVtt || null,
     }
 }
 
@@ -132,10 +123,10 @@ export function mediaProxyUrl(api, payload) {
 }
 
 /**
- * Rewrite seek-thumbnail WebVTT image URLs → download-proxy.
+ * Rewrite seek-thumbnail WebVTT image URLs → `/api/media/file`.
  * Seals each distinct URL once; keeps #xywh= for client crops.
  */
-export function rewriteThumbnailsVtt(text, vttUrl, { api = 'download-proxy', cookie = '', referer = '', userId } = {}) {
+export function rewriteThumbnailsVtt(text, vttUrl, { api = 'media/file', cookie = '', referer = '', userId } = {}) {
     if (!text || !userId || !vttUrl) return text || ''
     let base
     try {

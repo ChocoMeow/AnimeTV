@@ -43,13 +43,13 @@ function spritePreviewStyles(crop, sheet, boxW, boxH) {
     }
 }
 
-/** Shared jpg + #xywh, or per-cue sheet URL + #xywh. */
+/** Shared sheetSrc + #xywh, or per-cue sheet URL + #xywh. */
 function parseThumbnailsVtt(vttText) {
     const segments = []
     for (const block of String(vttText || '').replace(/\r/g, '').split(/\n\s*\n/)) {
         const timeMatch = block.match(/((?:\d{2}:)?\d{2}:\d{2}\.\d{3})\s*-->\s*((?:\d{2}:)?\d{2}:\d{2}\.\d{3})/)
         if (!timeMatch) continue
-        // Absolute CDN URLs, blob: URLs, or same-origin proxied paths (/api/download-proxy?…).
+        // Absolute CDN URLs, blob: URLs, or same-origin proxied paths (/api/media/file?…).
         const src = block.match(/((?:blob:|https?:|\/)[^\s#]+)/i)?.[1]
         const xywh = parseXywh(block)
         if (!src && !xywh) continue
@@ -67,7 +67,8 @@ function parseThumbnailsVtt(vttText) {
 }
 
 /**
- * Seek-bar / episode-hover thumbnails. Sheets stay cached (never aborted on hover).
+ * Seek-bar / episode-hover thumbnails.
+ * Contract: `animeMeta.thumbnails = { vttSrc?, sheetSrc? }` (sealed proxies or offline blob URLs).
  * @param {{ animeMeta: import('vue').Ref|import('vue').ComputedRef, previewWidth?: number, previewHeight?: number }} options
  */
 export function usePlayerThumbnails({
@@ -89,16 +90,18 @@ export function usePlayerThumbnails({
     const sheetSizesVersion = ref(0)
 
     const meta = computed(() => toValue(animeMeta) || {})
-    const jpgUrl = computed(() => meta.value.thumbnailJpgUrl || null)
+    const thumbs = computed(() => meta.value.thumbnails || null)
+    const sheetSrc = computed(() => thumbs.value?.sheetSrc || null)
+    const vttSrc = computed(() => thumbs.value?.vttSrc || null)
     const hasThumbnails = computed(() => segments.value.length > 0)
     const thumbnailDuration = computed(() => segments.value.at(-1)?.end || 0)
-    const activeThumbnailSrc = computed(() => activeThumbnail.value?.src || jpgUrl.value || null)
+    const activeThumbnailSrc = computed(() => activeThumbnail.value?.src || sheetSrc.value || null)
 
     const thumbnailPreview = computed(() => {
         void sheetSizesVersion.value
         const seg = activeThumbnail.value
         if (!seg?.xywh) return null
-        const src = seg.src || jpgUrl.value
+        const src = seg.src || sheetSrc.value
         const sheet = src ? sheetSizes.get(src) : null
         const crop = seg.xywh
         if (!crop?.w || !crop?.h || !sheet?.w || !sheet?.h) return null
@@ -106,7 +109,7 @@ export function usePlayerThumbnails({
     })
 
     function sheetUrl(seg) {
-        return seg?.src || jpgUrl.value || null
+        return seg?.src || sheetSrc.value || null
     }
 
     function findAtTime(t) {
@@ -212,12 +215,9 @@ export function usePlayerThumbnails({
         try {
             if (typeof window === 'undefined') return
 
-            let parsed = meta.value.thumbnailsVttText
-                ? parseThumbnailsVtt(meta.value.thumbnailsVttText)
-                : null
-            const url = meta.value.thumbnailsVttUrl
-
-            if (!parsed && url) {
+            const url = vttSrc.value
+            let parsed = null
+            if (url) {
                 if (vttCache.has(url)) {
                     parsed = vttCache.get(url)
                 } else {
@@ -240,7 +240,7 @@ export function usePlayerThumbnails({
                 seen.add(u)
                 preload(u)
             }
-            if (jpgUrl.value) preload(jpgUrl.value)
+            if (sheetSrc.value) preload(sheetSrc.value)
         } catch {
             if (id === loadId) segments.value = []
         } finally {
@@ -249,7 +249,7 @@ export function usePlayerThumbnails({
     }
 
     watch(
-        [jpgUrl, () => meta.value.thumbnailsVttText, () => meta.value.thumbnailsVttUrl],
+        [vttSrc, sheetSrc],
         load,
         { immediate: true },
     )
