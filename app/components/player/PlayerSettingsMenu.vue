@@ -191,23 +191,26 @@ function thumbClass(on) {
                             <span>關閉</span>
                             <span v-if="!selectedCaptionLang" class="material-symbols-rounded text-base">check</span>
                         </button>
-                        <!-- AI Chinese first (same rank as native 繁中), then sorted tracks. -->
+                        <!-- AI / Google Chinese first, then sorted tracks. -->
                         <button
                             v-for="ai in pendingAiLangs"
-                            :key="`ai:${ai.srclang}`"
+                            :key="`${ai.engine}:${ai.srclang}`"
                             type="button"
                             :class="menuItemClass"
                             :disabled="Boolean(aiLoadingLang)"
-                            @click="emit('request-ai-caption', ai.srclang)"
+                            @click="emit('request-ai-caption', ai)"
                         >
                             <span>
-                                {{ ai.label }}（AI）
-                                <span v-if="aiLoadingLang === ai.srclang" :class="mutedClass"> · 生成中…</span>
+                                {{ ai.label }}
+                                <span
+                                    v-if="aiLoadingLang === `${ai.engine}:${ai.srclang}`"
+                                    :class="mutedClass"
+                                > · {{ ai.engine === 'google' ? '翻譯中…' : '生成中…' }}</span>
                             </span>
                             <span
                                 class="material-symbols-rounded text-base"
-                                :class="aiLoadingLang === ai.srclang ? 'animate-spin' : mutedClass"
-                            >{{ aiLoadingLang === ai.srclang ? 'progress_activity' : 'auto_awesome' }}</span>
+                                :class="aiLoadingLang === `${ai.engine}:${ai.srclang}` ? 'animate-spin' : mutedClass"
+                            >{{ aiLoadingLang === `${ai.engine}:${ai.srclang}` ? 'progress_activity' : ai.icon }}</span>
                         </button>
                         <button
                             v-for="cap in captionTracks"

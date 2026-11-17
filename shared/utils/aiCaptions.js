@@ -29,6 +29,8 @@ export const AI_CAPTION_LANGS = Object.freeze({
             [/\bI'd\b/g, '我'],
             [/\bI\b/g, '我'],
         ]),
+        /** Google Translate `tl` when using engine=google. */
+        googleTl: 'zh-TW',
     }),
 })
 

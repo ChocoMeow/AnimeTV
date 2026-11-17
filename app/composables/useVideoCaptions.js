@@ -13,6 +13,7 @@ const LANG_KEY = 'videoCaptionLang'
 const LAST_KEY = 'videoCaptionLangLast'
 const OFF = 'off'
 const AI_POLL_MS = 20_000
+const GOOGLE_POLL_MS = 2_000
 const AI_POLL_MAX_MS = 10 * 60_000
 const VTT_TYPE = 'text/vtt;charset=utf-8'
 
@@ -62,6 +63,7 @@ function pickAiSourceTrack(tracks, targetLang) {
  * iOS native FS: track `showing` so Safari paints the same language.
  */
 export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeToken, notify, onCaptionAdded }) {
+    const aiEnabled = Boolean(useRuntimeConfig().public.aiEnabled)
     const baseTracks = computed(() => normalizeList(toValue(captions)))
     /** Optimistic AI tracks until the parent merges them into `captions`. */
     const localExtras = ref([])
@@ -75,11 +77,21 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         }
         return out.sort((a, b) => captionMenuRank(a) - captionMenuRank(b) || a.label.localeCompare(b.label, 'zh'))
     })
+    /** Pending translate options — Google always; AI only when `aiEnabled`. */
     const pendingAiLangs = computed(() => {
         const have = new Set(available.value.map((t) => t.srclang))
         return (toValue(aiCaptionLangs) || [])
-            .map((code) => aiCaptionLang(code))
-            .filter((m) => m && !have.has(m.srclang))
+            .flatMap((code) => {
+                const m = aiCaptionLang(code)
+                if (!m || have.has(m.srclang)) return []
+                const opts = [
+                    { srclang: m.srclang, label: `${m.label}（Google）`, engine: 'google', icon: 'translate' },
+                ]
+                if (aiEnabled) {
+                    opts.unshift({ srclang: m.srclang, label: `${m.label}（AI）`, engine: 'ai', icon: 'auto_awesome' })
+                }
+                return opts
+            })
             .sort((a, b) => captionMenuRank(a) - captionMenuRank(b))
     })
     const hasCaptions = computed(() => available.value.length > 0 || pendingAiLangs.value.length > 0)
@@ -228,7 +240,9 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         return track
     }
 
-    async function requestAiCaption(lang, { silent = false } = {}) {
+    async function requestAiCaption(langOrOpt, { silent = false } = {}) {
+        const engine = langOrOpt?.engine === 'google' ? 'google' : 'ai'
+        const lang = typeof langOrOpt === 'object' ? langOrOpt.srclang : langOrOpt
         const meta = aiCaptionLang(lang)
         const token = String(toValue(episodeToken) || '').trim()
         if (!meta || !token || aiLoadingLang.value) return false
@@ -244,16 +258,20 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
             return false
         }
 
-        aiLoadingLang.value = meta.srclang
+        // Disambiguate loading when both AI + Google share the same srclang.
+        const loadingKey = `${engine}:${meta.srclang}`
+        aiLoadingLang.value = loadingKey
         aiError.value = ''
         const g = gen
         const startedAt = Date.now()
+        const failMsg = engine === 'google' ? 'Google 字幕翻譯失敗' : 'AI 字幕產生失敗'
         const req = {
             method: 'POST',
             timeout: 30_000,
             body: {
                 token,
                 lang: meta.srclang,
+                engine,
                 sourceSrc: source.src,
                 sourceLang: source.srclang,
             },
@@ -267,8 +285,10 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
                     await applyAiCaption(res.caption)
                     applied = true
                 }
-                if (Date.now() - startedAt > AI_POLL_MAX_MS) throw new Error('AI 字幕產生逾時，請稍後再試')
-                await sleep(AI_POLL_MS)
+                if (Date.now() - startedAt > AI_POLL_MAX_MS) {
+                    throw new Error(engine === 'google' ? 'Google 字幕翻譯逾時，請稍後再試' : 'AI 字幕產生逾時，請稍後再試')
+                }
+                await sleep(engine === 'google' ? GOOGLE_POLL_MS : AI_POLL_MS)
                 if (g !== gen) return false
                 res = await $fetch('/api/caption-ai', req)
             }
@@ -276,7 +296,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
             await applyAiCaption(res.caption, { persist: true, notifyReady: !silent && !applied })
             return true
         } catch (err) {
-            const msg = err?.data?.message || err?.statusMessage || err?.message || 'AI 字幕產生失敗'
+            const msg = err?.data?.message || err?.statusMessage || err?.message || failMsg
             aiError.value = msg
             if (!silent) notify?.(msg, 'error')
             return false
@@ -291,10 +311,10 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         localExtras.value = []
         aiError.value = ''
         show(pickLang(list))
-        // No 繁中 → auto AI (unless user turned captions off).
-        const canAiTw = (toValue(aiCaptionLangs) || []).some((c) => aiCaptionLang(c)?.srclang === 'TW')
+        // No 繁中 → auto AI when enabled (unless captions off). Google stays manual.
+        const canAiTw = aiEnabled && (toValue(aiCaptionLangs) || []).some((c) => aiCaptionLang(c)?.srclang === 'TW')
         if (storageGet(LANG_KEY) !== OFF && !list.some(isTwCaptionTrack) && canAiTw) {
-            requestAiCaption('TW', { silent: true })
+            requestAiCaption({ srclang: 'TW', engine: 'ai' }, { silent: true })
         }
     }, { immediate: true })
 

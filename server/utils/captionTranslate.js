@@ -1,5 +1,5 @@
 /**
- * On-demand AI captions (provider `aiCaptions`).
+ * On-demand AI / Google captions (provider `aiCaptions`).
  * Cached per source_id + episode + lang (~1y). Source VTT via sealed `/api/media/file`.
  *
  * Background job per episode+lang; polls get `{ status:'pending', caption? }` (partial VTT)
@@ -21,6 +21,8 @@ const TRANSLATOR_VERSION = 5
 const CHUNK = 30
 const CHUNK_PASSES = 3
 const AI_MIN_INTERVAL_MS = 6_500
+const GOOGLE_GAP_MS = 250
+const GOOGLE_BATCH_CUES = 40
 const AI_BUSY_ATTEMPTS = 2
 const MAX_RETRY_DELAY_MS = 60_000
 const USER_GEN_LIMIT = 20
@@ -33,6 +35,7 @@ const partials = new Map() // jobKey → progressive VTT
 const failures = new Map()
 const userGenAt = new Map()
 let nextAiSlot = 0
+let nextGoogleAt = 0
 
 const sha = (t) => createHash('sha256').update(String(t || '')).digest('hex')
 const cacheKey = (vtt) => `v${TRANSLATOR_VERSION}:${sha(vtt)}`
@@ -46,6 +49,11 @@ const isTimeoutErr = (err) =>
 
 function captionOut(langDef, vttText) {
     return { srclang: langDef.srclang, label: langDef.label, vttText }
+}
+
+/** DB target_lang: AI=`TW`, Google=`TW-g` (same player track either way). */
+function cacheLang(langDef, engine) {
+    return engine === 'google' ? `${langDef.srclang}-g` : langDef.srclang
 }
 
 export function providerSupportsAiCaptions(source) {
@@ -142,6 +150,90 @@ function userFacingAiError(err) {
     if (err?.statusCode === 429) return fail(429, 'AI rate limited', 'AI 服務忙碌中，請稍後再試。')
     if (err?.statusCode === 503) return fail(503, 'AI unavailable', 'AI 服務暫時無法使用，請稍後再試。')
     return fail(502, 'AI provider error', err?.message || 'AI 字幕產生失敗。')
+}
+
+const GOOGLE_ATTEMPTS = 3
+
+/**
+ * Free Google Translate batch (`translate_a/t` + multiple `q`).
+ * Returns one translated string per input — no separator splitting.
+ */
+async function googleTranslateBatch(texts, tl) {
+    const list = texts.map((t) => String(t ?? ''))
+    if (!list.length) return []
+    if (list.every((t) => !t.trim())) return list
+
+    let lastStatus = 0
+    for (let attempt = 1; attempt <= GOOGLE_ATTEMPTS; attempt++) {
+        const wait = nextGoogleAt - Date.now()
+        if (wait > 0) await sleep(wait)
+        nextGoogleAt = Date.now() + GOOGLE_GAP_MS
+
+        const body = new URLSearchParams()
+        for (const q of list) body.append('q', q)
+
+        let res
+        try {
+            res = await fetch(`https://translate.googleapis.com/translate_a/t?client=gtx&sl=auto&tl=${encodeURIComponent(tl)}&dt=t`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                body,
+                signal: AbortSignal.timeout(45_000),
+            })
+        } catch {
+            if (attempt >= GOOGLE_ATTEMPTS) throw fail(502, 'Google Translate error', 'Google 翻譯失敗。')
+            nextGoogleAt = Date.now() + 1_200 * attempt
+            continue
+        }
+
+        if (!res.ok) {
+            lastStatus = res.status
+            const retryable = res.status === 429 || res.status >= 500
+            if (!retryable || attempt >= GOOGLE_ATTEMPTS) {
+                throw fail(
+                    res.status === 429 ? 429 : 502,
+                    'Google Translate error',
+                    res.status === 429 ? 'Google 翻譯忙碌中，請稍後再試。' : 'Google 翻譯失敗。',
+                )
+            }
+            nextGoogleAt = Date.now() + 1_200 * attempt
+            continue
+        }
+
+        const data = await res.json()
+        // `["a","b"]` or `[["a"],["b"]]` depending on client/params
+        const out = (Array.isArray(data) ? data : []).map((row, i) => {
+            const text = Array.isArray(row) ? row[0] : row
+            return (text == null || text === '') ? list[i] : String(text)
+        })
+        if (out.length !== list.length) {
+            if (attempt >= GOOGLE_ATTEMPTS) throw fail(502, 'Google Translate error', 'Google 翻譯失敗。')
+            continue
+        }
+        return out
+    }
+    throw fail(lastStatus === 429 ? 429 : 502, 'Google Translate error', 'Google 翻譯失敗。')
+}
+
+/** Translate VTT cues with Google multi-q batches (~40 cues / request). */
+async function translateVttGoogle(sourceVtt, tl, onPartial) {
+    const parsed = parseVtt(sourceVtt)
+    if (!parsed) throw fail(502, 'Caption parse failed', '原始字幕格式錯誤。')
+
+    const bodies = parsed.cues.map((c) => c.body)
+    log.info({ cues: bodies.length, tl }, 'Google caption translate start')
+
+    for (let i = 0; i < bodies.length; i += GOOGLE_BATCH_CUES) {
+        const slice = bodies.slice(i, i + GOOGLE_BATCH_CUES)
+        try {
+            const translated = await googleTranslateBatch(slice, tl)
+            for (let j = 0; j < translated.length; j++) bodies[i + j] = translated[j]
+        } catch {
+            // Keep source for this batch; continue so one bad batch does not kill the episode.
+        }
+        onPartial?.(buildVtt(parsed, bodies))
+    }
+    return buildVtt(parsed, bodies)
 }
 
 /** SFX / empty — skip language checks. Standalone "I"/"A" are real words. */
@@ -321,26 +413,28 @@ function claimUserQuota(userId) {
     const since = Date.now() - USER_GEN_WINDOW_MS
     const times = (userGenAt.get(userId) || []).filter((t) => t > since)
     if (times.length >= USER_GEN_LIMIT) {
-        throw fail(429, 'AI caption user limit', 'AI 字幕產生次數已達上限，請稍後再試。')
+        throw fail(429, 'AI caption user limit', '字幕翻譯次數已達上限，請稍後再試。')
     }
     times.push(Date.now())
     userGenAt.set(userId, times)
 }
 
-async function runJob(client, { media, sourceId, ep, sourceLang, langDef, jobKey }) {
-    const meta = { sourceId, episode: ep, targetLang: langDef.srclang, promptName: langDef.promptName }
+async function runJob(client, { media, sourceId, ep, sourceLang, langDef, engine, jobKey }) {
+    const meta = { sourceId, episode: ep, targetLang: langDef.srclang, promptName: langDef.promptName, engine }
     const sourceVtt = await fetchVtt(media.url, media.cookie, media.referer, meta)
     if (!sourceVtt) throw fail(502, 'Caption source fetch failed', '無法取得原始字幕。')
 
-    const vttText = await translateVtt(sourceVtt, meta, (partial) => {
-        if (jobKey) partials.set(jobKey, partial)
-    })
+    const onPartial = (partial) => { if (jobKey) partials.set(jobKey, partial) }
+    const vttText = engine === 'google'
+        ? await translateVttGoogle(sourceVtt, langDef.googleTl, onPartial)
+        : await translateVtt(sourceVtt, meta, onPartial)
+
     const { error } = await client.from(TABLE).upsert(
         {
             source_id: sourceId,
             episode_number: ep,
             source_lang: sourceLang || CAPTION_EN.srclang,
-            target_lang: langDef.srclang,
+            target_lang: cacheLang(langDef, engine),
             source_vtt_hash: cacheKey(sourceVtt),
             vtt_text: vttText,
             expires_at: new Date(Date.now() + TTL_MS).toISOString(),
@@ -352,7 +446,7 @@ async function runJob(client, { media, sourceId, ep, sourceLang, langDef, jobKey
         throw fail(500, 'Caption save failed', '無法儲存翻譯字幕。')
     }
     if (jobKey) partials.delete(jobKey)
-    log.info(meta, 'AI caption saved')
+    log.info(meta, 'caption saved')
 }
 
 function pendingResult(langDef, jobKey) {
@@ -371,12 +465,17 @@ export async function generateAiCaption(event, {
     sourceLang = CAPTION_EN.srclang,
     userId,
     targetLang,
+    engine = 'ai',
 } = {}) {
     const langDef = aiCaptionLang(targetLang)
     if (!langDef) throw fail(400, 'Unsupported caption language', '不支援的字幕語言。')
+    engine = engine === 'google' ? 'google' : 'ai'
+    if (engine === 'google' && !langDef.googleTl) {
+        throw fail(400, 'Unsupported Google target', '不支援的 Google 翻譯語言。')
+    }
     if (!userId) throw fail(401, 'Unauthorized', '請先登入。')
     if (!source || !providerSupportsAiCaptions(source)) {
-        throw fail(400, 'AI captions unavailable', '此來源不支援 AI 字幕。')
+        throw fail(400, 'AI captions unavailable', '此來源不支援翻譯字幕。')
     }
     if (!Number.isFinite(Number(sourceId)) || episode == null || episode === '') {
         throw fail(400, 'Invalid episode context', '缺少作品或集數資訊。')
@@ -384,7 +483,8 @@ export async function generateAiCaption(event, {
     if (!sourceSrc) throw fail(400, 'Missing caption source', '缺少原始字幕。')
 
     const media = openSealedCaptionSource(sourceSrc, userId)
-    const job = { sourceId: Number(sourceId), ep: String(episode), lang: langDef.srclang }
+    const lang = cacheLang(langDef, engine)
+    const job = { sourceId: Number(sourceId), ep: String(episode), lang }
     const jobKey = `${job.sourceId}|${job.ep}|${job.lang}|v${TRANSLATOR_VERSION}`
 
     if (inflight.has(jobKey)) return pendingResult(langDef, jobKey)
@@ -402,13 +502,22 @@ export async function generateAiCaption(event, {
     failures.delete(jobKey)
     claimUserQuota(userId)
 
-    const work = runJob(client, { media, sourceId: job.sourceId, ep: job.ep, sourceLang, langDef, jobKey })
+    const failMsg = engine === 'google' ? 'Google 字幕翻譯失敗。' : 'AI 字幕產生失敗。'
+    const work = runJob(client, {
+        media,
+        sourceId: job.sourceId,
+        ep: job.ep,
+        sourceLang,
+        langDef,
+        engine,
+        jobKey,
+    })
         .catch((err) => {
-            log.warn({ err, ...job }, 'AI caption failed')
+            log.warn({ err, ...job }, 'caption translate failed')
             partials.delete(jobKey)
             failures.set(jobKey, {
                 until: Date.now() + FAIL_COOLDOWN_MS,
-                error: err?.statusCode ? err : fail(502, 'Caption generate failed', 'AI 字幕產生失敗。'),
+                error: err?.statusCode ? err : fail(502, 'Caption generate failed', failMsg),
             })
         })
         .finally(() => inflight.delete(jobKey))
