@@ -12,6 +12,7 @@ defineProps({
     activeThumbnail: { type: Object, default: null },
     activeThumbnailSrc: { type: String, default: null },
     thumbnailPreview: { type: Object, default: null },
+    chapters: { type: Object, default: null },
     isPlaying: { type: Boolean, default: false },
     isEnded: { type: Boolean, default: false },
     isMuted: { type: Boolean, default: false },
@@ -100,6 +101,7 @@ defineExpose({
             :active-thumbnail="activeThumbnail"
             :active-thumbnail-src="activeThumbnailSrc"
             :thumbnail-preview="thumbnailPreview"
+            :chapters="chapters"
             @pointerdown="emit('progress-pointerdown', $event)"
             @pointermove="emit('progress-pointermove', $event)"
             @pointerup="emit('progress-pointerup', $event)"

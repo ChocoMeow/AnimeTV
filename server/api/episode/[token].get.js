@@ -6,7 +6,7 @@ import {
     resolveOwnedPlayback,
 } from '~~/server/utils/playbackAssembly'
 
-/** Standard playback body: stream + captions + seek thumbnails. */
+/** Standard playback body: stream + captions + seek thumbnails + chapters. */
 export default defineEventHandler(async (event) => {
     const userId = (await authUser(event)).sub
     const log = getRequestLogger(event)
@@ -26,6 +26,7 @@ export default defineEventHandler(async (event) => {
             isHls,
             ...assembleCaptions(result.captions, ctx),
             ...assembleThumbnailsFromPlayback(sealed, result, ctx),
+            ...(result?.chapters ? { chapters: result.chapters } : {}),
         }
     } catch (err) {
         if (err?.statusCode && err.statusCode < 500) throw err

@@ -288,18 +288,34 @@ async function extractMegaPlayDetails(embedUrl, { fetchImpl = fetch, userAgent =
         modernUrl ? { url: modernUrl, variant: "modern" } : null,
         legacyUrl ? { url: legacyUrl, variant: "legacy" } : null,
     ].filter((source, index, all) => source && all.findIndex((candidate) => candidate?.url === source.url) === index);
-  if (!sources.length) throw new Error(`MegaPlay response has no sources: ${embedUrl}`);
-  // Prefer modern tracks, but keep legacy-only entries (thumbnails sometimes only on one variant).
-  const trackMap = new Map();
-  for (const t of [...(Array.isArray(modernData?.tracks) ? modernData.tracks : []), ...(Array.isArray(legacyData?.tracks) ? legacyData.tracks : [])]) {
-    const key = String(t?.file || t?.url || "");
-    if (key && !trackMap.has(key)) trackMap.set(key, t);
-  }
-  return {
-    origin: pageUrl.origin,
-    sources,
-    tracks: [...trackMap.values()],
-  };
+    if (!sources.length) throw new Error(`MegaPlay response has no sources: ${embedUrl}`)
+    // Prefer modern tracks, but keep legacy-only entries (thumbnails sometimes only on one variant).
+    const trackMap = new Map()
+    for (const t of [...(Array.isArray(modernData?.tracks) ? modernData.tracks : []), ...(Array.isArray(legacyData?.tracks) ? legacyData.tracks : [])]) {
+        const key = String(t?.file || t?.url || '')
+        if (key && !trackMap.has(key)) trackMap.set(key, t)
+    }
+    return {
+        origin: pageUrl.origin,
+        sources,
+        tracks: [...trackMap.values()],
+        chapters: pickChapters(modernData, legacyData),
+    }
+}
+
+/** Valid OP/ED window; modern first, legacy fallback. Ignores empty 0/0 markers. */
+function skipRange(v) {
+    const start = Number(v?.start)
+    const end = Number(v?.end)
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null
+    return { start, end }
+}
+
+function pickChapters(modern, legacy) {
+    const intro = skipRange(modern?.intro) || skipRange(legacy?.intro)
+    const outro = skipRange(modern?.outro) || skipRange(legacy?.outro)
+    if (!intro && !outro) return null
+    return { ...(intro && { intro }), ...(outro && { outro }) }
 }
 
 /* ─── AniKoto site client ──────────────────────────────────────────── */
@@ -471,6 +487,7 @@ async function tryServers(serverItems, audio) {
     const serverSeen = new Set()
     const subSeen = new Set()
     const thumbSeen = new Set()
+    let chapters = null
 
     for (const item of serverItems) {
         const serverKey = `${item.name}:${item.subtitleType || item.serverType || audio}`
@@ -525,6 +542,7 @@ async function tryServers(serverItems, audio) {
                 itemSubs.push(mapped)
                 subtitles.push(mapped)
             }
+            chapters ||= extracted.chapters
         }
 
         if (!hlsSources.length) continue
@@ -547,7 +565,7 @@ async function tryServers(serverItems, audio) {
     }
 
     streams.sort((a, b) => (a.variant === 'modern' ? 0 : 1) - (b.variant === 'modern' ? 0 : 1))
-    return { streams, subtitles, thumbnails }
+    return { streams, subtitles, thumbnails, chapters }
 }
 
 /**
@@ -677,7 +695,7 @@ function decodeToken(token) {
 }
 
 async function resolvePlayback(payload) {
-    const { streams, subtitles, thumbnails } = await resolveEpisodeStreams({
+    const { streams, subtitles, thumbnails, chapters } = await resolveEpisodeStreams({
         ids: payload.ids,
         audio: payload.audio,
         malId: payload.malId,
@@ -699,6 +717,7 @@ async function resolvePlayback(payload) {
         s: [{ src: best.url, type: 'hls' }],
         captions: mapCaptions(captionTracks),
         ...(thumbUrl ? { thumbnails: { vttUrl: thumbUrl } } : {}),
+        ...(chapters ? { chapters } : {}),
         videoCookie: '',
         videoReferer: best.referer || `${SITE}/`,
     }

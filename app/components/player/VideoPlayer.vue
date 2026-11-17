@@ -1074,6 +1074,7 @@ onUnmounted(() => {
                 :active-thumbnail="activeThumbnail"
                 :active-thumbnail-src="activeThumbnailSrc"
                 :thumbnail-preview="thumbnailPreview"
+                :chapters="animeMeta?.chapters"
                 :is-playing="isPlaying"
                 :is-ended="isEnded"
                 :is-muted="isMuted"

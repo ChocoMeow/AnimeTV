@@ -158,6 +158,7 @@ const videoPlayerMeta = computed(() => {
         captions: Array.isArray(ep?.captions) ? ep.captions : [],
         episodeToken: ep?.token || null,
         aiCaptionLangs: Array.isArray(ep?.aiCaptionLangs) ? ep.aiCaptionLangs : [],
+        chapters: ep?.chapters,
     }
 })
 
@@ -531,6 +532,7 @@ function mergeEpisodePlaybackMeta(epKey, res) {
     if (res.thumbnails && !hasListThumbs) patch.thumbnails = res.thumbnails
     if (Array.isArray(res.captions) && res.captions.length) patch.captions = res.captions
     if (Array.isArray(res.aiCaptionLangs) && res.aiCaptionLangs.length) patch.aiCaptionLangs = res.aiCaptionLangs
+    if (res.chapters) patch.chapters = res.chapters
     if (Object.keys(patch).length) anime.value.episodes[epKey] = { ...ep, ...patch }
 }
 

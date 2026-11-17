@@ -1,4 +1,10 @@
 <script setup>
+/** Champagne / platinum markers on the glass seek track. */
+const CHAPTER_UI = Object.freeze({
+    intro: ['bg-[#E8DCC8]/65', '片頭'],
+    outro: ['bg-[#B7C0CC]/55', '片尾'],
+})
+
 const props = defineProps({
     progress: { type: Number, required: true },
     buffered: { type: Number, required: true },
@@ -12,6 +18,20 @@ const props = defineProps({
     activeThumbnail: { type: Object, default: null },
     activeThumbnailSrc: { type: String, default: null },
     thumbnailPreview: { type: Object, default: null },
+    /** `{ intro?: { start, end }, outro?: { start, end } }` seconds */
+    chapters: { type: Object, default: null },
+})
+
+const chapterSegments = computed(() => {
+    const d = props.duration
+    if (!(d > 0) || !props.chapters) return []
+    return Object.entries(props.chapters).flatMap(([id, range]) => {
+        const start = Math.max(0, Number(range?.start) || 0)
+        const end = Math.min(d, Number(range?.end) || 0)
+        if (!(end > start)) return []
+        const [cls, label] = CHAPTER_UI[id] || ['bg-white/50', id]
+        return [{ id, label, class: cls, start, end, left: (start / d) * 100, width: ((end - start) / d) * 100 }]
+    })
 })
 
 const emit = defineEmits([
@@ -33,6 +53,12 @@ let paintGen = 0
 const showPreview = computed(() =>
     (props.isHovering || props.isDragging) && props.duration > 0,
 )
+const hasThumbPreview = computed(() => !!(painted.value || fullFrameSrc.value))
+const previewTimeLabel = computed(() => {
+    const time = formatTime(props.hoverPreviewTime)
+    const hit = chapterSegments.value.find((s) => props.hoverPreviewTime >= s.start && props.hoverPreviewTime <= s.end)
+    return hit ? `${hit.label} · ${time}` : time
+})
 
 function clearLayers() {
     paintGen++
@@ -121,6 +147,14 @@ defineExpose({
                     :style="{ width: `${buffered}%` }"
                 />
                 <div
+                    v-for="seg in chapterSegments"
+                    :key="seg.id"
+                    class="absolute top-0 h-full rounded-full pointer-events-none"
+                    :class="seg.class"
+                    :style="{ left: `${seg.left}%`, width: `${seg.width}%` }"
+                    :title="seg.label"
+                />
+                <div
                     class="absolute h-full bg-white rounded-full pointer-events-none"
                     :class="isDragging ? 'transition-none' : 'transition-all duration-100'"
                     :style="{ width: `${progress}%` }"
@@ -137,11 +171,11 @@ defineExpose({
                     :style="{ left: `${hoverPreviewPosition}%` }"
                 >
                     <div
-                        v-if="painted || fullFrameSrc"
                         class="flex flex-col items-center"
-                        :style="{ width: `${thumbPreviewW}px` }"
+                        :style="hasThumbPreview ? { width: `${thumbPreviewW}px` } : undefined"
                     >
                         <div
+                            v-if="hasThumbPreview"
                             class="thumb-preview-frame relative overflow-hidden rounded-lg shadow-xl bg-black"
                             :style="{ width: `${thumbPreviewW}px`, height: `${thumbPreviewH}px` }"
                         >
@@ -167,15 +201,12 @@ defineExpose({
                                 :reveal="false"
                             />
                         </div>
-                        <div class="mt-1.5 bg-black/70 backdrop-blur-md text-white px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap tabular-nums text-center">
-                            {{ formatTime(hoverPreviewTime) }}
+                        <div
+                            class="bg-black/70 backdrop-blur-md text-white px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap tabular-nums text-center"
+                            :class="{ 'mt-1.5': hasThumbPreview }"
+                        >
+                            {{ previewTimeLabel }}
                         </div>
-                    </div>
-                    <div
-                        v-else
-                        class="bg-black/70 backdrop-blur-md text-white px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap tabular-nums"
-                    >
-                        {{ formatTime(hoverPreviewTime) }}
                     </div>
                 </div>
             </div>
