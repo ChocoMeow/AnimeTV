@@ -5,6 +5,7 @@ const SUPABASE_URL = process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://placeholde
 const SUPABASE_KEY = process.env.NUXT_PUBLIC_SUPABASE_KEY || 'placeholder-anon-key'
 
 export default defineNuxtConfig({
+    future: { compatibilityVersion: 4 },
     css: ['~/assets/css/tailwind.css'],
     modules: [
         '@nuxtjs/tailwindcss',
@@ -16,6 +17,19 @@ export default defineNuxtConfig({
     ],
     compatibilityDate: '2025-07-15',
     devtools: { enabled: process.env.NODE_ENV !== 'production' },
+    // Global components keep pathPrefix so Skeleton*/Search*/Userprofile* names stay stable.
+    // Feature components use pathPrefix: false; use distinctive filenames (e.g. SearchModal.vue).
+    components: [
+        { path: '~/components', pathPrefix: true },
+        { path: '~/features', pattern: '**/components/**', pathPrefix: false },
+    ],
+    imports: {
+        dirs: [
+            'composables/**',
+            'features/*/composables/**',
+            'features/*/utils/**',
+        ],
+    },
     // Vite 8: use postcss-nesting (ESM) instead of CJS tailwindcss/nesting
     postcss: {
         plugins: {
@@ -222,6 +236,7 @@ export default defineNuxtConfig({
                 includeSubdomains: true,
                 preload: true,
             },
+            // Cast: nuxt-security types omit some Permissions-Policy features we set.
             permissionsPolicy: {
                 // Default fullscreen: [] blocks the video player
                 autoplay: ['self'],
@@ -240,7 +255,7 @@ export default defineNuxtConfig({
                 'sync-xhr': [],
                 usb: [],
                 'xr-spatial-tracking': [],
-            },
+            } as Record<string, string[]>,
             contentSecurityPolicy: {
                 'frame-ancestors': ["'none'"],
                 // Google Fonts CSS (googleapis) + font files (gstatic)

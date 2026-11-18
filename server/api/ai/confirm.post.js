@@ -1,4 +1,4 @@
-import { applyConfirmedAction, logAiError } from '~~/server/utils/aiAgent'
+import { applyConfirmedAction, logAiError } from '~~/server/services/ai.service.js'
 
 export default defineEventHandler(async (event) => {
     try {

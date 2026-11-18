@@ -1,6 +1,6 @@
 import { CAPTION_EN } from '#shared/utils/aiCaptions'
 import { getRequestLogger, logError } from '~~/server/utils/logger'
-import { generateAiCaption } from '~~/server/utils/captionTranslate'
+import { generateAiCaption } from '~~/server/services/captions.service.js'
 import { openOwnedEpisodeToken } from '~~/server/utils/mediaTokens'
 
 const str = (v) => (typeof v === 'string' ? v.trim() : '')

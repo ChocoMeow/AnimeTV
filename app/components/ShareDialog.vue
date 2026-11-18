@@ -20,6 +20,10 @@ const finalUrl = computed(() => {
     return props.shareUrl
 })
 
+const qrCodeSrc = computed(() =>
+    `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(finalUrl.value)}`,
+)
+
 // Watch for changes in the final URL and reset the QR code loaded state
 watch(finalUrl, () => {
     qrCodeLoaded.value = false
@@ -80,7 +84,7 @@ async function shareNative() {
                 <div class="bg-white p-4 rounded-lg shadow-md">
                     <div class="relative w-48 h-48">
                         <div v-if="!qrCodeLoaded" class="absolute inset-0 bg-gray-200 rounded-lg animate-pulse"></div>
-                        <NuxtImg :src="`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(finalUrl)}`" alt="QR Code" class="w-48 h-48 transition-opacity duration-300" :class="qrCodeLoaded ? 'opacity-100' : 'opacity-0'" loading="eager" @load="qrCodeLoaded = true" />
+                        <NuxtImg :src="qrCodeSrc" alt="QR Code" class="w-48 h-48 transition-opacity duration-300" :class="qrCodeLoaded ? 'opacity-100' : 'opacity-0'" loading="eager" @load="qrCodeLoaded = true" />
                     </div>
                 </div>
             </div>

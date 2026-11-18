@@ -1,4 +1,5 @@
 import { createLoggedError } from '~~/server/utils/logger'
+import { getAnimeWiki } from '~~/server/services/animeMeta.service.js'
 
 export default defineEventHandler(async (event) => {
     await authUser(event)
@@ -6,12 +7,7 @@ export default defineEventHandler(async (event) => {
     const refId = getRouterParam(event, 'refId')
 
     try {
-        const scraped = await scrapeAcgDetail(refId, { includeWiki: true })
-        if (!scraped) {
-            throw createError({ statusCode: 404, statusMessage: 'Anime not found' })
-        }
-
-        return { wikiContentHtml: scraped.wikiContentHtml }
+        return await getAnimeWiki(refId)
     } catch (error) {
         if (error?.statusCode) throw error
         throw createLoggedError(event, {
