@@ -10,11 +10,10 @@ let syncTimer = null
 const rowKey = (e) => offlineHistoryKey(e.user_id, e.anime_ref_id, e.episode_number)
 const rowTime = (row) => Date.parse(row?.updated_at) || Number(row?.updated_at) || 0
 
-/** Prefer newer local pending rows over remote. */
+/** Newest row per episode (local wins ties). */
 export function mergeWatchHistory(remote = [], local = []) {
     const byEp = new Map()
-    for (const row of remote) byEp.set(String(row.episode_number), row)
-    for (const row of local) {
+    for (const row of [...remote, ...local]) {
         const key = String(row.episode_number)
         const prev = byEp.get(key)
         if (!prev || rowTime(row) >= rowTime(prev)) byEp.set(key, row)
@@ -43,8 +42,27 @@ export function useOfflineWatchHistory() {
         try {
             const userId = (await client.auth.getUser())?.data?.user?.id
             if (!userId) return
-            for (const entry of await list(userId)) {
+            const pending = await list(userId)
+            if (!pending.length) return
+
+            const { data: remote, error: fetchError } = await client
+                .from('watch_history')
+                .select('user_id, anime_ref_id, episode_number, updated_at')
+                .eq('user_id', userId)
+                .in('anime_ref_id', [...new Set(pending.map((e) => e.anime_ref_id))])
+            if (fetchError) {
+                console.error('Failed to load watch history for sync:', fetchError)
+                return
+            }
+
+            const remoteByKey = new Map((remote || []).map((r) => [rowKey(r), r]))
+            for (const entry of pending) {
                 if (!navigator.onLine) break
+                const cloud = remoteByKey.get(rowKey(entry))
+                if (cloud && rowTime(cloud) > rowTime(entry)) {
+                    await remove(entry)
+                    continue
+                }
                 const { updated_at: _, ...row } = entry
                 const { error } = await client.from('watch_history').upsert(row, {
                     onConflict: 'user_id, anime_ref_id, episode_number',
