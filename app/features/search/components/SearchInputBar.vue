@@ -24,6 +24,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 </script>
 
 <template>
+    <div class="flex w-full min-w-0 flex-col">
     <div
         class="flex w-full min-w-0 items-center gap-2"
         :class="
@@ -104,6 +105,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
         ask-label="問 AI"
         @select="$emit('set-intent', $event)"
     />
+    </div>
 </template>
 
 <style scoped>

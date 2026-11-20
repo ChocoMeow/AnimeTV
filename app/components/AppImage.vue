@@ -31,6 +31,12 @@ const showImg = computed(() => !!props.src && !failed.value)
 // and for Google avatars, which rate-limit (429) the shared server IP that IPX uses
 const native = computed(() => /^(data:|blob:|\/(?!\/))|\.svg(\?|$)|googleusercontent\.com/i.test(props.src))
 
+// resolveComponent can return a string name, or undefined if NuxtImg isn't ready yet
+const imgTag = computed(() => {
+    if (native.value) return 'img'
+    return NuxtImg && typeof NuxtImg !== 'string' ? NuxtImg : 'img'
+})
+
 // Don't add `relative` if the caller already positioned the root
 const positioned = computed(() => /\b(absolute|fixed|sticky|relative)\b/.test([attrs.class].flat().join(' ')))
 
@@ -61,7 +67,7 @@ onMounted(() => {
         />
 
         <component
-            :is="native ? 'img' : NuxtImg"
+            :is="imgTag"
             v-if="showImg"
             ref="img"
             :src="src"

@@ -30,6 +30,7 @@ const MIN_PX = 12
 const MAX_PX = 96
 
 function load() {
+    if (!import.meta.client) return { ...DEFAULTS }
     try {
         const raw = JSON.parse(localStorage.getItem(STYLE_KEY) || '')
         if (!raw || typeof raw !== 'object') return { ...DEFAULTS }
@@ -45,6 +46,7 @@ function load() {
 }
 
 function save(next) {
+    if (!import.meta.client) return
     try { localStorage.setItem(STYLE_KEY, JSON.stringify(next)) } catch { /* ignore */ }
 }
 

@@ -27,7 +27,7 @@ const ERRORS = {
 }
 
 function readStoredLang() {
-    if (!import.meta.client || typeof localStorage === 'undefined') return DEFAULT_LANG
+    if (!import.meta.client) return DEFAULT_LANG
     const v = localStorage.getItem(SPEECH_LANG_KEY)
     return ALLOWED.has(v) ? v : DEFAULT_LANG
 }

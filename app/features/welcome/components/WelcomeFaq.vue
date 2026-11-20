@@ -1,36 +1,8 @@
 <script setup>
-const appConfig = useAppConfig()
+import { welcomeFaqs } from '~/features/welcome/data/faqs'
 
-const faqs = computed(() => [
-    {
-        q: `${appConfig.siteName} 是什麼？和串流平台有什麼不同？`,
-        a: `${appConfig.siteName} 是給台港觀眾的繁中追番工具，整合動畫資訊與可設定的播放來源。它不是授權串流平台，也不宣稱擁有任何番劇版權。`,
-    },
-    {
-        q: '需要付費嗎？',
-        a: '個人、非商業觀賞用途可免費使用。登入後即可使用觀看紀錄、收藏、離線下載與好友等功能。',
-    },
-    {
-        q: '如何登入？',
-        a: '支援 Google 或 Discord 登入（Supabase 驗證）。登入後資料會同步到你的帳號，跨裝置也能續播。',
-    },
-    {
-        q: '可以離線觀看嗎？',
-        a: '可以。集數會下載為 MP4 至本機（HLS 來源會在下載時轉成 MP4），在下載管理頁暫停、續傳或取消。已下載內容在離線時仍可播放。',
-    },
-    {
-        q: 'AI 助手會讀取我的資料嗎？',
-        a: 'AI 助手為選用功能。首次使用前需於介面中明確同意隱私授權；未同意前不會讀取觀看紀錄、收藏或設定。',
-    },
-    {
-        q: '可以安裝到手機嗎？',
-        a: `可以。${appConfig.siteName} 是 PWA，支援加入主畫面。部分瀏覽器會在符合條件時提示安裝；安裝後可像 App 一樣開啟。`,
-    },
-    {
-        q: '原始碼開源嗎？',
-        a: '是，專案以 GPL-3.0 授權開源。原始碼與問題回報可至 GitHub 頁面查看。',
-    },
-])
+const appConfig = useAppConfig()
+const faqs = computed(() => welcomeFaqs(appConfig.siteName))
 
 const openItems = ref(new Set([0]))
 

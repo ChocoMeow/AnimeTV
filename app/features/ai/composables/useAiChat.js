@@ -110,6 +110,10 @@ export function useAiChat() {
     }
 
     function loadConsent() {
+        if (!import.meta.client) {
+            aiConsent.value = false
+            return
+        }
         try {
             aiConsent.value = !!userId.value && localStorage.getItem(CONSENT_KEY(userId.value)) === CONSENT_VER
         } catch {
@@ -118,7 +122,7 @@ export function useAiChat() {
     }
 
     function acceptConsent() {
-        if (!userId.value) return
+        if (!userId.value || !import.meta.client) return
         try {
             localStorage.setItem(CONSENT_KEY(userId.value), CONSENT_VER)
         } catch {}

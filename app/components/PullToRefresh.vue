@@ -17,6 +17,8 @@ const enabled = ref(false)
 const pull = ref(0)
 const state = ref('idle') // idle | pulling | ready | refreshing
 const snapping = ref(false)
+/** Defer Teleport until mount — SSR Teleport to body hydrates as empty vs client div. */
+const mounted = ref(false)
 
 let startX = 0
 let startY = 0
@@ -181,6 +183,7 @@ function onTouchCancel() {
 }
 
 onMounted(() => {
+    mounted.value = true
     updateEnabled()
     mqStandalone = window.matchMedia('(display-mode: standalone)')
     mqMinimal = window.matchMedia('(display-mode: minimal-ui)')
@@ -219,7 +222,7 @@ watch([isMobile, activeCount], updateEnabled)
 </script>
 
 <template>
-    <Teleport to="body">
+    <Teleport v-if="mounted" to="body">
         <div
             v-show="visible"
             class="ptr-indicator pointer-events-none fixed left-1/2 z-[55]"

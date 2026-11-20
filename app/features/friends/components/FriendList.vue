@@ -29,9 +29,8 @@ const friendSections = computed(() => [
 
 // Save state to localStorage
 const saveState = (open) => {
-    if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, open.toString())
-    }
+    if (!import.meta.client) return
+    localStorage.setItem(STORAGE_KEY, open.toString())
 }
 
 const showToggleButton = computed(() => !isOpen.value && friends.value.length > 0)

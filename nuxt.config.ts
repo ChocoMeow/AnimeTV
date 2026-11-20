@@ -75,6 +75,11 @@ export default defineNuxtConfig({
             esbuild: { options: { drop: ['console'] } },
         },
     },
+    vite: {
+        optimizeDeps: {
+            include: ['hls.js', '@vue/devtools-core'],
+        },
+    },
     // NUXT_DEV_HOST=0.0.0.0 for LAN/device testing
     devServer: {
         port: 3000,

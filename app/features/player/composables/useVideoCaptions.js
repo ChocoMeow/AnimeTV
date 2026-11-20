@@ -17,8 +17,14 @@ const GOOGLE_POLL_MS = 2_000
 const AI_POLL_MAX_MS = 10 * 60_000
 const VTT_TYPE = 'text/vtt;charset=utf-8'
 
-const storageGet = (key) => { try { return localStorage.getItem(key) } catch { return null } }
-const storageSet = (key, value) => { try { localStorage.setItem(key, value) } catch { /* ignore */ } }
+const storageGet = (key) => {
+    if (!import.meta.client) return null
+    try { return localStorage.getItem(key) } catch { return null }
+}
+const storageSet = (key, value) => {
+    if (!import.meta.client) return
+    try { localStorage.setItem(key, value) } catch { /* ignore */ }
+}
 const sameLang = (a, b) => normCaptionCode(a) === normCaptionCode(b)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const findMeta = (tracks, lang) => tracks.find((t) => sameLang(t.srclang, lang))

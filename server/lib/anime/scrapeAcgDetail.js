@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio'
 import { ACG_GAMER_BASE_URL, matchAnimeTags } from '#shared/utils/anime'
 import { isNumericString } from '#shared/utils/format'
+import { cfFetch } from '~~/server/lib/anime/cfFetch'
 import { moduleLogger } from '~~/server/utils/logger'
 
 const scrapeLog = moduleLogger('scrapeAcgDetail')

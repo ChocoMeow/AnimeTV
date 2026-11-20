@@ -1,6 +1,8 @@
 import { CACHE_LIFETIME } from '#shared/utils/anime'
 import { moduleLogger } from '~~/server/utils/logger'
-import { ANIME1 } from '~~/server/lib/videoProviders/sources/anime1'
+
+/** Inline catalog URL — do not import anime1.js (it imports cfFetch → cycle → undefined export). */
+const ANIME1_CATALOG_URL = 'https://anime1.me/animelist.json'
 
 /** Server-only in-memory caches used by Anime1 catalog / cfFetch. */
 const ANIME1_LIST_CACHE = {
@@ -31,7 +33,7 @@ export async function fetchAnimeData() {
     ANIME1_LIST_CACHE.fetchPromise = (async () => {
         try {
             animeLog.info('Fetching anime data from source')
-            const response = await fetch(ANIME1.catalogUrl);
+            const response = await fetch(ANIME1_CATALOG_URL);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
