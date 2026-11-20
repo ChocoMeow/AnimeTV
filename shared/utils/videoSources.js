@@ -17,3 +17,15 @@ export function isDirectHlsHost(hostname) {
         return host === base || host.endsWith(`.${base}`)
     })
 }
+
+/** True for CORS-direct HLS CDNs (proxied `/api/media/proxy?t=` is never direct). */
+export function isDirectHlsSrc(src) {
+    if (!src) return false
+    try {
+        const page = new URL(src, typeof location !== 'undefined' ? location.origin : 'http://localhost')
+        const raw = page.searchParams.get('url') || page.href
+        return isDirectHlsHost(new URL(raw, page).hostname)
+    } catch {
+        return false
+    }
+}

@@ -5,6 +5,7 @@ const SUPABASE_URL = process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://placeholde
 const SUPABASE_KEY = process.env.NUXT_PUBLIC_SUPABASE_KEY || 'placeholder-anon-key'
 
 export default defineNuxtConfig({
+    future: { compatibilityVersion: 4 },
     css: ['~/assets/css/tailwind.css'],
     modules: [
         '@nuxtjs/tailwindcss',
@@ -16,6 +17,19 @@ export default defineNuxtConfig({
     ],
     compatibilityDate: '2025-07-15',
     devtools: { enabled: process.env.NODE_ENV !== 'production' },
+    // Global components keep pathPrefix so Skeleton*/Search*/Userprofile* names stay stable.
+    // Feature components use pathPrefix: false; use distinctive filenames (e.g. SearchModal.vue).
+    components: [
+        { path: '~/components', pathPrefix: true },
+        { path: '~/features', pattern: '**/components/**', pathPrefix: false },
+    ],
+    imports: {
+        dirs: [
+            'composables/**',
+            'features/*/composables/**',
+            'features/*/utils/**',
+        ],
+    },
     // Vite 8: use postcss-nesting (ESM) instead of CJS tailwindcss/nesting
     postcss: {
         plugins: {
@@ -61,6 +75,11 @@ export default defineNuxtConfig({
             esbuild: { options: { drop: ['console'] } },
         },
     },
+    vite: {
+        optimizeDeps: {
+            include: ['hls.js', '@vue/devtools-core'],
+        },
+    },
     // NUXT_DEV_HOST=0.0.0.0 for LAN/device testing
     devServer: {
         port: 3000,
@@ -73,9 +92,9 @@ export default defineNuxtConfig({
             '/apple-touch-icon-precomposed.png': { redirect: '/icons/icon_512x512.png' },
             '/apple-touch-icon-120x120-precomposed.png': { redirect: '/icons/icon_512x512.png' },
             // High-volume streaming / WS must not hit the global rate limiter
-            '/api/proxy-video': { security: { rateLimiter: false } },
-            '/api/download-video/**': { security: { rateLimiter: false } },
-            '/api/user-status-ws': { security: { rateLimiter: false } },
+            '/api/media/proxy': { security: { rateLimiter: false } },
+            '/api/media/download/**': { security: { rateLimiter: false } },
+            '/api/presence/ws': { security: { rateLimiter: false } },
         },
         experimental: {
             websocket: true,
@@ -222,6 +241,7 @@ export default defineNuxtConfig({
                 includeSubdomains: true,
                 preload: true,
             },
+            // Cast: nuxt-security types omit some Permissions-Policy features we set.
             permissionsPolicy: {
                 // Default fullscreen: [] blocks the video player
                 autoplay: ['self'],
@@ -240,7 +260,7 @@ export default defineNuxtConfig({
                 'sync-xhr': [],
                 usb: [],
                 'xr-spatial-tracking': [],
-            },
+            } as Record<string, string[]>,
             contentSecurityPolicy: {
                 'frame-ancestors': ["'none'"],
                 // Google Fonts CSS (googleapis) + font files (gstatic)

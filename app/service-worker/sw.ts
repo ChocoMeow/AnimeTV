@@ -68,7 +68,7 @@ registerRoute(
 )
 
 registerRoute(
-    ({ url, sameOrigin }) => sameOrigin && /^\/api\/(proxy-video|media\/(?:file|seek-vtt))/i.test(url.pathname),
+    ({ url, sameOrigin }) => sameOrigin && /^\/api\/media\/(?:proxy|file|seek-vtt)/i.test(url.pathname),
     new NetworkOnly(),
     'GET',
 )

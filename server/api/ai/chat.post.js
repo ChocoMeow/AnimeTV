@@ -8,7 +8,7 @@ import {
     requireAiConfig,
     runChatAgent,
     throwChatTooLong,
-} from '~~/server/utils/aiAgent'
+} from '~~/server/services/ai.service.js'
 
 export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig(event)

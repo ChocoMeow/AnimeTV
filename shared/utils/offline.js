@@ -75,5 +75,5 @@ export function httpStatusFromError(err) {
 }
 
 export function downloadVideoApi(token) {
-    return `/api/download-video/${token}`
+    return `/api/media/download/${token}`
 }

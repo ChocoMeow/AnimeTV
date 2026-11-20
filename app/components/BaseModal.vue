@@ -1,76 +1,50 @@
 <script setup>
 const props = defineProps({
-    show: {
-        type: Boolean,
-        required: true,
-    },
-    title: {
-        type: String,
-        default: "",
-    },
-    icon: {
-        type: String,
-        default: "",
-    },
-    iconColor: {
-        type: String,
-        default: "text-gray-500",
-    },
-    maxWidth: {
-        type: String,
-        default: "max-w-md",
-    },
-    persistent: {
-        type: Boolean,
-        default: false,
-    },
+    show: { type: Boolean, required: true },
+    title: { type: String, default: '' },
+    icon: { type: String, default: '' },
+    iconColor: { type: String, default: 'text-gray-500' },
+    maxWidth: { type: String, default: 'max-w-md' },
+    persistent: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(["close"])
-
+const emit = defineEmits(['close'])
 const { isNarrow } = useMobile()
 
-function handleBackdropClick() {
-    if (!props.persistent) {
-        emit("close")
-    }
+function close() {
+    if (!props.persistent) emit('close')
 }
 
 function handleEscape(event) {
-    if (event.key === "Escape" && !props.persistent) {
-        emit("close")
-    }
+    if (event.key === 'Escape' && !props.persistent) emit('close')
 }
 
 function lockScroll() {
-    document.body.style.overflow = "hidden"
+    document.body.style.overflow = 'hidden'
 }
 
 function unlockScroll() {
-    document.body.style.overflow = ""
+    document.body.style.overflow = ''
 }
 
-onMounted(() => {
-    watch(
-        () => props.show,
-        (val) => {
-            if (val) lockScroll()
-            else unlockScroll()
-        },
-        { immediate: true }
-    )
+watch(
+    () => props.show,
+    (val) => {
+        if (val) lockScroll()
+        else unlockScroll()
+    },
+    { immediate: true },
+)
 
-    document.addEventListener("keydown", handleEscape)
-})
-
+onMounted(() => document.addEventListener('keydown', handleEscape))
 onBeforeUnmount(() => {
-    document.removeEventListener("keydown", handleEscape)
+    document.removeEventListener('keydown', handleEscape)
     unlockScroll()
 })
 </script>
 
 <template>
-    <!-- Narrow: bottom drawer -->
+    <!-- Narrow: bottom drawer (inherits Vaul sheet motion from BaseBottomDrawer) -->
     <BaseBottomDrawer
         v-if="isNarrow"
         :model-value="show"
@@ -99,10 +73,14 @@ onBeforeUnmount(() => {
         </template>
     </BaseBottomDrawer>
 
-    <!-- Wide: centered modal -->
+    <!-- Wide: same shadcn fade + zoom as BaseDialog -->
     <Teleport v-else to="body">
-        <transition name="fade">
-            <div v-if="show" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] px-4" @click="handleBackdropClick">
+        <Transition name="dialog">
+            <div
+                v-if="show"
+                class="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] px-4"
+                @click.self="close"
+            >
                 <div
                     class="bg-white dark:bg-gray-950 rounded-2xl shadow-2xl w-full px-6 pt-6 ring-1 ring-black/5 dark:ring-white/10"
                     :class="[maxWidth, $slots.actions ? '' : 'pb-safe']"
@@ -126,7 +104,7 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
             </div>
-        </transition>
+        </Transition>
     </Teleport>
 </template>
 
@@ -135,12 +113,35 @@ onBeforeUnmount(() => {
     padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity 0.3s ease;
+.dialog-enter-active,
+.dialog-leave-active {
+    transition: opacity 200ms ease-out;
 }
-.fade-enter-from,
-.fade-leave-to {
+
+.dialog-enter-active > div,
+.dialog-leave-active > div {
+    transition:
+        transform 200ms ease-out,
+        opacity 200ms ease-out;
+}
+
+.dialog-enter-from,
+.dialog-leave-to {
     opacity: 0;
+}
+
+.dialog-enter-from > div,
+.dialog-leave-to > div {
+    opacity: 0;
+    transform: scale(0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dialog-enter-active,
+    .dialog-leave-active,
+    .dialog-enter-active > div,
+    .dialog-leave-active > div {
+        transition-duration: 1ms;
+    }
 }
 </style>

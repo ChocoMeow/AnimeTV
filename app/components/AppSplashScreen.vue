@@ -13,11 +13,8 @@ function shouldShowSplash() {
     return !splashDone.value
 }
 
+/** Only flip true after mount so SSR + hydration both render an empty Transition. */
 const show = ref(false)
-
-onBeforeMount(() => {
-    if (shouldShowSplash()) show.value = true
-})
 
 /** `load` can hang forever offline if a cross-origin stylesheet never completes — cap wait time. */
 function waitForWindowLoadOrTimeout(maxMs) {
@@ -51,7 +48,8 @@ onMounted(async () => {
     await nextTick()
     requestAnimationFrame(() => removeBootstrapSplash())
 
-    if (!show.value) return
+    if (!shouldShowSplash()) return
+    show.value = true
     const minVisibleMs = 450
     const loadCapMs = 4000
     await Promise.all([

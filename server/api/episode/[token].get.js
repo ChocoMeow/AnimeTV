@@ -1,33 +1,15 @@
+import { parseEpisodeTokenParam } from '#shared/contracts/episode'
 import { getRequestLogger, logError } from '~~/server/utils/logger'
-import { mediaProxyUrl } from '~~/server/utils/mediaTokens'
-import {
-    assembleCaptions,
-    assembleThumbnailsFromPlayback,
-    resolveOwnedPlayback,
-} from '~~/server/utils/playbackAssembly'
+import { getEpisodePlayback } from '~~/server/services/playback.service.js'
 
-/** Standard playback body: stream + captions + seek thumbnails + chapters. */
+/** GET /api/episode/:token — standard playback body. */
 export default defineEventHandler(async (event) => {
     const userId = (await authUser(event)).sub
     const log = getRequestLogger(event)
+    const token = parseEpisodeTokenParam(getRouterParam(event, 'token'))
 
     try {
-        const { sealed, result, url, cookie, referer, isHls } = await resolveOwnedPlayback(
-            getRouterParam(event, 'token'),
-            userId,
-        )
-        if (!url) return { error: 'No available source' }
-
-        log.debug({ source: sealed.source, isHls, userId }, 'Video resolve ok')
-
-        const ctx = { cookie, referer, userId, source: sealed.source }
-        return {
-            proxyUrl: mediaProxyUrl('proxy-video', { url, cookie, referer, hls: isHls, userId }),
-            isHls,
-            ...assembleCaptions(result.captions, ctx),
-            ...assembleThumbnailsFromPlayback(sealed, result, ctx),
-            ...(result?.chapters ? { chapters: result.chapters } : {}),
-        }
+        return await getEpisodePlayback(token, userId, log)
     } catch (err) {
         if (err?.statusCode && err.statusCode < 500) throw err
         logError(event, err, { module: 'episode', userId })
