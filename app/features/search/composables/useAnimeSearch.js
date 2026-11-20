@@ -110,7 +110,7 @@ export function useAnimeSearch() {
             if (error) throw error
 
             searchHistory.value.push(data)
-            searchHistory.value.sort((a, b) => parseDbTimestamp(a.created_at) - parseDbTimestamp(b.created_at))
+            searchHistory.value.sort((a, b) => parseTimestamp(a.created_at) - parseTimestamp(b.created_at))
         } catch (err) {
             console.error('Failed to save search history:', err)
         }

@@ -69,7 +69,7 @@ const scrollRef = ref(null)
 let loaded = false
 
 const sortedHistory = computed(() =>
-    [...props.history].sort((a, b) => parseDbTimestamp(b.created_at) - parseDbTimestamp(a.created_at)),
+    [...props.history].sort((a, b) => parseTimestamp(b.created_at) - parseTimestamp(a.created_at)),
 )
 
 function stagger(i, step = 35, max = 12) {
@@ -213,7 +213,7 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
                                 {{ item.query }}
                             </span>
                             <span :class="['mt-0.5 block', META]">
-                                {{ i === 0 ? '最近搜尋 · ' : '' }}{{ formatRelativeDate(item.created_at) }}
+                                {{ i === 0 ? '最近搜尋 · ' : '' }}{{ formatRelative(item.created_at) }}
                             </span>
                         </span>
                     </button>

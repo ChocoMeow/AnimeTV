@@ -1,17 +1,3 @@
-import { isDirectHlsHost } from '#shared/utils/videoSources'
-
-/** True for CORS-direct HLS CDNs (proxied `/api/proxy-video?t=` is never direct). */
-export function isDirectHlsSrc(src) {
-    if (!src) return false
-    try {
-        const page = new URL(src, typeof location !== 'undefined' ? location.origin : 'http://localhost')
-        const raw = page.searchParams.get('url') || page.href
-        return isDirectHlsHost(new URL(raw, page).hostname)
-    } catch {
-        return false
-    }
-}
-
 /**
  * Prefetch upcoming HLS segments with a sliding concurrency window.
  * As soon as one download finishes, the next segment starts — no batch

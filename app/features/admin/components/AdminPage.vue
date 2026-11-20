@@ -174,7 +174,7 @@ function formatValueForInput(value, type) {
                 if (dateOnlyPattern.test(value)) {
                     return value
                 }
-                const date = parseDbTimestamp(value)
+                const date = parseTimestamp(value)
                 if (!isNaN(date.getTime())) {
                     const month = String(date.getMonth() + 1).padStart(2, '0')
                     const day = String(date.getDate()).padStart(2, '0')
@@ -184,7 +184,7 @@ function formatValueForInput(value, type) {
             return ''
         case 'datetime':
             if (typeof value === 'string') {
-                const date = parseDbTimestamp(value)
+                const date = parseTimestamp(value)
                 if (!isNaN(date.getTime())) {
                     const month = String(date.getMonth() + 1).padStart(2, '0')
                     const day = String(date.getDate()).padStart(2, '0')

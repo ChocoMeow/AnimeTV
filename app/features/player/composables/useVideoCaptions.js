@@ -1,13 +1,13 @@
 import {
-    aiCaptionLang,
     captionDisplayLabel,
+    captionLang,
     captionMenuRank,
     isEnCaptionCode,
     isEnCaptionTrack,
     isTwCaptionTrack,
     normCaptionCode,
     pickPreferredCaptionLang,
-} from '#shared/utils/aiCaptions'
+} from '#shared/utils/captions'
 
 const LANG_KEY = 'videoCaptionLang'
 const LAST_KEY = 'videoCaptionLangLast'
@@ -82,7 +82,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         const have = new Set(available.value.map((t) => t.srclang))
         return (toValue(aiCaptionLangs) || [])
             .flatMap((code) => {
-                const m = aiCaptionLang(code)
+                const m = captionLang(code)
                 if (!m || have.has(m.srclang)) return []
                 const opts = [
                     { srclang: m.srclang, label: `${m.label}（Google）`, engine: 'google', icon: 'translate' },
@@ -243,7 +243,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
     async function requestAiCaption(langOrOpt, { silent = false } = {}) {
         const engine = langOrOpt?.engine === 'google' ? 'google' : 'ai'
         const lang = typeof langOrOpt === 'object' ? langOrOpt.srclang : langOrOpt
-        const meta = aiCaptionLang(lang)
+        const meta = captionLang(lang)
         const token = String(toValue(episodeToken) || '').trim()
         if (!meta || !token || aiLoadingLang.value) return false
         if (findMeta(available.value, meta.srclang)) {
@@ -278,7 +278,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         }
 
         try {
-            let res = await $fetch('/api/caption-ai', req)
+            let res = await $fetch('/api/caption', req)
             let applied = false
             while (res?.status === 'pending') {
                 if (res?.caption?.vttText) {
@@ -290,7 +290,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
                 }
                 await sleep(engine === 'google' ? GOOGLE_POLL_MS : AI_POLL_MS)
                 if (g !== gen) return false
-                res = await $fetch('/api/caption-ai', req)
+                res = await $fetch('/api/caption', req)
             }
             if (!res?.caption?.vttText || !res?.caption?.srclang) throw new Error('empty caption')
             await applyAiCaption(res.caption, { persist: true, notifyReady: !silent && !applied })
@@ -312,7 +312,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         aiError.value = ''
         show(pickLang(list))
         // No 繁中 → auto AI when enabled (unless captions off). Google stays manual.
-        const canAiTw = aiEnabled && (toValue(aiCaptionLangs) || []).some((c) => aiCaptionLang(c)?.srclang === 'TW')
+        const canAiTw = aiEnabled && (toValue(aiCaptionLangs) || []).some((c) => captionLang(c)?.srclang === 'TW')
         if (storageGet(LANG_KEY) !== OFF && !list.some(isTwCaptionTrack) && canAiTw) {
             requestAiCaption({ srclang: 'TW', engine: 'ai' }, { silent: true })
         }

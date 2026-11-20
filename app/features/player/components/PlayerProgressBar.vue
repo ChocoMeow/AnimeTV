@@ -55,7 +55,7 @@ const showPreview = computed(() =>
 )
 const hasThumbPreview = computed(() => !!(painted.value || fullFrameSrc.value))
 const previewTimeLabel = computed(() => {
-    const time = formatTime(props.hoverPreviewTime)
+    const time = formatDuration(props.hoverPreviewTime)
     const hit = chapterSegments.value.find((s) => props.hoverPreviewTime >= s.start && props.hoverPreviewTime <= s.end)
     return hit ? `${hit.label} · ${time}` : time
 })

@@ -169,7 +169,7 @@ onBeforeUnmount(() => {
                                 <h4 class="font-medium text-sm text-gray-900 dark:text-white truncate hover:underline">
                                     {{ friend.name }}</h4>
                                 <p v-if="section.isOffline" class="text-xs text-gray-500 dark:text-gray-400">上次上線 {{
-                                    formatRelativeDate(friend.lastSeen) || '未知' }}</p>
+                                    formatRelative(friend.lastSeen) || '未知' }}</p>
                                 <p v-else class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                     <span v-if="section.icon" class="material-symbols-rounded text-xs">{{ section.icon }}</span>
                                     {{ section.text }}
@@ -243,7 +243,7 @@ onBeforeUnmount(() => {
                                 <h4 class="font-semibold text-base text-gray-900 dark:text-white truncate">{{
                                     friend.name }}</h4>
                                 <p v-if="section.isOffline" class="text-sm text-gray-500 dark:text-gray-400">上次上線 {{
-                                    formatRelativeDate(friend.lastSeen) || '未知' }}</p>
+                                    formatRelative(friend.lastSeen) || '未知' }}</p>
                                 <p v-else class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                     <span v-if="section.icon" class="material-symbols-rounded text-sm">{{ section.icon }}</span>
                                     {{ section.text }}

@@ -1,7 +1,15 @@
-import { CACHE_LIFETIME } from '#shared/utils/global'
+import { CACHE_LIFETIME } from '#shared/utils/anime'
 import { moduleLogger } from '~~/server/utils/logger'
 import { ANIME1 } from '~~/server/lib/videoProviders/sources/anime1'
-import { ANIME1_LIST_CACHE, RESPONSE_CACHE } from '~~/server/utils/cache'
+
+/** Server-only in-memory caches used by Anime1 catalog / cfFetch. */
+const ANIME1_LIST_CACHE = {
+    fetchPromise: null,
+    timestamp: 0,
+    data: null,
+}
+
+const RESPONSE_CACHE = new Map()
 
 const animeLog = moduleLogger('anime')
 

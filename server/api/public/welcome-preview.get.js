@@ -1,5 +1,5 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
-import { CACHE_LIFETIME } from '#shared/utils/global'
+import { CACHE_LIFETIME } from '#shared/utils/anime'
 import { logError } from '~~/server/utils/logger'
 import { getWelcomePreview } from '~~/server/services/anime.service.js'
 

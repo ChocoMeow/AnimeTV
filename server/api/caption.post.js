@@ -1,4 +1,4 @@
-import { CAPTION_EN } from '#shared/utils/aiCaptions'
+import { CAPTION_EN } from '#shared/utils/captions'
 import { getRequestLogger, logError } from '~~/server/utils/logger'
 import { generateAiCaption } from '~~/server/services/captions.service.js'
 import { openOwnedEpisodeToken } from '~~/server/utils/mediaTokens'
@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
         return result
     } catch (err) {
         // 502/503 from the model / Google are expected user-facing failures — don't treat as unhandled.
-        if ((Number(err?.statusCode) || 500) === 500) logError(event, err, { module: 'caption-ai', userId, lang, engine })
+        if ((Number(err?.statusCode) || 500) === 500) logError(event, err, { module: 'caption', userId, lang, engine })
         if (err?.statusCode) throw err
         throw createError({
             statusCode: 500,

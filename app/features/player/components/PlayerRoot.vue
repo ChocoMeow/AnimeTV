@@ -191,10 +191,10 @@ const progress = computed(() => {
 })
 const displayTime = computed(() => (isDraggingProgress.value ? dragPreviewTime.value : currentTime.value))
 const positionLabel = computed(() => {
-    const total = formatTime(duration.value)
-    if (!showRemainingTime.value) return `${formatTime(displayTime.value)} / ${total}`
+    const total = formatDuration(duration.value)
+    if (!showRemainingTime.value) return `${formatDuration(displayTime.value)} / ${total}`
     const remaining = Math.max(0, duration.value - displayTime.value)
-    return `-${formatTime(remaining)} / ${total}`
+    return `-${formatDuration(remaining)} / ${total}`
 })
 
 const tooltipLabels = computed(() => {

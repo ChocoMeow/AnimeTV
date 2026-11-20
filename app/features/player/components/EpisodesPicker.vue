@@ -307,8 +307,8 @@ onBeforeUnmount(() => {
                         <div class="flex flex-col gap-1">
                             <div class="font-semibold">{{ getEpisodeTitle(ep) }}</div>
                             <div class="text-gray-300">
-                                {{ formatTime(watchProgress[String(ep)].playback_time) }} /
-                                {{ formatTime(watchProgress[String(ep)].video_duration) }}
+                                {{ formatDuration(watchProgress[String(ep)].playback_time) }} /
+                                {{ formatDuration(watchProgress[String(ep)].video_duration) }}
                             </div>
                             <div :class="isCompleted(ep) ? 'text-green-400' : 'text-gray-400'">
                                 {{ getProgress(ep) }}% 完成

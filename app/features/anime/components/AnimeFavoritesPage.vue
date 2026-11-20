@@ -1,5 +1,5 @@
 <script setup>
-import { WATCH_ANIME_META, WATCH_ANIME_META_INNER, withAnimeCovers } from '#shared/utils/watchHistory'
+import { WATCH_ANIME_META, WATCH_ANIME_META_INNER, withAnimeCovers } from '#shared/utils/anime'
 
 const { userSettings } = useUserSettings()
 const { showToast } = useToast()
@@ -68,10 +68,10 @@ const filteredFavorites = computed(() => {
                 if (idxA !== idxB) return idxB - idxA
             } else if (yearA) return -1
             else if (yearB) return 1
-            return parseDbTimestamp(b.created_at) - parseDbTimestamp(a.created_at)
+            return parseTimestamp(b.created_at) - parseTimestamp(a.created_at)
         })
     } else {
-        filtered.sort((a, b) => parseDbTimestamp(b.created_at) - parseDbTimestamp(a.created_at))
+        filtered.sort((a, b) => parseTimestamp(b.created_at) - parseTimestamp(a.created_at))
     }
     return filtered
 })

@@ -277,7 +277,7 @@ defineExpose({ reset })
                                 </div>
                                 <div class="absolute bottom-0 left-0 right-0" :class="mobile ? 'p-1.5' : 'p-2'">
                                     <p class="font-medium text-gray-100 truncate" :class="mobile ? 'text-[10px]' : 'text-[11px]'">{{ anime.anime_title }}</p>
-                                    <p class="text-gray-300" :class="mobile ? 'text-[9px]' : 'text-[10px]'">收藏於 {{ formatRelativeDate(anime.created_at) }}</p>
+                                    <p class="text-gray-300" :class="mobile ? 'text-[9px]' : 'text-[10px]'">收藏於 {{ formatRelative(anime.created_at) }}</p>
                                 </div>
                             </AppImage>
                         </NuxtLink>

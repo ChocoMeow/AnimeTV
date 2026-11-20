@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio"
-import { GAMER_BASE_URL } from "#shared/utils/global"
+import { GAMER_BASE_URL } from "#shared/utils/anime"
 import { cfFetch } from "~~/server/utils/anime"
-import { parseViews, toYearMonthSlash } from "~~/server/utils/functions"
+import { parseViews, formatYearMonth } from "#shared/utils/format"
 import { searchAnimeMeta } from "~~/server/utils/pgroongaSearch"
 
 function truncateDescription(text, max = 140) {
@@ -19,7 +19,7 @@ function toResult(row) {
         refId: row.source_id,
         title: row.title,
         image: row.thumbnail,
-        year: toYearMonthSlash(row.premiere_date),
+        year: formatYearMonth(row.premiere_date),
         episodes: null,
         views: row.views ?? null,
         description: truncateDescription(row.description),
@@ -65,7 +65,7 @@ export async function searchAnimeResults(client, query) {
                     refId,
                     image: getAttr(movie, ".theme-img", "data-src"),
                     title: getText(movie, ".theme-name"),
-                    year: toYearMonthSlash(getText(movie, ".theme-time")?.replace("年份：", "") ?? null),
+                    year: formatYearMonth(getText(movie, ".theme-time")?.replace("年份：", "") ?? null),
                     episodes: getText(movie, ".theme-number"),
                     views: parseViews(getText(movie, ".show-view-number p")),
                     description: null,

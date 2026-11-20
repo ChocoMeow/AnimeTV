@@ -8,7 +8,7 @@
 import { createHash } from 'node:crypto'
 import { createError } from 'h3'
 import { serverSupabaseServiceRole } from '#supabase/server'
-import { AI_CAPTION_LANGS, CAPTION_EN, aiCaptionLang, trackMatchesAiLang } from '#shared/utils/aiCaptions'
+import { CAPTION_LANGS, CAPTION_EN, captionLang, trackMatchesCaptionLang } from '#shared/utils/captions'
 import { getProvider } from '~~/server/lib/videoProviders'
 import { completeAiChat } from '~~/server/services/ai.service.js'
 import { moduleLogger } from '~~/server/utils/logger'
@@ -66,9 +66,9 @@ export function availableAiCaptionLangs(captions, { source } = {}) {
     if (!source || !providerSupportsAiCaptions(source)) return []
     const list = Array.isArray(captions) ? captions.filter((c) => c?.src || c?.vttText) : []
     if (!list.length) return []
-    return Object.keys(AI_CAPTION_LANGS).filter((code) => {
-        const def = AI_CAPTION_LANGS[code]
-        return !list.some((c) => trackMatchesAiLang(c, def))
+    return Object.keys(CAPTION_LANGS).filter((code) => {
+        const def = CAPTION_LANGS[code]
+        return !list.some((c) => trackMatchesCaptionLang(c, def))
     })
 }
 
@@ -329,7 +329,7 @@ async function translateIds(items, { langDef, repair = false, ...meta }) {
 
 /** Translate one chunk; retry missing / wrong-language ids. Unresolved keep source. */
 async function translateChunk(bodies, meta) {
-    const langDef = aiCaptionLang(meta?.targetLang)
+    const langDef = captionLang(meta?.targetLang)
     const out = bodies.map((t) => (t.trim() ? undefined : t))
     let pending = bodies.map((text, id) => ({ id, text })).filter((x) => out[x.id] === undefined)
 
@@ -467,7 +467,7 @@ export async function generateAiCaption(event, {
     targetLang,
     engine = 'ai',
 } = {}) {
-    const langDef = aiCaptionLang(targetLang)
+    const langDef = captionLang(targetLang)
     if (!langDef) throw fail(400, 'Unsupported caption language', '不支援的字幕語言。')
     engine = engine === 'google' ? 'google' : 'ai'
     if (engine === 'google' && !langDef.googleTl) {

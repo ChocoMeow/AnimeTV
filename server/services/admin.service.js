@@ -1,15 +1,202 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { createError } from 'h3'
-import { CUSTOM_SOURCE_ID_MIN } from '#shared/utils/global'
+import { CUSTOM_SOURCE_ID_MIN } from '#shared/utils/anime'
 import { DEFAULT_VIDEO_SOURCE, VIDEO_ID_FORMATS, VIDEO_SOURCES } from '~~/server/lib/videoProviders'
 import { stripSelfRelated, syncRelatedLinks } from '~~/server/utils/animeMetaRelated'
 import { matchAnime } from '~~/server/utils/anime'
-import { convertBody, getFieldTypesFromData } from '~~/server/utils/fieldTypes'
 import { createLoggedError, moduleLogger } from '~~/server/utils/logger'
 import { scrapeAcgDetail } from '~~/server/utils/scrapeAcgDetail'
 
 const log = moduleLogger('admin-anime-meta')
 const autofillLog = moduleLogger('admin-anime-meta-autofill')
+const fieldTypesLog = moduleLogger('fieldTypes')
+
+/** Infer column types from sample rows for admin form / body coercion. */
+async function getFieldTypesFromData(client, tableName, fields) {
+    const fieldTypes = {}
+
+    let sampleRows = []
+    try {
+        const { data } = await client
+            .from(tableName)
+            .select('*')
+            .limit(10)
+        sampleRows = data || []
+    } catch (error) {
+        fieldTypesLog.error({ err: error, tableName }, 'Error fetching sample rows for type inference')
+        sampleRows = []
+    }
+
+    for (const field of fields) {
+        let detectedType = null
+
+        for (const row of sampleRows || []) {
+            const value = row[field]
+            if (value === null || value === undefined) continue
+
+            if (Array.isArray(value)) {
+                detectedType = 'array'
+                break
+            }
+
+            if (typeof value === 'object' && value !== null && !(value instanceof Date)) {
+                detectedType = 'jsonb'
+                break
+            }
+
+            if (typeof value === 'number') {
+                const isInt = Number.isInteger(value)
+                if (!detectedType) {
+                    detectedType = isInt ? 'number' : 'double'
+                } else if (detectedType === 'number' && !isInt) {
+                    detectedType = 'double'
+                }
+                continue
+            }
+
+            if (typeof value === 'boolean') {
+                detectedType = 'boolean'
+                break
+            }
+
+            if (typeof value === 'string') {
+                const looksLikeDateField = field.includes('date') || field.includes('time') || field.endsWith('_at')
+                if (looksLikeDateField) {
+                    const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/
+                    if (dateOnlyPattern.test(value) && !value.includes('T') && !value.includes(' ')) {
+                        detectedType = 'date'
+                        break
+                    }
+                    const parsed = new Date(value)
+                    if (!isNaN(parsed.getTime())) {
+                        detectedType = 'datetime'
+                        break
+                    }
+                }
+
+                if (field === 'description' || value.length > 100) {
+                    detectedType = 'textbox'
+                    continue
+                }
+
+                if (!detectedType) {
+                    detectedType = 'text'
+                }
+            }
+        }
+
+        if (!detectedType) {
+            if (field.endsWith('_at') || field.includes('time')) {
+                detectedType = 'datetime'
+            } else if (field.includes('date')) {
+                detectedType = 'date'
+            } else if (field === 'description') {
+                detectedType = 'textbox'
+            } else if (field === 'id' || (field.includes('_id') && !field.includes('source_ids'))) {
+                detectedType = 'number'
+            } else if (field.includes('score') || field.includes('rating')) {
+                detectedType = 'double'
+            } else if (field.includes('count') || field.includes('views') || field.includes('votes')) {
+                detectedType = 'number'
+            } else if (field.includes('tags') || (field.includes('ids') && field.includes('array'))) {
+                detectedType = 'array'
+            } else {
+                detectedType = 'text'
+            }
+        }
+
+        fieldTypes[field] = detectedType
+    }
+
+    return fieldTypes
+}
+
+function convertValue(value, fieldType) {
+    if (value === null || value === undefined || value === '') {
+        return null
+    }
+
+    switch (fieldType) {
+        case 'number': {
+            const num = Number(value)
+            return isNaN(num) ? null : Math.floor(num)
+        }
+        case 'double': {
+            const dbl = Number(value)
+            return isNaN(dbl) ? null : Math.round(dbl * 10) / 10
+        }
+        case 'date':
+            if (value instanceof Date) {
+                return value.toISOString().slice(0, 10)
+            }
+            if (typeof value === 'string') {
+                const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/
+                if (dateOnlyPattern.test(value)) {
+                    return value
+                }
+                const date = new Date(value)
+                return isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10)
+            }
+            return null
+        case 'array':
+            if (Array.isArray(value)) {
+                return value.length === 0 ? null : value
+            }
+            if (typeof value === 'string') {
+                try {
+                    const parsed = JSON.parse(value)
+                    if (Array.isArray(parsed)) {
+                        return parsed.length === 0 ? null : parsed
+                    }
+                    return [value]
+                } catch {
+                    const arr = value.split(',').map(s => s.trim()).filter(Boolean)
+                    return arr.length === 0 ? null : arr
+                }
+            }
+            return null
+        case 'datetime':
+            if (value instanceof Date) return value.toISOString()
+            if (typeof value === 'string') {
+                const date = new Date(value)
+                return isNaN(date.getTime()) ? null : date.toISOString()
+            }
+            return null
+        case 'boolean':
+            if (typeof value === 'boolean') return value
+            if (typeof value === 'string') {
+                const lower = value.toLowerCase()
+                return lower === 'true' || lower === '1' || lower === 'yes'
+            }
+            return Boolean(value)
+        case 'jsonb':
+            if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+                return value
+            }
+            if (typeof value === 'string') {
+                try {
+                    const parsed = JSON.parse(value)
+                    return typeof parsed === 'object' && parsed !== null ? parsed : null
+                } catch {
+                    return null
+                }
+            }
+            return null
+        case 'textbox':
+        case 'text':
+        default:
+            return String(value)
+    }
+}
+
+function convertBody(body, fieldTypes) {
+    const converted = {}
+    for (const [key, value] of Object.entries(body)) {
+        const fieldType = fieldTypes[key] || 'text'
+        converted[key] = convertValue(value, fieldType)
+    }
+    return converted
+}
 
 const FIELD_LABELS = {
     id: '內部編號',

@@ -1,7 +1,6 @@
 import { createError } from 'h3'
-import { CUSTOM_SOURCE_ID_MIN } from '#shared/utils/global'
-import { parseDbTimestamp } from '#shared/utils/formatTime'
-import { parseViews } from '~~/server/utils/functions'
+import { CUSTOM_SOURCE_ID_MIN } from '#shared/utils/anime'
+import { parseTimestamp, parseViews } from '#shared/utils/format'
 import { createLoggedError, getRequestLogger, moduleLogger } from '~~/server/utils/logger'
 import {
     buildAnimeMetaPayload,
@@ -17,7 +16,7 @@ const DESC_MAX = 200
 const TITLE_MAX = 70
 
 const isStale = (meta) => {
-    const ms = parseDbTimestamp(meta?.updated_at).getTime()
+    const ms = parseTimestamp(meta?.updated_at).getTime()
     return !isNaN(ms) && Date.now() - ms > ONE_MONTH_MS
 }
 

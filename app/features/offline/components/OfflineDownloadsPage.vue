@@ -1,5 +1,5 @@
 <script setup>
-import { formatViews } from '~/features/anime/utils/formatViews'
+import { formatViews } from '#shared/utils/format'
 
 const appConfig = useAppConfig()
 const { listDownloadedAnime, removeEpisode, clearAnimeDownloads } = useOfflineAnimeDownloads()
@@ -47,7 +47,7 @@ function formatBytes(bytes) {
 }
 
 function formatSavedAt(ts) {
-    const label = formatRelativeDate(ts)
+    const label = formatRelative(ts)
     return label ? `${label}更新` : ''
 }
 

@@ -1,5 +1,5 @@
 <script setup>
-import { WATCH_ANIME_META, WATCH_ANIME_META_INNER, withAnimeCovers } from '#shared/utils/watchHistory'
+import { WATCH_ANIME_META, WATCH_ANIME_META_INNER, withAnimeCovers } from '#shared/utils/anime'
 
 const { userSettings } = useUserSettings()
 const { showToast } = useToast()
@@ -53,7 +53,7 @@ const groupedHistory = computed(() => {
     const groups = {}
 
     filteredHistory.value.forEach((item) => {
-        const date = parseDbTimestamp(item.updated_at)
+        const date = parseTimestamp(item.updated_at)
         const today = new Date()
         const yesterday = new Date(today)
         yesterday.setDate(yesterday.getDate() - 1)
@@ -64,7 +64,7 @@ const groupedHistory = computed(() => {
         } else if (isSameDay(date, yesterday)) {
             dateKey = '昨天'
         } else {
-            dateKey = formatDate(date)
+            dateKey = formatZhDate(date)
         }
 
         if (!groups[dateKey]) {
@@ -84,11 +84,8 @@ function isSameDay(date1, date2) {
     return date1.getDate() === date2.getDate() && date1.getMonth() === date2.getMonth() && date1.getFullYear() === date2.getFullYear()
 }
 
-function formatDate(date) {
-    const year = date.getFullYear()
-    const month = date.getMonth() + 1
-    const day = date.getDate()
-    return `${year}年${month}月${day}日`
+function formatZhDate(date) {
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`
 }
 
 function toggleSelectItem(animeRefId, event) {
@@ -425,11 +422,11 @@ useHead({
                                         </p>
                                         <p class="flex items-center gap-2">
                                             <span class="material-symbols-rounded text-xs">schedule</span>
-                                            {{ formatClockTime(item.updated_at) }}
+                                            {{ formatClock(item.updated_at) }}
                                         </p>
                                         <p v-if="item.playback_time" class="flex items-center gap-2">
                                             <span class="material-symbols-rounded text-xs">timer</span>
-                                            觀看 {{ formatTime(item.playback_time) }} / {{ formatTime(item.video_duration) }}
+                                            觀看 {{ formatDuration(item.playback_time) }} / {{ formatDuration(item.video_duration) }}
                                         </p>
                                     </div>
                                 </div>

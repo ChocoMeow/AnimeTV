@@ -15,15 +15,6 @@ const emit = defineEmits(["update:modelValue", "continue-last"])
 function onEpisodeSelect(n) {
     emit("update:modelValue", n)
 }
-
-function formatTime(seconds) {
-    const sec = Math.max(0, Math.floor(Number(seconds) || 0))
-    const hours = Math.floor(sec / 3600)
-    const minutes = Math.floor((sec % 3600) / 60)
-    const secs = sec % 60
-    if (hours > 0) return `${hours}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
-    return `${minutes}:${String(secs).padStart(2, "0")}`
-}
 </script>
 
 <template>
@@ -43,7 +34,7 @@ function formatTime(seconds) {
                         </div>
                         <div class="space-y-1.5">
                             <div class="flex items-center justify-between text-xs text-gray-600 dark:text-white/60">
-                                <span>{{ formatTime(lastWatchedData.playback_time) }} / {{ formatTime(lastWatchedData.video_duration) }}</span>
+                                <span>{{ formatDuration(lastWatchedData.playback_time) }} / {{ formatDuration(lastWatchedData.video_duration) }}</span>
                                 <span>{{ lastWatchedData.progress_percentage }}%</span>
                             </div>
                             <div class="h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">

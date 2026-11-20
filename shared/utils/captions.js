@@ -1,11 +1,12 @@
 /**
- * Shared caption language defs (AI allowlist + player preference / labels).
- * Extend AI targets in AI_CAPTION_LANGS — server + client share this map.
+ * Shared caption language defs (player prefs / labels + on-demand translate
+ * targets for AI and Google). Extend translate targets in CAPTION_LANGS —
+ * server + client share this map.
  */
 
 export const normCaptionCode = (s) => String(s || '').trim().replace(/_/g, '-').toLowerCase()
 
-export const AI_CAPTION_LANGS = Object.freeze({
+export const CAPTION_LANGS = Object.freeze({
     TW: Object.freeze({
         srclang: 'TW',
         label: '繁體中文',
@@ -41,7 +42,7 @@ export const CAPTION_EN = Object.freeze({
     labelHint: /english|\beng\b/i,
 })
 
-const TW = AI_CAPTION_LANGS.TW
+const TW = CAPTION_LANGS.TW
 const codesOf = (def) => new Set([normCaptionCode(def.srclang), ...(def.aliases || []).map(normCaptionCode)])
 const labelMap = (def) => Object.fromEntries([...codesOf(def)].map((c) => [c, def.label]))
 const canonMap = (def) => Object.fromEntries([...codesOf(def)].map((c) => [c, def.srclang]))
@@ -112,11 +113,11 @@ const matchesCode = (code, set) => set.has(normCaptionCode(code))
 const matchesTrack = (track, set, hint) =>
     matchesCode(track?.srclang, set) || hint.test(String(track?.label || ''))
 
-export function aiCaptionLang(code) {
-    return AI_CAPTION_LANGS[String(code || '').trim()] || null
+export function captionLang(code) {
+    return CAPTION_LANGS[String(code || '').trim()] || null
 }
 
-export function trackMatchesAiLang(track, langDef) {
+export function trackMatchesCaptionLang(track, langDef) {
     return Boolean(langDef && matchesCode(track?.srclang, codesOf(langDef)))
 }
 

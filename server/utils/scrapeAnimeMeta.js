@@ -1,8 +1,8 @@
 import * as cheerio from 'cheerio'
-import { GAMER_BASE_URL } from '#shared/utils/global'
+import { GAMER_BASE_URL } from '#shared/utils/anime'
 import { DEFAULT_VIDEO_SOURCE } from '~~/server/lib/videoProviders'
 import { cfFetch, matchAnime } from '~~/server/utils/anime'
-import { isValidNumberString, parseViews } from '~~/server/utils/functions'
+import { isNumericString, parseViews } from '#shared/utils/format'
 import { moduleLogger } from '~~/server/utils/logger'
 
 const scrapeLog = moduleLogger('scrapeAnimeMeta')
@@ -27,7 +27,7 @@ export const parsePremiereDate = (value) => {
 }
 
 export async function scrapeAnimeDetailByRefId(refId) {
-    if (!isValidNumberString(refId)) throw new Error(`Invalid reference ID: "${refId}"`)
+    if (!isNumericString(refId)) throw new Error(`Invalid reference ID: "${refId}"`)
 
     try {
         const { html } = await cfFetch(`${GAMER_BASE_URL}animeRef.php?sn=${refId}`)

@@ -1,8 +1,13 @@
 import * as cheerio from "cheerio"
-import { CHINESE_WEEKDAY_MAP, CUSTOM_SOURCE_ID_MIN, GAMER_BASE_URL } from "#shared/utils/global"
+import { CHINESE_WEEKDAY_MAP, CUSTOM_SOURCE_ID_MIN, GAMER_BASE_URL } from "#shared/utils/anime"
 import { cfFetch } from "~~/server/utils/anime"
-import { ANIME_CACHE } from "~~/server/utils/cache"
-import { parseViews, toYearMonthSlash } from "~~/server/utils/functions"
+import { parseViews, formatYearMonth } from "#shared/utils/format"
+
+/** Server-only in-memory home catalog cache. */
+let ANIME_CACHE = {
+    timestamp: 0,
+    data: null,
+}
 
 const TWO_HOURS = 1000 * 60 * 60 * 2
 const CONTINUE_WATCHING_TITLE = "繼續觀看"
@@ -345,7 +350,7 @@ async function fetchManualAnime(client, { page, tags, sort }) {
             refId: String(row.source_id),
             image: row.thumbnail,
             title: row.title,
-            year: toYearMonthSlash(row.premiere_date),
+            year: formatYearMonth(row.premiere_date),
             episodes: null,
             views: row.views ?? null,
         })),
@@ -406,7 +411,7 @@ function mapWelcomeRow(row) {
         title: row.title,
         image: row.thumbnail,
         thumbnail: row.thumbnail,
-        year: toYearMonthSlash(row.premiere_date),
+        year: formatYearMonth(row.premiere_date),
         views: row.views ?? null,
     }
 }

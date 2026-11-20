@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio'
-import { matchAnimeTags } from '#shared/utils/animeTags'
-import { ACG_GAMER_BASE_URL } from '#shared/utils/global'
+import { ACG_GAMER_BASE_URL, matchAnimeTags } from '#shared/utils/anime'
+import { isNumericString } from '#shared/utils/format'
 import { moduleLogger } from '~~/server/utils/logger'
 
 const scrapeLog = moduleLogger('scrapeAcgDetail')
@@ -99,7 +99,7 @@ export async function scrapeAcgDetail(detailId, opts = {}) {
     const includeWiki = opts.includeWiki === true
 
     try {
-        if (!isValidNumberString(detailId)) {
+        if (!isNumericString(detailId)) {
             throw new Error(`Invalid details ID: "${detailId}"`)
         }
 

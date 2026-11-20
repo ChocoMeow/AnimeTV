@@ -45,7 +45,8 @@ const periodStudioMax = computed(() => {
     return t?.length ? Math.max(...t.map((x) => x.seconds), 1) : 1
 })
 
-function formatDuration(seconds) {
+/** Human watch-time label (not m:ss — that is shared formatDuration). */
+function formatWatchLabel(seconds) {
     if (!seconds || seconds < 60) return `${seconds || 0} 秒`
     const m = Math.floor(seconds / 60)
     const h = Math.floor(m / 60)
@@ -69,7 +70,7 @@ function heatmapTitle(index) {
     const h = analytics.value?.heatmap42
     if (!h?.labels?.[index]) return ''
     const v = h.values[index] || 0
-    return `${h.labels[index]}：${formatDuration(v)}`
+    return `${h.labels[index]}：${formatWatchLabel(v)}`
 }
 
 async function fetchAnalytics() {
@@ -145,10 +146,10 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                         <p v-if="email" class="text-sm text-gray-600 dark:text-gray-400 truncate">{{ email }}</p>
                         <div v-if="analytics.summary.firstWatchAt" class="flex flex-wrap gap-x-4 mt-1">
                             <span class="text-xs text-gray-500 dark:text-gray-500">
-                                最早紀錄 {{ formatCalendarDate(analytics.summary.firstWatchAt) }}
+                                最早紀錄 {{ formatDate(analytics.summary.firstWatchAt) }}
                             </span>
                             <span v-if="analytics.summary.lastWatchAt" class="text-xs text-gray-500 dark:text-gray-500">
-                                最近紀錄 {{ formatCalendarDate(analytics.summary.lastWatchAt) }}
+                                最近紀錄 {{ formatDate(analytics.summary.lastWatchAt) }}
                             </span>
                         </div>
                     </div>
@@ -167,7 +168,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
                 <div class="col-span-2 sm:col-span-1 lg:col-span-2 panel-card p-4 sm:p-5">
                     <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">累積觀看時間</p>
-                    <p class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatDuration(analytics.summary.totalWatchSeconds) }}</p>
+                    <p class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatWatchLabel(analytics.summary.totalWatchSeconds) }}</p>
                 </div>
                 <div class="panel-card p-4 sm:p-5">
                     <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">觀看集數</p>
@@ -210,7 +211,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                 <div
                                     class="w-full rounded-t bg-sky-500/70 dark:bg-sky-400/80 hover:bg-sky-500 dark:hover:bg-sky-300 min-h-[4px] transition-colors cursor-pointer"
                                     :style="{ height: barHeight(analytics.monthlyWatch.values, val, 140) + 'px' }"
-                                    :title="analytics.monthlyWatch.labels[i] + ': ' + formatDuration(val)"
+                                    :title="analytics.monthlyWatch.labels[i] + ': ' + formatWatchLabel(val)"
                                 />
                                 <span class="text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 truncate w-full text-center">{{ analytics.monthlyWatch.labels[i].slice(5) }}月</span>
                             </div>
@@ -226,7 +227,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                     <div
                                         class="w-full rounded-t bg-indigo-400/50 dark:bg-indigo-300/40 hover:bg-indigo-500/70 dark:hover:bg-indigo-300/70 min-h-[3px] transition-colors cursor-pointer"
                                         :style="{ height: Math.max(3, (val / monthlyCumulativeMax) * 80) + 'px' }"
-                                        :title="'累積至 ' + analytics.monthlyWatch.labels[i] + ': ' + formatDuration(val)"
+                                        :title="'累積至 ' + analytics.monthlyWatch.labels[i] + ': ' + formatWatchLabel(val)"
                                     />
                                 </div>
                             </div>
@@ -293,7 +294,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                 <div
                                     class="w-full bg-gray-400/80 dark:bg-gray-500/80 hover:bg-gray-600 dark:hover:bg-gray-300 rounded-t min-h-[2px] transition-colors cursor-pointer"
                                     :style="{ height: Math.max(2, (val / Math.max(1, ...analytics.watchByHour.values)) * 100) + 'px' }"
-                                    :title="`${i}:00 — ${formatDuration(val)}`"
+                                    :title="`${i}:00 — ${formatWatchLabel(val)}`"
                                 />
                             </div>
                         </div>
@@ -315,7 +316,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                 <div
                                     class="w-full bg-gray-500/80 dark:bg-gray-400/80 hover:bg-gray-700 dark:hover:bg-gray-200 rounded-t min-h-[4px] transition-colors cursor-pointer"
                                     :style="{ height: Math.max(4, (val / Math.max(1, ...analytics.watchByWeekday.values)) * 100) + 'px' }"
-                                    :title="`${analytics.watchByWeekday.labels[i]}: ${formatDuration(val)}`"
+                                    :title="`${analytics.watchByWeekday.labels[i]}: ${formatWatchLabel(val)}`"
                                 />
                             </div>
                         </div>
@@ -348,7 +349,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                             <div class="flex-1 h-6 bg-gray-200 dark:bg-white/10 rounded overflow-hidden">
                                 <div class="h-full rounded bg-teal-500/70 dark:bg-teal-400/80 hover:bg-teal-500 dark:hover:bg-teal-300 transition-all cursor-pointer" :style="{ width: (t.seconds / tagBarMax) * 100 + '%' }" />
                             </div>
-                            <span class="text-xs text-gray-500 w-20 text-right shrink-0">{{ formatDuration(t.seconds) }}</span>
+                            <span class="text-xs text-gray-500 w-20 text-right shrink-0">{{ formatWatchLabel(t.seconds) }}</span>
                         </div>
                     </div>
                     <p v-else class="text-sm text-gray-500 dark:text-gray-400">尚無標籤資料</p>
@@ -372,7 +373,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                     />
                                     <div class="min-w-0 flex-1">
                                         <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate group-hover:underline">{{ a.anime_title }}</p>
-                                        <p class="text-xs text-gray-500">{{ formatDuration(a.seconds) }}</p>
+                                        <p class="text-xs text-gray-500">{{ formatWatchLabel(a.seconds) }}</p>
                                     </div>
                                 </NuxtLink>
                             </li>
@@ -388,7 +389,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                             <li v-for="s in analytics.topStudios" :key="s.label">
                                 <div class="flex items-center justify-between gap-2 mb-1">
                                     <span class="text-sm text-gray-800 dark:text-gray-200 truncate">{{ s.label }}</span>
-                                    <span class="text-xs text-gray-500 shrink-0">{{ formatDuration(s.seconds) }}</span>
+                                    <span class="text-xs text-gray-500 shrink-0">{{ formatWatchLabel(s.seconds) }}</span>
                                 </div>
                                 <div class="h-1.5 bg-gray-200 dark:bg-white/10 rounded overflow-hidden">
                                     <div
@@ -453,13 +454,13 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                     <div
                                         class="w-full bg-gray-400 dark:bg-gray-500 hover:bg-gray-600 dark:hover:bg-gray-300 rounded-t transition-all min-h-[4px] cursor-pointer"
                                         :style="{ height: Math.max(4, (Math.max(0, val) / Math.max(1, ...chartData.timeSpent.values)) * 120) + 'px' }"
-                                        :title="chartData.timeSpent.labels[i] + ': ' + formatDuration(val)"
+                                        :title="chartData.timeSpent.labels[i] + ': ' + formatWatchLabel(val)"
                                     />
                                     <span class="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate w-full text-center">{{ chartData.timeSpent.labels[i] }}</span>
                                 </div>
                             </div>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                期間合計 {{ formatDuration(chartData.timeSpent.values.reduce((a, b) => a + b, 0)) }}
+                                期間合計 {{ formatWatchLabel(chartData.timeSpent.values.reduce((a, b) => a + b, 0)) }}
                             </p>
                         </div>
                         <p v-else class="text-sm text-gray-500 dark:text-gray-400 py-4">此區間尚無觀看紀錄</p>
@@ -506,7 +507,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                         />
                                         <div class="min-w-0 flex-1">
                                             <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate group-hover:underline">{{ a.anime_title }}</p>
-                                            <p class="text-xs text-gray-500">{{ formatDuration(a.seconds) }}</p>
+                                            <p class="text-xs text-gray-500">{{ formatWatchLabel(a.seconds) }}</p>
                                         </div>
                                     </NuxtLink>
                                 </li>
@@ -530,7 +531,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                 <div
                                     class="w-full bg-amber-600/70 dark:bg-amber-400/80 hover:bg-amber-500 dark:hover:bg-amber-300 rounded-t min-h-[4px] transition-colors cursor-pointer"
                                     :style="{ height: (s.seconds / periodStudioMax) * 96 + 'px' }"
-                                    :title="s.label + ': ' + formatDuration(s.seconds)"
+                                    :title="s.label + ': ' + formatWatchLabel(s.seconds)"
                                 />
                                 <span class="text-[9px] text-gray-500 dark:text-gray-400 truncate w-full text-center" :title="s.label">{{ s.label.slice(0, 4) }}</span>
                             </div>
@@ -579,7 +580,7 @@ useHead({ title: `個人資料 | ${appConfig.siteName}` })
                                 <div
                                     class="w-full rounded-t bg-fuchsia-500/70 dark:bg-fuchsia-400/80 hover:bg-fuchsia-500 dark:hover:bg-fuchsia-300 min-h-[4px] transition-colors cursor-pointer"
                                     :style="{ height: barHeight(analytics.episodeBuckets.values, val, 120) + 'px' }"
-                                    :title="analytics.episodeBuckets.labels[i] + ': ' + formatDuration(val)"
+                                    :title="analytics.episodeBuckets.labels[i] + ': ' + formatWatchLabel(val)"
                                 />
                                 <span class="text-[10px] text-gray-500 text-center leading-tight">第{{ analytics.episodeBuckets.labels[i] }}集</span>
                             </div>

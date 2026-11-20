@@ -1,4 +1,4 @@
-import { parseDbTimestamp } from '#shared/utils/formatTime'
+import { parseTimestamp } from '#shared/utils/format'
 
 // Pages through PostgREST max-rows (first batch length = page size)
 async function fetchStatsWatchHistory(client, userId, rangeStartIso, rangeEndIso) {
@@ -102,7 +102,7 @@ export async function getProfileStats(client, userId, period) {
     }
 
     for (const row of historyRows) {
-        const t = parseDbTimestamp(row.updated_at)
+        const t = parseTimestamp(row.updated_at)
         let key
         if (bucketType === 'hour') {
             key = t.toISOString().slice(0, 13)
@@ -140,7 +140,7 @@ export async function getProfileStats(client, userId, period) {
     const watchByWeekday = Array(7).fill(0)
     const weekdayLabels = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
     for (const row of historyRows) {
-        const t = parseDbTimestamp(row.updated_at)
+        const t = parseTimestamp(row.updated_at)
         watchByHour[t.getHours()] += watchSeconds(row)
         const wd = (t.getDay() + 6) % 7
         watchByWeekday[wd] += watchSeconds(row)
@@ -366,7 +366,7 @@ export async function getProfileAnalytics(client, userId, tz) {
         const id = r.anime_ref_id
         const pt = watchSeconds(r)
         const p = Number(r.progress_percentage) || 0
-        const d = parseDbTimestamp(r.updated_at)
+        const d = parseTimestamp(r.updated_at)
         const dk = fmt.dateKey(d)
 
         totalWatchSeconds += pt

@@ -253,12 +253,12 @@ onBeforeUnmount(() => {
                         :class="watchPercentage >= 90
                             ? 'bg-emerald-900/75 text-emerald-50 ring-emerald-300/35'
                             : 'bg-black/60 text-white/90 ring-white/15'"
-                        :aria-label="`已觀看 ${watchPercentage}%，上次看到 ${formatTime(watchData.playback_time)}`"
-                        :title="`已觀看 ${watchPercentage}% · 上次 ${formatTime(watchData.playback_time)}`"
+                        :aria-label="`已觀看 ${watchPercentage}%，上次看到 ${formatDuration(watchData.playback_time)}`"
+                        :title="`已觀看 ${watchPercentage}% · 上次 ${formatDuration(watchData.playback_time)}`"
                     >
                         <span>{{ watchPercentage }}%</span>
                         <span class="h-3 w-px bg-white/25" aria-hidden="true" />
-                        <span class="opacity-75">{{ formatTime(watchData.playback_time) }}</span>
+                        <span class="opacity-75">{{ formatDuration(watchData.playback_time) }}</span>
                     </div>
 
                     <div
@@ -281,7 +281,7 @@ onBeforeUnmount(() => {
                                 :class="{ 'opacity-100': isScrubbing }"
                                 :style="{ left: `clamp(1.5rem, ${progress}%, calc(100% - 1.5rem))` }"
                             >
-                                {{ formatTime(previewTime) }}
+                                {{ formatDuration(previewTime) }}
                             </span>
                             <div
                                 class="absolute inset-y-0 left-0 rounded-full bg-white"

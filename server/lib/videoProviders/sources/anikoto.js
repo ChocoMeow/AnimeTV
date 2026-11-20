@@ -7,7 +7,7 @@
  */
 import crypto from 'node:crypto'
 import vm from 'node:vm'
-import { CAPTION_CANONICAL, resolveCaptionSrclang } from '#shared/utils/aiCaptions'
+import { CAPTION_CANONICAL, resolveCaptionSrclang } from '#shared/utils/captions'
 import { getRequestLogger } from '~~/server/utils/logger'
 import {
     decodePrefixedToken,

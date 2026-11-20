@@ -1,5 +1,5 @@
 <script setup>
-import { WATCH_ANIME_META, withAnimeCovers } from '#shared/utils/watchHistory'
+import { WATCH_ANIME_META, withAnimeCovers } from '#shared/utils/anime'
 
 const appConfig = useAppConfig()
 const user = useSupabaseUser()
