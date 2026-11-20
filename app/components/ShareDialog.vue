@@ -130,32 +130,6 @@ async function shareNative() {
 </template>
 
 <style scoped>
-.dialog-enter-active,
-.dialog-leave-active {
-    transition: all 0.3s ease-out;
-}
-
-.dialog-enter-active > div,
-.dialog-leave-active > div {
-    transition: all 0.3s ease-out;
-}
-
-.dialog-enter-from {
-    opacity: 0;
-}
-
-.dialog-enter-from > div {
-    transform: scale(0.95) translateY(20px);
-}
-
-.dialog-leave-to {
-    opacity: 0;
-}
-
-.dialog-leave-to > div {
-    transform: scale(0.95) translateY(20px);
-}
-
 .copy-btn {
     display: inline-flex;
     align-items: center;
