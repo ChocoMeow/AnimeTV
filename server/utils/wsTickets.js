@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto'
  * The access token is kept server-side; only an opaque ticket ID is sent to the client.
  *
  * Ticket lifecycle:
- *   1. POST /api/ws-ticket  → creates ticket (TTL: 30s), returns { ticket: id }
+ *   1. POST /api/presence/ticket  → creates ticket (TTL: 30s), returns { ticket: id }
  *   2. WS open              → consumeWsTicket(id) deletes ticket, returns { userId, accessToken }
  *   3. refresh_ticket msg   → consumeWsTicket(newId) rotates JWT on an existing connection
  */

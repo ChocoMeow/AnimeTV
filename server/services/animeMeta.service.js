@@ -6,8 +6,8 @@ import {
     buildAnimeMetaPayload,
     normalizeUserRating,
     scrapeAnimeDetailByRefId,
-} from '~~/server/utils/scrapeAnimeMeta'
-import { scrapeAcgDetail } from '~~/server/utils/scrapeAcgDetail'
+} from '~~/server/lib/anime/scrapeAnimeMeta'
+import { scrapeAcgDetail } from '~~/server/lib/anime/scrapeAcgDetail'
 
 const log = moduleLogger('anime-detail')
 const ONE_MONTH_MS = 1000 * 60 * 60 * 24 * 30

@@ -61,7 +61,7 @@ export const useUserStatus = () => {
     const fetchWsTicket = async () => {
         if (!isClient()) return null
         try {
-            const res = await $fetch('/api/ws-ticket', { method: 'POST' })
+            const res = await $fetch('/api/presence/ticket', { method: 'POST' })
             return res?.ticket ?? null
         } catch {
             return null
@@ -78,7 +78,7 @@ export const useUserStatus = () => {
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
         const host = window.location.host
-        return `${protocol}//${host}/api/user-status-ws?ticket=${encodeURIComponent(ticket)}`
+        return `${protocol}//${host}/api/presence/ws?ticket=${encodeURIComponent(ticket)}`
     }
 
     const clearHeartbeatAckTimer = () => {

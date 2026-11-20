@@ -1,8 +1,8 @@
 import * as cheerio from "cheerio"
 import { GAMER_BASE_URL } from "#shared/utils/anime"
-import { cfFetch } from "~~/server/utils/anime"
+import { cfFetch } from "~~/server/lib/anime/cfFetch"
+import { searchAnimeMeta } from "~~/server/lib/anime/pgroongaSearch"
 import { parseViews, formatYearMonth } from "#shared/utils/format"
-import { searchAnimeMeta } from "~~/server/utils/pgroongaSearch"
 
 function truncateDescription(text, max = 140) {
     if (!text || typeof text !== 'string') return null

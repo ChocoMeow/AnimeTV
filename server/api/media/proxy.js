@@ -171,7 +171,7 @@ export default defineEventHandler(async (event) => {
             statusCode: err?.statusCode || 502,
             statusMessage: err?.statusMessage || 'Video proxy error',
             err,
-            context: { module: 'proxy-video', userId },
+            context: { module: 'media-proxy', userId },
         })
     }
 })
@@ -189,7 +189,7 @@ async function handleProgressive(videoUrl, cookie, referer, signal, event) {
         throw createLoggedError(event, {
             statusCode: headInfo.statusCode || 502,
             statusMessage: headInfo.error || 'Video metadata failed',
-            context: { module: 'proxy-video', stage: 'head' },
+            context: { module: 'media-proxy', stage: 'head' },
         })
     }
 
@@ -302,13 +302,13 @@ async function handleM3u8(playlistUrl, cookie, referer, exp, userId, signal, eve
         throw createLoggedError(event, {
             statusCode: 502,
             statusMessage: 'Failed to fetch m3u8',
-            context: { module: 'proxy-video', stage: 'm3u8', status: res.status, userId },
+            context: { module: 'media-proxy', stage: 'm3u8', status: res.status, userId },
         })
     }
 
     const body = await res.text()
     const out = rewriteHlsPlaylist(body, playlistUrl, {
-        proxyBase: `${getRequestURL(event).origin}/api/proxy-video`,
+        proxyBase: `${getRequestURL(event).origin}/api/media/proxy`,
         cookie,
         referer,
         exp,
@@ -327,14 +327,14 @@ async function handleSegment(segmentUrl, cookie, referer, signal, event) {
         throw createLoggedError(event, {
             statusCode: res.status >= 400 ? res.status : 502,
             statusMessage: 'Segment failed',
-            context: { module: 'proxy-video', stage: 'segment', status: res.status },
+            context: { module: 'media-proxy', stage: 'segment', status: res.status },
         })
     }
     if (!res.body) {
         throw createLoggedError(event, {
             statusCode: 502,
             statusMessage: 'Empty segment body',
-            context: { module: 'proxy-video', stage: 'segment' },
+            context: { module: 'media-proxy', stage: 'segment' },
         })
     }
 
@@ -357,7 +357,7 @@ async function handleRedirect(event, videoUrl, cookie, referer, signal) {
             throw createLoggedError(event, {
                 statusCode: 502,
                 statusMessage: 'Could not resolve video URL',
-                context: { module: 'proxy-video', stage: 'redirect', status: res.status },
+                context: { module: 'media-proxy', stage: 'redirect', status: res.status },
             })
         }
         return {
@@ -371,7 +371,7 @@ async function handleRedirect(event, videoUrl, cookie, referer, signal) {
             statusCode: err.statusCode || 502,
             statusMessage: err.statusMessage || 'Could not resolve video URL',
             err,
-            context: { module: 'proxy-video', stage: 'redirect' },
+            context: { module: 'media-proxy', stage: 'redirect' },
         })
     }
 }

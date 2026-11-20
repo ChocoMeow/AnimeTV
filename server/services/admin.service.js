@@ -2,10 +2,10 @@ import { serverSupabaseClient } from '#supabase/server'
 import { createError } from 'h3'
 import { CUSTOM_SOURCE_ID_MIN } from '#shared/utils/anime'
 import { DEFAULT_VIDEO_SOURCE, VIDEO_ID_FORMATS, VIDEO_SOURCES } from '~~/server/lib/videoProviders'
-import { stripSelfRelated, syncRelatedLinks } from '~~/server/utils/animeMetaRelated'
-import { matchAnime } from '~~/server/utils/anime'
+import { stripSelfRelated, syncRelatedLinks } from '~~/server/lib/anime/animeMetaRelated'
+import { scrapeAcgDetail } from '~~/server/lib/anime/scrapeAcgDetail'
+import { matchAnime } from '~~/server/lib/anime/match'
 import { createLoggedError, moduleLogger } from '~~/server/utils/logger'
-import { scrapeAcgDetail } from '~~/server/utils/scrapeAcgDetail'
 
 const log = moduleLogger('admin-anime-meta')
 const autofillLog = moduleLogger('admin-anime-meta-autofill')

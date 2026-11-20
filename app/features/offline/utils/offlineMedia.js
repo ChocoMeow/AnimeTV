@@ -22,7 +22,7 @@ import { hlsSegmentsToMp4 } from '~/features/player/utils/hlsToMp4'
 import { clearParts, getParts, getPartsExact, hasPart, putPart, stagedBytes } from '~/features/offline/utils/offlineStaging'
 
 const HTTP_URL = /^https?:\/\//i
-const PROXY_PATH = /\/api\/(?:proxy-video|media\/(?:file|seek-vtt))/
+const PROXY_PATH = /\/api\/media\/(?:proxy|file|seek-vtt|download)/
 
 function pageUrl(uri) {
     return new URL(uri, typeof location !== 'undefined' ? location.origin : 'http://localhost')

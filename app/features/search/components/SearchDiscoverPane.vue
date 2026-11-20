@@ -115,7 +115,7 @@ async function loadTrending() {
     if (loaded || loading.value) return
     loading.value = true
     try {
-        const res = await $fetch('/api/animeList', { query: { page: 1, sort: '2' } })
+        const res = await $fetch('/api/anime/list', { query: { page: 1, sort: '2' } })
         trending.value = (res.results || []).filter((r) => r.refId && r.title)
         loaded = true
     } catch (err) {

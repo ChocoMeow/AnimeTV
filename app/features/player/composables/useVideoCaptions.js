@@ -278,7 +278,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
         }
 
         try {
-            let res = await $fetch('/api/caption', req)
+            let res = await $fetch('/api/captions', req)
             let applied = false
             while (res?.status === 'pending') {
                 if (res?.caption?.vttText) {
@@ -290,7 +290,7 @@ export function useVideoCaptions({ videoRef, captions, aiCaptionLangs, episodeTo
                 }
                 await sleep(engine === 'google' ? GOOGLE_POLL_MS : AI_POLL_MS)
                 if (g !== gen) return false
-                res = await $fetch('/api/caption', req)
+                res = await $fetch('/api/captions', req)
             }
             if (!res?.caption?.vttText || !res?.caption?.srclang) throw new Error('empty caption')
             await applyAiCaption(res.caption, { persist: true, notifyReady: !silent && !applied })

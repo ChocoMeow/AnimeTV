@@ -87,9 +87,9 @@ export default defineNuxtConfig({
             '/apple-touch-icon-precomposed.png': { redirect: '/icons/icon_512x512.png' },
             '/apple-touch-icon-120x120-precomposed.png': { redirect: '/icons/icon_512x512.png' },
             // High-volume streaming / WS must not hit the global rate limiter
-            '/api/proxy-video': { security: { rateLimiter: false } },
-            '/api/download-video/**': { security: { rateLimiter: false } },
-            '/api/user-status-ws': { security: { rateLimiter: false } },
+            '/api/media/proxy': { security: { rateLimiter: false } },
+            '/api/media/download/**': { security: { rateLimiter: false } },
+            '/api/presence/ws': { security: { rateLimiter: false } },
         },
         experimental: {
             websocket: true,

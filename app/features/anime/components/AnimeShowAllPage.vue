@@ -91,7 +91,7 @@ async function fetchAnime(page = 1) {
             params.append("sort", "2")
         }
 
-        const res = await $fetch(`/api/animeList?${params.toString()}`)
+        const res = await $fetch(`/api/anime/list?${params.toString()}`)
         animeList.value = res.results
         totalPage.value = parseInt(res.totalPage)
 

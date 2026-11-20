@@ -18,7 +18,7 @@ export function isDirectHlsHost(hostname) {
     })
 }
 
-/** True for CORS-direct HLS CDNs (proxied `/api/proxy-video?t=` is never direct). */
+/** True for CORS-direct HLS CDNs (proxied `/api/media/proxy?t=` is never direct). */
 export function isDirectHlsSrc(src) {
     if (!src) return false
     try {

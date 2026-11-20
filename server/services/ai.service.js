@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio'
 import { serverSupabaseClient } from '#supabase/server'
 import { WATCH_ANIME_META, WATCH_ANIME_META_INNER, withAnimeCovers } from '#shared/utils/anime'
-import { searchAnimeMeta } from '~~/server/utils/pgroongaSearch'
+import { searchAnimeMeta } from '~~/server/lib/anime/pgroongaSearch'
 import { moduleLogger, createErrorId } from '~~/server/utils/logger'
 export const AI_CHAT_LIMITS = {
     maxMessageChars: 3000,

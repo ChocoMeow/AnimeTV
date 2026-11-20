@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio"
 import { CHINESE_WEEKDAY_MAP, CUSTOM_SOURCE_ID_MIN, GAMER_BASE_URL } from "#shared/utils/anime"
-import { cfFetch } from "~~/server/utils/anime"
+import { cfFetch } from "~~/server/lib/anime/cfFetch"
 import { parseViews, formatYearMonth } from "#shared/utils/format"
 
 /** Server-only in-memory home catalog cache. */

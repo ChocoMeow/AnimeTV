@@ -1,5 +1,5 @@
 /**
- * Playback assembly for /api/episode, /api/download-video, and episode lists.
+ * Playback assembly for /api/episode, /api/media/download, and episode lists.
  * Seals upstream URLs; never returns raw provider media links.
  */
 import { serverSupabaseClient } from '#supabase/server'
@@ -83,7 +83,7 @@ function proxyOrDirect(url, cookie, referer, userId) {
             return { kind: 'hls', playlistUrl: url }
         }
     } catch { /* proxy */ }
-    return { kind: 'hls', playlistUrl: mediaProxyUrl('proxy-video', { url, cookie, referer, hls: true, userId }) }
+    return { kind: 'hls', playlistUrl: mediaProxyUrl('media/proxy', { url, cookie, referer, hls: true, userId }) }
 }
 
 /** Standard playback body: stream + captions + seek thumbnails + chapters. */
@@ -95,7 +95,7 @@ export async function getEpisodePlayback(token, userId, log) {
 
     const ctx = { cookie, referer, userId, source: sealed.source }
     return {
-        proxyUrl: mediaProxyUrl('proxy-video', { url, cookie, referer, hls: isHls, userId }),
+        proxyUrl: mediaProxyUrl('media/proxy', { url, cookie, referer, hls: isHls, userId }),
         isHls,
         ...assembleCaptions(result.captions, ctx),
         ...assembleThumbnailsFromPlayback(sealed, result, ctx),

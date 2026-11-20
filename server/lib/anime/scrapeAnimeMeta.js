@@ -1,7 +1,8 @@
 import * as cheerio from 'cheerio'
 import { GAMER_BASE_URL } from '#shared/utils/anime'
 import { DEFAULT_VIDEO_SOURCE } from '~~/server/lib/videoProviders'
-import { cfFetch, matchAnime } from '~~/server/utils/anime'
+import { cfFetch } from '~~/server/lib/anime/cfFetch'
+import { matchAnime } from '~~/server/lib/anime/match'
 import { isNumericString, parseViews } from '#shared/utils/format'
 import { moduleLogger } from '~~/server/utils/logger'
 

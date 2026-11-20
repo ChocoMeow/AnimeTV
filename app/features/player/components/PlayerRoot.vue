@@ -824,7 +824,7 @@ async function applyVideoSource(src, isHls, video) {
 
     try {
         // Direct-CORS HLS CDNs may rate-limit parallel prefetch / ABR retry storms — use stock loader there.
-        // Proxied streams: every segment is `/api/proxy-video` — keep ahead window modest.
+        // Proxied streams: every segment is `/api/media/proxy` — keep ahead window modest.
         const limited = isDirectHlsSrc(src)
         const parallel = limited ? null : createParallelFragLoader(Hls, { minAhead: 1, maxAhead: 3 })
         hlsPrefetchReset = parallel?.reset ?? null
