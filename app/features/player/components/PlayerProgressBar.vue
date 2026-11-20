@@ -1,9 +1,5 @@
 <script setup>
-/** Champagne / platinum markers on the glass seek track. */
-const CHAPTER_UI = Object.freeze({
-    intro: ['bg-[#E8DCC8]/65', '片頭'],
-    outro: ['bg-[#B7C0CC]/55', '片尾'],
-})
+const LABELS = Object.freeze({ intro: '片頭', outro: '片尾' })
 
 const props = defineProps({
     progress: { type: Number, required: true },
@@ -22,49 +18,69 @@ const props = defineProps({
     chapters: { type: Object, default: null },
 })
 
-const chapterSegments = computed(() => {
-    const d = props.duration
-    if (!(d > 0) || !props.chapters) return []
-    return Object.entries(props.chapters).flatMap(([id, range]) => {
-        const start = Math.max(0, Number(range?.start) || 0)
-        const end = Math.min(d, Number(range?.end) || 0)
-        if (!(end > start)) return []
-        const [cls, label] = CHAPTER_UI[id] || ['bg-white/50', id]
-        return [{ id, label, class: cls, start, end, left: (start / d) * 100, width: ((end - start) / d) * 100 }]
-    })
-})
-
 const emit = defineEmits([
-    'pointerdown',
-    'pointermove',
-    'pointerup',
-    'pointercancel',
-    'pointerenter',
-    'pointerleave',
+    'pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'pointerenter', 'pointerleave',
 ])
 
 const progressRef = ref(null)
 
+/** Split [0, duration] on chapter edges; each slice gets local played/buffered %. */
+const segments = computed(() => {
+    const d = props.duration
+    if (!(d > 0)) return []
+
+    const chapters = Object.entries(props.chapters || {}).flatMap(([id, r]) => {
+        const start = Math.max(0, +r?.start || 0)
+        const end = Math.min(d, +r?.end || 0)
+        return end > start ? [{ start, end, label: LABELS[id] || id }] : []
+    })
+
+    const cuts = chapters.length
+        ? [...new Set([0, d, ...chapters.flatMap((c) => [c.start, c.end])])].sort((a, b) => a - b)
+        : [0, d]
+
+    const at = (pct) => (pct / 100) * d
+    const t = at(props.progress)
+    const b = at(props.buffered)
+    const fill = (start, end, time) => {
+        const span = end - start
+        return span > 0 ? Math.min(100, Math.max(0, ((time - start) / span) * 100)) : 0
+    }
+
+    return cuts.slice(0, -1).flatMap((start, i) => {
+        const end = cuts[i + 1]
+        if (!(end > start)) return []
+        return [{
+            start,
+            end,
+            flex: end - start,
+            label: chapters.find((c) => start >= c.start && end <= c.end)?.label ?? null,
+            played: fill(start, end, t),
+            buffered: fill(start, end, b),
+        }]
+    })
+})
+
+const showPreview = computed(() => (props.isHovering || props.isDragging) && props.duration > 0)
+
+/** Index of the segment under the pointer; only that slice thickens. */
+const hoverSeg = computed(() => {
+    if (!showPreview.value) return -1
+    const t = props.hoverPreviewTime
+    return segments.value.findIndex((s) => t >= s.start && t <= s.end)
+})
+
+const previewTimeLabel = computed(() => {
+    const time = formatDuration(props.hoverPreviewTime)
+    const hit = hoverSeg.value >= 0 ? segments.value[hoverSeg.value] : null
+    return hit?.label ? `${hit.label} · ${time}` : time
+})
+
 /** Hold last sprite frame until the next sheet decodes (avoids blank flashes). */
 const painted = ref(null)
 const fullFrameSrc = ref(null)
-let paintGen = 0
-
-const showPreview = computed(() =>
-    (props.isHovering || props.isDragging) && props.duration > 0,
-)
 const hasThumbPreview = computed(() => !!(painted.value || fullFrameSrc.value))
-const previewTimeLabel = computed(() => {
-    const time = formatDuration(props.hoverPreviewTime)
-    const hit = chapterSegments.value.find((s) => props.hoverPreviewTime >= s.start && props.hoverPreviewTime <= s.end)
-    return hit ? `${hit.label} · ${time}` : time
-})
-
-function clearLayers() {
-    paintGen++
-    painted.value = null
-    fullFrameSrc.value = null
-}
+let paintGen = 0
 
 watch(
     () => ({
@@ -75,11 +91,12 @@ watch(
     }),
     ({ src, preview, thumb, show }) => {
         if (!show || !thumb || !src) {
-            clearLayers()
+            paintGen++
+            painted.value = null
+            fullFrameSrc.value = null
             return
         }
 
-        // Full-frame thumbs (no #xywh).
         if (!preview) {
             if (thumb.xywh) {
                 fullFrameSrc.value = null
@@ -93,25 +110,15 @@ watch(
 
         fullFrameSrc.value = null
         const frame = { src, viewport: preview.viewport, image: preview.image }
-
-        // Same sheet — crop-only update.
-        if (painted.value?.src === src) {
+        if (painted.value?.src === src || !painted.value) {
             paintGen++
             painted.value = frame
             return
         }
 
         const gen = ++paintGen
-        if (!painted.value) {
-            painted.value = frame
-            return
-        }
-
-        // Keep current frame until the next sprite sheet is ready.
         const img = new Image()
-        img.onload = () => {
-            if (gen === paintGen) painted.value = frame
-        }
+        img.onload = () => { if (gen === paintGen) painted.value = frame }
         img.src = src
         if (img.complete && img.naturalWidth > 0) painted.value = frame
     },
@@ -138,29 +145,32 @@ defineExpose({
             @pointerenter="emit('pointerenter')"
             @pointerleave="emit('pointerleave')"
         >
-            <div
-                class="relative w-full h-1.5 bg-white/30 rounded-full transition-all duration-150 group-hover:h-2"
-                :class="{ 'h-2': isDragging }"
-            >
+            <div class="relative w-full h-2.5 flex items-center">
+                <div class="flex w-full items-center" :class="segments.length > 1 ? 'gap-[3px]' : ''">
+                    <div
+                        v-for="(seg, i) in segments"
+                        :key="i"
+                        class="relative min-w-0 overflow-hidden rounded-full bg-white/30 transition-[height] duration-150"
+                        :class="i === hoverSeg ? 'h-2.5' : 'h-1.5'"
+                        :style="{ flex: `${seg.flex} 1 0%` }"
+                        :title="seg.label || undefined"
+                    >
+                        <div class="absolute inset-y-0 left-0 bg-white/40" :style="{ width: `${seg.buffered}%` }" />
+                        <div
+                            class="absolute inset-y-0 left-0 bg-white"
+                            :class="isDragging ? '' : 'transition-[width] duration-100'"
+                            :style="{ width: `${seg.played}%` }"
+                        />
+                    </div>
+                </div>
+
                 <div
-                    class="absolute h-full bg-white/40 rounded-full transition-all duration-300 pointer-events-none"
-                    :style="{ width: `${buffered}%` }"
-                />
-                <div
-                    v-for="seg in chapterSegments"
-                    :key="seg.id"
-                    class="absolute top-0 h-full rounded-full pointer-events-none"
-                    :class="seg.class"
-                    :style="{ left: `${seg.left}%`, width: `${seg.width}%` }"
-                    :title="seg.label"
-                />
-                <div
-                    class="absolute h-full bg-white rounded-full pointer-events-none"
-                    :class="isDragging ? 'transition-none' : 'transition-all duration-100'"
-                    :style="{ width: `${progress}%` }"
+                    class="absolute top-1/2 z-[1] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                    :class="isDragging ? '' : 'transition-[left] duration-100'"
+                    :style="{ left: `${progress}%` }"
                 >
                     <div
-                        class="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-150 scale-0 group-hover:scale-100"
+                        class="w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-150 scale-0 group-hover:scale-100"
                         :class="{ 'scale-100': isDragging || isHovering }"
                     />
                 </div>
@@ -179,11 +189,7 @@ defineExpose({
                             class="thumb-preview-frame relative overflow-hidden rounded-lg shadow-xl bg-black"
                             :style="{ width: `${thumbPreviewW}px`, height: `${thumbPreviewH}px` }"
                         >
-                            <div
-                                v-if="painted"
-                                class="absolute overflow-hidden"
-                                :style="painted.viewport"
-                            >
+                            <div v-if="painted" class="absolute overflow-hidden" :style="painted.viewport">
                                 <img
                                     :src="painted.src"
                                     class="absolute left-0 top-0 block max-w-none select-none"
