@@ -44,12 +44,8 @@ function handleEscape(event) {
     if (event.key === 'Escape' && !props.persistent) close()
 }
 
-function lockScroll() {
-    document.body.style.overflow = 'hidden'
-}
-
-function unlockScroll() {
-    document.body.style.overflow = ''
+function setScrollLocked(locked) {
+    if (import.meta.client) document.body.style.overflow = locked ? 'hidden' : ''
 }
 
 function measureHeights() {
@@ -158,7 +154,7 @@ watch(
     (open) => {
         if (open) {
             syncTeleportTarget()
-            lockScroll()
+            setScrollLocked(true)
             bindDragListeners()
             nextTick(() => {
                 resetDrawer()
@@ -166,7 +162,7 @@ watch(
             })
         } else {
             unbindDragListeners()
-            unlockScroll()
+            setScrollLocked(false)
             nextTick(resetDrawer)
         }
     },
@@ -182,7 +178,7 @@ onBeforeUnmount(() => {
     document.removeEventListener('keydown', handleEscape)
     document.removeEventListener('fullscreenchange', syncTeleportTarget)
     unbindDragListeners()
-    unlockScroll()
+    setScrollLocked(false)
 })
 </script>
 

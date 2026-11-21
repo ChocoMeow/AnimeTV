@@ -92,12 +92,12 @@ const {
                 ? 'flex flex-col gap-4 min-w-0 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start'
                 : 'flex flex-col lg:flex-row gap-4 min-w-0'">
 
-                <div :class="isTheaterMode ? 'space-y-4 min-w-0 lg:contents' : 'flex-1 min-w-0 lg:w-[75%] space-y-4'">
+                <div :class="isTheaterMode ? 'space-y-4 lg:space-y-0 min-w-0 lg:contents' : 'flex-1 min-w-0 lg:w-[75%] space-y-4'">
                     <!-- Video Player -->
                     <section aria-label="Video player" :class="isTheaterMode ? 'lg:col-span-2' : ''">
                         <!-- Thumbnail placeholder (no episode selected) -->
                         <div v-if="!selectedEpisode && coverSrc"
-                            class="aspect-video relative rounded-lg overflow-hidden bg-gray-900 dark:bg-gray-950">
+                            class="aspect-video relative rounded-xl overflow-hidden bg-gray-900 dark:bg-gray-950">
                             <div class="absolute inset-0">
                                 <AppImage
                                     :src="offlineCoverUrl || coverSrc"

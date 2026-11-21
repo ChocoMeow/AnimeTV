@@ -186,7 +186,7 @@ defineExpose({
                     >
                         <div
                             v-if="hasThumbPreview"
-                            class="thumb-preview-frame relative overflow-hidden rounded-lg shadow-xl bg-black"
+                            class="thumb-preview-frame relative overflow-hidden rounded-xl shadow-xl bg-black"
                             :style="{ width: `${thumbPreviewW}px`, height: `${thumbPreviewH}px` }"
                         >
                             <div v-if="painted" class="absolute overflow-hidden" :style="painted.viewport">
@@ -221,5 +221,5 @@ defineExpose({
 </template>
 
 <style scoped>
-.thumb-preview-frame { clip-path: inset(0 round 0.5rem); }
+.thumb-preview-frame { clip-path: inset(0 round 0.75rem); }
 </style>

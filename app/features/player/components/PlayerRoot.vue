@@ -463,7 +463,7 @@ onUnmounted(() => {
         ref="containerRef"
         data-no-ptr
         :class="[
-            'relative w-full rounded-lg',
+            'relative w-full rounded-xl',
             showSettings ? 'overflow-visible' : 'overflow-hidden',
             hidePlaybackCursor ? 'cursor-none' : 'cursor-default',
             nativeVideoFullscreen ? 'native-video-fs' : 'custom-caption-overlay',

@@ -104,7 +104,7 @@ async function toggleFavorite(event) {
                         <AppImage
                             :src="animeDetails.image"
                             :alt="animeDetails.title"
-                            class="w-20 sm:w-24 aspect-[2/3] rounded-lg shadow-lg flex-shrink-0"
+                            class="w-20 sm:w-24 aspect-[2/3] rounded-xl shadow-lg flex-shrink-0"
                             loading="eager"
                             icon-class="text-3xl"
                         />

@@ -128,7 +128,7 @@ onMounted(resetAndLoad)
                     v-for="item in listItems"
                     :key="item.refId || item.video_url"
                     :to="`/anime/${item.refId}`"
-                    class="group overflow-hidden rounded-xl bg-black/[0.02] dark:bg-white/[0.02] ring-1 ring-black/5 dark:ring-white/5 hover:ring-black/20 dark:hover:ring-white/20 shadow-sm hover:shadow-md hover:shadow-black/10 dark:hover:shadow-black/40 transition-all focus:outline-none"
+                    class="group overflow-hidden rounded-xl bg-black/[0.02] dark:bg-white/5 ring-1 ring-black/5 dark:ring-white/10 hover:ring-black/10 dark:hover:ring-white/20 shadow-sm hover:shadow-xl hover:shadow-black/10 dark:hover:shadow-black/60 transition-all duration-300 focus:outline-none"
                     role="listitem"
                     :aria-label="`View ${item.title}`"
                     @mouseenter="emit('tooltip-enter', item, $event)"

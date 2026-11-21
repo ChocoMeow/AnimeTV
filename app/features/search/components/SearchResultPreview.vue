@@ -241,7 +241,7 @@ async function toggleFavorite(event) {
                             <AppImage
                                 :src="anime.image"
                                 :alt="anime.title"
-                                class="aspect-[2/3] rounded-lg ring-1 ring-black/5 transition group-hover:ring-black/15 dark:bg-white/10 dark:ring-white/10 dark:group-hover:ring-white/25"
+                                class="aspect-[2/3] rounded-xl ring-1 ring-black/5 transition group-hover:ring-black/15 dark:bg-white/10 dark:ring-white/10 dark:group-hover:ring-white/25"
                                 img-class="h-full w-full object-cover group-hover:scale-[1.03]"
                             />
                             <p class="mt-2 line-clamp-2 text-xs leading-snug text-gray-600 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-gray-200 sm:text-sm">

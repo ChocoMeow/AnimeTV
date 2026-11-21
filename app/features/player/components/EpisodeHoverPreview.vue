@@ -217,7 +217,7 @@ onBeforeUnmount(() => {
                 @pointerleave="onCardPointerLeave"
             >
                 <div
-                    class="relative overflow-hidden rounded-lg bg-black"
+                    class="relative overflow-hidden rounded-xl bg-black"
                     :style="{ width: `${PREVIEW_WIDTH}px`, height: `${PREVIEW_HEIGHT}px` }"
                 >
                     <div

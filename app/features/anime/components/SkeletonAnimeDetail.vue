@@ -3,7 +3,7 @@
         <div class="space-y-8 max-w-[96rem] mx-auto px-3 sm:px-4 py-4 sm:py-8 animate-pulse">
             <div class="flex flex-col lg:flex-row gap-6">
                 <div class="flex-1 lg:w-[75%] space-y-4">
-                    <div class="aspect-video rounded-lg bg-gray-200 dark:bg-white/10" />
+                    <div class="aspect-video rounded-xl bg-gray-200 dark:bg-white/10" />
                     <div class="space-y-4">
                         <div class="h-9 w-3/5 rounded-lg bg-gray-200 dark:bg-white/10" />
                         <div class="h-5 w-2/5 rounded-lg bg-gray-200 dark:bg-white/10" />

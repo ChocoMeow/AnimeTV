@@ -23,27 +23,16 @@ function handleEscape(event) {
     if (event.key === 'Escape' && !props.persistent) close()
 }
 
-function lockScroll() {
-    document.body.style.overflow = 'hidden'
+function setScrollLocked(locked) {
+    if (import.meta.client) document.body.style.overflow = locked ? 'hidden' : ''
 }
 
-function unlockScroll() {
-    document.body.style.overflow = ''
-}
-
-watch(
-    () => props.modelValue,
-    (val) => {
-        if (val) lockScroll()
-        else unlockScroll()
-    },
-    { immediate: true },
-)
+watch(() => props.modelValue, setScrollLocked, { immediate: true })
 
 onMounted(() => document.addEventListener('keydown', handleEscape))
 onBeforeUnmount(() => {
     document.removeEventListener('keydown', handleEscape)
-    unlockScroll()
+    setScrollLocked(false)
 })
 </script>
 
