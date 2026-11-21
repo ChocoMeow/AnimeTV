@@ -243,10 +243,11 @@ export default defineNuxtConfig({
             },
             // Cast: nuxt-security types omit some Permissions-Policy features we set.
             permissionsPolicy: {
-                // Default fullscreen: [] blocks the video player
+                // Default fullscreen/microphone: [] blocks the player + speech mic
                 autoplay: ['self'],
                 'clipboard-write': ['self'],
                 fullscreen: ['self'],
+                microphone: ['self'],
                 'picture-in-picture': ['self'],
                 'web-share': ['self'],
                 accelerometer: [],

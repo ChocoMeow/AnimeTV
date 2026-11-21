@@ -465,6 +465,25 @@ function parseServerListHtml(serverHtml, audio) {
     return serverItems
 }
 
+/** HD-1 is often listed first but dead — try HD-2 / others first. */
+function preferServers(items) {
+    return [...items].sort((a, b) =>
+        Number(/^hd-?1\b/i.test(a.name)) - Number(/^hd-?1\b/i.test(b.name))
+        || Number(/^hd-?2\b/i.test(b.name)) - Number(/^hd-?2\b/i.test(a.name)))
+}
+
+async function hlsOk(url, referer) {
+    try {
+        const res = await fetch(url, {
+            headers: { 'User-Agent': UA, Accept: '*/*', Referer: referer || `${SITE}/` },
+            signal: AbortSignal.timeout(6_000),
+        })
+        return res.ok && (await res.text()).includes('#EXTM3U')
+    } catch {
+        return false
+    }
+}
+
 function mergeMapperServers(mapperData, audio, serverItems) {
     if (!mapperData) return
     for (const [sKey, sObj] of Object.entries(mapperData)) {
@@ -489,7 +508,7 @@ async function tryServers(serverItems, audio) {
     const thumbSeen = new Set()
     let chapters = null
 
-    for (const item of serverItems) {
+    for (const item of preferServers(serverItems)) {
         const serverKey = `${item.name}:${item.subtitleType || item.serverType || audio}`
         if (serverSeen.has(serverKey)) continue
         serverSeen.add(serverKey)
@@ -547,24 +566,27 @@ async function tryServers(serverItems, audio) {
 
         if (!hlsSources.length) continue
 
-        const referer = extracted?.origin
-            ? `${extracted.origin}/`
-            : `${new URL(embedUrl).origin}/`
-
-        for (const source of hlsSources) {
-            streams.push({
-                url: source.url,
-                type: 'hls',
-                referer,
-                subtitles: itemSubs,
-                variant: source.variant || null,
-            })
+        const referer = extracted?.origin ? `${extracted.origin}/` : `${new URL(embedUrl).origin}/`
+        // Pick first live playlist (skip dead HD-1 CDNs); one stream is enough for playback.
+        let picked = null
+        for (const s of hlsSources) {
+            if (await hlsOk(s.url, referer)) {
+                picked = s
+                break
+            }
         }
-        // First working server is enough — avoid scraping every MegaPlay embed.
+        if (!picked) continue
+
+        streams.push({
+            url: picked.url,
+            type: 'hls',
+            referer,
+            subtitles: itemSubs,
+            variant: picked.variant || null,
+        })
         break
     }
 
-    streams.sort((a, b) => (a.variant === 'modern' ? 0 : 1) - (b.variant === 'modern' ? 0 : 1))
     return { streams, subtitles, thumbnails, chapters }
 }
 
