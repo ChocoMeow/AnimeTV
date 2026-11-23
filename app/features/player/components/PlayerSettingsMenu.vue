@@ -41,9 +41,6 @@ const menuItemClass = `${rowClass} justify-between gap-3`
 const backClass = `${rowClass} gap-1`
 const mutedClass = 'text-xs text-gray-500 dark:text-white/55'
 const selectedClass = 'bg-black/5 dark:bg-white/10 font-medium'
-const switchTrackClass = 'relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200 ease-in-out'
-const switchThumbClass =
-    'absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white dark:bg-gray-950 shadow transition-transform duration-200 ease-in-out'
 const popupClass =
     'absolute bottom-full right-0 mb-2 bg-black/80 backdrop-blur-xl rounded-2xl shadow-2xl py-1.5 z-[10] min-w-[14rem] w-[16.5rem] max-h-[min(70vh,26rem)] overflow-x-hidden overflow-y-auto origin-bottom-right dark'
 
@@ -59,13 +56,6 @@ const shellProps = computed(() =>
         ? { modelValue: props.open, title: '設定', maxHeight: 'max-h-[70vh]' }
         : { class: popupClass },
 )
-
-function trackClass(on) {
-    return [switchTrackClass, on ? 'bg-gray-900 dark:bg-white' : 'bg-black/10 dark:bg-white/15']
-}
-function thumbClass(on) {
-    return [switchThumbClass, on ? 'translate-x-4' : 'translate-x-0']
-}
 </script>
 
 <template>
@@ -91,9 +81,7 @@ function thumbClass(on) {
                                 @click="emit(item.event)"
                             >
                                 <span>{{ item.label }}</span>
-                                <span :class="trackClass(item.on)" aria-hidden="true">
-                                    <span :class="thumbClass(item.on)" />
-                                </span>
+                                <AppSwitch :model-value="item.on" size="sm" passive />
                             </button>
                             <button
                                 type="button"
@@ -103,9 +91,7 @@ function thumbClass(on) {
                                 @click="emit('toggle-theater')"
                             >
                                 <span>劇院模式</span>
-                                <span :class="trackClass(theaterMode)" aria-hidden="true">
-                                    <span :class="thumbClass(theaterMode)" />
-                                </span>
+                                <AppSwitch :model-value="theaterMode" size="sm" passive />
                             </button>
                             <button
                                 v-if="hasCaptions"
@@ -252,10 +238,10 @@ function thumbClass(on) {
                                     v-for="s in CAPTION_SIZES"
                                     :key="s.id"
                                     type="button"
-                                    class="flex-1 rounded-lg py-1.5 text-xs transition-colors"
+                                    class="flex-1 rounded-full py-1.5 text-xs transition-colors"
                                     :class="captionStyle.size === s.id
-                                        ? 'bg-black/10 dark:bg-white/20 font-medium text-gray-900 dark:text-white'
-                                        : 'bg-black/5 dark:bg-white/5 text-gray-700 dark:text-white hover:bg-black/10 dark:hover:bg-white/10'"
+                                        ? 'bg-gray-900 font-medium text-white dark:bg-white dark:text-black'
+                                        : 'bg-black/5 text-gray-700 hover:bg-black/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/20'"
                                     @click="patch({ size: s.id })"
                                 >
                                     {{ s.label }}
@@ -271,9 +257,7 @@ function thumbClass(on) {
                             @click="patch({ background: !captionStyle.background })"
                         >
                             <span>背景</span>
-                            <span :class="trackClass(captionStyle.background)" aria-hidden="true">
-                                <span :class="thumbClass(captionStyle.background)" />
-                            </span>
+                            <AppSwitch :model-value="captionStyle.background" size="sm" passive />
                         </button>
 
                         <div class="px-3.5 py-2 space-y-3">

@@ -441,8 +441,8 @@ onUnmounted(() => {
             <!-- Search Input -->
             <div class="panel-card p-6">
                 <div class="relative">
-                    <span class="material-symbols-rounded absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-                    <input v-model="searchQuery" type="text" placeholder="搜尋用戶名稱..." class="w-full pl-12 pr-4 py-3 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-black/10 dark:focus:ring-white/20 outline-none transition-shadow" />
+                    <span class="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-xl text-gray-400">search</span>
+                    <input v-model="searchQuery" type="text" placeholder="搜尋用戶名稱..." class="page-search" />
                     <div v-if="searchLoading" class="absolute right-4 top-1/2 -translate-y-1/2">
                         <LoadingSpinner size="sm" />
                     </div>

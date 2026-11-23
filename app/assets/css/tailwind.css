@@ -13,30 +13,134 @@
 @tailwind utilities;
 
 @layer components {
-    .btn-modal-cancel {
-        @apply px-4 py-2 rounded-full bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300
-               hover:bg-black/10 dark:hover:bg-white/20 transition-colors;
+    /* Form controls: h-10 · rounded-full/2xl · black/5 fill · focus-visible ring */
+    .field,
+    .page-search,
+    .field-trigger,
+    .field-box,
+    .field-textarea {
+        @apply w-full border border-transparent bg-black/5 text-sm text-gray-900
+               placeholder-gray-500 outline-none transition-shadow
+               focus-visible:ring-2 focus-visible:ring-black/20
+               disabled:cursor-not-allowed disabled:opacity-60
+               dark:bg-white/10 dark:text-gray-100 dark:placeholder-gray-400
+               dark:focus-visible:ring-white/20;
     }
 
-    .btn-modal-danger {
-        @apply px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors;
-    }
-
-    .btn-primary {
-        @apply inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm
-               bg-gray-900 dark:bg-white text-white dark:text-black
-               hover:opacity-90 transition-opacity;
+    .field,
+    .page-search,
+    .field-trigger {
+        @apply h-10 rounded-full px-4;
     }
 
     .page-search {
-        @apply w-full bg-black/5 dark:bg-white/10 border border-transparent rounded-full px-4 py-2.5 pl-10 text-sm
-               text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400
-               focus:ring-2 focus:ring-black/10 dark:focus:ring-white/20 outline-none transition-shadow;
+        @apply pl-10;
+    }
+
+    .field-trigger {
+        @apply flex items-center justify-between gap-2 pr-10 text-left font-medium
+               hover:bg-black/10 dark:hover:bg-white/20;
+    }
+
+    .field-box,
+    .field-textarea {
+        @apply rounded-2xl px-4 py-2.5;
+    }
+
+    .field-textarea {
+        @apply overflow-y-auto;
+        field-sizing: content;
+        min-height: 4.5rem;
+        max-height: 16rem;
+        resize: none;
+    }
+
+    /* iOS Safari centers date values; keep left-aligned with other fields. */
+    .field:is([type='date'], [type='datetime-local']) {
+        -webkit-appearance: none;
+        appearance: none;
+        text-align: left;
+    }
+
+    .field:is([type='date'], [type='datetime-local'])::-webkit-date-and-time-value,
+    .field:is([type='date'], [type='datetime-local'])::-webkit-datetime-edit {
+        margin: 0;
+        padding: 0;
+        text-align: left;
+    }
+
+    .control-switch {
+        @apply relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full
+               bg-black/10 transition-colors duration-200 ease-in-out
+               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20
+               disabled:cursor-not-allowed disabled:opacity-50
+               dark:bg-white/15 dark:focus-visible:ring-white/20;
+    }
+
+    .control-switch.is-on {
+        @apply bg-gray-900 dark:bg-white;
+    }
+
+    .control-switch.is-on-amber {
+        @apply bg-amber-600 dark:bg-amber-500;
+    }
+
+    .control-switch-thumb {
+        @apply pointer-events-none absolute left-1 top-1 h-6 w-6 rounded-full
+               bg-white shadow transition-transform duration-200 ease-in-out dark:bg-gray-950;
+    }
+
+    .control-switch:is(.is-on, .is-on-amber) .control-switch-thumb {
+        @apply translate-x-6;
+    }
+
+    .control-switch--sm {
+        @apply h-5 w-9;
+    }
+
+    .control-switch--sm .control-switch-thumb {
+        @apply left-0.5 top-0.5 h-4 w-4;
+    }
+
+    .control-switch--sm:is(.is-on, .is-on-amber) .control-switch-thumb {
+        @apply translate-x-4;
+    }
+
+    .control-checkbox {
+        @apply h-4 w-4 rounded border-black/20 text-gray-900
+               focus-visible:ring-2 focus-visible:ring-black/20
+               dark:border-white/20 dark:text-gray-100 dark:focus-visible:ring-white/20;
+    }
+
+    .btn-modal-cancel,
+    .btn-modal-danger,
+    .btn-primary {
+        @apply inline-flex h-10 items-center justify-center gap-1.5 rounded-full px-4 text-sm
+               leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+    }
+
+    :is(.btn-modal-cancel, .btn-modal-danger, .btn-primary) > .material-symbols-rounded {
+        font-size: 1.125rem;
+        line-height: 1;
+    }
+
+    .btn-modal-cancel {
+        @apply bg-black/5 text-gray-700 hover:bg-black/10
+               dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/20;
+    }
+
+    .btn-modal-danger {
+        @apply bg-red-500 text-white hover:bg-red-600;
+    }
+
+    .btn-primary {
+        @apply bg-gray-900 px-6 font-semibold text-white transition-opacity hover:opacity-90
+               dark:bg-white dark:text-black;
     }
 
     .empty-state {
-        @apply text-center py-20 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03]
-               border border-black/5 dark:border-white/5;
+        @apply rounded-2xl border border-black/5 bg-black/[0.02] py-20 text-center
+               dark:border-white/5 dark:bg-white/[0.03];
     }
 }
 
@@ -77,12 +181,11 @@ body {
         sans-serif;
 }
 
-/* Noto Sans TC draws CJK about 0.08em low. Shift the text, not the control around it. */
+/*
+ * Noto Sans TC draws CJK ~0.08em low in prose. Do not apply this to buttons/links —
+ * it lifts labels above Material icons in icon+text rows.
+ */
 :where(h1, h2, h3, h4, h5, h6, p, li, label, td, th, figcaption, blockquote, dt, dd, summary, legend) {
-    translate: 0 -0.08em;
-}
-
-:where(button, a) > :where(span:not(.material-symbols-rounded):not([aria-hidden='true'])) {
     translate: 0 -0.08em;
 }
 

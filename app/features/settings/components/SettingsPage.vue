@@ -368,20 +368,12 @@ useHead({
                                     開啟後不儲存觀看／搜尋紀錄，也不對外顯示線上或觀看狀態（關閉分頁後自動結束）
                                 </p>
                             </div>
-                            <button
-                                type="button"
-                                @click="toggleIncognito"
-                                :class="isIncognito ? 'bg-amber-600 dark:bg-amber-500' : 'bg-black/10 dark:bg-white/15'"
-                                class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
-                                :aria-pressed="isIncognito"
-                                aria-label="無痕模式"
-                            >
-                                <span
-                                    aria-hidden="true"
-                                    :class="isIncognito ? 'translate-x-7' : 'translate-x-1'"
-                                    class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-950 shadow ring-0 transition duration-200 ease-in-out mt-1"
-                                ></span>
-                            </button>
+                            <AppSwitch
+                                :model-value="isIncognito"
+                                label="無痕模式"
+                                on-tone="amber"
+                                @update:model-value="toggleIncognito"
+                            />
                         </div>
 
                         <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
@@ -389,17 +381,11 @@ useHead({
                                 <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1">觀看紀錄</h4>
                                 <p class="text-sm text-gray-600 dark:text-gray-400">記錄你觀看的動漫和播放進度</p>
                             </div>
-                            <button
-                                @click="updateSetting('watch_history_enabled', !userSettings.watch_history_enabled)"
-                                :class="userSettings.watch_history_enabled ? 'bg-gray-900 dark:bg-white' : 'bg-black/10 dark:bg-white/15'"
-                                class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
-                            >
-                                <span
-                                    aria-hidden="true"
-                                    :class="userSettings.watch_history_enabled ? 'translate-x-7' : 'translate-x-1'"
-                                    class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-950 shadow ring-0 transition duration-200 ease-in-out mt-1"
-                                ></span>
-                            </button>
+                            <AppSwitch
+                                :model-value="userSettings.watch_history_enabled"
+                                label="觀看紀錄"
+                                @update:model-value="updateSetting('watch_history_enabled', $event)"
+                            />
                         </div>
 
                         <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
@@ -407,17 +393,11 @@ useHead({
                                 <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1">搜尋記錄</h4>
                                 <p class="text-sm text-gray-600 dark:text-gray-400">記錄你查詢的內容與探索足跡</p>
                             </div>
-                            <button
-                                @click="updateSetting('search_history_enabled', !userSettings.search_history_enabled)"
-                                :class="userSettings.search_history_enabled ? 'bg-gray-900 dark:bg-white' : 'bg-black/10 dark:bg-white/15'"
-                                class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
-                            >
-                                <span
-                                    aria-hidden="true"
-                                    :class="userSettings.search_history_enabled ? 'translate-x-7' : 'translate-x-1'"
-                                    class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white dark:bg-gray-950 shadow ring-0 transition duration-200 ease-in-out mt-1"
-                                ></span>
-                            </button>
+                            <AppSwitch
+                                :model-value="userSettings.search_history_enabled"
+                                label="搜尋記錄"
+                                @update:model-value="updateSetting('search_history_enabled', $event)"
+                            />
                         </div>
                     </div>
                 </div>

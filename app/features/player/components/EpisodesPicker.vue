@@ -218,7 +218,7 @@ onBeforeUnmount(() => {
             <input
                 v-model="query"
                 type="text"
-                class="input-field text-sm"
+                class="field text-sm"
                 :class="compact ? 'flex-1' : 'w-32'"
                 :placeholder="compact ? '搜尋集數...' : '集數或特別篇'"
                 aria-label="Search episodes"
@@ -335,13 +335,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.input-field {
-    @apply px-3 py-2 bg-black/5 dark:bg-white/10 border border-transparent
-           text-gray-900 dark:text-gray-100 rounded-xl
-           focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent
-           transition-shadow;
-}
-
 .episode-button {
     @apply aspect-square rounded-lg text-sm font-medium border-2 transition-all duration-300
            bg-black/5 dark:bg-white/10 border-transparent

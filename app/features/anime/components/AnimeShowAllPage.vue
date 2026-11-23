@@ -202,14 +202,14 @@ onUnmounted(() => {
                     <div class="flex flex-wrap items-center gap-3">
                         <label class="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[60px]">排序:</label>
                         <div class="flex flex-wrap gap-2">
-                            <button
+                            <AppChip
                                 v-for="option in sortOptions"
                                 :key="option.value"
+                                :active="selectedSort === option.value"
                                 @click="selectedSort = option.value; fetchAnime(1)"
-                                :class="['category-pill', selectedSort === option.value ? 'category-pill-active' : 'category-pill-inactive']"
                             >
                                 {{ option.label }}
-                            </button>
+                            </AppChip>
                         </div>
                     </div>
 
@@ -217,20 +217,20 @@ onUnmounted(() => {
                     <div class="flex flex-wrap items-center gap-3">
                         <label class="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[60px]">類型:</label>
                         <div class="flex flex-wrap gap-2">
-                            <button
+                            <AppChip
+                                :active="selectedCategory === ''"
                                 @click="selectedCategory = ''; fetchAnime(1)"
-                                :class="['category-pill', selectedCategory === '' ? 'category-pill-active' : 'category-pill-inactive']"
                             >
                                 全部
-                            </button>
-                            <button
+                            </AppChip>
+                            <AppChip
                                 v-for="cat in categories"
                                 :key="cat"
+                                :active="selectedCategory === cat"
                                 @click="selectedCategory = cat; fetchAnime(1)"
-                                :class="['category-pill', selectedCategory === cat ? 'category-pill-active' : 'category-pill-inactive']"
                             >
                                 {{ cat }}
-                            </button>
+                            </AppChip>
                         </div>
                     </div>
 
@@ -238,17 +238,15 @@ onUnmounted(() => {
                     <div class="flex flex-wrap items-start gap-3">
                         <label class="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[60px] pt-1.5">標籤:</label>
                         <div class="flex flex-wrap gap-2 flex-1">
-                            <button
+                            <AppChip
                                 v-for="tag in tags"
                                 :key="tag"
+                                size="sm"
+                                :active="tag === '全部' ? selectedTags.length === 0 : selectedTags.includes(tag)"
                                 @click="toggleTag(tag)"
-                                :class="[
-                                    'tag-pill',
-                                    tag === '全部' && selectedTags.length === 0 ? 'tag-pill-active' : selectedTags.includes(tag) ? 'tag-pill-active' : 'tag-pill-inactive',
-                                ]"
                             >
                                 {{ tag }}
-                            </button>
+                            </AppChip>
                         </div>
                     </div>
                 </div>
@@ -314,39 +312,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* Category Pills */
-.category-pill {
-    @apply px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200;
-}
-
-.category-pill-inactive {
-    @apply bg-white dark:bg-white/10 text-gray-600 dark:text-gray-300
-           border-2 border-black/10 dark:border-white/10
-           hover:bg-black/10 dark:hover:bg-white/20;
-}
-
-.category-pill-active {
-    @apply bg-black/70 dark:bg-white text-white dark:text-black
-           border-2 border-black/10 dark:border-white/10
-           shadow-md shadow-black/20 dark:shadow-white/20;
-}
-
-/* Tag Pills */
-.tag-pill {
-    @apply px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200;
-}
-
-.tag-pill-inactive {
-    @apply bg-white dark:bg-white/10 text-gray-600 dark:text-gray-300
-           border border-black/10 dark:border-white/10
-           hover:bg-black/10 dark:hover:bg-white/20;
-}
-
-.tag-pill-active {
-    @apply bg-black/70 dark:bg-white text-white dark:text-black
-           shadow-md shadow-gray-500/30 dark:shadow-gray-400/30;
-}
-
 .group:hover .badge-year {
     @apply scale-110;
 }

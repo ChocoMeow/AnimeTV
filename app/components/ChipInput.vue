@@ -1,20 +1,10 @@
 <script setup>
-const props = defineProps({
-    modelValue: {
-        type: Array,
-        default: () => [],
-    },
-    placeholder: {
-        type: String,
-        default: '',
-    },
-    hint: {
-        type: String,
-        default: '',
-    },
-})
+const model = defineModel({ type: Array, default: () => [] })
 
-const emit = defineEmits(['update:modelValue'])
+defineProps({
+    placeholder: { type: String, default: '' },
+    hint: { type: String, default: '' },
+})
 
 const inputValue = ref('')
 
@@ -22,73 +12,54 @@ function addChips() {
     const raw = inputValue.value.trim()
     if (!raw) return
 
-    const current = Array.isArray(props.modelValue) ? [...props.modelValue] : []
-
-    // Split on comma first, then on whitespace, so user can paste comma-separated values
-    const parts = raw
-        .split(',')
-        .flatMap(part => part.split(/\s+/))
-        .map((p) => p.trim())
-        .filter(Boolean)
-
-    for (const part of parts) {
-        if (!current.includes(part)) {
-            current.push(part)
-        }
+    const next = [...(model.value || [])]
+    for (const part of raw.split(/[,\s]+/).map((p) => p.trim()).filter(Boolean)) {
+        if (!next.includes(part)) next.push(part)
     }
-
-    emit('update:modelValue', current)
+    model.value = next
     inputValue.value = ''
 }
 
-function handleKeydown(event) {
+function onKeydown(event) {
     if (event.key === ' ' || event.key === 'Enter' || event.key === 'Tab') {
         event.preventDefault()
         addChips()
     }
 }
 
-function handleInput(event) {
-    const value = event.target.value
-    // Auto-split on comma
-    if (value.includes(',')) {
-        addChips()
-    }
+function onInput(event) {
+    if (event.target.value.includes(',')) addChips()
 }
 
 function removeChip(value) {
-    const current = Array.isArray(props.modelValue) ? [...props.modelValue] : []
-    emit(
-        'update:modelValue',
-        current.filter((item) => item !== value)
-    )
+    model.value = (model.value || []).filter((item) => item !== value)
 }
 </script>
 
 <template>
     <div class="space-y-2">
-        <div
-            class="w-full min-h-[80px] rounded-2xl border border-transparent bg-black/5 dark:bg-white/10 px-3 py-2.5 flex flex-wrap items-start gap-2"
-        >
+        <div class="field-box flex min-h-20 flex-wrap items-start gap-2 px-3">
             <span
-                v-for="chip in modelValue"
+                v-for="chip in model"
                 :key="chip"
-                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/80 dark:bg-white text-white dark:text-black text-xs"
+                class="inline-flex items-center gap-1 rounded-full bg-black/80 px-2.5 py-1 text-xs text-white dark:bg-white dark:text-black"
             >
-                <span>{{ chip }}</span>
-                <button type="button" class="material-symbols-rounded text-[14px] leading-none" @click="removeChip(chip)">close</button>
+                {{ chip }}
+                <button
+                    type="button"
+                    class="material-symbols-rounded text-[14px] leading-none"
+                    @click="removeChip(chip)"
+                >close</button>
             </span>
             <input
                 v-model="inputValue"
                 type="text"
                 :placeholder="placeholder"
-                class="flex-1 min-w-[80px] border-none outline-none bg-transparent text-xs text-gray-800 dark:text-gray-100 px-1 py-0.5"
-                @keydown="handleKeydown"
-                @input="handleInput"
+                class="min-w-20 flex-1 border-none bg-transparent px-1 py-0.5 text-xs text-gray-800 outline-none dark:text-gray-100"
+                @keydown="onKeydown"
+                @input="onInput"
             />
         </div>
-        <p v-if="hint" class="text-[11px] text-gray-400 dark:text-gray-500">
-            {{ hint }}
-        </p>
+        <p v-if="hint" class="text-[11px] text-gray-400 dark:text-gray-500">{{ hint }}</p>
     </div>
 </template>

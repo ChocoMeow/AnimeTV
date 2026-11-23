@@ -103,7 +103,7 @@ const {
                                 v-model="searchValue"
                                 type="text"
                                 :placeholder="searchOperator === 'in' ? '多個值請用逗號分隔' : '輸入欄位值進行搜尋'"
-                                class="admin-input"
+                                class="field"
                                 @keyup.enter="applySearch"
                             />
                         </div>
@@ -111,17 +111,17 @@ const {
                         <div class="flex items-center justify-between pt-1">
                             <button
                                 type="button"
-                                class="btn-admin-ghost"
+                                class="btn-modal-cancel"
                                 @click="resetSearch"
                             >
                                 重設
                             </button>
                             <button
                                 type="button"
-                                class="btn-admin-primary"
+                                class="btn-primary"
                                 @click="applySearch"
                             >
-                                <span class="material-symbols-rounded text-xs">search</span>
+                                <span class="material-symbols-rounded">search</span>
                                 套用搜尋
                             </button>
                         </div>
@@ -228,7 +228,7 @@ const {
                     <div class="flex items-center gap-2">
                         <button
                             type="button"
-                            class="btn-admin-ghost inline-flex items-center gap-2"
+                            class="btn-modal-cancel"
                             title="欄位設定"
                             @click="showFieldSettings = true"
                         >
@@ -237,7 +237,7 @@ const {
                         </button>
                         <button
                             type="button"
-                            class="btn-admin-ghost inline-flex items-center gap-2"
+                            class="btn-modal-cancel"
                             @click="handleCreateNew"
                         >
                             <span class="material-symbols-rounded text-base">add</span>
@@ -340,11 +340,11 @@ const {
                                             v-model="editableRecord[field.name]"
                                             :readonly="field.readOnly"
                                             type="text"
-                                            class="admin-input min-w-0 flex-1"
+                                            class="field min-w-0 flex-1"
                                         />
                                         <button
                                             type="button"
-                                            class="inline-flex items-center justify-center h-[42px] px-4 rounded-full bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-black/10 dark:hover:bg-white/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shrink-0"
+                                            class="btn-modal-cancel shrink-0"
                                             title="自動填入"
                                             :disabled="autofilling || !editableRecord.source_details_id"
                                             @click="handleAutofill"
@@ -374,7 +374,7 @@ const {
                                             :readonly="field.readOnly"
                                             type="number"
                                             step="1"
-                                            class="admin-input [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                            class="field [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                         />
                                     </div>
 
@@ -386,7 +386,7 @@ const {
                                             :readonly="field.readOnly"
                                             type="number"
                                             step="0.1"
-                                            class="admin-input [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                            class="field [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                         />
                                     </div>
 
@@ -396,7 +396,7 @@ const {
                                             v-model="editableRecord[field.name]"
                                             :readonly="field.readOnly"
                                             type="date"
-                                            class="admin-input [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
+                                            class="field [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
                                             @change="field.name === 'premiere_date' && syncSeasonFromPremiereDate()"
                                         />
                                     </div>
@@ -407,7 +407,7 @@ const {
                                             v-model="editableRecord[field.name]"
                                             :readonly="field.readOnly"
                                             type="datetime-local"
-                                            class="admin-input [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
+                                            class="field [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
                                         />
                                     </div>
 
@@ -418,7 +418,7 @@ const {
                                             v-model="editableRecord[field.name]"
                                             :readonly="field.readOnly"
                                             type="checkbox"
-                                            class="w-4 h-4 rounded border-black/20 dark:border-white/20 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 disabled:opacity-60"
+                                            class="control-checkbox disabled:opacity-60"
                                         />
                                         <label :for="`checkbox-${field.name}`" class="text-sm text-gray-700 dark:text-gray-300">
                                             {{ editableRecord[field.name] ? '是' : '否' }}
@@ -431,7 +431,7 @@ const {
                                         v-model="editableRecord[field.name]"
                                         :readonly="field.readOnly"
                                         rows="2"
-                                        class="admin-textarea"
+                                        class="field-textarea"
                                     />
 
                                     <!-- JSONB fields (editable JSON textarea, saved as object) -->
@@ -441,7 +441,7 @@ const {
                                         :readonly="field.readOnly"
                                         rows="2"
                                         placeholder="{}"
-                                        class="admin-textarea font-mono"
+                                        class="field-textarea font-mono"
                                     />
 
                                     <!-- Text fields (default) -->
@@ -450,7 +450,7 @@ const {
                                         v-model="editableRecord[field.name]"
                                         :readonly="field.readOnly"
                                         type="text"
-                                        class="admin-input"
+                                        class="field"
                                     />
                                     </div>
                                 </div>
@@ -471,7 +471,7 @@ const {
                             </button>
                             <button
                                 type="button"
-                                class="btn-admin-primary"
+                                class="btn-primary"
                                 :disabled="saving || !editableRecord"
                                 @click="handleSave"
                             >
@@ -563,62 +563,13 @@ const {
         <template #actions>
             <button type="button" class="btn-modal-cancel" @click="hideAllFields">全部隱藏</button>
             <button type="button" class="btn-modal-cancel" @click="hiddenFields.clear()">全部顯示</button>
-            <button type="button" class="btn-admin-primary" @click="showFieldSettings = false">完成</button>
+            <button type="button" class="btn-primary" @click="showFieldSettings = false">完成</button>
         </template>
     </BaseModal>
 </template>
 
 <style scoped>
 .admin-panel {
-    @apply rounded-2xl ring-1 ring-black/5 dark:ring-white/10 bg-white/90 dark:bg-gray-950/80 shadow-sm backdrop-blur;
-}
-
-.admin-input {
-    @apply w-full rounded-full border border-transparent bg-black/5 dark:bg-white/10 text-sm px-4 py-2.5
-           text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500
-           focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent
-           transition-shadow disabled:opacity-60 disabled:cursor-not-allowed;
-}
-
-/* iOS Safari centers native date/datetime values; force left like other admin fields. */
-.admin-input[type='date'],
-.admin-input[type='datetime-local'] {
-    -webkit-appearance: none;
-    appearance: none;
-    text-align: left;
-}
-
-.admin-input[type='date']::-webkit-date-and-time-value,
-.admin-input[type='datetime-local']::-webkit-date-and-time-value {
-    text-align: left;
-    margin: 0;
-}
-
-.admin-input[type='date']::-webkit-datetime-edit,
-.admin-input[type='datetime-local']::-webkit-datetime-edit {
-    text-align: left;
-    padding: 0;
-}
-
-.admin-textarea {
-    @apply w-full rounded-2xl border border-transparent bg-black/5 dark:bg-white/10 text-sm px-4 py-2.5
-           text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500
-           focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent
-           transition-shadow disabled:opacity-60 overflow-y-auto;
-    field-sizing: content;
-    min-height: 4.5rem;
-    max-height: 16rem;
-    resize: none;
-}
-
-.btn-admin-primary {
-    @apply inline-flex items-center gap-2 text-sm px-4 py-2 rounded-full font-medium
-           bg-gray-900 dark:bg-white text-white dark:text-black
-           hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed;
-}
-
-.btn-admin-ghost {
-    @apply text-sm px-4 py-2 rounded-full bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300
-           hover:bg-black/10 dark:hover:bg-white/20 transition-colors;
+    @apply rounded-2xl bg-white/90 shadow-sm ring-1 ring-black/5 backdrop-blur dark:bg-gray-950/80 dark:ring-white/10;
 }
 </style>

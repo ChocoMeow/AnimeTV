@@ -98,21 +98,23 @@ async function shareNative() {
                         <p class="text-sm text-gray-500 dark:text-gray-400">分享當前集數和時間點</p>
                     </div>
                 </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" v-model="includeTimestamp" class="sr-only peer" />
-                    <div class="w-11 h-6 bg-black/10 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-black/10 dark:peer-focus:ring-white/10 rounded-full peer dark:bg-white/15 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:after:bg-gray-950 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-white/20 peer-checked:bg-gray-900 dark:peer-checked:bg-white"></div>
-                </label>
+                <AppSwitch v-model="includeTimestamp" label="包含播放進度" />
             </div>
 
             <!-- Share URL Input -->
             <div class="space-y-2">
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">分享連結</label>
                 <div class="flex gap-2 items-center min-w-0">
-                    <input type="text" :value="finalUrl" readonly class="min-w-0 flex-1 px-4 py-3 bg-black/5 dark:bg-white/10 border border-transparent rounded-xl text-sm text-gray-900 dark:text-white truncate focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 focus:border-transparent" />
-                    <button @click="copyUrl" :class="['copy-btn shrink-0 px-4 py-3 rounded-full transition-all flex items-center gap-2', copied ? 'bg-emerald-500 hover:bg-emerald-600 scale-105 text-white' : 'bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black']" aria-pressed="false" type="button">
-                        <span class="icon-wrap w-5 h-5 relative">
-                            <span class="material-symbols-rounded icon-copy absolute inset-0 w-5 h-5" aria-hidden="true">content_copy</span>
-                            <span class="material-symbols-rounded icon-check absolute inset-0 w-5 h-5" aria-hidden="true">check</span>
+                    <input type="text" :value="finalUrl" readonly class="field min-w-0 flex-1 truncate" />
+                    <button
+                        type="button"
+                        class="copy-btn btn-primary shrink-0 px-4"
+                        :class="copied && 'scale-105 !bg-emerald-500 hover:!bg-emerald-600 !text-white'"
+                        @click="copyUrl"
+                    >
+                        <span class="icon-wrap relative h-5 w-5">
+                            <span class="material-symbols-rounded icon-copy absolute inset-0 h-5 w-5" aria-hidden="true">content_copy</span>
+                            <span class="material-symbols-rounded icon-check absolute inset-0 h-5 w-5" aria-hidden="true">check</span>
                         </span>
                     </button>
                 </div>
@@ -120,9 +122,9 @@ async function shareNative() {
 
             <!-- Native Share Button -->
             <div class="flex flex-col sm:flex-row gap-3">
-                <button @click="shareNative" class="flex-1 px-4 py-3 bg-gray-900 dark:bg-white hover:opacity-90 text-white dark:text-black rounded-full transition-all flex items-center justify-center gap-2 font-semibold">
+                <button type="button" class="btn-primary flex-1 justify-center" @click="shareNative">
                     <span class="material-symbols-rounded">share</span>
-                    <span>分享</span>
+                    分享
                 </button>
             </div>
         </div>
