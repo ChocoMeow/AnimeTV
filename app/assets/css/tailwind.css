@@ -144,6 +144,23 @@
     }
 }
 
+/* Shared popover open/close (Dropdown, overflow menus, player settings) */
+.menu-pop-enter-active {
+    transition:
+        opacity 150ms ease-out,
+        transform 150ms ease-out;
+}
+.menu-pop-leave-active {
+    transition:
+        opacity 150ms ease-in,
+        transform 150ms ease-in;
+}
+.menu-pop-enter-from,
+.menu-pop-leave-to {
+    opacity: 0;
+    transform: scale(0.95);
+}
+
 @media (hover: none) {
     a,
     button {

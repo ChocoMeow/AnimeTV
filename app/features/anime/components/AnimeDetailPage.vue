@@ -184,18 +184,26 @@ const {
                                         @click.stop="showToolbarOverflowMenu = !showToolbarOverflowMenu">
                                         <span class="material-symbols-rounded text-xl text-gray-900 dark:text-white">more_vert</span>
                                     </button>
-                                    <div v-show="showToolbarOverflowMenu"
-                                        class="absolute right-0 top-full mt-2 min-w-[11rem] py-1 rounded-xl ring-1 ring-black/5 dark:ring-white/10 bg-white dark:bg-gray-950 shadow-xl z-10"
-                                        role="menu" @click.stop>
-                                        <button v-for="action in toolbarActionsSplit.overflow" :key="action.key"
-                                            type="button"
-                                            class="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left text-gray-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10"
-                                            role="menuitem"
-                                            @click="action.run(); showToolbarOverflowMenu = false">
-                                            <span class="material-symbols-rounded text-lg flex-shrink-0" :class="action.iconClass">{{ action.icon }}</span>
-                                            <span>{{ action.label }}</span>
-                                        </button>
-                                    </div>
+                                    <Transition name="menu-pop">
+                                        <div
+                                            v-show="showToolbarOverflowMenu"
+                                            class="absolute right-0 top-full z-10 mt-2 min-w-[11rem] origin-top-right rounded-xl bg-white py-1 shadow-xl ring-1 ring-black/5 dark:bg-gray-950 dark:ring-white/10"
+                                            role="menu"
+                                            @click.stop
+                                        >
+                                            <button
+                                                v-for="action in toolbarActionsSplit.overflow"
+                                                :key="action.key"
+                                                type="button"
+                                                class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-gray-900 hover:bg-black/5 dark:text-white dark:hover:bg-white/10"
+                                                role="menuitem"
+                                                @click="action.run(); showToolbarOverflowMenu = false"
+                                            >
+                                                <span class="material-symbols-rounded flex-shrink-0 text-lg" :class="action.iconClass">{{ action.icon }}</span>
+                                                <span>{{ action.label }}</span>
+                                            </button>
+                                        </div>
+                                    </Transition>
                                 </div>
                             </div>
                         </div>

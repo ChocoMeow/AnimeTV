@@ -228,7 +228,6 @@ defineExpose({
                 </div>
 
                 <PlayerSettingsMenu
-                    v-if="isNarrow || showSettings"
                     :open="showSettings"
                     :page="settingsPage"
                     :autoplay-enabled="autoplayEnabled"
