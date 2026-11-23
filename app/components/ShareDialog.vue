@@ -121,12 +121,10 @@ async function shareNative() {
             </div>
 
             <!-- Native Share Button -->
-            <div class="flex flex-col sm:flex-row gap-3">
-                <button type="button" class="btn-primary flex-1 justify-center" @click="shareNative">
-                    <span class="material-symbols-rounded">share</span>
-                    分享
-                </button>
-            </div>
+            <button type="button" class="btn-primary h-12 w-full justify-center rounded-2xl" @click="shareNative">
+                <span class="material-symbols-rounded">share</span>
+                分享
+            </button>
         </div>
     </LazyBaseDialog>
 </template>
