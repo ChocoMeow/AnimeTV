@@ -146,7 +146,8 @@ export function useSpeechRecognition({ onResult, onError } = {}) {
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 text += event.results[i][0]?.transcript || ''
             }
-            text = text.trim()
+            // Browsers often insert punctuation after pauses; \p{P} covers any language.
+            text = text.replace(/\p{P}+/gu, '').replace(/\s+/g, ' ').trim()
             if (text) onResult?.(text)
         }
         recognition.onerror = (event) => {

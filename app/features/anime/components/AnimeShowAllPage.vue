@@ -181,8 +181,14 @@ onUnmounted(() => {
                         <span class="material-symbols-rounded text-sm">clear</span>
                         清除全部
                     </button>
-                    <button @click="showFilters = !showFilters" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-white/20 flex items-center justify-center">
-                        <span class="material-symbols-rounded text-gray-600 dark:text-gray-300">
+                    <button
+                        type="button"
+                        :aria-expanded="showFilters"
+                        aria-label="展開或收合篩選"
+                        class="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-black/5 dark:text-gray-300 dark:hover:bg-white/10"
+                        @click="showFilters = !showFilters"
+                    >
+                        <span class="material-symbols-rounded text-[20px] leading-none">
                             {{ showFilters ? "expand_less" : "expand_more" }}
                         </span>
                     </button>
@@ -310,38 +316,35 @@ onUnmounted(() => {
 <style scoped>
 /* Category Pills */
 .category-pill {
-    @apply px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 transform;
+    @apply px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200;
 }
 
 .category-pill-inactive {
     @apply bg-white dark:bg-white/10 text-gray-600 dark:text-gray-300
            border-2 border-black/10 dark:border-white/10
-           hover:bg-black/10 dark:hover:bg-white/20
-           hover:shadow-md hover:-translate-y-0.5;
+           hover:bg-black/10 dark:hover:bg-white/20;
 }
 
 .category-pill-active {
-    @apply bg-black/70 dark:bg-white text-white dark:text-black 
+    @apply bg-black/70 dark:bg-white text-white dark:text-black
            border-2 border-black/10 dark:border-white/10
-           shadow-lg shadow-black/30 dark:shadow-white/30
-           transform -translate-y-1;
+           shadow-md shadow-black/20 dark:shadow-white/20;
 }
 
 /* Tag Pills */
 .tag-pill {
-    @apply px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 transform;
+    @apply px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200;
 }
 
 .tag-pill-inactive {
     @apply bg-white dark:bg-white/10 text-gray-600 dark:text-gray-300
            border border-black/10 dark:border-white/10
-           hover:bg-black/10 dark:hover:bg-white/20
-           hover:shadow-sm hover:-translate-y-0.5;
+           hover:bg-black/10 dark:hover:bg-white/20;
 }
 
 .tag-pill-active {
     @apply bg-black/70 dark:bg-white text-white dark:text-black
-           shadow-md shadow-gray-500/30 dark:shadow-gray-400/30 transform -translate-y-0.5;
+           shadow-md shadow-gray-500/30 dark:shadow-gray-400/30;
 }
 
 .group:hover .badge-year {
