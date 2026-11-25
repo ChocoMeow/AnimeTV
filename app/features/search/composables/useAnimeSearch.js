@@ -93,24 +93,19 @@ export function useAnimeSearch() {
         cancelPendingSearch()
     }
 
+    const userId = computed(() => userSettings.value.id || user.value?.sub || user.value?.id || null)
+
     async function saveSearchHistory(query) {
-        if (isOffline() || isIncognito.value || !userSettings.value.search_history_enabled || !query || !userSettings.value.id) return
-        if (searchHistory.value.some((item) => item.query === query)) return
+        const q = query?.trim()
+        if (isOffline() || isIncognito.value || !userSettings.value.search_history_enabled || !q || !userId.value) return
 
+        const existing = searchHistory.value.find((i) => i.query.trim() === q)
         try {
-            const { data, error } = await client
-                .from('search_history')
-                .insert({
-                    user_id: userSettings.value.id,
-                    query,
-                })
-                .select('id, query, created_at')
-                .single()
-
+            const { data, error } = existing
+                ? await client.from('search_history').update({ created_at: new Date().toISOString() }).eq('id', existing.id).select('id, query, created_at').single()
+                : await client.from('search_history').insert({ user_id: userId.value, query: q }).select('id, query, created_at').single()
             if (error) throw error
-
-            searchHistory.value.push(data)
-            searchHistory.value.sort((a, b) => parseTimestamp(a.created_at) - parseTimestamp(b.created_at))
+            searchHistory.value = [data, ...searchHistory.value.filter((i) => i.id !== data.id && i.query.trim() !== q)]
         } catch (err) {
             console.error('Failed to save search history:', err)
         }
@@ -129,7 +124,7 @@ export function useAnimeSearch() {
 
     async function fetchSearchHistory() {
         if (isOffline()) return
-        if (!userSettings.value.id) {
+        if (!userId.value) {
             searchHistory.value = []
             return
         }
@@ -138,9 +133,8 @@ export function useAnimeSearch() {
             const { data, error } = await client
                 .from('search_history')
                 .select('id, query, created_at')
-                .eq('user_id', userSettings.value.id)
+                .eq('user_id', userId.value)
                 .order('created_at', { ascending: false })
-
             if (error) throw error
             searchHistory.value = data || []
         } catch (err) {
@@ -179,14 +173,10 @@ export function useAnimeSearch() {
         debouncedSearch()
     })
 
-    watch(user, (newUser) => {
-        if (newUser) fetchSearchHistory()
+    watch(userId, (id) => {
+        if (id) fetchSearchHistory()
         else searchHistory.value = []
-    })
-
-    onMounted(() => {
-        fetchSearchHistory()
-    })
+    }, { immediate: true })
 
     onUnmounted(() => {
         clearMicError()

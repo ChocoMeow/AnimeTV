@@ -289,7 +289,13 @@ defineExpose({ loadTrending, tab, scrollEl: scrollRef })
                     <span v-if="i === 0" :class="HOVER_ARROW" aria-hidden="true">arrow_forward</span>
                 </button>
 
-                <p v-if="!trending.length && !loading" class="py-8 text-center text-sm text-gray-400">目前沒有熱門資料</p>
+                <div v-if="!trending.length && !loading" :class="[CARD, 'flex flex-col items-center px-6 py-12 text-center']">
+                    <span class="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-black/5 text-gray-400 dark:bg-white/10">
+                        <span class="material-symbols-rounded text-[28px]">trending_up</span>
+                    </span>
+                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">目前沒有熱門資料</p>
+                    <p :class="['mt-1 max-w-[14rem] leading-relaxed', META]">熱門作品會顯示在這裡，稍後再回來看看</p>
+                </div>
             </div>
 
             <!-- Categories -->

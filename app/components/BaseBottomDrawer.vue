@@ -184,7 +184,7 @@ onBeforeUnmount(() => {
 
 <template>
     <Teleport :to="teleportTo">
-        <Transition name="drawer">
+        <Transition name="drawer" appear>
             <div
                 v-if="modelValue"
                 data-no-ptr
