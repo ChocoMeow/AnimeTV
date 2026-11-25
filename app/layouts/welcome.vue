@@ -6,6 +6,12 @@
 
 <style scoped>
 .welcome-shell {
-    font-family: 'Noto Sans TC', ui-sans-serif, system-ui, sans-serif;
+    font-family:
+        'PingFang TC',
+        'Microsoft JhengHei',
+        'Noto Sans TC',
+        ui-sans-serif,
+        system-ui,
+        sans-serif;
 }
 </style>

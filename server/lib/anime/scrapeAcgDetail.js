@@ -15,6 +15,15 @@ export function sanitizeWikiContentHtml(rawHtml = '') {
     $("a[href*='recentEdit.php']").closest('table').remove()
     $('td').filter((_, el) => $(el).text().includes('近期編輯')).closest('table').remove()
 
+    // Strip inline handlers / JS URLs — CSP script-src-attr is 'none'.
+    $('*').each((_, el) => {
+        const $el = $(el)
+        const attribs = el.attribs || {}
+        for (const name of Object.keys(attribs)) {
+            if (/^on/i.test(name)) $el.removeAttr(name)
+        }
+    })
+
     $('a').each((_, el) => {
         const $el = $(el)
         const href = ($el.attr('href') || '').trim()
@@ -28,7 +37,7 @@ export function sanitizeWikiContentHtml(rawHtml = '') {
             normalized.startsWith('mailto:') ||
             normalized.startsWith('tel:')
 
-        if (!safe) $el.removeAttr('href')
+        if (!safe || normalized.startsWith('javascript:')) $el.removeAttr('href')
         else {
             $el.attr('rel', 'noopener noreferrer nofollow')
             if (/^https?:\/\//i.test(href)) $el.attr('target', '_blank')

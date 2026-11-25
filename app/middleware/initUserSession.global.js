@@ -1,6 +1,7 @@
 /**
  * Global route gate: offline access, auth, settings, admin, presence.
  * Page flags via definePageMeta: { public, publicSsr, offlineAccess, offlineOnly }.
+ * Settings/admin/presence load in the background so they do not block first paint.
  */
 export default defineNuxtRouteMiddleware(async (to) => {
     const path = (to.path || '/').replace(/\/$/, '') || '/'
@@ -39,13 +40,19 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const { isIncognito } = useIncognitoMode()
     const { fetchAdminRole } = useAdmin()
 
-    if (!settingsLoaded.value && navigator.onLine) {
-        await fetchSettings()
-        await fetchAdminRole()
+    function maybeInitPresence() {
+        if (settingsLoaded.value && userSettings.value?.id && navigator.onLine && !isIncognito.value) {
+            initializeStatus()
+        }
     }
 
-    if (settingsLoaded.value && userSettings.value?.id && navigator.onLine && !isIncognito.value) {
-        await nextTick()
-        initializeStatus()
+    if (!settingsLoaded.value && navigator.onLine) {
+        // Fire-and-forget: do not block navigation / first paint on Supabase + admin check.
+        Promise.all([fetchSettings(), fetchAdminRole()]).then(() => {
+            maybeInitPresence()
+        })
+        return
     }
+
+    maybeInitPresence()
 })

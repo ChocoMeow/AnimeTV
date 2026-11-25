@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 /**
  * PWA service worker (injectManifest).
+ * Warm opens: StaleWhileRevalidate serves a cached shell immediately.
  * Cold-start offline: failed document navigations must return /offline HTML
  * instead of the browser’s “not connected” page.
  */
@@ -9,7 +10,8 @@ import { clientsClaim } from 'workbox-core'
 import { registerRoute } from 'workbox-routing'
 import { CacheableResponsePlugin } from 'workbox-cacheable-response'
 import { ExpirationPlugin } from 'workbox-expiration'
-import { CacheFirst, NetworkFirst, NetworkOnly } from 'workbox-strategies'
+import { CacheFirst, NetworkOnly, StaleWhileRevalidate } from 'workbox-strategies'
+import { enable as enableNavigationPreload } from 'workbox-navigation-preload'
 
 declare let self: ServiceWorkerGlobalScope
 
@@ -23,6 +25,7 @@ self.addEventListener('message', (event) => {
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 clientsClaim()
+enableNavigationPreload()
 
 async function offlinePage(): Promise<Response | undefined> {
     // Nuxt may precache as `/offline` or `/offline/index.html`
@@ -39,9 +42,8 @@ async function offlineFallback(_request: Request): Promise<Response> {
 
 registerRoute(
     ({ request, sameOrigin }) => sameOrigin && request.mode === 'navigate',
-    new NetworkFirst({
+    new StaleWhileRevalidate({
         cacheName: 'app-pages',
-        networkTimeoutSeconds: 2,
         matchOptions: { ignoreVary: true, ignoreSearch: true },
         plugins: [
             new CacheableResponsePlugin({ statuses: [200] }),
@@ -59,9 +61,8 @@ registerRoute(
 
 registerRoute(
     ({ url, sameOrigin }) => sameOrigin && /^\/api\/(anime|search|public\/welcome-preview)/i.test(url.pathname),
-    new NetworkFirst({
+    new StaleWhileRevalidate({
         cacheName: 'anime-api',
-        networkTimeoutSeconds: 2,
         plugins: [new ExpirationPlugin({ maxEntries: 100, maxAgeSeconds: WEEK })],
     }),
     'GET',
@@ -73,9 +74,10 @@ registerRoute(
     'GET',
 )
 
+// Welcome page still loads decorative Google Fonts via page-level useHead.
 registerRoute(
     /^https:\/\/fonts\.googleapis\.com\/.*/i,
-    new NetworkFirst({
+    new StaleWhileRevalidate({
         cacheName: 'google-fonts-stylesheets',
         plugins: [new ExpirationPlugin({ maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 30 })],
     }),

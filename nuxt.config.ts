@@ -151,6 +151,7 @@ export default defineNuxtConfig({
                 { rel: 'apple-touch-icon', href: '/icons/icon_512x512.png', sizes: '512x512', type: 'image/png' },
                 { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
                 { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
+                // display=swap so text paints immediately; stylesheet is small vs a blocking webfont wait.
                 {
                     rel: 'stylesheet',
                     href: 'https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@100..900&display=swap',
@@ -264,7 +265,9 @@ export default defineNuxtConfig({
             } as Record<string, string[]>,
             contentSecurityPolicy: {
                 'frame-ancestors': ["'none'"],
-                // Google Fonts CSS (googleapis) + font files (gstatic)
+                // Keep script-src-attr blocked; strip on* attrs from v-html (wiki) instead of allowing unsafe-inline.
+                'script-src-attr': ["'none'"],
+                // Welcome page + body Noto Sans TC still load Google Fonts.
                 'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
                 'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
                 'img-src': ["'self'", 'data:', 'blob:', 'https:'],

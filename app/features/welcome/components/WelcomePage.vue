@@ -220,7 +220,7 @@ useHead({
 
 <style scoped>
 .font-display {
-    font-family: 'ZCOOL KuHei', 'Noto Sans TC', sans-serif;
+    font-family: 'ZCOOL KuHei', 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
 }
 
 .mono-label {

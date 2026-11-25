@@ -1,9 +1,10 @@
-/* Self-hosted icon font (FILL axis, ~1.4MB — under Workbox’s 2MB precache limit). */
+/* Self-hosted icon font (FILL axis, ~1.4MB — under Workbox’s 2MB precache limit).
+ * swap: show fallback briefly, then icons — avoids optional’s permanent ligature text. */
 @font-face {
     font-family: 'Material Symbols Rounded';
     font-style: normal;
     font-weight: 100 700;
-    font-display: block;
+    font-display: swap;
     src: url('@fontsource-variable/material-symbols-rounded/files/material-symbols-rounded-latin-fill-normal.woff2')
         format('woff2-variations');
 }
@@ -185,6 +186,8 @@ body {
     @apply bg-white dark:bg-gray-950 text-gray-900 dark:text-white;
     font-family:
         'Noto Sans TC',
+        'PingFang TC',
+        'Microsoft JhengHei',
         ui-sans-serif,
         system-ui,
         -apple-system,
@@ -193,8 +196,6 @@ body {
         Roboto,
         'Helvetica Neue',
         Arial,
-        'Noto Sans',
-        'Liberation Sans',
         sans-serif;
 }
 

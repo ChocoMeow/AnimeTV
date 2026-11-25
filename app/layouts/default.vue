@@ -18,7 +18,7 @@ const showMobilePwaNav = useState("app-show-mobile-pwa-nav", () => false)
             <GlobalToast />
         </main>
 
-        <FriendList />
+        <LazyFriendList hydrate-on-idle />
 
         <SiteFooter />
 
