@@ -139,7 +139,7 @@ watch(
 
                 <!-- Desktop search: trigger when closed, input teleports here when open -->
                 <div id="desktop-search-anchor" class="hidden min-w-0 md:flex md:w-full md:justify-center">
-                    <div v-if="!searchModalOpen" class="w-full max-w-xl">
+                    <div v-if="user && !searchModalOpen" class="w-full max-w-xl">
                         <button
                             type="button"
                             class="group relative flex w-full items-center gap-2 rounded-full bg-black/5 px-4 py-2 text-left text-sm text-gray-500 outline-none transition-colors hover:bg-black/8 focus-visible:ring-2 focus-visible:ring-black/20 dark:bg-white/10 dark:text-gray-400 dark:hover:bg-white/15 dark:focus-visible:ring-white/20"
@@ -171,9 +171,9 @@ watch(
                         <button
                             type="button"
                             class="flex items-center gap-2 rounded-full p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-                            @click="showUserMenu = !showUserMenu"
-                            @mouseenter="cancelHideUserMenu"
-                            @mouseleave="hideUserMenuDelayed"
+                            @click="user && (showUserMenu = !showUserMenu)"
+                            @mouseenter="user && cancelHideUserMenu()"
+                            @mouseleave="user && hideUserMenuDelayed()"
                         >
                             <UserAvatar
                                 v-bind="userAvatar"
@@ -182,10 +182,10 @@ watch(
                             />
                         </button>
 
-                        <transition name="dropdown">
+                        <Transition name="menu-pop">
                             <div
-                                v-if="showUserMenu"
-                                class="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black/5 dark:bg-gray-950 dark:ring-white/10"
+                                v-if="user && showUserMenu"
+                                class="absolute right-0 top-full z-50 mt-2 w-64 origin-top-right overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black/5 dark:bg-gray-950 dark:ring-white/10"
                                 @mouseenter="cancelHideUserMenu"
                                 @mouseleave="hideUserMenuDelayed"
                             >
@@ -237,7 +237,7 @@ watch(
                                     </template>
                                 </div>
                             </div>
-                        </transition>
+                        </Transition>
                     </div>
                 </nav>
 
@@ -253,11 +253,16 @@ watch(
                     >
                         <span class="material-symbols-rounded text-green-600 dark:text-green-400">download</span>
                     </button>
-                    <button type="button" class="flex items-center justify-center rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10" @click="openSearch">
+                    <button
+                        v-if="user"
+                        type="button"
+                        class="flex items-center justify-center rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10"
+                        @click="openSearch"
+                    >
                         <span class="material-symbols-rounded text-gray-700 dark:text-gray-200">search</span>
                     </button>
                     <button
-                        v-if="!showMobilePwaNav"
+                        v-if="user && !showMobilePwaNav"
                         type="button"
                         class="flex items-center justify-center rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10"
                         @click="mobileMenuOpen = !mobileMenuOpen"
@@ -269,13 +274,13 @@ watch(
 
             <!-- Teleports hydrate poorly vs SSR; modal is closed until user opens it -->
             <ClientOnly>
-                <SearchModal v-model="searchModalOpen" />
+                <SearchModal v-if="user" v-model="searchModalOpen" />
             </ClientOnly>
         </div>
         <transition name="menu-collapse">
             <div v-if="mobileMenuOpen && !showMobilePwaNav" class="md:hidden grid">
                 <div class="overflow-hidden min-h-0">
-                    <div class="px-4 pb-3 space-y-3">
+                    <div v-if="user" class="px-4 pb-3 space-y-3">
                         <NuxtLink
                             to="/profile"
                             class="flex items-center gap-3 px-3 py-3 bg-black/[0.02] dark:bg-white/5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-gray-900 dark:focus-visible:ring-white"
@@ -341,13 +346,4 @@ watch(
     opacity: 1;
 }
 
-.dropdown-enter-active,
-.dropdown-leave-active {
-    transition: all 0.2s ease;
-}
-.dropdown-enter-from,
-.dropdown-leave-to {
-    opacity: 0;
-    transform: translateY(-10px);
-}
 </style>

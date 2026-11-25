@@ -1,4 +1,5 @@
 <script setup>
+const user = useSupabaseUser()
 const showMobilePwaNav = useState("app-show-mobile-pwa-nav", () => false)
 </script>
 
@@ -18,7 +19,7 @@ const showMobilePwaNav = useState("app-show-mobile-pwa-nav", () => false)
             <GlobalToast />
         </main>
 
-        <LazyFriendList hydrate-on-idle />
+        <LazyFriendList v-if="user" hydrate-on-idle />
 
         <SiteFooter />
 

@@ -135,7 +135,7 @@
     }
 
     .btn-primary {
-        @apply bg-gray-900 px-6 font-semibold text-white transition-opacity hover:opacity-90
+        @apply bg-gray-900 text-white hover:opacity-90
                dark:bg-white dark:text-black;
     }
 
