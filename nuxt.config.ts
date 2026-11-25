@@ -77,7 +77,8 @@ export default defineNuxtConfig({
     },
     vite: {
         optimizeDeps: {
-            include: ['hls.js', '@vue/devtools-core'],
+            // hls.js is dynamically imported by the player; pre-bundle to avoid first-play reloads.
+            include: ['hls.js'],
         },
     },
     // NUXT_DEV_HOST=0.0.0.0 for LAN/device testing
