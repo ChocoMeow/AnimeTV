@@ -1,44 +1,19 @@
 <script setup>
 /**
- * App open splash for all visitors: centered logo, then zoom-in dismiss after load or a short cap (offline-safe).
- * Instant coverage comes from an inline head script in nuxt.config (#app-splash-inline); this component
- * hands off from that layer and runs the exit animation.
+ * App open splash: animated logo WebP.
+ * Instant coverage comes from an inline head script in nuxt.config (#app-splash-inline);
+ * this component hands off and runs the exit animation. Does not wait for window.load.
  */
 const INLINE_SPLASH_ID = 'app-splash-inline'
 const SPLASH_PENDING_CLASS = 'app-splash-pending'
+const SPLASH_ICON = '/icons/animated_icon_400x400.webp'
+const SPLASH_VISIBLE_MS = 450
 
 const splashDone = useState('app-splash-done', () => false)
+const show = ref(false)
 
 function shouldShowSplash() {
     return !splashDone.value
-}
-
-const show = ref(false)
-
-onBeforeMount(() => {
-    if (shouldShowSplash()) show.value = true
-})
-
-/** `load` can hang forever offline if a cross-origin stylesheet never completes — cap wait time. */
-function waitForWindowLoadOrTimeout(maxMs) {
-    return new Promise((resolve) => {
-        if (typeof document === 'undefined') {
-            resolve()
-            return
-        }
-        if (document.readyState === 'complete') {
-            resolve()
-            return
-        }
-        let settled = false
-        const done = () => {
-            if (settled) return
-            settled = true
-            resolve()
-        }
-        window.addEventListener('load', done, { once: true })
-        setTimeout(done, maxMs)
-    })
 }
 
 function removeBootstrapSplash() {
@@ -51,13 +26,9 @@ onMounted(async () => {
     await nextTick()
     requestAnimationFrame(() => removeBootstrapSplash())
 
-    if (!show.value) return
-    const minVisibleMs = 450
-    const loadCapMs = 4000
-    await Promise.all([
-        waitForWindowLoadOrTimeout(loadCapMs),
-        new Promise((r) => setTimeout(r, minVisibleMs)),
-    ])
+    if (!shouldShowSplash()) return
+    show.value = true
+    await new Promise((r) => setTimeout(r, SPLASH_VISIBLE_MS))
     await nextTick()
     show.value = false
 })
@@ -79,7 +50,7 @@ function onAfterLeave() {
             >
                 <AppImage
                     class="app-splash-logo h-36 w-36"
-                    src="/icons/animated_icon_400x400.webp"
+                    :src="SPLASH_ICON"
                     img-class="object-contain"
                     alt=""
                     loading="eager"
@@ -101,7 +72,6 @@ function onAfterLeave() {
 
 .app-splash-logo {
     transform: scale(1);
-    /* border-radius: 1rem; */
 }
 
 .app-splash-root.app-splash-leave-active {
@@ -114,6 +84,7 @@ function onAfterLeave() {
 
 .app-splash-root.app-splash-leave-active .app-splash-logo {
     transform: scale(1.32);
+    animation: none;
     transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
 }
 

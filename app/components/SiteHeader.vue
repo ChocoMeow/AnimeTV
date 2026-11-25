@@ -267,7 +267,10 @@ watch(
                 </div>
             </div>
 
-            <SearchModal v-model="searchModalOpen" />
+            <!-- Teleports hydrate poorly vs SSR; modal is closed until user opens it -->
+            <ClientOnly>
+                <SearchModal v-model="searchModalOpen" />
+            </ClientOnly>
         </div>
         <transition name="menu-collapse">
             <div v-if="mobileMenuOpen && !showMobilePwaNav" class="md:hidden grid">

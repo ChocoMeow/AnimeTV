@@ -5,10 +5,31 @@ const SUPABASE_URL = process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://placeholde
 const SUPABASE_KEY = process.env.NUXT_PUBLIC_SUPABASE_KEY || 'placeholder-anon-key'
 
 export default defineNuxtConfig({
+    future: { compatibilityVersion: 4 },
     css: ['~/assets/css/tailwind.css'],
-    modules: ['@nuxtjs/tailwindcss', '@nuxtjs/supabase', '@vite-pwa/nuxt', '@nuxt/image', 'nuxt-security'],
+    modules: [
+        '@nuxtjs/tailwindcss',
+        '@nuxtjs/supabase',
+        '@vite-pwa/nuxt',
+        '@nuxt/image',
+        'nuxt-security',
+        './modules/video-providers',
+    ],
     compatibilityDate: '2025-07-15',
     devtools: { enabled: process.env.NODE_ENV !== 'production' },
+    // Global components keep pathPrefix so Skeleton*/Search*/Userprofile* names stay stable.
+    // Feature components use pathPrefix: false; use distinctive filenames (e.g. SearchModal.vue).
+    components: [
+        { path: '~/components', pathPrefix: true },
+        { path: '~/features', pattern: '**/components/**', pathPrefix: false },
+    ],
+    imports: {
+        dirs: [
+            'composables/**',
+            'features/*/composables/**',
+            'features/*/utils/**',
+        ],
+    },
     // Vite 8: use postcss-nesting (ESM) instead of CJS tailwindcss/nesting
     postcss: {
         plugins: {
@@ -23,6 +44,7 @@ export default defineNuxtConfig({
     },
     runtimeConfig: {
         supabaseSecretKey: process.env.NUXT_SUPABASE_SECRET_KEY,
+        mediaProxySecret: process.env.NUXT_MEDIA_PROXY_SECRET,
         cfFetchFlaresolverr: process.env.NUXT_CF_FETCH_FLARESOLVERR,
         aiApiKey: process.env.NUXT_AI_API_KEY,
         aiBaseUrl: process.env.NUXT_AI_BASE_URL,
@@ -53,6 +75,11 @@ export default defineNuxtConfig({
             esbuild: { options: { drop: ['console'] } },
         },
     },
+    vite: {
+        optimizeDeps: {
+            include: ['hls.js', '@vue/devtools-core'],
+        },
+    },
     // NUXT_DEV_HOST=0.0.0.0 for LAN/device testing
     devServer: {
         port: 3000,
@@ -65,10 +92,9 @@ export default defineNuxtConfig({
             '/apple-touch-icon-precomposed.png': { redirect: '/icons/icon_512x512.png' },
             '/apple-touch-icon-120x120-precomposed.png': { redirect: '/icons/icon_512x512.png' },
             // High-volume streaming / WS must not hit the global rate limiter
-            '/api/proxy-video': { security: { rateLimiter: false } },
-            '/api/download-proxy': { security: { rateLimiter: false } },
-            '/api/download-video/**': { security: { rateLimiter: false } },
-            '/api/user-status-ws': { security: { rateLimiter: false } },
+            '/api/media/proxy': { security: { rateLimiter: false } },
+            '/api/media/download/**': { security: { rateLimiter: false } },
+            '/api/presence/ws': { security: { rateLimiter: false } },
         },
         experimental: {
             websocket: true,
@@ -125,6 +151,7 @@ export default defineNuxtConfig({
                 { rel: 'apple-touch-icon', href: '/icons/icon_512x512.png', sizes: '512x512', type: 'image/png' },
                 { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
                 { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
+                // display=swap so text paints immediately; stylesheet is small vs a blocking webfont wait.
                 {
                     rel: 'stylesheet',
                     href: 'https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@100..900&display=swap',
@@ -215,11 +242,13 @@ export default defineNuxtConfig({
                 includeSubdomains: true,
                 preload: true,
             },
+            // Cast: nuxt-security types omit some Permissions-Policy features we set.
             permissionsPolicy: {
-                // Default fullscreen: [] blocks the video player
+                // Default fullscreen/microphone: [] blocks the player + speech mic
                 autoplay: ['self'],
                 'clipboard-write': ['self'],
                 fullscreen: ['self'],
+                microphone: ['self'],
                 'picture-in-picture': ['self'],
                 'web-share': ['self'],
                 accelerometer: [],
@@ -229,24 +258,24 @@ export default defineNuxtConfig({
                 midi: [],
                 payment: [],
                 'publickey-credentials-get': [],
-                'screen-wake-lock': [],
+                'screen-wake-lock': ['self'],
                 'sync-xhr': [],
                 usb: [],
                 'xr-spatial-tracking': [],
-            },
+            } as Record<string, string[]>,
             contentSecurityPolicy: {
                 'frame-ancestors': ["'none'"],
-                // Google Fonts CSS (googleapis) + font files (gstatic)
+                // Keep script-src-attr blocked; strip on* attrs from v-html (wiki) instead of allowing unsafe-inline.
+                'script-src-attr': ["'none'"],
+                // Welcome page + body Noto Sans TC still load Google Fonts.
                 'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
                 'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
                 'img-src': ["'self'", 'data:', 'blob:', 'https:'],
-                'media-src': ["'self'", 'blob:', 'https://*.bzcdn.net'],
+                'media-src': ["'self'", 'blob:'],
                 'connect-src': [
                     "'self'",
                     'https://*.supabase.co',
                     'wss://*.supabase.co',
-                    'https://*.bzcdn.net',
-                    'https://*.anime1.me',
                     'https://fonts.googleapis.com',
                     'https://fonts.gstatic.com',
                 ],

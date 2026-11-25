@@ -18,7 +18,7 @@ const showMobilePwaNav = useState("app-show-mobile-pwa-nav", () => false)
             <GlobalToast />
         </main>
 
-        <FriendList />
+        <LazyFriendList hydrate-on-idle />
 
         <SiteFooter />
 
@@ -36,7 +36,7 @@ html {
 @media (min-width: 1024px) {
     main,
     footer {
-        transition: padding-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: padding-right 400ms cubic-bezier(0.32, 0.72, 0, 1);
     }
 
     body.friend-list-open main,

@@ -78,29 +78,20 @@ const userAvatar = computed(() => ({
 const collapsed = computed(() => headerHiddenMobile.value)
 
 const barClass = computed(() => [
-    // Layout & shape
-    'pointer-events-auto flex w-full items-stretch overflow-hidden rounded-full',
-    // Border & background
-    'border border-black/20 bg-[rgba(28,28,30,0.82)]',
-    'dark:border-white/12 dark:bg-[rgba(22,22,24,0.88)]',
-    // Blur & shadow
+    'pointer-events-auto flex h-[3.75rem] min-h-[3.75rem] w-full max-w-md items-stretch overflow-hidden rounded-full p-1',
+    'border border-black/20 bg-[rgba(28,28,30,0.82)] dark:border-white/12 dark:bg-[rgba(22,22,24,0.88)]',
     'backdrop-blur-[20px] backdrop-saturate-[180%] shadow-[0_8px_32px_rgba(0,0,0,0.38)]',
-    // Animated size
-    'transition-[height,min-height,padding,max-width] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]',
-    collapsed.value ? 'h-[2.55rem] min-h-[2.55rem] max-w-[17.5rem] p-0.5' : 'h-[3.75rem] min-h-[3.75rem] max-w-md p-1',
+    // Uniform scale keeps proportions consistent across devices (esp. iOS)
+    'origin-bottom transition-transform duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]',
+    collapsed.value ? 'scale-[0.82]' : 'scale-100',
 ])
 
-const iconSizeClass = computed(() => (collapsed.value ? 'text-[22px]' : 'text-[28px]'))
-const avatarBoxClass = computed(() => (collapsed.value ? 'h-[22px] w-[22px]' : 'h-[30px] w-[30px]'))
-const avatarTextClass = computed(() => (collapsed.value ? 'text-[10px]' : 'text-[11px]'))
-
-/** Returns the full class list for a material-symbol icon */
 function iconClass(active) {
-    return ['material-symbols-rounded leading-none', 'transition-[font-size,font-variation-settings] duration-[550ms] ease-[cubic-bezier(0.4_0_0.2_1)]', iconSizeClass.value, active ? '' : 'outlined']
+    return ['material-symbols-rounded text-[28px] leading-none', active ? '' : 'outlined']
 }
 
 const ITEM_CLASS =
-    'relative z-10 flex min-h-0 min-w-0 flex-1 items-center justify-center rounded-full' + ' transition-[padding,color] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)] active:opacity-90'
+    'relative z-10 flex min-h-0 min-w-0 flex-1 items-center justify-center rounded-full active:opacity-90'
 
 function itemColorClass(active) {
     return active ? 'text-white' : 'text-white/75 active:text-white/90'
@@ -111,7 +102,7 @@ function itemColorClass(active) {
     <nav
         v-if="showMobilePwaNav"
         v-show="!searchModalOpen"
-        class="mobile-nav-safe-area md:hidden fixed inset-x-0 bottom-0 z-[45] flex justify-center pointer-events-none px-3 sm:px-4 pt-0 transition-[padding-bottom] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]"
+        class="mobile-nav-safe-area md:hidden fixed inset-x-0 bottom-0 z-[45] flex justify-center pointer-events-none px-3 sm:px-4"
         aria-label="主要導覽"
     >
         <div :class="barClass">
@@ -136,7 +127,7 @@ function itemColorClass(active) {
                         <UserAvatar
                             v-if="item.id === 'profile'"
                             v-bind="userAvatar"
-                            :class="[avatarBoxClass, avatarTextClass, 'shrink-0 transition-[width,height,box-shadow] duration-[700ms] ease-[cubic-bezier(0.4_0_0.2_1)]']"
+                            class="h-[30px] w-[30px] shrink-0 text-[11px]"
                             :img-class="isIncognito ? 'ring-2 ring-amber-500' : isItemActive(item) ? 'ring-2 ring-white' : 'ring-1 ring-white/30'"
                         />
 

@@ -1,18 +1,18 @@
+import { parseEpisodeTokenParam } from '#shared/contracts/episode'
 import { getRequestLogger, logError } from '~~/server/utils/logger'
-import { resolvePlaybackForToken } from '~~/server/lib/videoProviders'
+import { getEpisodePlayback } from '~~/server/services/playback.service.js'
 
+/** GET /api/episode/:token — standard playback body. */
 export default defineEventHandler(async (event) => {
-    await authUser(event)
+    const userId = (await authUser(event)).sub
     const log = getRequestLogger(event)
-
-    const { token } = event.context.params
+    const token = parseEpisodeTokenParam(getRouterParam(event, 'token'))
 
     try {
-        const result = await resolvePlaybackForToken(token)
-        log.debug({ hasVideoCookie: Boolean(result?.videoCookie) }, 'Video resolve ok')
-        return result
+        return await getEpisodePlayback(token, userId, log)
     } catch (err) {
-        logError(event, err, { module: 'episode' })
+        if (err?.statusCode && err.statusCode < 500) throw err
+        logError(event, err, { module: 'episode', userId })
         return { error: err.message || 'Failed to fetch video' }
     }
 })

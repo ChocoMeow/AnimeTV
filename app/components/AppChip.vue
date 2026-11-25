@@ -1,35 +1,14 @@
 <script setup>
-/**
- * Shared pill chip for filters, tabs, and header actions.
- * Use `to` for NuxtLink navigation. Default variant is toggle (pair with `active`).
- */
-const VARIANT_TONES = {
-    toggle: null, // resolved from `active`
-    solid: 'solid',
-    ghost: 'idle',
-    accent: 'accent',
-    danger: 'danger',
-    'danger-ghost': 'danger-ghost',
-    'danger-outline': 'danger-outline',
-}
-
+/** Pill for filters, tabs, and actions. Use `to` for NuxtLink; default `toggle` pairs with `active`. */
 const props = defineProps({
     active: { type: Boolean, default: false },
     variant: {
         type: String,
         default: 'toggle',
-        validator: (v) => [
-            'toggle',
-            'solid',
-            'ghost',
-            'accent',
-            'danger',
-            'danger-ghost',
-            'danger-outline',
-        ].includes(v),
+        validator: (v) =>
+            ['toggle', 'solid', 'ghost', 'accent', 'danger', 'danger-ghost', 'danger-outline'].includes(v),
     },
     icon: { type: String, default: null },
-    /** Native tag or component. Ignored when `to` is set. */
     as: { type: [String, Object], default: 'button' },
     to: { type: [String, Object], default: null },
     type: { type: String, default: 'button' },
@@ -43,7 +22,7 @@ const props = defineProps({
 
 const tone = computed(() => {
     if (props.variant === 'toggle') return props.active ? 'solid' : 'idle'
-    return VARIANT_TONES[props.variant]
+    return props.variant === 'ghost' ? 'idle' : props.variant
 })
 
 const tag = computed(() => (props.to ? resolveComponent('NuxtLink') : props.as))
@@ -65,15 +44,21 @@ const isStatic = computed(() => !props.to && props.as === 'div')
             isStatic && 'app-chip--static',
         ]"
     >
-        <span v-if="icon" class="material-symbols-rounded text-lg leading-none shrink-0" aria-hidden="true">{{ icon }}</span>
-        <slot />
+        <span
+            v-if="icon"
+            class="material-symbols-rounded shrink-0 text-lg leading-none"
+            aria-hidden="true"
+        >{{ icon }}</span>
+        <span v-if="$slots.default" class="leading-none"><slot /></span>
     </component>
 </template>
 
 <style scoped>
 .app-chip {
-    @apply inline-flex h-11 shrink-0 items-center justify-center gap-2 px-4 rounded-full text-sm font-medium leading-none
-           transition-colors duration-200 border-0 shadow-none whitespace-nowrap;
+    @apply inline-flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full
+           border-0 px-4 text-sm font-medium leading-none shadow-none transition-colors duration-200
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20
+           dark:focus-visible:ring-white/20;
 }
 
 .app-chip--sm {
@@ -81,17 +66,15 @@ const isStatic = computed(() => !props.to && props.as === 'div')
 }
 
 .app-chip--idle {
-    @apply bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300
-           hover:bg-black/10 dark:hover:bg-white/20;
+    @apply bg-black/5 text-gray-700 hover:bg-black/10 dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/20;
 }
 
 .app-chip--solid {
-    @apply bg-gray-900 dark:bg-white text-white dark:text-black hover:opacity-90;
+    @apply bg-gray-900 text-white hover:opacity-90 dark:bg-white dark:text-black;
 }
 
 .app-chip--accent {
-    @apply bg-black/5 dark:bg-white/10 text-blue-600 dark:text-blue-400
-           hover:bg-black/10 dark:hover:bg-white/20;
+    @apply bg-black/5 text-blue-600 hover:bg-black/10 dark:bg-white/10 dark:text-blue-400 dark:hover:bg-white/20;
 }
 
 .app-chip--danger {
@@ -99,12 +82,11 @@ const isStatic = computed(() => !props.to && props.as === 'div')
 }
 
 .app-chip--danger-ghost {
-    @apply bg-black/5 dark:bg-white/10 text-red-600 dark:text-red-400
-           hover:bg-red-500/10;
+    @apply bg-black/5 text-red-600 hover:bg-red-500/10 dark:bg-white/10 dark:text-red-400;
 }
 
 .app-chip--danger-outline {
-    @apply bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20;
+    @apply bg-red-500/10 text-red-600 hover:bg-red-500/20 dark:text-red-400;
 }
 
 .app-chip--static {
@@ -112,6 +94,6 @@ const isStatic = computed(() => !props.to && props.as === 'div')
 }
 
 .app-chip--disabled {
-    @apply opacity-50 cursor-not-allowed pointer-events-none;
+    @apply pointer-events-none cursor-not-allowed opacity-50;
 }
 </style>

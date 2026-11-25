@@ -10,12 +10,12 @@ const envInt = (key, fallback) => {
  * Override with NUXT_VIDEO_PROXY_* env vars when needed.
  */
 export const VIDEO_UPSTREAM = Object.freeze({
-    chunkSize: envInt('NUXT_VIDEO_PROXY_CHUNK', 512 * 1024),
-    maxChunk: envInt('NUXT_VIDEO_PROXY_MAX_CHUNK', 1024 * 1024),
+    chunkSize: envInt('NUXT_VIDEO_PROXY_CHUNK', 2 * 1024 * 1024),
+    maxChunk: envInt('NUXT_VIDEO_PROXY_MAX_CHUNK', 4 * 1024 * 1024),
     metaCacheMax: envInt('NUXT_VIDEO_PROXY_META_CACHE', 128),
     metaCacheTtlMs: 600_000,
-    timeoutMs: envInt('NUXT_VIDEO_PROXY_TIMEOUT_MS', 25_000),
-    socketIdleMs: envInt('NUXT_VIDEO_PROXY_SOCKET_IDLE_MS', 90_000),
+    timeoutMs: envInt('NUXT_VIDEO_PROXY_TIMEOUT_MS', 45_000),
+    socketIdleMs: envInt('NUXT_VIDEO_PROXY_SOCKET_IDLE_MS', 120_000),
     maxRetries: envInt('NUXT_VIDEO_PROXY_RETRIES', 2),
     retryBaseDelayMs: 400,
     smallFileRedirectBytes: 10 * 1024 * 1024,
@@ -24,8 +24,8 @@ export const VIDEO_UPSTREAM = Object.freeze({
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 
-/** Provider-aware upstream headers (Referer from registry; Cookie only when set). */
-export function videoUpstreamHeaders(targetUrl, { cookie = '', accept = '*/*', range } = {}) {
+/** Provider-aware upstream headers (explicit referer, else registry; Cookie only when set). */
+export function videoUpstreamHeaders(targetUrl, { cookie = '', referer = '', accept = '*/*', range } = {}) {
     let hostname = ''
     let origin = ''
     try {
@@ -40,7 +40,7 @@ export function videoUpstreamHeaders(targetUrl, { cookie = '', accept = '*/*', r
         'User-Agent': UA,
         Accept: accept,
         'Accept-Encoding': 'identity',
-        Referer: resolveVideoReferer(hostname, origin),
+        Referer: referer || resolveVideoReferer(hostname, origin),
     }
     if (cookie) headers.Cookie = String(cookie)
     if (range) headers.Range = range
@@ -51,7 +51,16 @@ export function isHlsPlaylist(url) {
     return /\.m3u8(\?|$)/i.test(url)
 }
 
-/** HLS media parts only — do not match progressive anime1 .mp4. */
+export function absoluteMediaUrl(src) {
+    if (!src || typeof src !== 'string') return null
+    return src.startsWith('http') ? src : `https:${src}`
+}
+
+export function urlLooksHls(url) {
+    return isHlsPlaylist(url) || String(url).toLowerCase().includes('m3u8')
+}
+
+/** HLS media parts only — do not match progressive .mp4. */
 export function isHlsSegment(url, pathname = '') {
     let path = pathname
     if (!path) {

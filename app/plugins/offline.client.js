@@ -1,20 +1,23 @@
 /**
  * Client offline lifecycle:
- * - "was signed in" flag for PWA offline gates (no tokens)
- * - mid-session airplane mode → /offline
- * - push pending IndexedDB watch history when back online
+ * - "was signed in" flag for PWA offline gates
+ * - airplane mode → /offline
+ * - watch history sync every 2 min / on online
  */
 export default defineNuxtPlugin(() => {
     const user = useSupabaseUser()
     const client = useSupabaseClient()
     const router = useRouter()
     const { mark, clear, hydrate } = useOfflineAuthCache()
-    const { sync } = useOfflineWatchHistory()
+    const { sync, startPeriodicSync } = useOfflineWatchHistory()
 
     hydrate()
+    startPeriodicSync(client)
 
     watch(user, (next) => {
-        if (next) mark()
+        if (!next) return
+        mark()
+        if (navigator.onLine) sync(client)
     }, { immediate: true })
 
     client.auth.onAuthStateChange((event) => {
@@ -28,11 +31,4 @@ export default defineNuxtPlugin(() => {
         if (path === '/offline') return
         router.replace('/offline')
     })
-
-    const syncWatchHistory = () => {
-        if (!navigator.onLine || !user.value) return
-        sync(client)
-    }
-    watch(user, syncWatchHistory, { immediate: true })
-    window.addEventListener('online', syncWatchHistory)
 })
