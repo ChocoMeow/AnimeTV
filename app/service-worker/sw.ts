@@ -27,6 +27,9 @@ cleanupOutdatedCaches()
 clientsClaim()
 enableNavigationPreload()
 
+// Drop stale HTML on SW update so it matches new /_nuxt hashes
+self.addEventListener('activate', (e) => e.waitUntil(caches.delete('app-pages')))
+
 async function offlinePage(): Promise<Response | undefined> {
     // Nuxt may precache as `/offline` or `/offline/index.html`
     return (

@@ -6,62 +6,43 @@
 export function usePwaUpdate() {
     const nuxtApp = useNuxtApp()
     const { activeCount } = useOfflineDownloadQueue()
-
-    // $pwa is reactive(); nested refs are unwrapped
     const needRefresh = computed(() => Boolean(nuxtApp.$pwa?.needRefresh))
 
     async function applyUpdate() {
         if (!import.meta.client || !('serviceWorker' in navigator)) return
         if (activeCount.value > 0) return
+        // One reload per update — stops iOS double-reload / module-abort loops
+        if (sessionStorage.getItem('pwa-upd')) return
+        sessionStorage.setItem('pwa-upd', '1')
 
-        const pwa = nuxtApp.$pwa
-        let reloaded = false
+        let done = false
         const reload = () => {
-            if (reloaded) return
-            reloaded = true
+            if (done) return
+            done = true
             window.location.reload()
         }
-
-        // New SW takes control → reload (clientsClaim + skipWaiting)
-        navigator.serviceWorker.addEventListener('controllerchange', reload)
+        navigator.serviceWorker.addEventListener('controllerchange', reload, { once: true })
 
         try {
-            const registration = await navigator.serviceWorker.getRegistration()
+            const reg = await navigator.serviceWorker.getRegistration()
+            reg?.waiting?.postMessage({ type: 'SKIP_WAITING' })
+            await nuxtApp.$pwa?.updateServiceWorker?.(true)
+        } catch { /* timeout fallback */ }
 
-            // Ensure waiting worker gets SKIP_WAITING even if workbox-window state is stale
-            if (registration?.waiting) {
-                registration.waiting.postMessage({ type: 'SKIP_WAITING' })
-            }
-
-            await pwa?.updateServiceWorker?.(true)
-        } catch {
-            // Fall through to timeout reload
-        }
-
-        // Fallback: controlling may not fire on some browsers / SW versions
-        window.setTimeout(reload, 500)
+        setTimeout(() => { if (!done) reload() }, 1500)
     }
 
     if (import.meta.client) {
-        const isManualReload = (() => {
-            try {
-                const nav = performance.getEntriesByType('navigation')[0]
-                return nav?.type === 'reload'
-            } catch {
-                return false
-            }
-        })()
+        watch(needRefresh, (v) => { if (!v) sessionStorage.removeItem('pwa-upd') })
 
+        const isManualReload = performance.getEntriesByType?.('navigation')?.[0]?.type === 'reload'
         let autoApplied = false
-        watch(
-            needRefresh,
-            (needs) => {
-                if (!needs || !isManualReload || autoApplied || activeCount.value > 0) return
-                autoApplied = true
-                applyUpdate()
-            },
-            { immediate: true },
-        )
+        watch(needRefresh, (needs) => {
+            if (!needs || !isManualReload || autoApplied || activeCount.value > 0) return
+            if (sessionStorage.getItem('pwa-upd')) return
+            autoApplied = true
+            applyUpdate()
+        }, { immediate: true })
     }
 
     return { needRefresh, applyUpdate }

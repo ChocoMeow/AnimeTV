@@ -109,7 +109,10 @@ export default defineNuxtConfig({
         },
     },
     experimental: {
-        emitRouteChunkError: 'automatic-immediate',
+        // `automatic-immediate` + iOS aborting module fetches mid-reload causes
+        // "Importing a module script failed" → reload → loop in the installed PWA.
+        // `automatic` only recovers on navigation (still handles deploy chunk skew).
+        emitRouteChunkError: 'automatic',
         entryImportMap: false,
         early404: true,
     },
