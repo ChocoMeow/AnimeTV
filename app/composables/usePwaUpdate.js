@@ -1,25 +1,23 @@
 /**
- * PWA update UX: no mid-session auto-reload.
- * - Shows when a new SW is waiting ($pwa.needRefresh)
- * - Applies on header download click, or automatically after a manual page refresh
+ * PWA update prompt: apply on header click, or once after a manual refresh.
+ * Single reload only — avoids iOS double-reload / module-abort loops.
  */
 export function usePwaUpdate() {
     const nuxtApp = useNuxtApp()
     const { activeCount } = useOfflineDownloadQueue()
     const needRefresh = computed(() => Boolean(nuxtApp.$pwa?.needRefresh))
+    const LOCK = 'pwa-upd'
 
     async function applyUpdate() {
         if (!import.meta.client || !('serviceWorker' in navigator)) return
-        if (activeCount.value > 0) return
-        // One reload per update — stops iOS double-reload / module-abort loops
-        if (sessionStorage.getItem('pwa-upd')) return
-        sessionStorage.setItem('pwa-upd', '1')
+        if (activeCount.value || sessionStorage.getItem(LOCK)) return
+        sessionStorage.setItem(LOCK, '1')
 
         let done = false
         const reload = () => {
             if (done) return
             done = true
-            window.location.reload()
+            location.reload()
         }
         navigator.serviceWorker.addEventListener('controllerchange', reload, { once: true })
 
@@ -33,15 +31,13 @@ export function usePwaUpdate() {
     }
 
     if (import.meta.client) {
-        watch(needRefresh, (v) => { if (!v) sessionStorage.removeItem('pwa-upd') })
-
-        const isManualReload = performance.getEntriesByType?.('navigation')?.[0]?.type === 'reload'
-        let autoApplied = false
+        const manualReload = performance.getEntriesByType?.('navigation')?.[0]?.type === 'reload'
         watch(needRefresh, (needs) => {
-            if (!needs || !isManualReload || autoApplied || activeCount.value > 0) return
-            if (sessionStorage.getItem('pwa-upd')) return
-            autoApplied = true
-            applyUpdate()
+            if (!needs) {
+                sessionStorage.removeItem(LOCK)
+                return
+            }
+            if (manualReload && !activeCount.value && !sessionStorage.getItem(LOCK)) applyUpdate()
         }, { immediate: true })
     }
 

@@ -1,8 +1,6 @@
 /**
- * Client offline lifecycle:
- * - "was signed in" flag for PWA offline gates
- * - airplane mode → /offline
- * - watch history sync every 2 min / on online
+ * Offline lifecycle: auth flag, airplane → /offline, watch-history sync.
+ * Hard-nav to /offline so the SW can serve the precached shell (no /_payload.json).
  */
 export default defineNuxtPlugin(() => {
     const user = useSupabaseUser()
@@ -25,10 +23,7 @@ export default defineNuxtPlugin(() => {
     })
 
     window.addEventListener('offline', () => {
-        const route = router.currentRoute.value
-        if (route.meta?.offlineAccess) return
-        const path = (route.path || '/').replace(/\/$/, '') || '/'
-        if (path === '/offline') return
-        router.replace('/offline')
+        if (router.currentRoute.value.meta?.offlineAccess) return
+        location.replace('/offline')
     })
 })

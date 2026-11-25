@@ -8,7 +8,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const offline = import.meta.client && !navigator.onLine
 
     if (to.meta.offlineOnly && import.meta.client && !offline) return navigateTo('/')
-    if (offline && !to.meta.offlineAccess) return navigateTo('/offline')
+    if (offline && !to.meta.offlineAccess) {
+        // Hard nav — client router would fetch /_payload.json and fail offline
+        if (import.meta.client) {
+            location.replace('/offline')
+            return abortNavigation()
+        }
+        return navigateTo('/offline')
+    }
 
     const user = useSupabaseUser()
     const { mark, wasSignedIn } = useOfflineAuthCache()

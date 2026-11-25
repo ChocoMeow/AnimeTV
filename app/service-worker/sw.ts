@@ -1,9 +1,8 @@
 /// <reference lib="webworker" />
 /**
  * PWA service worker (injectManifest).
- * Warm opens: StaleWhileRevalidate serves a cached shell immediately.
- * Cold-start offline: failed document navigations must return /offline HTML
- * instead of the browser’s “not connected” page.
+ * - Navigations: SWR cached shell; offline → precached /offline
+ * - Activate: drop app-pages so HTML matches new /_nuxt hashes after update
  */
 import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from 'workbox-precaching'
 import { clientsClaim } from 'workbox-core'
@@ -11,36 +10,27 @@ import { registerRoute } from 'workbox-routing'
 import { CacheableResponsePlugin } from 'workbox-cacheable-response'
 import { ExpirationPlugin } from 'workbox-expiration'
 import { CacheFirst, NetworkOnly, StaleWhileRevalidate } from 'workbox-strategies'
-import { enable as enableNavigationPreload } from 'workbox-navigation-preload'
 
 declare let self: ServiceWorkerGlobalScope
 
-const OFFLINE = '/offline'
 const WEEK = 60 * 60 * 24 * 7
 
-self.addEventListener('message', (event) => {
-    if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
+self.addEventListener('message', (e) => {
+    if (e.data?.type === 'SKIP_WAITING') self.skipWaiting()
 })
 
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 clientsClaim()
-enableNavigationPreload()
-
-// Drop stale HTML on SW update so it matches new /_nuxt hashes
 self.addEventListener('activate', (e) => e.waitUntil(caches.delete('app-pages')))
 
-async function offlinePage(): Promise<Response | undefined> {
-    // Nuxt may precache as `/offline` or `/offline/index.html`
+async function offlineFallback(): Promise<Response> {
     return (
-        (await matchPrecache(OFFLINE))
-        || (await matchPrecache(`${OFFLINE}/`))
-        || (await matchPrecache(`${OFFLINE}/index.html`))
+        (await matchPrecache('/offline'))
+        || (await matchPrecache('/offline/'))
+        || (await matchPrecache('/offline/index.html'))
+        || new Response('Offline', { status: 503, statusText: 'Offline' })
     )
-}
-
-async function offlineFallback(_request: Request): Promise<Response> {
-    return (await offlinePage()) ?? new Response('Offline', { status: 503, statusText: 'Offline' })
 }
 
 registerRoute(
@@ -51,7 +41,7 @@ registerRoute(
         plugins: [
             new CacheableResponsePlugin({ statuses: [200] }),
             new ExpirationPlugin({ maxEntries: 80, maxAgeSeconds: WEEK }),
-            { handlerDidError: async ({ request }) => offlineFallback(request) },
+            { handlerDidError: () => offlineFallback() },
         ],
     }),
 )
@@ -77,7 +67,6 @@ registerRoute(
     'GET',
 )
 
-// Welcome page still loads decorative Google Fonts via page-level useHead.
 registerRoute(
     /^https:\/\/fonts\.googleapis\.com\/.*/i,
     new StaleWhileRevalidate({

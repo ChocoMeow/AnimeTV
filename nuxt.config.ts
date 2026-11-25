@@ -17,6 +17,10 @@ export default defineNuxtConfig({
     ],
     compatibilityDate: '2025-07-15',
     devtools: { enabled: process.env.NODE_ENV !== 'production' },
+    // Dev: Vite scripts break under strict-dynamic CSP
+    $development: {
+        security: { headers: { contentSecurityPolicy: false } },
+    },
     // Global components keep pathPrefix so Skeleton*/Search*/Userprofile* names stay stable.
     // Feature components use pathPrefix: false; use distinctive filenames (e.g. SearchModal.vue).
     components: [
@@ -77,8 +81,7 @@ export default defineNuxtConfig({
     },
     vite: {
         optimizeDeps: {
-            // hls.js is dynamically imported by the player; pre-bundle to avoid first-play reloads.
-            include: ['hls.js'],
+            include: ['hls.js'], // dynamic import in player
         },
     },
     // NUXT_DEV_HOST=0.0.0.0 for LAN/device testing
@@ -92,7 +95,10 @@ export default defineNuxtConfig({
             '/apple-touch-icon.png': { redirect: '/icons/icon_512x512.png' },
             '/apple-touch-icon-precomposed.png': { redirect: '/icons/icon_512x512.png' },
             '/apple-touch-icon-120x120-precomposed.png': { redirect: '/icons/icon_512x512.png' },
-            // High-volume streaming / WS must not hit the global rate limiter
+            // Cached /offline shell: no nonce CSP (mismatches after SW serves HTML)
+            '/offline': {
+                security: { headers: { contentSecurityPolicy: { 'script-src': ["'self'", "'unsafe-inline'"] } } },
+            },
             '/api/media/proxy': { security: { rateLimiter: false } },
             '/api/media/download/**': { security: { rateLimiter: false } },
             '/api/presence/ws': { security: { rateLimiter: false } },
@@ -100,8 +106,7 @@ export default defineNuxtConfig({
         experimental: {
             websocket: true,
         },
-        // Only /offline is static for the SW. `/` and `/welcome` SSR at runtime
-        // with each host’s own NUXT_PUBLIC_SUPABASE_* (not baked into the image).
+        // Only /offline is static for the SW; `/` and `/welcome` SSR at runtime
         prerender: {
             crawlLinks: false,
             routes: ['/offline'],
@@ -109,9 +114,7 @@ export default defineNuxtConfig({
         },
     },
     experimental: {
-        // `automatic-immediate` + iOS aborting module fetches mid-reload causes
-        // "Importing a module script failed" → reload → loop in the installed PWA.
-        // `automatic` only recovers on navigation (still handles deploy chunk skew).
+        // Prefer `automatic` over `automatic-immediate` — avoids iOS PWA reload loops
         emitRouteChunkError: 'automatic',
         entryImportMap: false,
         early404: true,
@@ -176,7 +179,7 @@ export default defineNuxtConfig({
             'icons/icon_512x512.webp',
         ],
         injectManifest: {
-            globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
+            globPatterns: ['**/*.{js,css,html,json,ico,png,svg,webp,woff2}'],
         },
         manifest: {
             name: 'AnimeTV',

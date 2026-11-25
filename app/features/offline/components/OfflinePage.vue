@@ -1,11 +1,6 @@
 <script setup>
 const appConfig = useAppConfig()
-
-function retry() {
-    if (navigator.onLine) navigateTo('/')
-    else window.location.reload()
-}
-
+const retry = () => navigator.onLine && navigateTo('/')
 useHead({ title: `離線模式 | ${appConfig.siteName}` })
 </script>
 
