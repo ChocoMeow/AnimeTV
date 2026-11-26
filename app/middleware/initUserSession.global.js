@@ -7,7 +7,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const path = (to.path || '/').replace(/\/$/, '') || '/'
     const offline = import.meta.client && !navigator.onLine
 
-    if (to.meta.offlineOnly && import.meta.client && !offline) return navigateTo('/')
+    // Hard nav — /offline is a SW/prerender shell with no auth; soft nav reuses null user → /welcome
+    if (to.meta.offlineOnly && import.meta.client && !offline) {
+        location.replace('/')
+        return abortNavigation()
+    }
     if (offline && !to.meta.offlineAccess) {
         // Hard nav — client router would fetch /_payload.json and fail offline
         if (import.meta.client) {
@@ -18,10 +22,20 @@ export default defineNuxtRouteMiddleware(async (to) => {
     }
 
     const user = useSupabaseUser()
-    const { mark, wasSignedIn } = useOfflineAuthCache()
-    if (user.value && import.meta.client) mark()
+    const { mark, clear, wasSignedIn } = useOfflineAuthCache()
 
-    const loggedIn = Boolean(user.value) || (offline && wasSignedIn())
+    // Middleware can run before Supabase hydrates (pull-refresh / SW shell).
+    let loggedIn = Boolean(user.value)
+    if (!loggedIn && import.meta.client && wasSignedIn()) {
+        if (offline) {
+            loggedIn = true
+        } else {
+            const { data } = await useSupabaseClient().auth.getSession()
+            loggedIn = Boolean(data.session)
+            if (!loggedIn) clear()
+        }
+    }
+    if (loggedIn && import.meta.client) mark()
 
     if (!loggedIn) {
         // Prerender real HTML shells for the SW precache (avoid meta-refresh stubs).

@@ -17,6 +17,9 @@ const globalState = {
 
 const errorMessage = (err, fallback) => (err instanceof Error ? err.message : fallback)
 const sortedPair = (a, b) => [a, b].sort()
+// Heartbeat 1m / server timeout 2m — stale last_seen means offline (no SQL).
+const liveStatus = (status, lastSeen) =>
+    lastSeen && Date.now() - new Date(lastSeen).getTime() <= 3 * 60 * 1000 ? status || 'offline' : 'offline'
 
 export const useFriends = (userId) => {
     const supabase = useSupabaseClient()
@@ -51,7 +54,7 @@ export const useFriends = (userId) => {
                 id: item.friend_user_id,
                 name: item.friend_name,
                 avatar: item.friend_avatar,
-                status: item.friend_status || "offline",
+                status: liveStatus(item.friend_status, item.last_seen),
                 currentAnime: item.current_anime,
                 currentEpisode: item.current_episode,
                 animeId: item.current_anime_ref_id,
@@ -357,15 +360,16 @@ export const useFriends = (userId) => {
             const friendIndex = friends.value.findIndex((f) => f.id === updatedStatus.user_id)
             if (friendIndex === -1) return
 
+            const lastSeen = updatedStatus.last_seen || new Date().toISOString()
             // Create a new object (and use splice) to trigger reactivity
             friends.value.splice(friendIndex, 1, {
                 ...friends.value[friendIndex],
-                status: updatedStatus.status || "offline",
+                status: liveStatus(updatedStatus.status, lastSeen),
                 currentAnime: updatedStatus.anime_title || null,
                 currentEpisode: updatedStatus.episode_number || null,
                 animeId: updatedStatus.anime_ref_id || null,
                 animeBackground: updatedStatus.anime_image || null,
-                lastSeen: updatedStatus.last_seen || new Date().toISOString(),
+                lastSeen,
             })
         }
 
