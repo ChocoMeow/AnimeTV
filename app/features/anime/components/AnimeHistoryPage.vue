@@ -221,6 +221,8 @@ async function confirmDeleteAll() {
 }
 
 async function fetchHistory() {
+    if (!userSettings.value?.id) return
+
     loading.value = true
     try {
         const search = searchQuery.value?.trim()
@@ -257,7 +259,6 @@ onActivated(() => {
 })
 
 onMounted(() => {
-    fetchHistory()
     window.addEventListener('scroll', handleScroll)
 })
 
@@ -265,6 +266,11 @@ onBeforeUnmount(() => {
     window.removeEventListener('scroll', handleScroll)
     cleanupTooltip()
 })
+
+// Settings load in the background after hard reload — fetch when id is ready.
+watch(() => userSettings.value?.id, (id) => {
+    if (id) fetchHistory()
+}, { immediate: true })
 
 // Reset when filters change
 watch([selectedFilter, searchQuery], () => {

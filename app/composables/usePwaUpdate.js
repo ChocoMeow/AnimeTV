@@ -1,6 +1,6 @@
 /**
- * PWA update prompt: apply on header click, or once after a manual refresh.
- * Single reload only — avoids iOS double-reload / module-abort loops.
+ * PWA update: apply from header only.
+ * Auto-apply on reload looped with pull-to-refresh + false-positive needRefresh.
  */
 export function usePwaUpdate() {
     const nuxtApp = useNuxtApp()
@@ -19,25 +19,25 @@ export function usePwaUpdate() {
             done = true
             location.reload()
         }
-        navigator.serviceWorker.addEventListener('controllerchange', reload, { once: true })
 
         try {
             const reg = await navigator.serviceWorker.getRegistration()
-            reg?.waiting?.postMessage({ type: 'SKIP_WAITING' })
-            await nuxtApp.$pwa?.updateServiceWorker?.(true)
-        } catch { /* timeout fallback */ }
-
-        setTimeout(() => { if (!done) reload() }, 1500)
-    }
-
-    if (import.meta.client) {
-        const manualReload = performance.getEntriesByType?.('navigation')?.[0]?.type === 'reload'
-        watch(needRefresh, (needs) => {
-            if (!needs) {
+            if (!reg?.waiting) {
                 sessionStorage.removeItem(LOCK)
                 return
             }
-            if (manualReload && !activeCount.value && !sessionStorage.getItem(LOCK)) applyUpdate()
+            navigator.serviceWorker.addEventListener('controllerchange', reload, { once: true })
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' })
+            await nuxtApp.$pwa?.updateServiceWorker?.(true)
+            setTimeout(() => { if (!done) reload() }, 1500)
+        } catch {
+            sessionStorage.removeItem(LOCK)
+        }
+    }
+
+    if (import.meta.client) {
+        watch(needRefresh, (needs) => {
+            if (!needs) sessionStorage.removeItem(LOCK)
         }, { immediate: true })
     }
 

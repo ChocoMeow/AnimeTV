@@ -76,20 +76,24 @@ function redirectIfWide() {
     if (!isNarrow.value) navigateTo('/profile', { replace: true })
 }
 
-onMounted(async () => {
+onMounted(() => {
     redirectIfWide()
-    if (!isNarrow.value) return
+})
+
+onActivated(async () => {
+    if (isNarrow.value && userSettings.value?.id) await fetchPreviews()
+})
+
+// Settings load in the background after hard reload — fetch when id is ready.
+watch(() => userSettings.value?.id, async (id) => {
+    if (!id || !isNarrow.value) return
     loading.value = true
     try {
         await fetchPreviews()
     } finally {
         loading.value = false
     }
-})
-
-onActivated(async () => {
-    if (isNarrow.value) await fetchPreviews()
-})
+}, { immediate: true })
 
 watch(isNarrow, (narrow) => {
     if (!narrow) redirectIfWide()

@@ -169,7 +169,10 @@ function onTouchEnd() {
         state.value = 'refreshing'
         window.clearTimeout(reloadTimer)
         reloadTimer = window.setTimeout(() => {
-            window.location.reload()
+            const path = (location.pathname || '/').replace(/\/$/, '') || '/'
+            // Online + /offline → home (reload raced middleware/PWA update into a loop).
+            if (navigator.onLine && path === '/offline') location.replace('/')
+            else window.location.reload()
         }, 280)
         return
     }

@@ -1,6 +1,7 @@
 <script setup>
 const appConfig = useAppConfig()
 const user = useSupabaseUser()
+const { userSettings } = useUserSettings()
 
 const loading = ref(true)
 const analytics = ref(null)
@@ -98,7 +99,9 @@ async function fetchChartData() {
     }
 }
 
-onMounted(async () => {
+// Settings load in the background after hard reload — fetch when id is ready.
+watch(() => userSettings.value?.id, async (id) => {
+    if (!id) return
     loading.value = true
     try {
         await Promise.all([fetchAnalytics(), fetchChartData()])
@@ -107,9 +110,11 @@ onMounted(async () => {
     } finally {
         loading.value = false
     }
-})
+}, { immediate: true })
 
-watch(statsPeriod, () => { fetchChartData() })
+watch(statsPeriod, () => {
+    if (userSettings.value?.id) fetchChartData()
+})
 
 useHead({ title: `個人資料 | ${appConfig.siteName}` })
 </script>

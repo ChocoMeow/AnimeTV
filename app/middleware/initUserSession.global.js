@@ -7,7 +7,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const path = (to.path || '/').replace(/\/$/, '') || '/'
     const offline = import.meta.client && !navigator.onLine
 
-    // Hard nav — /offline is a SW/prerender shell with no auth; soft nav reuses null user → /welcome
+    // Hard nav — /offline SW shell has no auth; soft nav would bounce logged-in users to /welcome
     if (to.meta.offlineOnly && import.meta.client && !offline) {
         location.replace('/')
         return abortNavigation()
@@ -24,18 +24,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const user = useSupabaseUser()
     const { mark, clear, wasSignedIn } = useOfflineAuthCache()
 
-    // Middleware can run before Supabase hydrates (pull-refresh / SW shell).
-    let loggedIn = Boolean(user.value)
-    if (!loggedIn && import.meta.client && wasSignedIn()) {
-        if (offline) {
-            loggedIn = true
-        } else {
-            const { data } = await useSupabaseClient().auth.getSession()
-            loggedIn = Boolean(data.session)
-            if (!loggedIn) clear()
-        }
+    // Trust offline-signed-in flag while Supabase hydrates — do not await getSession (blocks splash).
+    const loggedIn = Boolean(user.value) || (import.meta.client && wasSignedIn())
+    if (user.value && import.meta.client) mark()
+    if (import.meta.client && !user.value && wasSignedIn() && !offline) {
+        useSupabaseClient().auth.getSession().then(({ data }) => {
+            if (!data.session) clear()
+        })
     }
-    if (loggedIn && import.meta.client) mark()
 
     if (!loggedIn) {
         // Prerender real HTML shells for the SW precache (avoid meta-refresh stubs).
@@ -68,10 +64,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     }
 
     if (!settingsLoaded.value && navigator.onLine) {
-        // Fire-and-forget: do not block navigation / first paint on Supabase + admin check.
-        Promise.all([fetchSettings(), fetchAdminRole()]).then(() => {
-            maybeInitPresence()
-        })
+        Promise.all([fetchSettings(), fetchAdminRole()]).then(maybeInitPresence)
         return
     }
 

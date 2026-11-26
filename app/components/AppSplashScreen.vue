@@ -23,9 +23,8 @@ function removeBootstrapSplash() {
 }
 
 onMounted(async () => {
-    await nextTick()
-    requestAnimationFrame(() => removeBootstrapSplash())
-
+    // Clear body{visibility:hidden} before the exit animation (avoids stuck black screen).
+    removeBootstrapSplash()
     if (!shouldShowSplash()) return
     show.value = true
     await new Promise((r) => setTimeout(r, SPLASH_VISIBLE_MS))
