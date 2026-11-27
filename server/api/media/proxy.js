@@ -307,8 +307,10 @@ async function handleM3u8(playlistUrl, cookie, referer, exp, userId, signal, eve
     }
 
     const body = await res.text()
+    // Relative base — absolute getRequestURL().origin is often http:// behind TLS
+    // termination, which then fails CSP connect-src 'self' on https pages.
     const out = rewriteHlsPlaylist(body, playlistUrl, {
-        proxyBase: `${getRequestURL(event).origin}/api/media/proxy`,
+        proxyBase: '/api/media/proxy',
         cookie,
         referer,
         exp,

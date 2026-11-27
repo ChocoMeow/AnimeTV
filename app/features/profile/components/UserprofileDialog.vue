@@ -195,7 +195,10 @@ watch(
     async ([id, open]) => {
         if (!open || !id) return
         await load()
-        tabsRef.value?.reset()
+        // Tabs remount after loading=false; wait a tick, and guard the method
+        // (`?.reset()` only skips a nullish ref — not a missing function).
+        await nextTick()
+        tabsRef.value?.reset?.()
     },
     { immediate: true },
 )

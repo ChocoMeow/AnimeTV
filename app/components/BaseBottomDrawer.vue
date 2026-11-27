@@ -1,9 +1,9 @@
 <script setup>
-/** Vaul / iOS sheet motion — snappy without bounce. */
-const SHEET_MS = 400
-const SHEET_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)'
-const CLOSE_THRESHOLD = 100
-const VELOCITY_THRESHOLD = 0.5
+/** Vaul / iOS sheet — pull down to dismiss (handle, header, or content-at-top). */
+const MS = 400
+const EASE = 'cubic-bezier(0.32, 0.72, 0, 1)'
+const CLOSE_Y = 100
+const CLOSE_V = 0.5
 
 const props = defineProps({
     modelValue: { type: Boolean, required: true },
@@ -18,167 +18,160 @@ const emit = defineEmits(['update:modelValue'])
 
 const drawerRef = ref(null)
 const contentRef = ref(null)
-const isDragging = ref(false)
-const startY = ref(0)
-const currentTranslateY = ref(0)
-const drawerHeight = ref(0)
-const initialHeight = ref(0)
-const maxDrawerHeight = ref(0)
 const teleportTo = shallowRef('body')
 
+let dragging = false
+let fromContent = false
+let tracking = false
+let startX = 0
+let startY = 0
 let lastY = 0
-let lastTime = 0
+let lastT = 0
 let velocity = 0
+let ty = 0
+let sheetH = 0
 
-const sheetTransition = `transform ${SHEET_MS}ms ${SHEET_EASE}`
-
-function syncTeleportTarget() {
-    teleportTo.value = document.fullscreenElement || 'body'
-}
+const yOf = (e) => (e.touches ? e.touches[0].clientY : e.clientY)
 
 function close() {
     if (!props.persistent) emit('update:modelValue', false)
 }
 
-function handleEscape(event) {
-    if (event.key === 'Escape' && !props.persistent) close()
+function lockScroll(on) {
+    if (import.meta.client) document.body.style.overflow = on ? 'hidden' : ''
 }
 
-function setScrollLocked(locked) {
-    if (import.meta.client) document.body.style.overflow = locked ? 'hidden' : ''
+function setSheet(y, transition = 'none') {
+    const el = drawerRef.value
+    if (!el) return
+    el.style.transition = transition
+    el.style.transform = `translate3d(0, ${y}px, 0)`
 }
 
-function measureHeights() {
-    if (!drawerRef.value) return
-    const rect = drawerRef.value.getBoundingClientRect()
-    drawerHeight.value = rect.height
-    initialHeight.value = rect.height
-    maxDrawerHeight.value = window.innerHeight * 0.9
-}
-
-function startDrag(event) {
+function begin(y, content = false) {
     if (props.persistent || !drawerRef.value) return
-
-    isDragging.value = true
-    const clientY = event.touches ? event.touches[0].clientY : event.clientY
-    startY.value = clientY
-    lastY = clientY
-    lastTime = Date.now()
-    velocity = 0
-    currentTranslateY.value = 0
-    measureHeights()
-    drawerRef.value.style.transition = 'none'
-    event.preventDefault()
+    dragging = true
+    fromContent = content
+    startY = lastY = y
+    lastT = Date.now()
+    velocity = ty = 0
+    sheetH = drawerRef.value.getBoundingClientRect().height
+    setSheet(0)
 }
 
-function handleDrag(event) {
-    if (!isDragging.value || !drawerRef.value) return
-
-    const clientY = event.touches ? event.touches[0].clientY : event.clientY
+function move(y, e) {
+    if (!dragging) return
     const now = Date.now()
-    const deltaY = clientY - startY.value
-    const dt = now - lastTime
-    if (dt > 0) velocity = (clientY - lastY) / dt
-    lastY = clientY
-    lastTime = now
+    if (now > lastT) velocity = (y - lastY) / (now - lastT)
+    lastY = y
+    lastT = now
+    ty = Math.max(0, y - startY)
+    setSheet(ty)
+    if (e?.cancelable) e.preventDefault()
+}
 
-    if (deltaY < 0) {
-        const newHeight = Math.min(initialHeight.value + Math.abs(deltaY), maxDrawerHeight.value)
-        const hasMore = contentRef.value && contentRef.value.scrollHeight > contentRef.value.clientHeight
-        if (hasMore || newHeight <= maxDrawerHeight.value) {
-            drawerRef.value.style.height = `${newHeight}px`
-            drawerRef.value.style.transform = ''
-            currentTranslateY.value = deltaY
-        } else {
-            const resistance = Math.abs(deltaY) * 0.2
-            drawerRef.value.style.transform = `translate3d(0, ${-resistance}px, 0)`
-            currentTranslateY.value = -resistance
+function end() {
+    if (!dragging || !drawerRef.value) return
+    const dismiss = !props.persistent && (ty > CLOSE_Y || velocity > CLOSE_V)
+    setSheet(dismiss ? sheetH : 0, `transform ${MS}ms ${EASE}`)
+    if (dismiss) setTimeout(() => emit('update:modelValue', false), MS)
+    dragging = fromContent = tracking = false
+    ty = velocity = 0
+}
+
+function onHandleStart(e) {
+    begin(yOf(e))
+    e.preventDefault()
+}
+
+function onContentStart(e) {
+    if (props.persistent || e.touches?.length !== 1) return
+    const { clientX, clientY } = e.touches[0]
+    startX = clientX
+    startY = lastY = clientY
+    lastT = Date.now()
+    tracking = true
+}
+
+function onContentMove(e) {
+    if (!tracking || props.persistent || e.touches?.length !== 1) return
+    const t = e.touches[0]
+    if (!dragging) {
+        const dx = t.clientX - startX
+        const dy = t.clientY - startY
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) return (tracking = false)
+        if (dy < 8 || (contentRef.value?.scrollTop ?? 0) > 1) {
+            if (dy >= 8) tracking = false
+            return
         }
-    } else {
-        currentTranslateY.value = deltaY
-        drawerRef.value.style.transform = `translate3d(0, ${deltaY}px, 0)`
-        drawerRef.value.style.height = ''
+        begin(t.clientY, true)
     }
-
-    event.preventDefault()
+    move(t.clientY, e)
 }
 
-function endDrag() {
-    if (!isDragging.value || !drawerRef.value) return
-
-    const shouldClose =
-        (currentTranslateY.value > CLOSE_THRESHOLD || velocity > VELOCITY_THRESHOLD) && !props.persistent
-
-    drawerRef.value.style.transition = sheetTransition
-
-    if (shouldClose) {
-        drawerRef.value.style.transform = `translate3d(0, ${drawerHeight.value}px, 0)`
-        setTimeout(() => emit('update:modelValue', false), SHEET_MS)
-    } else {
-        drawerRef.value.style.transform = 'translate3d(0, 0, 0)'
-        drawerRef.value.style.height = ''
-        setTimeout(() => {
-            if (drawerRef.value && !isDragging.value) drawerRef.value.style.height = ''
-        }, SHEET_MS)
-    }
-
-    isDragging.value = false
-    startY.value = 0
-    currentTranslateY.value = 0
-    velocity = 0
+function onDocMove(e) {
+    if (dragging && !fromContent) move(yOf(e), e)
 }
 
-function resetDrawer() {
+function onDocEnd() {
+    if (dragging && !fromContent) end()
+}
+
+function onContentEnd() {
+    tracking = false
+    if (dragging && fromContent) end()
+}
+
+function reset() {
     if (!drawerRef.value) return
-    drawerRef.value.style.transform = ''
-    drawerRef.value.style.transition = ''
-    drawerRef.value.style.height = ''
+    drawerRef.value.style.transform = drawerRef.value.style.transition = ''
 }
 
-function bindDragListeners() {
-    document.addEventListener('mousemove', handleDrag)
-    document.addEventListener('mouseup', endDrag)
-    document.addEventListener('touchmove', handleDrag, { passive: false })
-    document.addEventListener('touchend', endDrag)
+function onKey(e) {
+    if (e.key === 'Escape') close()
 }
 
-function unbindDragListeners() {
-    document.removeEventListener('mousemove', handleDrag)
-    document.removeEventListener('mouseup', endDrag)
-    document.removeEventListener('touchmove', handleDrag)
-    document.removeEventListener('touchend', endDrag)
+function syncTeleport() {
+    teleportTo.value = document.fullscreenElement || 'body'
 }
 
 watch(
     () => props.modelValue,
     (open) => {
         if (open) {
-            syncTeleportTarget()
-            setScrollLocked(true)
-            bindDragListeners()
-            nextTick(() => {
-                resetDrawer()
-                measureHeights()
-            })
+            syncTeleport()
+            lockScroll(true)
+            document.addEventListener('mousemove', onDocMove)
+            document.addEventListener('mouseup', onDocEnd)
+            document.addEventListener('touchmove', onDocMove, { passive: false })
+            document.addEventListener('touchend', onDocEnd)
+            nextTick(reset)
         } else {
-            unbindDragListeners()
-            setScrollLocked(false)
-            nextTick(resetDrawer)
+            document.removeEventListener('mousemove', onDocMove)
+            document.removeEventListener('mouseup', onDocEnd)
+            document.removeEventListener('touchmove', onDocMove)
+            document.removeEventListener('touchend', onDocEnd)
+            lockScroll(false)
+            dragging = fromContent = tracking = false
+            nextTick(reset)
         }
     },
     { immediate: true },
 )
 
 onMounted(() => {
-    document.addEventListener('keydown', handleEscape)
-    document.addEventListener('fullscreenchange', syncTeleportTarget)
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('fullscreenchange', syncTeleport)
 })
 
 onBeforeUnmount(() => {
-    document.removeEventListener('keydown', handleEscape)
-    document.removeEventListener('fullscreenchange', syncTeleportTarget)
-    unbindDragListeners()
-    setScrollLocked(false)
+    document.removeEventListener('keydown', onKey)
+    document.removeEventListener('fullscreenchange', syncTeleport)
+    document.removeEventListener('mousemove', onDocMove)
+    document.removeEventListener('mouseup', onDocEnd)
+    document.removeEventListener('touchmove', onDocMove)
+    document.removeEventListener('touchend', onDocEnd)
+    lockScroll(false)
 })
 </script>
 
@@ -190,27 +183,27 @@ onBeforeUnmount(() => {
                 data-no-ptr
                 class="fixed inset-0 flex items-end justify-center bg-black/60"
                 :class="zClass"
-                @click.self="persistent ? undefined : close()"
+                @click.self="close()"
             >
                 <div
                     ref="drawerRef"
-                    class="drawer-sheet bg-white dark:bg-gray-950 rounded-t-3xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 w-full flex flex-col md:max-w-[500px] md:mx-auto"
+                    class="drawer-sheet flex w-full flex-col rounded-t-3xl bg-white shadow-2xl ring-1 ring-black/5 dark:bg-gray-950 dark:ring-white/10 md:mx-auto md:max-w-[500px]"
                     :class="maxHeight"
                     @click.stop
                 >
                     <div
                         v-if="showDragHandle"
-                        class="shrink-0 flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing select-none touch-none"
-                        @mousedown="startDrag"
-                        @touchstart="startDrag"
+                        class="flex shrink-0 cursor-grab touch-none select-none justify-center pb-2 pt-3 active:cursor-grabbing"
+                        @mousedown="onHandleStart"
+                        @touchstart="onHandleStart"
                     >
-                        <div class="w-12 h-1.5 bg-black/15 dark:bg-white/20 rounded-full" />
+                        <div class="h-1.5 w-12 rounded-full bg-black/15 dark:bg-white/20" />
                     </div>
 
                     <div
-                        class="shrink-0 flex items-center justify-between px-4 pt-2 pb-4 cursor-grab active:cursor-grabbing select-none touch-none"
-                        @mousedown="startDrag"
-                        @touchstart="startDrag"
+                        class="flex shrink-0 cursor-grab touch-none select-none items-center justify-between px-4 pb-4 pt-2 active:cursor-grabbing"
+                        @mousedown="onHandleStart"
+                        @touchstart="onHandleStart"
                     >
                         <slot name="header">
                             <h3 v-if="title" class="text-xl font-bold text-gray-900 dark:text-white">
@@ -223,6 +216,10 @@ onBeforeUnmount(() => {
                         ref="contentRef"
                         class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4"
                         :class="$slots.footer ? 'pb-4' : 'pb-[calc(1rem+env(safe-area-inset-bottom,0px))]'"
+                        @touchstart.passive="onContentStart"
+                        @touchmove="onContentMove"
+                        @touchend="onContentEnd"
+                        @touchcancel="onContentEnd"
                     >
                         <slot />
                     </div>
@@ -240,7 +237,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* Vaul sheet: opacity on overlay, transform-only on panel with iOS-like ease */
 .drawer-sheet {
     will-change: transform;
     backface-visibility: hidden;
