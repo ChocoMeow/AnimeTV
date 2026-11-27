@@ -18,8 +18,13 @@ const globalState = {
 const errorMessage = (err, fallback) => (err instanceof Error ? err.message : fallback)
 const sortedPair = (a, b) => [a, b].sort()
 // Heartbeat 1m / server timeout 2m — stale last_seen means offline (no SQL).
-const liveStatus = (status, lastSeen) =>
-    lastSeen && Date.now() - new Date(lastSeen).getTime() <= 3 * 60 * 1000 ? status || 'offline' : 'offline'
+// last_seen is `timestamp without time zone` (UTC); parseTimestamp avoids local-TZ skew.
+const STALE_MS = 3 * 60 * 1000
+const liveStatus = (status, lastSeen) => {
+    const seenAt = parseTimestamp(lastSeen).getTime()
+    if (!Number.isFinite(seenAt) || Date.now() - seenAt > STALE_MS) return 'offline'
+    return status || 'offline'
+}
 
 export const useFriends = (userId) => {
     const supabase = useSupabaseClient()
