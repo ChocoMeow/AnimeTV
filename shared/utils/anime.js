@@ -6,6 +6,11 @@
 
 export const GAMER_BASE_URL = 'https://ani.gamer.com.tw/'
 export const ACG_GAMER_BASE_URL = 'https://acg.gamer.com.tw/'
+export const ANILIST_SITE_URL = 'https://anilist.co/'
+
+/** `{value}` kept literal when building admin link templates. */
+export const acgDetailUrl = (id) => `${ACG_GAMER_BASE_URL}acgDetail.php?s=${id}`
+export const anilistAnimeUrl = (id) => `${ANILIST_SITE_URL}anime/${id}`
 
 /** Manual / autofill source_ids start here; Bahamut anime SNs stay below this. */
 export const CUSTOM_SOURCE_ID_MIN = 1_000_000

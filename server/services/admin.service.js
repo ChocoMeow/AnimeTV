@@ -1,10 +1,9 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { createError } from 'h3'
-import { CUSTOM_SOURCE_ID_MIN } from '#shared/utils/anime'
-import { DEFAULT_VIDEO_SOURCE, VIDEO_ID_FORMATS, VIDEO_SOURCES } from '~~/server/lib/videoProviders'
+import { acgDetailUrl, anilistAnimeUrl, CUSTOM_SOURCE_ID_MIN } from '#shared/utils/anime'
+import { DEFAULT_VIDEO_SOURCE, fillFromDefaultProvider, VIDEO_ID_FORMATS, VIDEO_SOURCES } from '~~/server/lib/videoProviders'
 import { stripSelfRelated, syncRelatedLinks } from '~~/server/lib/anime/animeMetaRelated'
 import { scrapeAcgDetail } from '~~/server/lib/anime/scrapeAcgDetail'
-import { matchAnime } from '~~/server/lib/anime/match'
 import { createLoggedError, moduleLogger } from '~~/server/utils/logger'
 
 const log = moduleLogger('admin-anime-meta')
@@ -202,6 +201,8 @@ const FIELD_LABELS = {
     id: '內部編號',
     source_id: '外部作品編號',
     title: '作品標題',
+    english_title: '英文標題',
+    anilist_id: 'AniList ID',
     description: '作品簡介',
     thumbnail: '封面圖片',
     premiere_date: '首播日期',
@@ -226,9 +227,12 @@ const FIELD_HELP = {
     source_id: '外部來源作品 ID，作為編輯主鍵；建立後通常不應更動。',
     related_anime_source_ids: '相關作品的 source_id 陣列，用於頁面「相關推薦」。',
     source_details_id: '詳細資料來源 ID。填入後可按自動填入，從外部帶入標題、簡介、封面等。',
+    english_title: 'AniList 英文標題（無英文時會用 romaji）。自動填入時一併寫入。',
+    anilist_id:
+        'AniList media ID（整數）。預設片源為 anikoto 時，自動填入會先對 anilist-chinese 再取英文。可用 NUXT_DEFAULT_VIDEO_SOURCE 切換預設片源。亦可手動改正。',
     video_source:
         `影片來源站台。目前：${VIDEO_SOURCES.join('、')}；需與 video_id 格式對應。` +
-        '新增來源：在 server/lib/videoProviders/sources/ 新增 *.js（default export），重啟即可。',
+        '新增來源：在 server/lib/videoProviders/sources/<id>/index.js 新增 plugin（default export），重啟即可。',
     video_id:
         '依 video_source 填寫：\n' +
         Object.entries(VIDEO_ID_FORMATS)
@@ -241,9 +245,9 @@ const FIELD_HELP = {
 
 /** Unknown columns go to 其他. */
 const FORM_SECTIONS = [
-    { id: 'basic', title: '基本資料', keys: ['title', 'description', 'thumbnail', 'season', 'premiere_date'] },
+    { id: 'basic', title: '基本資料', keys: ['title', 'english_title', 'description', 'thumbnail', 'season', 'premiere_date'] },
     { id: 'video', title: '片源設定', keys: ['video_source', 'video_id'] },
-    { id: 'ids', title: '編號與關聯', keys: ['source_id', 'source_details_id', 'related_anime_source_ids'] },
+    { id: 'ids', title: '編號與關聯', keys: ['source_id', 'source_details_id', 'anilist_id', 'related_anime_source_ids'] },
     { id: 'credits', title: '製作資訊', keys: ['director', 'distributor', 'production_company'] },
     { id: 'stats', title: '標籤與數據', keys: ['tags', 'views', 'score', 'votes'] },
     { id: 'system', title: '系統', keys: [ 'id', 'created_at', 'updated_at'] },
@@ -251,6 +255,21 @@ const FORM_SECTIONS = [
 
 const READ_ONLY = new Set(['id', 'created_at', 'updated_at'])
 const WIDE_TYPES = new Set(['textbox', 'array', 'jsonb'])
+
+/**
+ * Per-field trailing actions for the admin editor.
+ * Add an entry here to extend UI without touching the Vue form.
+ * `link.href` may include `{value}` (replaced with the current field value).
+ */
+const FIELD_ACTIONS = {
+    source_details_id: [
+        { type: 'link', title: '開啟巴哈詳細頁', href: acgDetailUrl('{value}') },
+        { type: 'autofill', title: '自動填入' },
+    ],
+    anilist_id: [
+        { type: 'link', title: '開啟 AniList', href: anilistAnimeUrl('{value}') },
+    ],
+}
 
 function buildField(name, fieldTypes) {
     const type = fieldTypes[name] || 'text'
@@ -262,6 +281,7 @@ function buildField(name, fieldTypes) {
         readOnly: READ_ONLY.has(name),
         isPrimaryKey: name === 'source_id',
         wide: WIDE_TYPES.has(type),
+        actions: FIELD_ACTIONS[name] || [],
     }
 }
 
@@ -515,21 +535,20 @@ export async function autofillAnimeMeta(event, detailId) {
     }
 
     const { wikiContentHtml: _wiki, ...data } = scraped
+    const yearHint = data.premiere_date?.slice(0, 4) || data.premiere_date
 
     const client = await serverSupabaseClient(event)
-    const [sourceId, matched] = await Promise.all([
+    const [sourceId, filled] = await Promise.all([
         nextSourceId(client),
-        matchAnime([{
-            refId: detailId,
-            title: data.title,
-            year: data.premiere_date?.slice(0, 4) || data.premiere_date,
-        }]).then((rows) => rows[0] ?? null),
+        fillFromDefaultProvider(data.title, yearHint),
     ])
 
     if (sourceId) data.source_id = sourceId
-    data.video_id = matched?.matchedVideo?.id ?? null
+    data.anilist_id = filled?.anilist_id ?? null
+    data.english_title = filled?.english_title ?? null
+    data.video_id = filled?.video_id ?? null
     data.video_source = data.video_id ? DEFAULT_VIDEO_SOURCE : null
-    data.season = matched?.matchedVideo?.season ?? null
+    if (filled?.season) data.season = filled.season
 
     return data
 }

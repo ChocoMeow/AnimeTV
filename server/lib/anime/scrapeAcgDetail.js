@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio'
-import { ACG_GAMER_BASE_URL, matchAnimeTags } from '#shared/utils/anime'
+import { acgDetailUrl, matchAnimeTags } from '#shared/utils/anime'
 import { isNumericString } from '#shared/utils/format'
 import { cfFetch } from '~~/server/lib/anime/cfFetch'
 import { moduleLogger } from '~~/server/utils/logger'
@@ -113,7 +113,7 @@ export async function scrapeAcgDetail(detailId, opts = {}) {
             throw new Error(`Invalid details ID: "${detailId}"`)
         }
 
-        const { html } = await cfFetch(`${ACG_GAMER_BASE_URL}acgDetail.php?s=${detailId}`) || {}
+        const { html } = await cfFetch(acgDetailUrl(detailId)) || {}
         if (!html) return null
 
         const $ = cheerio.load(lightenHtml(html, { keepWiki: includeWiki }))

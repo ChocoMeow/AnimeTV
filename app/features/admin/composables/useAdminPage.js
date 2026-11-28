@@ -77,6 +77,12 @@ export function useAdminPage() {
         else hiddenFields.add(name)
     }
 
+    /** Fill `{value}` in a server-provided action href. */
+    function actionHref(action, value) {
+        if (!action?.href || value == null || value === '') return undefined
+        return action.href.replaceAll('{value}', encodeURIComponent(String(value)))
+    }
+
     function hideAllFields() {
         for (const s of formSections.value) {
             for (const f of s.fields) hiddenFields.add(f.name)
@@ -536,6 +542,7 @@ export function useAdminPage() {
         totalPages,
         toggleFieldHidden,
         hideAllFields,
+        actionHref,
         moveSection,
         syncSeasonFromPremiereDate,
         discardAndProceed,

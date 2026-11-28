@@ -27,6 +27,7 @@ const {
     totalPages,
     toggleFieldHidden,
     hideAllFields,
+    actionHref,
     moveSection,
     syncSeasonFromPremiereDate,
     discardAndProceed,
@@ -334,28 +335,51 @@ const {
                                         />
                                     </div>
 
-                                    <!-- source_details_id with autofill -->
-                                    <div v-else-if="field.name === 'source_details_id'" class="flex gap-2">
+                                    <!-- Input + server-driven trailing actions (link / autofill / …) -->
+                                    <div v-else-if="field.actions?.length" class="flex gap-2">
                                         <input
+                                            v-if="field.type === 'number'"
+                                            v-model.number="editableRecord[field.name]"
+                                            :readonly="field.readOnly"
+                                            type="number"
+                                            step="1"
+                                            class="field min-w-0 flex-1 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                        />
+                                        <input
+                                            v-else
                                             v-model="editableRecord[field.name]"
                                             :readonly="field.readOnly"
                                             type="text"
                                             class="field min-w-0 flex-1"
                                         />
-                                        <button
-                                            type="button"
-                                            class="btn-modal-cancel shrink-0"
-                                            title="自動填入"
-                                            :disabled="autofilling || !editableRecord.source_details_id"
-                                            @click="handleAutofill"
-                                        >
-                                            <span
-                                                class="material-symbols-rounded text-xl"
-                                                :class="autofilling ? 'animate-spin' : ''"
+                                        <template v-for="(action, i) in field.actions" :key="`${action.type}-${i}`">
+                                            <a
+                                                v-if="action.type === 'link'"
+                                                :href="actionHref(action, editableRecord[field.name])"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="btn-modal-cancel shrink-0"
+                                                :class="{ 'pointer-events-none opacity-40': !editableRecord[field.name] }"
+                                                :title="action.title"
                                             >
-                                                {{ autofilling ? 'progress_activity' : 'auto_fix' }}
-                                            </span>
-                                        </button>
+                                                <span class="material-symbols-rounded text-xl">open_in_new</span>
+                                            </a>
+                                            <button
+                                                v-else-if="action.type === 'autofill'"
+                                                type="button"
+                                                class="btn-modal-cancel shrink-0"
+                                                :title="action.title"
+                                                :disabled="autofilling || !editableRecord[field.name]"
+                                                @click="handleAutofill"
+                                            >
+                                                <span
+                                                    class="material-symbols-rounded text-xl"
+                                                    :class="autofilling ? 'animate-spin' : ''"
+                                                >
+                                                    {{ autofilling ? 'progress_activity' : 'auto_fix' }}
+                                                </span>
+                                            </button>
+                                        </template>
                                     </div>
 
                                     <!-- video_source enum -->

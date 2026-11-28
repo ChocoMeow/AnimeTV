@@ -50,6 +50,7 @@ export default defineNuxtConfig({
         supabaseSecretKey: process.env.NUXT_SUPABASE_SECRET_KEY,
         mediaProxySecret: process.env.NUXT_MEDIA_PROXY_SECRET,
         cfFetchFlaresolverr: process.env.NUXT_CF_FETCH_FLARESOLVERR,
+        defaultVideoSource: process.env.NUXT_DEFAULT_VIDEO_SOURCE || 'anikoto',
         aiApiKey: process.env.NUXT_AI_API_KEY,
         aiBaseUrl: process.env.NUXT_AI_BASE_URL,
         aiModel: process.env.NUXT_AI_MODEL,

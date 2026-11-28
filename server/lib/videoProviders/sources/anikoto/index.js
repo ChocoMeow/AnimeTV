@@ -14,7 +14,8 @@ import {
     encodePrefixedToken,
     episodeRecord,
     normalizeEpisodeId,
-} from '../helpers'
+} from '../../helpers'
+import { autofillFromTitle } from './autofill.js'
 
 const ID = 'anikoto'
 const TOKEN_PREFIX = 'anikoto.'
@@ -754,6 +755,8 @@ export default {
     /** Core: on-demand AI captions (allowlisted langs), cached in Supabase (~1 year). */
     aiCaptions: true,
     videoIdHelp: 'AniKoto watch slug（網址 /watch/ 後段）；可加 :sub / :dub',
+    /** Admin autofill / auto-add: Chinese dict → AniList → watch slug. */
+    autofillFromTitle,
     listEpisodes,
     decodeToken,
     resolvePlayback,

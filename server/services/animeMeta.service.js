@@ -11,7 +11,6 @@ import { scrapeAcgDetail } from '~~/server/lib/anime/scrapeAcgDetail'
 
 const log = moduleLogger('anime-detail')
 const ONE_MONTH_MS = 1000 * 60 * 60 * 24 * 30
-
 const DESC_MAX = 200
 const TITLE_MAX = 70
 
@@ -68,33 +67,31 @@ const refreshAnimeStats = async (serviceClient, sourceId, scraped, existingRelat
     return data
 }
 
-// Fetch all related anime in a single query. Any missing entries are scraped after the response via waitUntil.
+// Related from DB; missing ids scraped in background (Bahamut only, max 3 at a time).
 const fetchRelatedAnime = async (client, serviceClient, ids, event) => {
     if (!ids?.length) return []
 
     const { data } = await client.from('anime_meta').select('*').in('source_id', ids)
     const found = data || []
-
     const foundIds = new Set(found.map((a) => String(a.source_id)))
     const missing = ids.filter((id) => !foundIds.has(String(id)))
 
     if (missing.length) {
         const reqLog = getRequestLogger(event)
-        event.waitUntil(
-            Promise.allSettled(
-                missing.map(async (refId) => {
+        event.waitUntil((async () => {
+            for (let i = 0; i < missing.length; i += 3) {
+                await Promise.allSettled(missing.slice(i, i + 3).map(async (refId) => {
                     try {
-                        const scraped = await scrapeAnimeDetailByRefId(refId)
-                        if (!scraped) return
-                        await upsertAnimeMeta(serviceClient, buildAnimeMetaPayload(scraped))
+                        const scraped = await scrapeAnimeDetailByRefId(refId, { autofill: false })
+                        if (scraped) await upsertAnimeMeta(serviceClient, buildAnimeMetaPayload(scraped))
                     } catch (err) {
                         if (!err.code?.includes('23505') && !err.message?.includes('duplicate')) {
                             reqLog.error({ err, refId }, 'Background scrape failed for related anime')
                         }
                     }
-                }),
-            )
-        )
+                }))
+            }
+        })())
     }
 
     return found
@@ -140,9 +137,8 @@ export async function getAnimeDetail(event, { client, serviceClient, refId, user
         if (!scraped) throw createError({ statusCode: 404, statusMessage: 'Anime not found' })
         meta = await upsertAnimeMeta(serviceClient, buildAnimeMetaPayload(scraped))
     } else if (isStale(meta) && Number(meta.source_id) < CUSTOM_SOURCE_ID_MIN) {
-        // Stale-while-revalidate: serve cached data now, refresh stats after response is sent
         event.waitUntil(
-            scrapeAnimeDetailByRefId(refId)
+            scrapeAnimeDetailByRefId(refId, { autofill: false })
                 .then((scraped) => scraped && refreshAnimeStats(serviceClient, refId, scraped, meta.related_anime_source_ids))
                 .catch((err) => reqLog.error({ err, refId }, 'Background refresh failed'))
         )

@@ -770,6 +770,7 @@ export function useAnimeDetailPage() {
             pageTitle.value = `${res.title} | ${appConfig.siteName}`
             loadWatchHistory()
             refreshOfflineEpisodeList().catch((err) => console.error('Offline episode list refresh failed:', err))
+            if (!res.videoId) return
             fetchEpisodes(refId)
                 .then(async ({ episodes }) => {
                     if (String(route.params.id) !== refId || !anime.value) return

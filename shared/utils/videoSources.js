@@ -1,6 +1,6 @@
 /**
  * Client-safe helpers. Registered source ids are server-discovered from
- * `server/lib/videoProviders/sources/*.js` (admin loads them via API).
+ * `server/lib/videoProviders/sources/<id>/index.js` (admin loads them via API).
  */
 
 /**

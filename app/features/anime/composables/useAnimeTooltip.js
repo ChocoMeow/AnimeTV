@@ -159,9 +159,7 @@ export function useAnimeTooltip() {
             tooltipLoading.value = true
             tooltipError.value = null
             try {
-                const details = await $fetch(`/api/anime/${refId}`, {
-                    query: { withRelated: 'true' },
-                })
+                const details = await $fetch(`/api/anime/${refId}`)
                 const enrichedDetails = {
                     ...details,
                     episodeCount: details.episodeCount ?? episodeCount ?? null,

@@ -1,8 +1,7 @@
 import * as cheerio from 'cheerio'
 import { GAMER_BASE_URL } from '#shared/utils/anime'
-import { DEFAULT_VIDEO_SOURCE } from '~~/server/lib/videoProviders'
+import { DEFAULT_VIDEO_SOURCE, fillFromDefaultProvider } from '~~/server/lib/videoProviders'
 import { cfFetch } from '~~/server/lib/anime/cfFetch'
-import { matchAnime } from '~~/server/lib/anime/match'
 import { isNumericString, parseViews } from '#shared/utils/format'
 import { moduleLogger } from '~~/server/utils/logger'
 
@@ -27,7 +26,7 @@ export const parsePremiereDate = (value) => {
     return null
 }
 
-export async function scrapeAnimeDetailByRefId(refId) {
+export async function scrapeAnimeDetailByRefId(refId, { autofill = true } = {}) {
     if (!isNumericString(refId)) throw new Error(`Invalid reference ID: "${refId}"`)
 
     try {
@@ -60,15 +59,14 @@ export async function scrapeAnimeDetailByRefId(refId) {
             })
             .get()
 
-        const [relatedAnime, mainMatchRow] = await Promise.all([
-            matchAnime(rawRelatedAnime),
-            matchAnime([{ refId, title, year: premiereDate }]).then((r) => r[0] ?? null),
-        ])
+        const filled = autofill ? await fillFromDefaultProvider(title, premiereDate) : null
 
         return {
             refId,
             detailId: get('.data .data-intro .link-button', 'href')?.match(/s=(\d+)/)?.[1] || null,
             title,
+            englishTitle: filled?.english_title || null,
+            anilistId: filled?.anilist_id ?? null,
             description: get('.data .data-intro p'),
             views: get('.anime-title .anime_name .newanime-count span'),
             image: get('.data .data-img', 'data-src'),
@@ -81,9 +79,9 @@ export async function scrapeAnimeDetailByRefId(refId) {
                 score: get('.score-overall-number'),
                 count: get('.score-overall-people')?.replace('人評價', '') || null,
             },
-            relatedAnime,
-            videoId: mainMatchRow?.matchedVideo?.id ?? null,
-            season: mainMatchRow?.matchedVideo?.season ?? null,
+            relatedAnime: rawRelatedAnime,
+            videoId: filled?.video_id ?? null,
+            season: filled?.season || null,
         }
     } catch (err) {
         scrapeLog.error({ err, refId }, 'Error scraping anime detail')
@@ -95,6 +93,8 @@ export function buildAnimeMetaPayload(scraped) {
     const { score, votes } = normalizeUserRating(scraped.userRating)
     return {
         title: scraped.title,
+        english_title: scraped.englishTitle || null,
+        anilist_id: scraped.anilistId ?? null,
         description: scraped.description,
         thumbnail: scraped.image,
         premiere_date: parsePremiereDate(scraped.premiereDate),

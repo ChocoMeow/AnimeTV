@@ -2,7 +2,8 @@ import * as cheerio from 'cheerio'
 import { EPISODE_LIST_CACHE_LIFETIME } from '#shared/utils/anime'
 import { cfFetch } from '~~/server/lib/anime/cfFetch'
 import { getRequestLogger } from '~~/server/utils/logger'
-import { episodeRecord, normalizeEpisodeId } from '../helpers'
+import { episodeRecord, normalizeEpisodeId } from '../../helpers'
+import { matchAnime } from '~~/server/lib/anime/match'
 
 const HOST = 'anime1.me'
 const SITE = `https://${HOST}`
@@ -104,13 +105,30 @@ async function resolvePlayback(token) {
     return { ...result, videoCookie: videoCookieFromSetCookie(response.headers.get('set-cookie')) }
 }
 
+/** Catalog match for admin autofill / auto-add when anime1 is the default source. */
+async function autofillFromTitle(title, opts = {}) {
+    const matched = (
+        await matchAnime([{
+            refId: 'autofill',
+            title,
+            year: opts.year || '',
+        }])
+    )[0] ?? null
+    return {
+        video_id: matched?.matchedVideo?.id ?? null,
+        anilist_id: null,
+        english_title: null,
+        season: matched?.matchedVideo?.season ?? null,
+    }
+}
+
 /** Auto-registered via modules/video-providers.ts → #video-providers. */
 export default {
     id: ANIME1.id,
-    default: true,
     referer: ANIME1.referer,
     hostMatchers: ANIME1.hostMatchers,
     videoIdHelp: '分類 cat ID（數字）',
+    autofillFromTitle,
     listEpisodes,
     resolvePlayback,
 }

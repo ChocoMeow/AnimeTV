@@ -7,7 +7,7 @@ Welcome to **AnimeTV**, a project designed for anime enthusiasts in Taiwan and H
 ## Features
 
 -   **Anime Metadata**: Fetches detailed information about various anime from [ani.gamer.com.tw](https://ani.gamer.com.tw).
--   **Video Streaming**: Streams from drop-in providers under `server/lib/videoProviders/sources/` — [anime1.me](https://anime1.me) (MP4) and AniKoto / [anikototv.to](https://anikototv.to) (HLS via `proxy-video`).
+-   **Video Streaming**: Streams from drop-in plugins under `server/lib/videoProviders/sources/<id>/` — [anime1.me](https://anime1.me) (MP4) and AniKoto / [anikototv.to](https://anikototv.to) (HLS via `proxy-video`).
 -   **User-Friendly Interface**: Built with Nuxt 4 for a seamless and responsive experience, including light / dark / system themes.
 -   **Browse & Search**: Weekday schedule, spotlight, genre themes, filters, pagination, and header search with suggestions.
 -   **Custom Video Player**: Theater mode, autoplay next episode, skip OP, playback speed, HLS quality picker, scrub thumbnails, fullscreen, and customizable keyboard shortcuts.
@@ -90,6 +90,9 @@ Make sure you have the following installed:
 
         # Optional: FlareSolverr for Cloudflare (https://github.com/FlareSolverr/FlareSolverr)
         # NUXT_CF_FETCH_FLARESOLVERR=http://127.0.0.1:8191/v1
+
+        # Optional: default video provider for admin autofill / auto-add (anikoto | anime1)
+        # NUXT_DEFAULT_VIDEO_SOURCE=anikoto
 
         # Optional: video proxy (low-RAM-friendly defaults)
         # NUXT_VIDEO_PROXY_CHUNK=524288          # initial progressive Range size (bytes), default 512 KiB
