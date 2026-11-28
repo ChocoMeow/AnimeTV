@@ -9,14 +9,15 @@ let syncTimer = null
 
 const rowKey = (e) => offlineHistoryKey(e.user_id, e.anime_ref_id, e.episode_number)
 const rowTime = (row) => Date.parse(row?.updated_at) || Number(row?.updated_at) || 0
+const epKey = (n) => (/^\d+$/.test(String(n)) ? String(Number(n)) : String(n))
 
-/** Newest row per episode (local wins ties). */
+/** Newest row per episode (local wins ties). `"01"` and `"1"` share a key. */
 export function mergeWatchHistory(remote = [], local = []) {
     const byEp = new Map()
     for (const row of [...remote, ...local]) {
-        const key = String(row.episode_number)
-        const prev = byEp.get(key)
-        if (!prev || rowTime(row) >= rowTime(prev)) byEp.set(key, row)
+        const key = epKey(row.episode_number)
+        const next = { ...row, episode_number: key }
+        if (!byEp.has(key) || rowTime(next) >= rowTime(byEp.get(key))) byEp.set(key, next)
     }
     return [...byEp.values()].sort((a, b) => rowTime(b) - rowTime(a))
 }

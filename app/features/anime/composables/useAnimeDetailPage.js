@@ -427,10 +427,12 @@ export function useAnimeDetailPage() {
         setOnline()
     }
 
+    const watchUserId = () => userSettings.value.id || user.value?.sub
+
     async function fetchLastWatched() {
-        if (!userSettings.value.id || !anime.value) return
+        const userId = watchUserId()
+        if (!userId || !anime.value) return
         try {
-            const userId = userSettings.value.id
             const local = await listOfflineWatchHistory(userId, anime.value.refId)
             let remote = []
             if (!isClientOffline()) {
@@ -451,6 +453,13 @@ export function useAnimeDetailPage() {
         } catch (err) {
             console.error('Failed to fetch last watched:', err)
         }
+    }
+
+    /** Run now if user id is ready; otherwise wait once. */
+    function loadWatchHistory() {
+        if (!anime.value) return
+        if (watchUserId()) fetchLastWatched()
+        else watch(watchUserId, (id) => { if (id) fetchLastWatched() }, { once: true })
     }
 
     // ─── Continue watching / episode nav ─────────────────────────────────────
@@ -713,7 +722,7 @@ export function useAnimeDetailPage() {
         isOfflineView.value = true
         pageTitle.value = `${snap.title} | ${appConfig.siteName}`
         await refreshOfflineEpisodeList()
-        await fetchLastWatched()
+        loadWatchHistory()
         applyEpisodeQueryFromRoute()
         return true
     }
@@ -727,6 +736,9 @@ export function useAnimeDetailPage() {
         episodeLoading.value = false
         episodeFetchId++
         isOfflineView.value = false
+        lastWatchedData.value = null
+        showContinuePrompt.value = false
+        allWatchProgress.value = {}
         revokeOfflinePlayback()
         revokeOfflineThumbnails()
         revokeOfflineCover()
@@ -756,7 +768,7 @@ export function useAnimeDetailPage() {
             anime.value = { ...res, episodes: {} }
             isFavorite.value = res.isFavorite
             pageTitle.value = `${res.title} | ${appConfig.siteName}`
-            fetchLastWatched().catch((err) => console.error('Last watched fetch failed:', err))
+            loadWatchHistory()
             refreshOfflineEpisodeList().catch((err) => console.error('Offline episode list refresh failed:', err))
             fetchEpisodes(refId)
                 .then(async ({ episodes }) => {
