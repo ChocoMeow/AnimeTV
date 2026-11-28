@@ -18,17 +18,6 @@ const SEARCH_MIN_PAGES = 5
 const currentPage = ref(1)
 const query = ref('')
 const chipScroll = ref(null)
-const previewEpisode = ref(null)
-const previewAnchor = shallowRef(null)
-const previewOpen = ref(false)
-const desktopPreviewEnabled = ref(false)
-
-const PREVIEW_HOVER_MS = 500
-
-let previewMediaQuery = null
-let closePreviewTimer = null
-let clearPreviewTimer = null
-let openPreviewTimer = null
 
 const isNumericEpisode = (ep) => /^\d+$/.test(String(ep))
 
@@ -89,70 +78,7 @@ function isCompleted(ep) {
     return getProgress(ep) >= 90
 }
 
-function hasPreviewSource(ep) {
-    const data = props.episodes[String(ep)]
-    // Only when seals already exist — never trigger a playback resolve just for hover.
-    return !!(data?.thumbnails?.vttSrc || data?.thumbnails?.sheetSrc)
-}
-
-function clearPreviewTimers() {
-    clearTimeout(closePreviewTimer)
-    clearTimeout(clearPreviewTimer)
-    clearTimeout(openPreviewTimer)
-    closePreviewTimer = clearPreviewTimer = openPreviewTimer = null
-}
-
-function closePreview(immediate = false) {
-    clearPreviewTimers()
-    previewOpen.value = false
-    if (immediate) {
-        previewEpisode.value = null
-        previewAnchor.value = null
-        return
-    }
-    clearPreviewTimer = setTimeout(() => {
-        previewEpisode.value = null
-        previewAnchor.value = null
-    }, 240)
-}
-
-function openPreview(ep, event) {
-    if (props.offline || (import.meta.client && !navigator.onLine)) return
-    if (!desktopPreviewEnabled.value || !hasPreviewSource(ep)) return
-    clearPreviewTimers()
-    previewEpisode.value = String(ep)
-    previewAnchor.value = event.currentTarget
-    if (previewOpen.value) return
-    openPreviewTimer = setTimeout(() => {
-        openPreviewTimer = null
-        previewOpen.value = true
-    }, PREVIEW_HOVER_MS)
-}
-
-function schedulePreviewClose() {
-    clearTimeout(openPreviewTimer)
-    openPreviewTimer = null
-    if (!previewOpen.value) return
-    clearTimeout(closePreviewTimer)
-    closePreviewTimer = setTimeout(() => closePreview(), 130)
-}
-
-function keepPreviewOpen() {
-    clearTimeout(closePreviewTimer)
-    closePreviewTimer = null
-}
-
-function showLegacyTooltip(ep) {
-    return !previewOpen.value || String(previewEpisode.value) !== String(ep)
-}
-
-function updatePreviewMode() {
-    desktopPreviewEnabled.value = !!previewMediaQuery?.matches
-    if (!desktopPreviewEnabled.value) closePreview(true)
-}
-
 function selectEpisode(ep) {
-    closePreview(true)
     emit('update:modelValue', String(ep))
     emit('select', String(ep))
 }
@@ -188,21 +114,6 @@ watch(
 watch([totalPages, () => props.compact], ([pages]) => {
     if (pages <= SEARCH_MIN_PAGES) query.value = ''
     chipScroll.value?.rebind()
-})
-
-watch([currentPage, query], () => closePreview(true))
-
-onMounted(() => {
-    previewMediaQuery = window.matchMedia(
-        '(min-width: 1024px) and (hover: hover) and (pointer: fine)',
-    )
-    previewMediaQuery.addEventListener('change', updatePreviewMode)
-    updatePreviewMode()
-})
-
-onBeforeUnmount(() => {
-    previewMediaQuery?.removeEventListener('change', updatePreviewMode)
-    closePreview(true)
 })
 </script>
 
@@ -269,13 +180,11 @@ onBeforeUnmount(() => {
                     class="episode-button relative group"
                     :class="episodeBtnClass(ep)"
                     :disabled="!episodes[String(ep)]"
-                    :title="showLegacyTooltip(ep) ? getEpisodeTitle(ep) : undefined"
+                    :title="getEpisodeTitle(ep)"
                     :aria-label="getEpisodeTitle(ep)"
                     :aria-current="String(ep) === String(modelValue) ? 'true' : undefined"
                     role="listitem"
                     @click="selectEpisode(ep)"
-                    @pointerenter="openPreview(ep, $event)"
-                    @pointerleave="schedulePreviewClose"
                 >
                     <div class="relative z-0 flex flex-col items-center justify-center h-full overflow-hidden rounded-lg px-1">
                         <!-- Active: equalizer wave (3 bars), same idea as SearchMicButton -->
@@ -301,7 +210,7 @@ onBeforeUnmount(() => {
                     />
 
                     <div
-                        v-if="watchProgress[String(ep)] && showLegacyTooltip(ep)"
+                        v-if="watchProgress[String(ep)]"
                         class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-black text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 shadow-xl"
                     >
                         <div class="flex flex-col gap-1">
@@ -319,18 +228,6 @@ onBeforeUnmount(() => {
                 </button>
             </div>
         </div>
-
-        <EpisodeHoverPreview
-            v-if="!offline"
-            :open="previewOpen"
-            :episode="previewEpisode"
-            :episode-data="previewEpisode == null ? null : episodes[String(previewEpisode)]"
-            :watch-data="previewEpisode == null ? null : watchProgress[String(previewEpisode)]"
-            :anchor-element="previewAnchor"
-            @pointerenter="keepPreviewOpen"
-            @pointerleave="schedulePreviewClose"
-            @unavailable="closePreview"
-        />
     </div>
 </template>
 
