@@ -1,6 +1,12 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { createError } from 'h3'
-import { acgDetailUrl, anilistAnimeUrl, CUSTOM_SOURCE_ID_MIN } from '#shared/utils/anime'
+import {
+    acgDetailUrl,
+    anilistAnimeUrl,
+    CUSTOM_SOURCE_ID_MIN,
+    parsePremiereDate,
+    seasonFromPremiereDate,
+} from '#shared/utils/anime'
 import { DEFAULT_VIDEO_SOURCE, fillFromDefaultProvider, VIDEO_ID_FORMATS, VIDEO_SOURCES } from '~~/server/lib/videoProviders'
 import { stripSelfRelated, syncRelatedLinks } from '~~/server/lib/anime/animeMetaRelated'
 import { scrapeAcgDetail } from '~~/server/lib/anime/scrapeAcgDetail'
@@ -535,20 +541,21 @@ export async function autofillAnimeMeta(event, detailId) {
     }
 
     const { wikiContentHtml: _wiki, ...data } = scraped
-    const yearHint = data.premiere_date?.slice(0, 4) || data.premiere_date
-
+    const premiere_date = parsePremiereDate(data.premiere_date) || data.premiere_date
     const client = await serverSupabaseClient(event)
     const [sourceId, filled] = await Promise.all([
         nextSourceId(client),
-        fillFromDefaultProvider(data.title, yearHint),
+        fillFromDefaultProvider(data.title, premiere_date?.slice(0, 4) || premiere_date),
     ])
 
-    if (sourceId) data.source_id = sourceId
-    data.anilist_id = filled?.anilist_id ?? null
-    data.english_title = filled?.english_title ?? null
-    data.video_id = filled?.video_id ?? null
-    data.video_source = data.video_id ? DEFAULT_VIDEO_SOURCE : null
-    if (filled?.season) data.season = filled.season
-
+    Object.assign(data, {
+        source_id: sourceId || data.source_id,
+        anilist_id: filled?.anilist_id ?? null,
+        english_title: filled?.english_title ?? null,
+        video_id: filled?.video_id ?? null,
+        video_source: filled?.video_id ? DEFAULT_VIDEO_SOURCE : null,
+        premiere_date,
+        season: filled?.season || seasonFromPremiereDate(premiere_date) || null,
+    })
     return data
 }

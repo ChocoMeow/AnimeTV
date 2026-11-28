@@ -15,6 +15,24 @@ export const anilistAnimeUrl = (id) => `${ANILIST_SITE_URL}anime/${id}`
 /** Manual / autofill source_ids start here; Bahamut anime SNs stay below this. */
 export const CUSTOM_SOURCE_ID_MIN = 1_000_000
 
+/** `2024-4-7` / `2024/4/7` / `2024年4月7日` → `YYYY-MM-DD`. */
+export function parsePremiereDate(value) {
+    if (!value) return null
+    const m = String(value).trim().match(/^(\d{4})\D+(\d{1,2})(?:\D+(\d{1,2}))?/)
+    return m ? `${m[1]}-${m[2].padStart(2, '0')}-${(m[3] || '1').padStart(2, '0')}` : null
+}
+
+/** Premiere → 春/夏/秋/冬 (anime1-style). */
+export function seasonFromPremiereDate(value) {
+    const iso = parsePremiereDate(value)
+    if (!iso) return null
+    const month = Number(iso.slice(5, 7))
+    if (month <= 3) return '冬'
+    if (month <= 6) return '春'
+    if (month <= 9) return '夏'
+    return '秋'
+}
+
 export const CACHE_LIFETIME = 1000 * 60 * 60 * 12 // 12 hours
 export const EPISODE_LIST_CACHE_LIFETIME = 0
 

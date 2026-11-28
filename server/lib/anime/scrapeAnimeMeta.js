@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio'
-import { GAMER_BASE_URL } from '#shared/utils/anime'
+import { GAMER_BASE_URL, parsePremiereDate, seasonFromPremiereDate } from '#shared/utils/anime'
 import { DEFAULT_VIDEO_SOURCE, fillFromDefaultProvider } from '~~/server/lib/videoProviders'
 import { cfFetch } from '~~/server/lib/anime/cfFetch'
 import { isNumericString, parseViews } from '#shared/utils/format'
@@ -14,16 +14,6 @@ export const normalizeUserRating = (userRating) => {
         score: (Math.round(raw * 10) / 10).toFixed(1),
         votes: Number(String(userRating.count ?? userRating.votes ?? 0).replace(/[^\d]/g, '')) || 0,
     }
-}
-
-export const parsePremiereDate = (value) => {
-    if (!value) return null
-    const str = String(value)
-    const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-    if (iso) return iso[0]
-    const slash = str.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
-    if (slash) return `${slash[1]}-${slash[2].padStart(2, '0')}-${slash[3].padStart(2, '0')}`
-    return null
 }
 
 export async function scrapeAnimeDetailByRefId(refId, { autofill = true } = {}) {
@@ -91,13 +81,14 @@ export async function scrapeAnimeDetailByRefId(refId, { autofill = true } = {}) 
 
 export function buildAnimeMetaPayload(scraped) {
     const { score, votes } = normalizeUserRating(scraped.userRating)
+    const premiere_date = parsePremiereDate(scraped.premiereDate)
     return {
         title: scraped.title,
         english_title: scraped.englishTitle || null,
         anilist_id: scraped.anilistId ?? null,
         description: scraped.description,
         thumbnail: scraped.image,
-        premiere_date: parsePremiereDate(scraped.premiereDate),
+        premiere_date,
         director: scraped.director,
         distributor: scraped.distributor,
         production_company: scraped.productionCompany,
@@ -110,6 +101,6 @@ export function buildAnimeMetaPayload(scraped) {
         source_details_id: scraped.detailId,
         video_id: scraped.videoId || null,
         video_source: scraped.videoId ? DEFAULT_VIDEO_SOURCE : null,
-        season: scraped.season || null,
+        season: scraped.season || seasonFromPremiereDate(premiere_date) || null,
     }
 }

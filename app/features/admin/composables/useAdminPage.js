@@ -1,3 +1,5 @@
+import { seasonFromPremiereDate } from '#shared/utils/anime'
+
 /**
  * Anime-meta admin page state, search/list/editor actions, and field-visibility prefs.
  * Used by AdminPage; keep useAdmin.js limited to role/session checks.
@@ -129,22 +131,8 @@ export function useAdminPage() {
         baselineSnapshot.value = editableRecord.value ? JSON.stringify(editableRecord.value) : ''
     }
 
-    /** Broadcast season (春/夏/秋/冬) from premiere_date — matches anime1 values. */
-    function seasonFromPremiereDate(dateStr) {
-        if (!dateStr) return ''
-        const match = String(dateStr).match(/^\d{4}-(\d{1,2})/)
-        if (!match) return ''
-        const month = Number(match[1])
-        if (month >= 1 && month <= 3) return '冬'
-        if (month >= 4 && month <= 6) return '春'
-        if (month >= 7 && month <= 9) return '夏'
-        if (month >= 10 && month <= 12) return '秋'
-        return ''
-    }
-
     function syncSeasonFromPremiereDate() {
-        if (!editableRecord.value) return
-        const season = seasonFromPremiereDate(editableRecord.value.premiere_date)
+        const season = seasonFromPremiereDate(editableRecord.value?.premiere_date)
         if (season) editableRecord.value.season = season
     }
 
